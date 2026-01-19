@@ -24,11 +24,15 @@ export type PageType = "welcome" | "question" | "multiChoice" | "contact" | "cal
 // Page element schema
 export const pageElementSchema = z.object({
   id: z.string(),
-  type: z.enum(["heading", "text", "image", "button", "input", "textarea", "select", "checkbox", "radio"]),
+  type: z.enum(["heading", "text", "image", "button", "input", "textarea", "select", "checkbox", "radio", "fileUpload"]),
   content: z.string().optional(),
   placeholder: z.string().optional(),
   required: z.boolean().optional(),
   options: z.array(z.string()).optional(),
+  label: z.string().optional(),
+  acceptedFileTypes: z.array(z.string()).optional(),
+  maxFileSize: z.number().optional(),
+  maxFiles: z.number().optional(),
   styles: z.object({
     fontSize: z.string().optional(),
     fontWeight: z.string().optional(),

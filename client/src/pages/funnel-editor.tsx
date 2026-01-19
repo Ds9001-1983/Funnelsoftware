@@ -29,7 +29,16 @@ import {
   Smartphone,
   Globe,
   Layers,
+  Upload,
+  FileUp,
+  Info,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -147,6 +156,19 @@ function PhonePreview({
                       rows={3}
                       readOnly
                     />
+                  )}
+                  {el.type === "fileUpload" && (
+                    <div className="w-full px-4 py-4 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 text-center">
+                      <FileUp className="h-6 w-6 mx-auto mb-2 text-gray-400" />
+                      <p className="text-sm text-gray-500">
+                        {el.label || "Datei hochladen"}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {el.acceptedFileTypes?.length 
+                          ? el.acceptedFileTypes.join(", ")
+                          : "PDF, Bilder, Dokumente"}
+                      </p>
+                    </div>
                   )}
                 </div>
               ))}
@@ -335,8 +357,12 @@ function PageEditor({
     const newElement: PageElement = {
       id: `el-${Date.now()}`,
       type,
-      placeholder: type === "input" ? "Dein Text hier..." : undefined,
+      placeholder: type === "input" ? "Dein Text hier..." : type === "textarea" ? "Deine Nachricht..." : undefined,
       options: type === "radio" ? ["Option 1", "Option 2", "Option 3"] : undefined,
+      label: type === "fileUpload" ? "Datei hochladen" : undefined,
+      acceptedFileTypes: type === "fileUpload" ? [".pdf", ".jpg", ".jpeg", ".png"] : undefined,
+      maxFileSize: type === "fileUpload" ? 10 : undefined,
+      maxFiles: type === "fileUpload" ? 1 : undefined,
     };
     onUpdate({ elements: [...page.elements, newElement] });
   };
@@ -407,24 +433,52 @@ function PageEditor({
 
       {(page.type === "contact" || page.type === "question" || page.type === "multiChoice") && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <Label>Elemente</Label>
-            <div className="flex gap-1">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => addElement("input")}
-              >
-                + Textfeld
-              </Button>
+            <div className="flex gap-1 flex-wrap">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => addElement("input")}
+                    data-testid="button-add-input"
+                  >
+                    + Textfeld
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Einfaches Eingabefeld hinzufügen</TooltipContent>
+              </Tooltip>
               {page.type === "contact" && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => addElement("textarea")}
-                >
-                  + Textbereich
-                </Button>
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => addElement("textarea")}
+                        data-testid="button-add-textarea"
+                      >
+                        + Textbereich
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Mehrzeiliges Textfeld hinzufügen</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => addElement("fileUpload")}
+                        data-testid="button-add-file-upload"
+                      >
+                        <Upload className="h-3 w-3 mr-1" />
+                        Datei-Upload
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Datei-Upload für Kunden hinzufügen (PDF, Bilder, etc.)</TooltipContent>
+                  </Tooltip>
+                </>
               )}
               {(page.type === "multiChoice" || page.type === "question") && (
                 <Button
@@ -442,18 +496,33 @@ function PageEditor({
             {page.elements.map((el) => (
               <Card key={el.id}>
                 <CardContent className="p-3 space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <Badge variant="secondary">
-                      {el.type === "input" ? "Textfeld" : el.type === "textarea" ? "Textbereich" : "Auswahl"}
+                      {el.type === "input" ? "Textfeld" : 
+                       el.type === "textarea" ? "Textbereich" : 
+                       el.type === "fileUpload" ? "Datei-Upload" : "Auswahl"}
                     </Badge>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7 text-destructive"
-                      onClick={() => removeElement(el.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {(el.type === "input" || el.type === "textarea" || el.type === "fileUpload") && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mr-2">
+                          <span>Pflicht</span>
+                          <Switch
+                            checked={el.required || false}
+                            onCheckedChange={(checked) =>
+                              updateElement(el.id, { required: checked })
+                            }
+                          />
+                        </div>
+                      )}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-destructive"
+                        onClick={() => removeElement(el.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   {(el.type === "input" || el.type === "textarea") && (
                     <Input
@@ -463,6 +532,61 @@ function PageEditor({
                         updateElement(el.id, { placeholder: e.target.value })
                       }
                     />
+                  )}
+                  {el.type === "fileUpload" && (
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Beschriftung</Label>
+                        <Input
+                          placeholder="z.B. Lebenslauf hochladen"
+                          value={el.label || ""}
+                          onChange={(e) =>
+                            updateElement(el.id, { label: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Erlaubte Dateitypen</Label>
+                        <Select
+                          value={el.acceptedFileTypes?.join(",") || "all"}
+                          onValueChange={(v) =>
+                            updateElement(el.id, { 
+                              acceptedFileTypes: v === "all" ? undefined : v.split(",") 
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Alle Dateien</SelectItem>
+                            <SelectItem value=".pdf">Nur PDF</SelectItem>
+                            <SelectItem value=".jpg,.jpeg,.png,.gif">Nur Bilder</SelectItem>
+                            <SelectItem value=".pdf,.doc,.docx">Dokumente (PDF, Word)</SelectItem>
+                            <SelectItem value=".pdf,.jpg,.jpeg,.png">PDF & Bilder</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Max. Dateigröße (MB)</Label>
+                        <Select
+                          value={String(el.maxFileSize || 10)}
+                          onValueChange={(v) =>
+                            updateElement(el.id, { maxFileSize: parseInt(v) })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="5">5 MB</SelectItem>
+                            <SelectItem value="10">10 MB</SelectItem>
+                            <SelectItem value="25">25 MB</SelectItem>
+                            <SelectItem value="50">50 MB</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                   )}
                   {el.type === "radio" && el.options && (
                     <div className="space-y-2">
