@@ -438,14 +438,33 @@ export default function Leads() {
             />
           ))
         ) : (
-          <div className="p-12 text-center">
-            <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-            <h3 className="text-lg font-medium mb-2">Keine Leads gefunden</h3>
-            <p className="text-muted-foreground">
+          <div className="p-12 text-center max-w-md mx-auto">
+            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Users className="h-8 w-8 text-primary" />
+            </div>
+            <h3 className="text-lg font-medium mb-2">
               {searchQuery || statusFilter !== "all" || funnelFilter !== "all"
-                ? "Versuche andere Suchkriterien"
-                : "Leads werden hier angezeigt, sobald sie über deine Funnels eintreffen"}
+                ? "Keine Leads gefunden"
+                : "Noch keine Leads vorhanden"}
+            </h3>
+            <p className="text-muted-foreground mb-4">
+              {searchQuery || statusFilter !== "all" || funnelFilter !== "all"
+                ? "Versuche andere Suchkriterien oder setze die Filter zurück"
+                : "Leads werden automatisch hier angezeigt, sobald Besucher deine Funnels ausfüllen. Teile deine Funnel-Links, um Leads zu sammeln."}
             </p>
+            {(searchQuery || statusFilter !== "all" || funnelFilter !== "all") && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchQuery("");
+                  setStatusFilter("all");
+                  setFunnelFilter("all");
+                }}
+                data-testid="button-reset-filters"
+              >
+                Filter zurücksetzen
+              </Button>
+            )}
           </div>
         )}
       </Card>

@@ -385,21 +385,41 @@ export default function Funnels() {
         )
       ) : (
         <Card className="p-12">
-          <div className="text-center">
-            <Layers className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-            <h3 className="text-lg font-medium mb-2">Keine Funnels gefunden</h3>
-            <p className="text-muted-foreground mb-4">
+          <div className="text-center max-w-md mx-auto">
+            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Layers className="h-8 w-8 text-primary" />
+            </div>
+            <h3 className="text-lg font-medium mb-2">
               {searchQuery || statusFilter !== "all"
-                ? "Versuche andere Suchkriterien"
-                : "Erstelle deinen ersten Funnel und beginne Leads zu sammeln"}
+                ? "Keine Funnels gefunden"
+                : "Erstelle deinen ersten Funnel"}
+            </h3>
+            <p className="text-muted-foreground mb-6">
+              {searchQuery || statusFilter !== "all"
+                ? "Versuche andere Suchkriterien oder setze die Filter zurück"
+                : "Mit Funnels sammelst du Leads und konvertierst Besucher zu Kunden. Starte mit einem Template oder erstelle deinen eigenen Funnel."}
             </p>
             {!searchQuery && statusFilter === "all" && (
-              <Link href="/funnels/new">
-                <Button className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Ersten Funnel erstellen
-                </Button>
-              </Link>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link href="/funnels/new">
+                  <Button className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Ersten Funnel erstellen
+                  </Button>
+                </Link>
+              </div>
+            )}
+            {(searchQuery || statusFilter !== "all") && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchQuery("");
+                  setStatusFilter("all");
+                }}
+                data-testid="button-reset-filters"
+              >
+                Filter zurücksetzen
+              </Button>
             )}
           </div>
         </Card>
