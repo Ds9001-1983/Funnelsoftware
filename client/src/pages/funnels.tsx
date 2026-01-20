@@ -48,8 +48,9 @@ function FunnelGridCard({ funnel, onDelete }: { funnel: Funnel; onDelete: () => 
     ? ((funnel.leads / funnel.views) * 100).toFixed(1) 
     : "0.0";
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("de-DE", {
+  const formatDate = (dateStr: string | Date) => {
+    const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
+    return date.toLocaleDateString("de-DE", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -137,8 +138,9 @@ function FunnelListRow({ funnel, onDelete }: { funnel: Funnel; onDelete: () => v
     ? ((funnel.leads / funnel.views) * 100).toFixed(1) 
     : "0.0";
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("de-DE", {
+  const formatDate = (dateStr: string | Date) => {
+    const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
+    return date.toLocaleDateString("de-DE", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -237,7 +239,7 @@ export default function Funnels() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/funnels/${id}`);
     },
     onSuccess: () => {

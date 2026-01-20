@@ -72,8 +72,9 @@ function LeadDetailDialog({
 }) {
   if (!lead) return null;
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("de-DE", {
+  const formatDate = (dateStr: string | Date) => {
+    const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
+    return date.toLocaleDateString("de-DE", {
       day: "2-digit",
       month: "long",
       year: "numeric",
@@ -174,8 +175,8 @@ function LeadRow({
   onDelete: () => void;
   onStatusChange: (status: Lead["status"]) => void;
 }) {
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+  const formatDate = (dateStr: string | Date) => {
+    const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -297,7 +298,7 @@ export default function Leads() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: Lead["status"] }) => {
+    mutationFn: async ({ id, status }: { id: number; status: Lead["status"] }) => {
       await apiRequest("PATCH", `/api/leads/${id}`, { status });
     },
     onSuccess: () => {
@@ -310,7 +311,7 @@ export default function Leads() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/leads/${id}`);
     },
     onSuccess: () => {
@@ -324,7 +325,7 @@ export default function Leads() {
 
   const filteredLeads = leads?.filter((lead) => {
     const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
-    const matchesFunnel = funnelFilter === "all" || lead.funnelId === funnelFilter;
+    const matchesFunnel = funnelFilter === "all" || String(lead.funnelId) === funnelFilter;
     const matchesSearch =
       lead.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       lead.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -395,7 +396,7 @@ export default function Leads() {
           <SelectContent>
             <SelectItem value="all">Alle Funnels</SelectItem>
             {funnels?.map((funnel) => (
-              <SelectItem key={funnel.id} value={funnel.id}>
+              <SelectItem key={funnel.id} value={String(funnel.id)}>
                 {funnel.name}
               </SelectItem>
             ))}

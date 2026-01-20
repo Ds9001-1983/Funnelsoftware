@@ -140,8 +140,8 @@ function LeadRow({ lead }: { lead: Lead }) {
     lost: "Verloren",
   };
 
-  const timeAgo = (dateStr: string) => {
-    const date = new Date(dateStr);
+  const timeAgo = (dateStr: string | Date) => {
+    const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);

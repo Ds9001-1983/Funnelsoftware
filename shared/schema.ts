@@ -1,19 +1,95 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
+import { pgTable, text, varchar, integer, boolean, timestamp, jsonb, serial } from "drizzle-orm/pg-core";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// User schema
+// ============ DATABASE TABLES ============
+
+// Users table
 export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
+  email: text("email").notNull().unique(),
   password: text("password").notNull(),
+  displayName: text("display_name"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Funnels table
+export const funnels = pgTable("funnels", {
+  id: serial("id").primaryKey(),
+  uuid: text("uuid").notNull().unique().default(sql`gen_random_uuid()`),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("draft"), // draft, published, archived
+  pages: jsonb("pages").notNull().default([]),
+  theme: jsonb("theme").notNull().default({}),
+  views: integer("views").notNull().default(0),
+  leads: integer("leads_count").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Leads table
+export const leads = pgTable("leads", {
+  id: serial("id").primaryKey(),
+  uuid: text("uuid").notNull().unique().default(sql`gen_random_uuid()`),
+  funnelId: integer("funnel_id").notNull().references(() => funnels.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name"),
+  email: text("email"),
+  phone: text("phone"),
+  company: text("company"),
+  message: text("message"),
+  answers: jsonb("answers").default({}),
+  status: text("status").notNull().default("new"), // new, contacted, qualified, converted, lost
+  source: text("source"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Templates table (global, not user-specific)
+export const templates = pgTable("templates", {
+  id: serial("id").primaryKey(),
+  uuid: text("uuid").notNull().unique().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  category: text("category").notNull(), // leads, sales, recruiting, webinar, quiz
+  thumbnail: text("thumbnail"),
+  pages: jsonb("pages").notNull().default([]),
+  theme: jsonb("theme").notNull().default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Analytics events table
+export const analyticsEvents = pgTable("analytics_events", {
+  id: serial("id").primaryKey(),
+  funnelId: integer("funnel_id").notNull().references(() => funnels.id, { onDelete: "cascade" }),
+  eventType: text("event_type").notNull(), // view, pageView, click, submit, complete
+  pageId: text("page_id"),
+  metadata: jsonb("metadata").default({}),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+});
+
+// Sessions table for express-session with connect-pg-simple
+export const sessions = pgTable("session", {
+  sid: varchar("sid").primaryKey(),
+  sess: jsonb("sess").notNull(),
+  expire: timestamp("expire", { precision: 6 }).notNull(),
+});
+
+// ============ ZOD SCHEMAS & TYPES ============
+
+// User schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
+  email: true,
   password: true,
+  displayName: true,
 });
+
+export const selectUserSchema = createSelectSchema(users);
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -141,77 +217,135 @@ export const funnelPageSchema = z.object({
 
 export type FunnelPage = z.infer<typeof funnelPageSchema>;
 
-// Funnel schema for in-memory storage
+// Theme schema
+export const themeSchema = z.object({
+  primaryColor: z.string(),
+  backgroundColor: z.string(),
+  textColor: z.string(),
+  fontFamily: z.string(),
+});
+
+export type Theme = z.infer<typeof themeSchema>;
+
+// Funnel schema (for API responses)
 export const funnelSchema = z.object({
-  id: z.string(),
+  id: z.number(),
+  uuid: z.string(),
+  userId: z.number(),
   name: z.string(),
-  description: z.string().optional(),
+  description: z.string().optional().nullable(),
   status: z.enum(["draft", "published", "archived"]),
   pages: z.array(funnelPageSchema),
-  theme: z.object({
-    primaryColor: z.string(),
-    backgroundColor: z.string(),
-    textColor: z.string(),
-    fontFamily: z.string(),
-  }),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  theme: themeSchema,
   views: z.number(),
   leads: z.number(),
+  createdAt: z.string().or(z.date()),
+  updatedAt: z.string().or(z.date()),
 });
 
 export type Funnel = z.infer<typeof funnelSchema>;
 
-export const insertFunnelSchema = funnelSchema.omit({ id: true, createdAt: true, updatedAt: true, views: true, leads: true });
+// Insert funnel schema
+export const insertFunnelSchema = z.object({
+  name: z.string().min(1, "Name ist erforderlich"),
+  description: z.string().optional(),
+  status: z.enum(["draft", "published", "archived"]).default("draft"),
+  pages: z.array(funnelPageSchema).default([]),
+  theme: themeSchema.default({
+    primaryColor: "#7C3AED",
+    backgroundColor: "#ffffff",
+    textColor: "#1a1a1a",
+    fontFamily: "Inter",
+  }),
+});
+
 export type InsertFunnel = z.infer<typeof insertFunnelSchema>;
 
-// Lead schema for in-memory storage
+// Lead schema (for API responses)
 export const leadSchema = z.object({
-  id: z.string(),
-  funnelId: z.string(),
-  funnelName: z.string(),
-  name: z.string().optional(),
-  email: z.string().optional(),
-  phone: z.string().optional(),
-  company: z.string().optional(),
-  message: z.string().optional(),
-  answers: z.record(z.string(), z.any()).optional(),
+  id: z.number(),
+  uuid: z.string(),
+  funnelId: z.number(),
+  userId: z.number(),
+  funnelName: z.string().optional(), // Joined from funnel
+  name: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  company: z.string().optional().nullable(),
+  message: z.string().optional().nullable(),
+  answers: z.record(z.string(), z.any()).optional().nullable(),
   status: z.enum(["new", "contacted", "qualified", "converted", "lost"]),
-  source: z.string().optional(),
-  createdAt: z.string(),
+  source: z.string().optional().nullable(),
+  createdAt: z.string().or(z.date()),
 });
 
 export type Lead = z.infer<typeof leadSchema>;
 
-export const insertLeadSchema = leadSchema.omit({ id: true, createdAt: true });
+// Insert lead schema
+export const insertLeadSchema = z.object({
+  funnelId: z.number(),
+  name: z.string().optional(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  company: z.string().optional(),
+  message: z.string().optional(),
+  answers: z.record(z.string(), z.any()).optional(),
+  status: z.enum(["new", "contacted", "qualified", "converted", "lost"]).default("new"),
+  source: z.string().optional(),
+});
+
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 
 // Analytics schema
 export const analyticsEventSchema = z.object({
-  id: z.string(),
-  funnelId: z.string(),
+  id: z.number(),
+  funnelId: z.number(),
   eventType: z.enum(["view", "pageView", "click", "submit", "complete"]),
-  pageId: z.string().optional(),
-  timestamp: z.string(),
-  metadata: z.record(z.string(), z.any()).optional(),
+  pageId: z.string().optional().nullable(),
+  metadata: z.record(z.string(), z.any()).optional().nullable(),
+  timestamp: z.string().or(z.date()),
 });
 
 export type AnalyticsEvent = z.infer<typeof analyticsEventSchema>;
 
-// Template schema for funnel templates
+// Insert analytics schema
+export const insertAnalyticsSchema = z.object({
+  funnelId: z.number(),
+  eventType: z.enum(["view", "pageView", "click", "submit", "complete"]),
+  pageId: z.string().optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+});
+
+export type InsertAnalytics = z.infer<typeof insertAnalyticsSchema>;
+
+// Template schema (for API responses)
 export const templateSchema = z.object({
-  id: z.string(),
+  id: z.number(),
+  uuid: z.string(),
   name: z.string(),
   description: z.string(),
   category: z.enum(["leads", "sales", "recruiting", "webinar", "quiz"]),
-  thumbnail: z.string(),
+  thumbnail: z.string().optional().nullable(),
   pages: z.array(funnelPageSchema),
-  theme: z.object({
-    primaryColor: z.string(),
-    backgroundColor: z.string(),
-    textColor: z.string(),
-    fontFamily: z.string(),
-  }),
+  theme: themeSchema,
+  createdAt: z.string().or(z.date()),
 });
 
 export type Template = z.infer<typeof templateSchema>;
+
+// Auth schemas
+export const loginSchema = z.object({
+  username: z.string().min(1, "Benutzername ist erforderlich"),
+  password: z.string().min(1, "Passwort ist erforderlich"),
+});
+
+export type LoginInput = z.infer<typeof loginSchema>;
+
+export const registerSchema = z.object({
+  username: z.string().min(3, "Benutzername muss mindestens 3 Zeichen haben"),
+  email: z.string().email("Ungültige E-Mail-Adresse"),
+  password: z.string().min(6, "Passwort muss mindestens 6 Zeichen haben"),
+  displayName: z.string().optional(),
+});
+
+export type RegisterInput = z.infer<typeof registerSchema>;

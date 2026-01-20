@@ -2,6 +2,8 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { setupAuth } from "./auth";
+import { storage } from "./storage";
 
 const app = express();
 const httpServer = createServer(app);
@@ -33,6 +35,9 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
+// Setup authentication (session + passport)
+setupAuth(app);
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -60,6 +65,15 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize database (seed templates)
+  try {
+    await storage.seedTemplates();
+    log("Database initialized", "database");
+  } catch (error) {
+    console.error("Failed to initialize database:", error);
+    // Continue anyway - database might not be configured yet
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
