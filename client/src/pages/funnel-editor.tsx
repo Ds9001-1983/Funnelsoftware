@@ -386,6 +386,49 @@ function SortablePageItem({
   );
 }
 
+function SortableElementItem({
+  element,
+  children,
+}: {
+  element: PageElement;
+  children: React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: element.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`relative ${isDragging ? "z-50 shadow-lg" : ""}`}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute left-0 top-0 bottom-0 w-8 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none bg-muted/50 rounded-l-md hover:bg-muted transition-colors"
+        data-testid={`element-drag-handle-${element.id}`}
+      >
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <div className="ml-8">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function AddPageDialog({
   open,
   onOpenChange,
@@ -491,6 +534,28 @@ function PageEditor({
 
   const removeElement = (id: string) => {
     onUpdate({ elements: page.elements.filter((el) => el.id !== id) });
+  };
+
+  const reorderElements = (activeId: string, overId: string) => {
+    const oldIndex = page.elements.findIndex((el) => el.id === activeId);
+    const newIndex = page.elements.findIndex((el) => el.id === overId);
+    if (oldIndex !== -1 && newIndex !== -1) {
+      onUpdate({ elements: arrayMove(page.elements, oldIndex, newIndex) });
+    }
+  };
+
+  const elementSensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleElementDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      reorderElements(active.id as string, over.id as string);
+    }
   };
 
   return (
@@ -807,43 +872,53 @@ function PageEditor({
             </div>
           </div>
 
-          <div className="space-y-3">
-            {page.elements.map((el) => (
-              <Card key={el.id}>
-                <CardContent className="p-3 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <Badge variant="secondary">
-                      {el.type === "input" ? "Textfeld" : 
-                       el.type === "textarea" ? "Textbereich" : 
-                       el.type === "fileUpload" ? "Datei-Upload" :
-                       el.type === "video" ? "Video" :
-                       el.type === "date" ? "Datum" :
-                       el.type === "select" ? "Dropdown" :
-                       el.type === "testimonial" ? "Bewertung" :
-                       el.type === "slider" ? "Slider" : "Auswahl"}
-                    </Badge>
-                    <div className="flex items-center gap-1">
-                      {(el.type === "input" || el.type === "textarea" || el.type === "fileUpload" || el.type === "date" || el.type === "select") && (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mr-2">
-                          <span>Pflicht</span>
-                          <Switch
-                            checked={el.required || false}
-                            onCheckedChange={(checked) =>
-                              updateElement(el.id, { required: checked })
-                            }
-                          />
+          <DndContext
+            sensors={elementSensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleElementDragEnd}
+          >
+            <SortableContext
+              items={page.elements.map((el) => el.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-3">
+                {page.elements.map((el) => (
+                  <SortableElementItem key={el.id} element={el}>
+                    <Card>
+                      <CardContent className="p-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <Badge variant="secondary">
+                            {el.type === "input" ? "Textfeld" : 
+                             el.type === "textarea" ? "Textbereich" : 
+                             el.type === "fileUpload" ? "Datei-Upload" :
+                             el.type === "video" ? "Video" :
+                             el.type === "date" ? "Datum" :
+                             el.type === "select" ? "Dropdown" :
+                             el.type === "testimonial" ? "Bewertung" :
+                             el.type === "slider" ? "Slider" : "Auswahl"}
+                          </Badge>
+                          <div className="flex items-center gap-1">
+                            {(el.type === "input" || el.type === "textarea" || el.type === "fileUpload" || el.type === "date" || el.type === "select") && (
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mr-2">
+                                <span>Pflicht</span>
+                                <Switch
+                                  checked={el.required || false}
+                                  onCheckedChange={(checked) =>
+                                    updateElement(el.id, { required: checked })
+                                  }
+                                />
+                              </div>
+                            )}
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-destructive"
+                              onClick={() => removeElement(el.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
-                      )}
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-destructive"
-                        onClick={() => removeElement(el.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
                   {(el.type === "input" || el.type === "textarea") && (
                     <Input
                       placeholder="Placeholder-Text"
@@ -1002,10 +1077,13 @@ function PageEditor({
                       </div>
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                      </CardContent>
+                    </Card>
+                  </SortableElementItem>
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
       )}
     </div>
