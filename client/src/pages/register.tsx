@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Zap, AlertCircle, Check } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Zap, AlertCircle, Check, Sparkles } from "lucide-react";
 
 export default function Register() {
   const { register, isAuthenticated } = useAuth();
@@ -75,9 +76,9 @@ export default function Register() {
   };
 
   const features = [
-    "Unbegrenzte Funnels erstellen",
+    "14 Tage Pro-Features kostenlos",
+    "Unbegrenzte Funnels",
     "Drag & Drop Builder",
-    "Lead-Management",
     "Analytics & Insights",
   ];
 
@@ -91,9 +92,13 @@ export default function Register() {
               <Zap className="h-8 w-8" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">FunnelFlow</h1>
-          <p className="text-muted-foreground">
-            Erstelle deinen kostenlosen Account
+          <h1 className="text-3xl font-bold tracking-tight">Trichterwerk</h1>
+          <Badge variant="secondary" className="mt-2">
+            <Sparkles className="h-3 w-3 mr-1" />
+            14 Tage kostenlos testen
+          </Badge>
+          <p className="text-muted-foreground mt-2">
+            Starte jetzt deine kostenlose Testversion
           </p>
         </div>
 
@@ -113,9 +118,9 @@ export default function Register() {
         {/* Register Card */}
         <Card className="shadow-lg">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">Registrieren</CardTitle>
+            <CardTitle className="text-2xl text-center">Kostenlos starten</CardTitle>
             <CardDescription className="text-center">
-              Erstelle deinen Account in wenigen Sekunden
+              Erstelle deinen Account und teste 14 Tage kostenlos
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -202,16 +207,19 @@ export default function Register() {
                 />
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full" disabled={isLoading} size="lg">
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Account wird erstellt...
                   </>
                 ) : (
-                  "Account erstellen"
+                  "14 Tage kostenlos testen"
                 )}
               </Button>
+              <p className="text-xs text-center text-muted-foreground">
+                Keine Kreditkarte erforderlich
+              </p>
             </form>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">

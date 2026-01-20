@@ -9,6 +9,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AuthProvider, RequireAuth, useAuth } from "@/hooks/use-auth";
 import NotFound from "@/pages/not-found";
+import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import Funnels from "@/pages/funnels";
 import NewFunnel from "@/pages/new-funnel";
@@ -64,6 +65,11 @@ function Router() {
     );
   }
 
+  // Landing page for non-authenticated users
+  if (location === "/" && !isAuthenticated) {
+    return <Landing />;
+  }
+
   // Auth pages (no sidebar)
   if (location === "/login") {
     return <Login />;
@@ -93,6 +99,7 @@ function Router() {
     <ProtectedMainLayout>
       <Switch>
         <Route path="/" component={Dashboard} />
+        <Route path="/dashboard" component={Dashboard} />
         <Route path="/funnels" component={Funnels} />
         <Route path="/leads" component={Leads} />
         <Route path="/analytics" component={Analytics} />
@@ -106,7 +113,7 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light" storageKey="funnelflow-theme">
+      <ThemeProvider defaultTheme="light" storageKey="trichterwerk-theme">
         <TooltipProvider>
           <AuthProvider>
             <Toaster />

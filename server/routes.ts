@@ -41,8 +41,18 @@ export async function registerRoutes(
         return res.status(400).json({ error: "E-Mail bereits registriert" });
       }
 
-      // Create user
-      const user = await storage.createUser({ username, email, password, displayName });
+      // Create user with 14-day trial
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+
+      const user = await storage.createUser({
+        username,
+        email,
+        password,
+        displayName,
+        trialEndsAt,
+        isPro: false,
+      });
 
       // Log user in automatically
       req.login({ ...user, password: undefined } as any, (err) => {

@@ -12,6 +12,8 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   displayName: text("display_name"),
+  trialEndsAt: timestamp("trial_ends_at"),
+  isPro: boolean("is_pro").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -87,6 +89,8 @@ export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   password: true,
   displayName: true,
+  trialEndsAt: true,
+  isPro: true,
 });
 
 export const selectUserSchema = createSelectSchema(users);

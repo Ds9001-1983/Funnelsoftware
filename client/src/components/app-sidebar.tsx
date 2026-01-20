@@ -101,7 +101,7 @@ export function AppSidebar() {
             <Zap className="h-5 w-5" />
           </div>
           <span className="text-lg font-semibold text-sidebar-foreground">
-            FunnelFlow
+            Trichterwerk
           </span>
         </Link>
       </SidebarHeader>
@@ -186,7 +186,7 @@ export function AppSidebar() {
                   <TooltipTrigger asChild>
                     <SidebarMenuButton asChild>
                       <a
-                        href="https://help.funnelflow.de"
+                        href="https://help.trichterwerk.de"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2"

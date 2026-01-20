@@ -48,7 +48,7 @@ export default function Login() {
               <Zap className="h-8 w-8" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">FunnelFlow</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Trichterwerk</h1>
           <p className="text-muted-foreground">
             Erstelle konvertierende Funnels in Minuten
           </p>
