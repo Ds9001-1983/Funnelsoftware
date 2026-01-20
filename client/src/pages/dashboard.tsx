@@ -273,7 +273,7 @@ export default function Dashboard() {
                 <Layers className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p>Noch keine Funnels erstellt</p>
                 <Link href="/funnels/new">
-                  <Button variant="link" className="mt-2">
+                  <Button variant="ghost" className="mt-2 text-primary">
                     Ersten Funnel erstellen
                   </Button>
                 </Link>

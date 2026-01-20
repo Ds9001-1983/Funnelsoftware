@@ -235,7 +235,10 @@ const pageTypeIcons: Record<PageType, string> = {
 };
 
 // Element palette categories
-const elementCategories = [
+const elementCategories: {
+  name: string;
+  elements: { type: PageElement["type"]; label: string; icon: React.ComponentType<{ className?: string }>; description: string }[];
+}[] = [
   {
     name: "Inhalt",
     elements: [
@@ -892,7 +895,7 @@ function AddPageDialog({
 }
 
 // Element Palette Component
-function ElementPalette({ onAddElement }: { onAddElement: (type: string) => void }) {
+function ElementPalette({ onAddElement }: { onAddElement: (type: PageElement["type"]) => void }) {
   const [openCategories, setOpenCategories] = useState<string[]>(["Inhalt", "Formular"]);
 
   const toggleCategory = (name: string) => {
