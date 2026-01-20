@@ -286,3 +286,159 @@
 .dragging {
   @apply opacity-50;
 }
+
+/* Enhanced drag animations */
+[data-dragging="true"] {
+  animation: pulse-drag 0.3s ease-in-out;
+}
+
+@keyframes pulse-drag {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+/* Element palette hover effects */
+.element-palette-item {
+  @apply transition-all duration-200;
+}
+
+.element-palette-item:hover {
+  @apply bg-accent shadow-sm;
+  transform: translateX(4px);
+}
+
+/* Phone preview enhancements */
+.phone-screen {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Page transition animations */
+.page-transition-fade {
+  animation: pageFade 0.4s ease-out;
+}
+
+.page-transition-slide {
+  animation: pageSlide 0.4s ease-out;
+}
+
+.page-transition-scale {
+  animation: pageScale 0.4s ease-out;
+}
+
+@keyframes pageFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pageSlide {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pageScale {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Button hover animations */
+.phone-screen button {
+  @apply transition-all duration-200;
+}
+
+.phone-screen button:hover {
+  transform: translateY(-1px);
+}
+
+.phone-screen button:active {
+  transform: scale(0.98);
+}
+
+/* Input focus states in preview */
+.phone-screen input:focus,
+.phone-screen textarea:focus {
+  @apply ring-2 ring-primary/30;
+}
+
+/* Multiple choice option hover */
+.choice-option {
+  @apply transition-all duration-200;
+}
+
+.choice-option:hover {
+  @apply border-primary/50 shadow-md;
+  transform: translateY(-1px);
+}
+
+/* Sidebar toggle animation */
+.sidebar-toggle {
+  @apply transition-all duration-300;
+}
+
+/* Progress bar animation */
+.progress-bar-fill {
+  @apply transition-all duration-500 ease-out;
+}
+
+/* Element card animations */
+.element-card {
+  @apply transition-all duration-200;
+}
+
+.element-card:hover {
+  @apply shadow-md;
+}
+
+/* Collapsible animations */
+[data-state="open"] > .collapsible-chevron {
+  transform: rotate(180deg);
+}
+
+.collapsible-chevron {
+  @apply transition-transform duration-200;
+}
+
+/* Toast animations */
+.toast-enter {
+  animation: toastEnter 0.3s ease-out;
+}
+
+@keyframes toastEnter {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Selection highlight */
+.selected-element {
+  @apply ring-2 ring-primary ring-offset-2;
+}
+
+/* Smooth scrolling */
+.funnel-scrollbar {
+  scroll-behavior: smooth;
+}
+
+/* Responsive preview scaling */
+@media (max-width: 1200px) {
+  .phone-frame {
+    transform: scale(0.9);
+    transform-origin: center;
+  }
+}
+
+@media (max-width: 900px) {
+  .phone-frame {
+    transform: scale(0.8);
+  }
+}

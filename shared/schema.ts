@@ -25,9 +25,10 @@ export type PageType = "welcome" | "question" | "multiChoice" | "contact" | "cal
 export const pageElementSchema = z.object({
   id: z.string(),
   type: z.enum([
-    "heading", "text", "image", "button", "input", "textarea", 
+    "heading", "text", "image", "button", "input", "textarea",
     "select", "checkbox", "radio", "fileUpload", "video", "date",
-    "slider", "testimonial"
+    "slider", "testimonial", "faq", "list", "timer", "socialProof",
+    "divider", "spacer", "progressBar", "icon"
   ]),
   content: z.string().optional(),
   placeholder: z.string().optional(),
@@ -53,12 +54,51 @@ export const pageElementSchema = z.object({
     role: z.string().optional(),
     rating: z.number().optional(),
   })).optional(),
+  // FAQ properties
+  faqItems: z.array(z.object({
+    id: z.string(),
+    question: z.string(),
+    answer: z.string(),
+  })).optional(),
+  // List properties
+  listItems: z.array(z.object({
+    id: z.string(),
+    text: z.string(),
+    icon: z.string().optional(),
+  })).optional(),
+  listStyle: z.enum(["bullet", "number", "check", "icon"]).optional(),
+  // Timer properties
+  timerEndDate: z.string().optional(),
+  timerStyle: z.enum(["countdown", "stopwatch"]).optional(),
+  timerShowDays: z.boolean().optional(),
+  // Social Proof properties
+  socialProofType: z.enum(["badges", "logos", "stats", "reviews"]).optional(),
+  socialProofItems: z.array(z.object({
+    id: z.string(),
+    image: z.string().optional(),
+    text: z.string().optional(),
+    value: z.string().optional(),
+  })).optional(),
+  // Divider properties
+  dividerStyle: z.enum(["solid", "dashed", "dotted", "gradient"]).optional(),
+  // Spacer properties
+  spacerHeight: z.number().optional(),
+  // Icon properties
+  iconName: z.string().optional(),
+  iconSize: z.enum(["sm", "md", "lg", "xl"]).optional(),
+  // Image properties
+  imageUrl: z.string().optional(),
+  imageAlt: z.string().optional(),
+  // General styles
   styles: z.object({
     fontSize: z.string().optional(),
     fontWeight: z.string().optional(),
     textAlign: z.string().optional(),
     color: z.string().optional(),
     backgroundColor: z.string().optional(),
+    padding: z.string().optional(),
+    margin: z.string().optional(),
+    borderRadius: z.string().optional(),
   }).optional(),
 });
 
@@ -91,6 +131,10 @@ export const funnelPageSchema = z.object({
   animation: z.enum(["fade", "slide", "scale", "none"]).optional(),
   // Conditional logic for branching
   conditions: z.array(pageConditionSchema).optional(),
+  // Simple conditional routing (option -> pageId mapping)
+  conditionalRouting: z.record(z.string(), z.string()).optional(),
+  // Default next page ID (overrides sequential navigation)
+  nextPageId: z.string().optional(),
   // Show confetti on this page
   showConfetti: z.boolean().optional(),
 });
