@@ -59,10 +59,20 @@ function TemplateCard({
       data-testid={`template-${template.id}`}
     >
       <div
-        className="h-24 relative rounded-t-md"
+        className="h-40 relative rounded-t-md overflow-hidden"
         style={{ backgroundColor: template.theme.primaryColor }}
       >
-        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent rounded-t-md" />
+        {/* Template Thumbnail Image */}
+        <img 
+          src={template.thumbnail} 
+          alt={template.name}
+          className="absolute inset-0 w-full h-full object-cover object-top"
+          onError={(e) => {
+            // Fallback to color background if image fails to load
+            e.currentTarget.style.display = 'none';
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
         <div className="absolute bottom-2 left-2">
           <div className="flex items-center gap-1.5 text-white text-xs">
             <Icon className="h-3.5 w-3.5" />
