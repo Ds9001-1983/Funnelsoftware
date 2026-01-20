@@ -8,7 +8,7 @@ import {
   Zap,
   Plus,
   HelpCircle,
-  Keyboard,
+  LogOut,
 } from "lucide-react";
 import {
   Sidebar,
@@ -28,7 +28,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/hooks/use-auth";
 
 const mainMenuItems = [
   {
@@ -68,6 +75,23 @@ const settingsItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { user, logout } = useAuth();
+
+  // Get user initials
+  const getInitials = () => {
+    if (user?.displayName) {
+      const names = user.displayName.split(" ");
+      return names.map(n => n[0]).join("").toUpperCase().slice(0, 2);
+    }
+    if (user?.username) {
+      return user.username.slice(0, 2).toUpperCase();
+    }
+    return "??";
+  };
+
+  const handleLogout = async () => {
+    await logout();
+  };
 
   return (
     <Sidebar>
@@ -77,7 +101,7 @@ export function AppSidebar() {
             <Zap className="h-5 w-5" />
           </div>
           <span className="text-lg font-semibold text-sidebar-foreground">
-            FunnelFlow
+            Trichterwerk
           </span>
         </Link>
       </SidebarHeader>
@@ -161,9 +185,9 @@ export function AppSidebar() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <SidebarMenuButton asChild>
-                      <a 
-                        href="https://help.funnelflow.de" 
-                        target="_blank" 
+                      <a
+                        href="https://help.trichterwerk.de"
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2"
                       >
@@ -184,26 +208,41 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border p-4">
-        <Tooltip>
-          <TooltipTrigger asChild>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
               <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground text-sm font-medium">
-                JD
+                {getInitials()}
               </div>
               <div className="flex flex-col flex-1 min-w-0">
-                <span className="text-sm font-medium text-sidebar-foreground truncate">John Doe</span>
-                <div className="flex items-center gap-1">
-                  <Badge variant="secondary" className="text-xs px-1.5 py-0">Pro</Badge>
-                </div>
+                <span className="text-sm font-medium text-sidebar-foreground truncate">
+                  {user?.displayName || user?.username || "Benutzer"}
+                </span>
+                <span className="text-xs text-muted-foreground truncate">
+                  {user?.email || ""}
+                </span>
               </div>
             </div>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            <p className="font-medium">John Doe</p>
-            <p className="text-xs text-muted-foreground">john@example.com</p>
-            <p className="text-xs text-muted-foreground mt-1">Klicke auf Einstellungen für Kontoverwaltung</p>
-          </TooltipContent>
-        </Tooltip>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <div className="px-2 py-1.5">
+              <p className="text-sm font-medium">{user?.displayName || user?.username}</p>
+              <p className="text-xs text-muted-foreground">{user?.email}</p>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/settings" className="cursor-pointer">
+                <Settings className="mr-2 h-4 w-4" />
+                Einstellungen
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer">
+              <LogOut className="mr-2 h-4 w-4" />
+              Abmelden
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </SidebarFooter>
     </Sidebar>
   );

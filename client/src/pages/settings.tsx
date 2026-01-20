@@ -30,7 +30,7 @@ import { useTheme } from "@/components/theme-provider";
 function ProfileSettings() {
   const [name, setName] = useState("John Doe");
   const [email, setEmail] = useState("john@example.com");
-  const [company, setCompany] = useState("FunnelFlow GmbH");
+  const [company, setCompany] = useState("Meine Firma GmbH");
   const { toast } = useToast();
 
   const handleSave = () => {
@@ -167,7 +167,7 @@ function NotificationSettings() {
             <div>
               <div className="font-medium">Marketing-E-Mails</div>
               <div className="text-sm text-muted-foreground">
-                News, Tipps und Updates von FunnelFlow
+                News, Tipps und Updates von Trichterwerk
               </div>
             </div>
             <Switch

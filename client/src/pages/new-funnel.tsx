@@ -18,12 +18,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { defaultTemplates, createBlankFunnel } from "@/lib/templates";
-import type { Template, InsertFunnel } from "@shared/schema";
+import { defaultTemplates, createBlankFunnel, type ClientTemplate } from "@/lib/templates";
+import type { InsertFunnel } from "@shared/schema";
 
 type Step = "template" | "details";
 
-const categoryIcons: Record<Template["category"], React.ElementType> = {
+const categoryIcons: Record<ClientTemplate["category"], React.ElementType> = {
   leads: Users,
   sales: ShoppingCart,
   recruiting: Users,
@@ -31,7 +31,7 @@ const categoryIcons: Record<Template["category"], React.ElementType> = {
   quiz: FileQuestion,
 };
 
-const categoryLabels: Record<Template["category"], string> = {
+const categoryLabels: Record<ClientTemplate["category"], string> = {
   leads: "Lead-Generierung",
   sales: "Verkauf",
   recruiting: "Recruiting",
@@ -44,7 +44,7 @@ function TemplateCard({
   selected,
   onClick,
 }: {
-  template: Template;
+  template: ClientTemplate;
   selected: boolean;
   onClick: () => void;
 }) {
@@ -83,7 +83,7 @@ function TemplateCard({
 export default function NewFunnel() {
   const [, navigate] = useLocation();
   const [step, setStep] = useState<Step>("template");
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<ClientTemplate | null>(null);
   const [useBlank, setUseBlank] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");

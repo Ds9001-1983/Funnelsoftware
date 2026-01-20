@@ -7,7 +7,9 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { AuthProvider, RequireAuth, useAuth } from "@/hooks/use-auth";
 import NotFound from "@/pages/not-found";
+import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import Funnels from "@/pages/funnels";
 import NewFunnel from "@/pages/new-funnel";
@@ -15,6 +17,8 @@ import FunnelEditor from "@/pages/funnel-editor";
 import Leads from "@/pages/leads";
 import Analytics from "@/pages/analytics";
 import Settings from "@/pages/settings";
+import Login from "@/pages/login";
+import Register from "@/pages/register";
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   const style = {
@@ -40,39 +44,81 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
+function ProtectedMainLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <RequireAuth>
+      <MainLayout>{children}</MainLayout>
+    </RequireAuth>
+  );
+}
+
 function Router() {
   const [location] = useLocation();
-  
-  // Full-screen pages without sidebar
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // Show loading spinner while checking auth
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Landing page for non-authenticated users
+  if (location === "/" && !isAuthenticated) {
+    return <Landing />;
+  }
+
+  // Auth pages (no sidebar)
+  if (location === "/login") {
+    return <Login />;
+  }
+  if (location === "/register") {
+    return <Register />;
+  }
+
+  // Full-screen pages without sidebar (but protected)
   if (location.startsWith("/funnels/new") || (location.startsWith("/funnels/") && location !== "/funnels")) {
     const isEditor = location.startsWith("/funnels/") && !location.includes("/new");
     if (isEditor) {
-      return <FunnelEditor />;
+      return (
+        <RequireAuth>
+          <FunnelEditor />
+        </RequireAuth>
+      );
     }
-    return <NewFunnel />;
+    return (
+      <RequireAuth>
+        <NewFunnel />
+      </RequireAuth>
+    );
   }
 
   return (
-    <MainLayout>
+    <ProtectedMainLayout>
       <Switch>
         <Route path="/" component={Dashboard} />
+        <Route path="/dashboard" component={Dashboard} />
         <Route path="/funnels" component={Funnels} />
         <Route path="/leads" component={Leads} />
         <Route path="/analytics" component={Analytics} />
         <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>
-    </MainLayout>
+    </ProtectedMainLayout>
   );
 }
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light" storageKey="funnelflow-theme">
+      <ThemeProvider defaultTheme="light" storageKey="trichterwerk-theme">
         <TooltipProvider>
-          <Toaster />
-          <Router />
+          <AuthProvider>
+            <Toaster />
+            <Router />
+          </AuthProvider>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
