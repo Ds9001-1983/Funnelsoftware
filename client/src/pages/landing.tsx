@@ -21,37 +21,42 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-// Template preview data
+// Template preview data with images
 const templatePreviews = [
   {
     name: "Lead-Generierung",
     category: "Leads",
     color: "#7C3AED",
     description: "Qualifizierte Leads sammeln",
+    image: "/templates/lead-gen.png",
   },
   {
     name: "Webinar-Anmeldung",
     category: "Webinar",
     color: "#2563EB",
     description: "Anmeldungen maximieren",
+    image: "/templates/webinar.png",
   },
   {
     name: "Interaktives Quiz",
     category: "Quiz",
     color: "#10B981",
     description: "Leads unterhaltsam qualifizieren",
+    image: "/templates/quiz.png",
   },
   {
     name: "Schnell-Bewerbung",
     category: "Recruiting",
     color: "#F59E0B",
     description: "Top-Talente gewinnen",
+    image: "/templates/recruiting.png",
   },
   {
     name: "Produkt-Verkauf",
     category: "Sales",
     color: "#DC2626",
     description: "Produkte direkt verkaufen",
+    image: "/templates/sales.png",
   },
 ];
 
@@ -60,11 +65,13 @@ const features = [
     icon: MousePointerClick,
     title: "Drag & Drop Builder",
     description: "Erstelle beeindruckende Funnels ohne eine einzige Zeile Code. Einfach Elemente ziehen und ablegen.",
+    image: "/images/feature-drag-drop.png",
   },
   {
     icon: Smartphone,
     title: "Mobile-First Design",
     description: "Alle Funnels sind automatisch für Smartphones optimiert - dort, wo deine Kunden sind.",
+    image: "/images/feature-mobile.png",
   },
   {
     icon: PenTool,
@@ -80,6 +87,7 @@ const features = [
     icon: TrendingUp,
     title: "Analytics & Insights",
     description: "Verfolge Views, Conversions und Lead-Qualität in Echtzeit.",
+    image: "/images/feature-analytics.png",
   },
   {
     icon: Target,
@@ -165,7 +173,16 @@ export default function Landing() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <img 
+              src="/images/logo-icon.png" 
+              alt="Trichterwerk Logo" 
+              className="h-9 w-9 rounded-lg"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+            <div className="hidden flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Zap className="h-5 w-5" />
             </div>
             <span className="text-xl font-bold">Trichterwerk</span>
@@ -225,63 +242,31 @@ export default function Landing() {
           </p>
         </div>
 
-        {/* Hero Image/Preview */}
-        <div className="container mx-auto mt-16 max-w-5xl">
-          <div className="relative rounded-xl border shadow-2xl overflow-hidden bg-gradient-to-b from-muted/50 to-muted">
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
-            <div className="p-8 md:p-12">
-              <div className="grid md:grid-cols-3 gap-6">
-                {/* Preview Cards */}
-                <Card className="bg-background/80 backdrop-blur shadow-lg">
-                  <CardContent className="p-6">
-                    <div className="h-3 w-3 rounded-full bg-primary mb-4" />
-                    <div className="space-y-2">
-                      <div className="h-4 bg-muted rounded w-3/4" />
-                      <div className="h-3 bg-muted rounded w-1/2" />
+        {/* Hero Image - Dashboard Preview */}
+        <div className="container mx-auto mt-16 max-w-6xl">
+          <div className="relative rounded-xl border shadow-2xl overflow-hidden">
+            <img 
+              src="/images/hero-dashboard.png" 
+              alt="Trichterwerk Dashboard" 
+              className="w-full h-auto"
+              onError={(e) => {
+                // Fallback to original card layout if image fails
+                e.currentTarget.parentElement!.innerHTML = `
+                  <div class="p-8 md:p-12 bg-gradient-to-b from-muted/50 to-muted">
+                    <div class="grid md:grid-cols-3 gap-6">
+                      <div class="bg-background/80 backdrop-blur shadow-lg rounded-lg p-6">
+                        <div class="h-3 w-3 rounded-full bg-primary mb-4"></div>
+                        <div class="space-y-2">
+                          <div class="h-4 bg-muted rounded w-3/4"></div>
+                          <div class="h-3 bg-muted rounded w-1/2"></div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="mt-6 space-y-3">
-                      <div className="h-10 bg-muted rounded" />
-                      <div className="h-10 bg-primary/20 rounded" />
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="bg-background/80 backdrop-blur shadow-lg md:scale-110 md:-translate-y-4 relative z-10">
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-primary">Live Vorschau</Badge>
                   </div>
-                  <CardContent className="p-6 pt-8">
-                    <div className="text-center mb-4">
-                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-primary/60 mx-auto mb-3" />
-                      <h3 className="font-semibold">Bereit für mehr Kunden?</h3>
-                      <p className="text-sm text-muted-foreground">Starte jetzt durch</p>
-                    </div>
-                    <Button className="w-full">Los geht's</Button>
-                  </CardContent>
-                </Card>
-                <Card className="bg-background/80 backdrop-blur shadow-lg">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <BarChart3 className="h-5 w-5 text-primary" />
-                      <span className="font-medium">Analytics</span>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Views</span>
-                        <span className="font-medium">12.4k</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Leads</span>
-                        <span className="font-medium">847</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Conversion</span>
-                        <span className="font-medium text-green-500">6.8%</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+                `;
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent pointer-events-none" />
           </div>
         </div>
       </section>
@@ -326,7 +311,16 @@ export default function Landing() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature) => (
-              <Card key={feature.title} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+              <Card key={feature.title} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden">
+                {feature.image && (
+                  <div className="h-40 overflow-hidden bg-muted">
+                    <img 
+                      src={feature.image} 
+                      alt={feature.title}
+                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                )}
                 <CardHeader>
                   <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
                     <feature.icon className="h-6 w-6 text-primary" />
@@ -363,15 +357,18 @@ export default function Landing() {
                 className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer overflow-hidden"
               >
                 <div
-                  className="h-32 flex items-center justify-center"
+                  className="h-40 relative overflow-hidden"
                   style={{ backgroundColor: `${template.color}15` }}
                 >
-                  <div
-                    className="h-16 w-16 rounded-xl flex items-center justify-center text-white font-bold text-xl"
-                    style={{ backgroundColor: template.color }}
-                  >
-                    {template.name.charAt(0)}
-                  </div>
+                  <img 
+                    src={template.image}
+                    alt={template.name}
+                    className="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                 </div>
                 <CardContent className="p-4">
                   <Badge variant="outline" className="mb-2 text-xs">
@@ -451,25 +448,23 @@ export default function Landing() {
             {pricingPlans.map((plan) => (
               <Card
                 key={plan.name}
-                className={`relative ${plan.popular ? 'border-primary shadow-lg scale-105' : ''}`}
+                className={`relative ${plan.popular ? "border-primary shadow-lg scale-105" : ""}`}
               >
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                     <Badge className="bg-primary">Beliebteste Wahl</Badge>
                   </div>
                 )}
-                <CardHeader className="text-center pb-0">
+                <CardHeader className="text-center pb-2">
                   <CardTitle className="text-xl">{plan.name}</CardTitle>
                   <CardDescription>{plan.description}</CardDescription>
-                  <div className="py-4">
-                    <span className="text-4xl font-bold">{plan.price}€</span>
-                    {plan.price !== "0" && (
-                      <span className="text-muted-foreground">/Monat</span>
-                    )}
-                  </div>
                 </CardHeader>
-                <CardContent className="pt-0">
-                  <ul className="space-y-3 mb-6">
+                <CardContent className="text-center">
+                  <div className="mb-6">
+                    <span className="text-4xl font-bold">{plan.price}€</span>
+                    <span className="text-muted-foreground">/Monat</span>
+                  </div>
+                  <ul className="space-y-3 mb-6 text-left">
                     {plan.features.map((feature) => (
                       <li key={feature} className="flex items-center gap-2">
                         <Check className="h-4 w-4 text-primary shrink-0" />
@@ -494,10 +489,9 @@ export default function Landing() {
 
       {/* CTA Section */}
       <section className="py-20 px-4">
-        <div className="container mx-auto">
-          <Card className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground overflow-hidden relative">
-            <div className="absolute inset-0 bg-grid-white/10" />
-            <CardContent className="p-8 md:p-12 text-center relative z-10">
+        <div className="container mx-auto max-w-4xl">
+          <Card className="bg-primary text-primary-foreground">
+            <CardContent className="p-12 text-center">
               <h2 className="text-3xl md:text-4xl font-bold mb-4">
                 Bereit, mehr Leads zu generieren?
               </h2>
@@ -522,7 +516,16 @@ export default function Landing() {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
               <Link href="/" className="flex items-center gap-2 mb-4">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <img 
+                  src="/images/logo-icon.png" 
+                  alt="Trichterwerk Logo" 
+                  className="h-8 w-8 rounded-lg"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                  }}
+                />
+                <div className="hidden flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                   <Zap className="h-4 w-4" />
                 </div>
                 <span className="text-lg font-bold">Trichterwerk</span>
