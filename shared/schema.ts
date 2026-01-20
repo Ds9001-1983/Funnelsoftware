@@ -24,7 +24,11 @@ export type PageType = "welcome" | "question" | "multiChoice" | "contact" | "cal
 // Page element schema
 export const pageElementSchema = z.object({
   id: z.string(),
-  type: z.enum(["heading", "text", "image", "button", "input", "textarea", "select", "checkbox", "radio", "fileUpload"]),
+  type: z.enum([
+    "heading", "text", "image", "button", "input", "textarea", 
+    "select", "checkbox", "radio", "fileUpload", "video", "date",
+    "slider", "testimonial"
+  ]),
   content: z.string().optional(),
   placeholder: z.string().optional(),
   required: z.boolean().optional(),
@@ -33,6 +37,22 @@ export const pageElementSchema = z.object({
   acceptedFileTypes: z.array(z.string()).optional(),
   maxFileSize: z.number().optional(),
   maxFiles: z.number().optional(),
+  // Video element properties
+  videoUrl: z.string().optional(),
+  videoType: z.enum(["youtube", "vimeo", "upload"]).optional(),
+  // Date element properties
+  dateFormat: z.string().optional(),
+  includeTime: z.boolean().optional(),
+  // Slider/Testimonial properties
+  slides: z.array(z.object({
+    id: z.string(),
+    image: z.string().optional(),
+    title: z.string().optional(),
+    text: z.string().optional(),
+    author: z.string().optional(),
+    role: z.string().optional(),
+    rating: z.number().optional(),
+  })).optional(),
   styles: z.object({
     fontSize: z.string().optional(),
     fontWeight: z.string().optional(),
@@ -44,6 +64,19 @@ export const pageElementSchema = z.object({
 
 export type PageElement = z.infer<typeof pageElementSchema>;
 
+// Page transition animation types
+export type PageAnimation = "fade" | "slide" | "scale" | "none";
+
+// Conditional logic for page routing
+export const pageConditionSchema = z.object({
+  elementId: z.string(),
+  operator: z.enum(["equals", "notEquals", "contains", "isEmpty"]),
+  value: z.string().optional(),
+  targetPageId: z.string(),
+});
+
+export type PageCondition = z.infer<typeof pageConditionSchema>;
+
 // Funnel page schema
 export const funnelPageSchema = z.object({
   id: z.string(),
@@ -54,6 +87,12 @@ export const funnelPageSchema = z.object({
   buttonText: z.string().optional(),
   backgroundColor: z.string().optional(),
   backgroundImage: z.string().optional(),
+  // Animation settings
+  animation: z.enum(["fade", "slide", "scale", "none"]).optional(),
+  // Conditional logic for branching
+  conditions: z.array(pageConditionSchema).optional(),
+  // Show confetti on this page
+  showConfetti: z.boolean().optional(),
 });
 
 export type FunnelPage = z.infer<typeof funnelPageSchema>;

@@ -1,0 +1,231 @@
+# Perspective Tunnel - Vollumfängliche Beschreibung & Leistungsumfang
+
+## Überblick
+
+**Perspective Funnels** (auch als "Perspective Tunnel" bezeichnet) ist eine moderne All-in-One Marketing-Software, die speziell für die Erstellung hochkonvertierender, interaktiver Funnels entwickelt wurde. Die Plattform zeichnet sich durch ihren **Mobile-First-Ansatz** aus und richtet sich an Unternehmen jeder Größe - von Start-ups bis zu Großkonzernen wie Google, DHL, Coca-Cola, ERGO und Mercedes-Benz.
+
+![](https://www.genspark.ai/api/files/s/Od25J5U6)
+
+---
+
+## Kernergebnisse & Performance
+
+Die Plattform verspricht marktführende Ergebnisse:
+- **700% höhere Konversionsrate**
+- **42x schnellere Umsetzung**
+- **300% bessere Lead-Qualität**
+
+---
+
+## Hauptfunktionalitäten
+
+### 1. **Perspective Funnels - Der Funnel-Builder**
+
+#### Technische Eigenschaften:
+- **Mobile-First Editor**: Direkte Bearbeitung im mobilen Ansichtsmodus für maximale Conversion
+- **PWA-Technologie** (Progressive Web App): Keine Neuladung nach dem ersten Klick, app-ähnliches Erlebnis
+- **Blitzschnelle Ladezeit**: Unter 3 Sekunden Ladezeit (verhindert 50% Besucherverlust)
+- **Hosting & CDN**: Integriertes Hosting mit Content Delivery Network für weltweite Performance
+- **Automatisch responsive**: Optimiert für alle Endgeräte (Smartphone, Tablet, Desktop)
+
+#### Design-Funktionen:
+- **16+ Premium-Vorlagen**: Branchenoptimierte Templates als Startpunkt
+- **70+ Sektions-Templates**: Vorgefertigte responsive Abschnitte für schnellen Aufbau
+- **20+ Signature Blöcke**: Spezialisierte Blöcke (Listen, Webinar, FAQ, etc.)
+- **180.000+ Grafiken & Icons**: Kostenlose Integration mit Icons8
+- **Tausende lizenzfreie Fotos**: Unsplash-Integration
+- **48+ Schriftarten** + Upload eigener Schriftarten
+- **Individuelle Highlight-Farben** & CI-Design-Speicherung
+- **Customizable Header**: Flexibler Header mit Navigation, Buttons und Logo
+
+#### Editing-Features:
+- **Fast Editing**: Direktes Klicken und Bearbeiten im Funnel
+- **Drag & Drop**: Verschieben von Elementen per Drag-and-Drop
+- **Tastatur-Kurzbefehle**: Schnellere Bearbeitung
+- **Kopieren & Einfügen**: Über Funnels hinweg
+- **CMD-K Menü**: Schnellnavigation
+- **Text-Editor**: Mit Rechtschreibprüfung und KI-Funktionen (Umschreiben, Übersetzen)
+- **Massenupload für Bilder**: Bis zu 10 Bilder gleichzeitig
+- **Bilder-Bibliothek mit Ordnern**: Strukturierte Verwaltung
+
+#### Interaktive Blöcke & Elemente:
+- **Video Block**: YouTube, Vimeo, Wistia + direkter Video-Upload
+- **Upload Block**: Für Dokumente wie Lebensläufe
+- **Testimonial Slider**: Für Kundenbewertungen
+- **Interaktiver Bild-Slider**: Mehrere Perspektiven in einem Block
+- **Cards**: Visuelle Einheiten mit diversen Blöcken
+- **Mehrfachauswahl**: Leads können mehrere Optionen wählen
+- **Dropdown Block**: Verschiedene Dropdown-Varianten
+- **Datum & Zeitauswahl**: Für Terminbuchungen oder Geburtsdaten
+- **Seitenanimationen**: Verschiedene Übergangseffekte
+- **Der Konfetti-Moment**: Feier-Animation nach Formular-Abschluss
+- **Zahlungs-Block**: Direkte Produkt-/Service-Käufe im Funnel
+
+---
+
+### 2. **Personalisierung & Qualifizierung**
+
+#### Lead-Qualifizierung:
+- **Bedingte Logiken**: Sortierung schlechter Leads vor Formularabsendung
+- **E-Mail-Validierung**: Automatische Überprüfung
+- **Opt-In-Prüfung**: Animierte Icons und Nachrichten für korrekte Dateneingabe
+- **Double Opt-in**: Verifizierung per Einmalcode (OTP) direkt im Funnel
+- **Telefonnummer-Prüfung**: Mit Ländervorwahl-Auswahl
+- **Automatische Ländervorwahl-Erkennung**: Schnellere, fehlerfreie Eingabe
+
+#### Personalisierungs-Features:
+- **Smarte Personalisierung**: Wiederverwendung eingegebener Besucherdaten im Funnel
+- **Individuelle Pfade**: Besucher auf individuelle Reisen schicken basierend auf Antworten
+- **Advanced Linking Logic**: AND/OR-Kombinationen für komplexe Verzweigungen
+- **Individuelle Ergebnisseiten**: Passende Seiten je nach Klick (ideal für Quizze)
+- **Dynamische Überschriften**: URL-basierte Copy-Anpassung für verschiedene Zielgruppen
+- **Individuelle Eingabefelder**: 13+ vorgefertigte Eingabefelder oder eigene kreieren
+
+---
+
+### 3. **E-Mail & Messaging Automation**
+
+#### E-Mail-Funktionen:
+- **Visueller E-Mail-Editor**: Einfaches Erstellen ohne HTML-Kenntnisse
+- **E-Mail Sequences**: Komplette Automationen (Follow-ups, Onboarding)
+- **E-Mail-Personalisierung**: Mit Namen und Funnel-Antworten
+- **Bestätigungs-E-Mail**: Automatische Eingangsbestätigung
+- **CRM Status Trigger**: E-Mails basierend auf CRM-Status automatisieren
+- **Automation Delay**: Zeitgesteuerte Nachrichtenversendung
+- **Automation Conditions**: Basierend auf Funnel-Antworten
+- **Absender festlegen**: Eigene Domains für vertrauenswürdige Absenderadressen
+
+#### WhatsApp-Integration:
+- **WhatsApp Messaging**: Automatisierte Lead-Kommunikation
+- **Integrierte WhatsApp Inbox**: Direkte Beantwortung in Perspective
+- **Skalierbare, persönliche Ansprache**: Leads dort erreichen, wo sie antworten
+
+---
+
+### 4. **Calendar & Buchungs-Integrationen**
+
+Nahtlose Einbindung führender Terminbuchungssysteme:
+- **GHL Calendar Embed**: HighLevel-Kalender direkt im Funnel
+- **HubSpot Meetings Embed**: Mit perfekter CRM-Synchronisation
+- **Cal.com Embed**: Mit automatischer Vorausfüllung
+- **Calendly-Integration**: Öffnet direkt im Funnel
+
+---
+
+### 5. **Analytics & Metriken**
+
+- **Echtzeit-Metriken**: Klare Sicht auf Funnel-Performance
+- **Conversion-Rate-Tracking**: Mit Vergleichswerten
+- **Neue Kontakte**: Übersicht mit Trendanalysen
+- **Durchschnittliche Verweildauer**: Performance-Indikator
+- **UTM-Tracking**: Top-Quellen (LinkedIn, Pinterest, Facebook)
+- **Kontakt-Kategorisierung**: Nach Status sortiert
+
+---
+
+### 6. **CRM (Customer Relationship Management)**
+
+- **Flexibles CRM**: Anpassbar an Team und Kundenworkflow
+- **Kontaktverwaltung**: Sortierung nach Status (Neu, Intro Call, Interview)
+- **Aufgabenverwaltung**: Integrierte Task-Features
+- **CRM Status Trigger**: Für automatisierte Prozesse
+- **Datei-Upload-Felder**: Zentrale Speicherung wichtiger Dokumente
+- **Deal-Management**: Nahtloses Verfolgen und Abschließen
+
+---
+
+### 7. **White-Label & Multi-Workspace**
+
+#### White-Label-Funktionen:
+- **White-label Funnels**: Verstecktes Perspective-Branding
+- **Eigenes Funnel-Favicon**: 1-Klick-Individualisierung
+- **Funnel auf Hauptdomain**: Root-Domain-Integration
+- **Website-Einbindung**: In bestehende Websites integrierbar
+- **Schriftarten hochladen**: Eigene CI-Schriftarten
+
+#### Multi-Workspace:
+- **Whitelabel-Subaccounts**: Für Kunden & Teams
+- **Zentraler Hub**: Organisierte Verwaltung mehrerer Projekte
+- **Projekt-Switching**: Einfacher Wechsel zwischen Workspaces
+
+---
+
+### 8. **Integrationen**
+
+- **2.000+ Tool-Integrationen**: Mit einem Klick
+- **Facebook Pixel**: Tracking-Integration
+- **ActiveCampaign**: Marketing-Automation
+- **KlickTipp**: E-Mail-Marketing
+- **Lead Notifications**: Sofortbenachrichtigungen
+- **HTML Block**: Für externe Tools (Kalender, Zahlungssysteme)
+- **Embed Blocks**: Trustpilot, Kununu, Provenexpert
+- **Externe Links**: Verlinkung zu beliebigen URLs
+
+---
+
+### 9. **Zusätzliche Features**
+
+- **Funnel teilen und speichern**: Mit Netzwerk teilen, andere Funnels speichern
+- **AI-Unterstützung**: Integrierte KI für Inspiration und Hilfe
+- **Layouts**: Desktop-Layouts mit bis zu vier Spalten
+- **Automatische Weiterleitung**: Ladebildschirme mit Auto-Forward
+- **Karriere-Seite Template**: Mehrere Jobs gleichzeitig ausschreiben
+
+---
+
+## Bewährte Erfolgsgeschichten
+
+### Recruiting:
+- **Phillip Weber**: 900 Bewerbungen und 120 Einstellungen in 10 Wochen
+- **Stefan Zangerle**: 1.737 Bewerbungen à 6,30€, 19 Einstellungen
+- **Franz Merz**: 6-stellige Recruiting-Agentur in 4 Monaten aufgebaut
+
+### Lead Generation:
+- **Niklas Buschner**: 66 qualifizierte B2B-Verkaufsgespräche in 6 Wochen
+- **Bernhard Reschreiter**: 200+ Kundenanfragen und 300% Umsatzwachstum in 3 Monaten
+- **Gary Vaynerchuk Webinar**: 8.000 Anmeldungen in 2 Wochen
+
+### Social Proof:
+- **Professor Charley T**: $50.000+ Umsatz in unter 10 Tagen
+- **Cody Schneider** (LandingCat CEO): "Mobile-first, fühlt sich an wie eine App"
+- **Sam Parr** & **Greg Isenberg**: Öffentliche Empfehlungen
+
+---
+
+## Preismodell
+
+**14 Tage kostenlose Testversion**
+- Vollständiger Zugang zur Software
+- Alle Kurse inklusive
+- Erinnerungs-E-Mail an Tag 7
+- Monatlich kündbar nach Tag 14
+- Automatischer Abo-Beginn
+
+---
+
+## Technische Vorteile
+
+1. **Geschwindigkeit**: Unter 3 Sekunden Ladezeit
+2. **Mobile-First**: 98,5% der Nutzer scrollen auf dem Handy
+3. **Interaktivität**: Mehrstufige, spielerische Funnels
+4. **Personalisierung**: Gesprächsartige User Experience
+5. **Integration**: Nahtlose Verbindung zu bestehenden Tools
+6. **Skalierbarkeit**: Von Einzelunternehmer bis Konzern
+
+---
+
+## Zielgruppen
+
+- Marketing-Agenturen (White-Label-Lösung)
+- Recruiting-Agenturen
+- E-Commerce-Unternehmen
+- B2B-Dienstleister
+- Coaches & Berater
+- SaaS-Unternehmen
+- Veranstalter (Webinare, Events)
+
+---
+
+## Zusammenfassung
+
+Perspective Funnels ist eine umfassende Funnel-Marketing-Plattform, die **Erstellung, Personalisierung, Automation, CRM, Analytics und Integration** in einem Tool vereint. Der entscheidende Unterschied zu Wettbewerbern wie ClickFunnels liegt im **mobil-optimierten, app-ähnlichen Erlebnis** mit PWA-Technologie, das nachweislich zu deutlich höheren Conversion-Rates führt. Die Plattform richtet sich an moderne Marketer, die ihre Zielgruppe dort abholen möchten, wo sie sich aufhält: auf dem Smartphone.

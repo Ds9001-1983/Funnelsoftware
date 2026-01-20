@@ -32,6 +32,15 @@ import {
   Upload,
   FileUp,
   Info,
+  Video,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Star,
+  Play,
+  ListOrdered,
+  PartyPopper,
+  Sparkles,
 } from "lucide-react";
 import {
   Tooltip,
@@ -68,7 +77,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { Funnel, FunnelPage, PageElement } from "@shared/schema";
+import type { Funnel, FunnelPage, PageElement, PageAnimation } from "@shared/schema";
+import confetti from "canvas-confetti";
 
 type PageType = FunnelPage["type"];
 
@@ -157,6 +167,18 @@ function PhonePreview({
                       readOnly
                     />
                   )}
+                  {el.type === "select" && (
+                    <div className="w-full px-4 py-3 rounded-md border border-gray-200 text-sm bg-white flex items-center justify-between">
+                      <span className="text-gray-400">{el.placeholder || "Option wählen..."}</span>
+                      <ChevronRight className="h-4 w-4 text-gray-400" />
+                    </div>
+                  )}
+                  {el.type === "date" && (
+                    <div className="w-full px-4 py-3 rounded-md border border-gray-200 text-sm bg-white flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-400">{el.placeholder || "Datum wählen..."}</span>
+                    </div>
+                  )}
                   {el.type === "fileUpload" && (
                     <div className="w-full px-4 py-4 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 text-center">
                       <FileUp className="h-6 w-6 mx-auto mb-2 text-gray-400" />
@@ -170,6 +192,78 @@ function PhonePreview({
                       </p>
                     </div>
                   )}
+                  {el.type === "video" && (
+                    <div className="w-full aspect-video rounded-md bg-gray-900 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                        <Play className="h-6 w-6 text-white ml-1" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {page.elements.some((el) => el.type === "video") && page.type !== "contact" && (
+            <div className="mt-4 space-y-3">
+              {page.elements.filter((el) => el.type === "video").map((el) => (
+                <div key={el.id} className="w-full aspect-video rounded-md bg-gray-900 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                    <Play className="h-6 w-6 text-white ml-1" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {page.elements.some((el) => el.type === "testimonial") && (
+            <div className="mt-4 space-y-3">
+              {page.elements.filter((el) => el.type === "testimonial").map((el) => (
+                <div key={el.id} className="bg-white rounded-lg p-4 shadow-sm">
+                  <div className="flex gap-1 mb-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star key={star} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                    ))}
+                  </div>
+                  <p className="text-sm text-gray-700 mb-3">
+                    {el.slides?.[0]?.text || "Testimonial-Text hier..."}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-gray-200" />
+                    <div>
+                      <p className="text-sm font-medium">{el.slides?.[0]?.author || "Kunde"}</p>
+                      <p className="text-xs text-gray-500">{el.slides?.[0]?.role || "Rolle"}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {page.elements.some((el) => el.type === "slider") && (
+            <div className="mt-4">
+              {page.elements.filter((el) => el.type === "slider").map((el) => (
+                <div key={el.id} className="relative">
+                  <div className="aspect-[4/3] bg-gray-200 rounded-lg overflow-hidden">
+                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                      <Layers className="h-8 w-8" />
+                    </div>
+                  </div>
+                  <div className="absolute left-2 top-1/2 -translate-y-1/2">
+                    <div className="w-6 h-6 rounded-full bg-white/80 flex items-center justify-center shadow">
+                      <ChevronLeft className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                    <div className="w-6 h-6 rounded-full bg-white/80 flex items-center justify-center shadow">
+                      <ChevronRight className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="flex justify-center gap-1 mt-2">
+                    {(el.slides || [{ id: "1" }, { id: "2" }, { id: "3" }]).map((_, idx) => (
+                      <div key={idx} className={`w-2 h-2 rounded-full ${idx === 0 ? "bg-gray-800" : "bg-gray-300"}`} />
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
@@ -357,12 +451,32 @@ function PageEditor({
     const newElement: PageElement = {
       id: `el-${Date.now()}`,
       type,
-      placeholder: type === "input" ? "Dein Text hier..." : type === "textarea" ? "Deine Nachricht..." : undefined,
-      options: type === "radio" ? ["Option 1", "Option 2", "Option 3"] : undefined,
-      label: type === "fileUpload" ? "Datei hochladen" : undefined,
+      placeholder: 
+        type === "input" ? "Dein Text hier..." : 
+        type === "textarea" ? "Deine Nachricht..." : 
+        type === "select" ? "Option wählen..." :
+        type === "date" ? "Datum auswählen..." : undefined,
+      options: 
+        type === "radio" ? ["Option 1", "Option 2", "Option 3"] : 
+        type === "select" ? ["Option 1", "Option 2", "Option 3"] : undefined,
+      label: 
+        type === "fileUpload" ? "Datei hochladen" : 
+        type === "video" ? "Video" :
+        type === "date" ? "Datum" :
+        type === "select" ? "Auswahl" : undefined,
       acceptedFileTypes: type === "fileUpload" ? [".pdf", ".jpg", ".jpeg", ".png"] : undefined,
       maxFileSize: type === "fileUpload" ? 10 : undefined,
       maxFiles: type === "fileUpload" ? 1 : undefined,
+      videoUrl: type === "video" ? "" : undefined,
+      videoType: type === "video" ? "youtube" : undefined,
+      includeTime: type === "date" ? false : undefined,
+      slides: type === "testimonial" ? [
+        { id: "t1", text: "Großartiger Service! Sehr empfehlenswert.", author: "Max Mustermann", role: "Geschäftsführer", rating: 5 }
+      ] : type === "slider" ? [
+        { id: "s1", title: "Slide 1", text: "" },
+        { id: "s2", title: "Slide 2", text: "" },
+        { id: "s3", title: "Slide 3", text: "" }
+      ] : undefined,
     };
     onUpdate({ elements: [...page.elements, newElement] });
   };
@@ -429,7 +543,166 @@ function PageEditor({
             </div>
           </div>
         )}
+        
+        {page.type === "thankyou" && (
+          <div className="flex items-center justify-between gap-2 p-3 bg-muted/50 rounded-md">
+            <div className="flex items-center gap-2">
+              <PartyPopper className="h-4 w-4 text-primary" />
+              <div>
+                <Label className="text-sm">Konfetti-Animation</Label>
+                <p className="text-xs text-muted-foreground">Zeigt Konfetti wenn Besucher diese Seite erreichen</p>
+              </div>
+            </div>
+            <Switch
+              checked={page.showConfetti || false}
+              onCheckedChange={(checked) => onUpdate({ showConfetti: checked })}
+            />
+          </div>
+        )}
+        
+        <div className="space-y-2">
+          <Label>Seitenanimation</Label>
+          <Select
+            value={page.animation || "fade"}
+            onValueChange={(v) => onUpdate({ animation: v as PageAnimation })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="fade">Einblenden</SelectItem>
+              <SelectItem value="slide">Schieben</SelectItem>
+              <SelectItem value="scale">Skalieren</SelectItem>
+              <SelectItem value="none">Keine Animation</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+
+      {page.type === "welcome" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <Label>Medien & Bewertungen</Label>
+            <div className="flex gap-1 flex-wrap">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => addElement("video")}
+                    data-testid="button-add-video-welcome"
+                  >
+                    <Video className="h-3 w-3 mr-1" />
+                    Video
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Video einbetten (YouTube, Vimeo)</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => addElement("testimonial")}
+                    data-testid="button-add-testimonial"
+                  >
+                    <Star className="h-3 w-3 mr-1" />
+                    Bewertung
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Kundenbewertung hinzufügen</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => addElement("slider")}
+                    data-testid="button-add-slider"
+                  >
+                    <Layers className="h-3 w-3 mr-1" />
+                    Slider
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Bild-Slider hinzufügen</TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
+          
+          {page.elements.length > 0 && (
+            <div className="space-y-3">
+              {page.elements.map((el) => (
+                <Card key={el.id}>
+                  <CardContent className="p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <Badge variant="secondary">
+                        {el.type === "video" ? "Video" :
+                         el.type === "testimonial" ? "Bewertung" :
+                         el.type === "slider" ? "Slider" : el.type}
+                      </Badge>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-destructive"
+                        onClick={() => removeElement(el.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {el.type === "video" && (
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Video-URL</Label>
+                          <Input
+                            placeholder="https://youtube.com/watch?v=..."
+                            value={el.videoUrl || ""}
+                            onChange={(e) =>
+                              updateElement(el.id, { videoUrl: e.target.value })
+                            }
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {el.type === "testimonial" && el.slides && (
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Testimonial-Text"
+                          value={el.slides[0]?.text || ""}
+                          onChange={(e) =>
+                            updateElement(el.id, { 
+                              slides: [{ ...el.slides![0], text: e.target.value }] 
+                            })
+                          }
+                        />
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Name"
+                            value={el.slides[0]?.author || ""}
+                            onChange={(e) =>
+                              updateElement(el.id, { 
+                                slides: [{ ...el.slides![0], author: e.target.value }] 
+                              })
+                            }
+                          />
+                          <Input
+                            placeholder="Rolle"
+                            value={el.slides[0]?.role || ""}
+                            onChange={(e) =>
+                              updateElement(el.id, { 
+                                slides: [{ ...el.slides![0], role: e.target.value }] 
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {(page.type === "contact" || page.type === "question" || page.type === "multiChoice") && (
         <div className="space-y-4">
@@ -469,14 +742,56 @@ function PageEditor({
                       <Button
                         size="sm"
                         variant="outline"
+                        onClick={() => addElement("select")}
+                        data-testid="button-add-select"
+                      >
+                        <ListOrdered className="h-3 w-3 mr-1" />
+                        Dropdown
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Dropdown-Auswahl hinzufügen</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => addElement("date")}
+                        data-testid="button-add-date"
+                      >
+                        <Calendar className="h-3 w-3 mr-1" />
+                        Datum
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Datumsauswahl hinzufügen (z.B. für Geburtsdatum)</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
                         onClick={() => addElement("fileUpload")}
                         data-testid="button-add-file-upload"
                       >
                         <Upload className="h-3 w-3 mr-1" />
-                        Datei-Upload
+                        Datei
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>Datei-Upload für Kunden hinzufügen (PDF, Bilder, etc.)</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => addElement("video")}
+                        data-testid="button-add-video"
+                      >
+                        <Video className="h-3 w-3 mr-1" />
+                        Video
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Video einbetten (YouTube, Vimeo)</TooltipContent>
                   </Tooltip>
                 </>
               )}
@@ -500,10 +815,15 @@ function PageEditor({
                     <Badge variant="secondary">
                       {el.type === "input" ? "Textfeld" : 
                        el.type === "textarea" ? "Textbereich" : 
-                       el.type === "fileUpload" ? "Datei-Upload" : "Auswahl"}
+                       el.type === "fileUpload" ? "Datei-Upload" :
+                       el.type === "video" ? "Video" :
+                       el.type === "date" ? "Datum" :
+                       el.type === "select" ? "Dropdown" :
+                       el.type === "testimonial" ? "Bewertung" :
+                       el.type === "slider" ? "Slider" : "Auswahl"}
                     </Badge>
                     <div className="flex items-center gap-1">
-                      {(el.type === "input" || el.type === "textarea" || el.type === "fileUpload") && (
+                      {(el.type === "input" || el.type === "textarea" || el.type === "fileUpload" || el.type === "date" || el.type === "select") && (
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground mr-2">
                           <span>Pflicht</span>
                           <Switch
@@ -588,8 +908,9 @@ function PageEditor({
                       </div>
                     </div>
                   )}
-                  {el.type === "radio" && el.options && (
+                  {(el.type === "radio" || el.type === "select") && el.options && (
                     <div className="space-y-2">
+                      <Label className="text-xs">{el.type === "select" ? "Dropdown-Optionen" : "Auswahloptionen"}</Label>
                       {el.options.map((opt, optIdx) => (
                         <div key={optIdx} className="flex gap-2">
                           <Input
@@ -625,6 +946,60 @@ function PageEditor({
                       >
                         + Option hinzufügen
                       </Button>
+                    </div>
+                  )}
+                  {el.type === "video" && (
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Video-Plattform</Label>
+                        <Select
+                          value={el.videoType || "youtube"}
+                          onValueChange={(v) =>
+                            updateElement(el.id, { videoType: v as "youtube" | "vimeo" | "upload" })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="youtube">YouTube</SelectItem>
+                            <SelectItem value="vimeo">Vimeo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Video-URL</Label>
+                        <Input
+                          placeholder="https://youtube.com/watch?v=..."
+                          value={el.videoUrl || ""}
+                          onChange={(e) =>
+                            updateElement(el.id, { videoUrl: e.target.value })
+                          }
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {el.type === "date" && (
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Beschriftung</Label>
+                        <Input
+                          placeholder="z.B. Geburtsdatum"
+                          value={el.label || ""}
+                          onChange={(e) =>
+                            updateElement(el.id, { label: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-xs">Uhrzeit einbeziehen</Label>
+                        <Switch
+                          checked={el.includeTime || false}
+                          onCheckedChange={(checked) =>
+                            updateElement(el.id, { includeTime: checked })
+                          }
+                        />
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -1007,6 +1382,79 @@ export default function FunnelEditor() {
                   onChange={(e) =>
                     updateLocalFunnel({
                       theme: { ...localFunnel.theme, primaryColor: e.target.value },
+                    })
+                  }
+                  className="flex-1"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Schriftart</Label>
+              <Select
+                value={localFunnel.theme.fontFamily}
+                onValueChange={(v) =>
+                  updateLocalFunnel({
+                    theme: { ...localFunnel.theme, fontFamily: v },
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Inter">Inter (Modern)</SelectItem>
+                  <SelectItem value="Roboto">Roboto (Clean)</SelectItem>
+                  <SelectItem value="Open Sans">Open Sans (Freundlich)</SelectItem>
+                  <SelectItem value="Lato">Lato (Professionell)</SelectItem>
+                  <SelectItem value="Montserrat">Montserrat (Elegant)</SelectItem>
+                  <SelectItem value="Poppins">Poppins (Rund)</SelectItem>
+                  <SelectItem value="Playfair Display">Playfair Display (Klassisch)</SelectItem>
+                  <SelectItem value="Source Sans Pro">Source Sans Pro (Technisch)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Hintergrundfarbe</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="color"
+                  value={localFunnel.theme.backgroundColor}
+                  onChange={(e) =>
+                    updateLocalFunnel({
+                      theme: { ...localFunnel.theme, backgroundColor: e.target.value },
+                    })
+                  }
+                  className="w-14 h-9 p-1 cursor-pointer"
+                />
+                <Input
+                  value={localFunnel.theme.backgroundColor}
+                  onChange={(e) =>
+                    updateLocalFunnel({
+                      theme: { ...localFunnel.theme, backgroundColor: e.target.value },
+                    })
+                  }
+                  className="flex-1"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Textfarbe</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="color"
+                  value={localFunnel.theme.textColor}
+                  onChange={(e) =>
+                    updateLocalFunnel({
+                      theme: { ...localFunnel.theme, textColor: e.target.value },
+                    })
+                  }
+                  className="w-14 h-9 p-1 cursor-pointer"
+                />
+                <Input
+                  value={localFunnel.theme.textColor}
+                  onChange={(e) =>
+                    updateLocalFunnel({
+                      theme: { ...localFunnel.theme, textColor: e.target.value },
                     })
                   }
                   className="flex-1"
