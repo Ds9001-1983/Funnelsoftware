@@ -131,6 +131,10 @@ export const funnelPageSchema = z.object({
   animation: z.enum(["fade", "slide", "scale", "none"]).optional(),
   // Conditional logic for branching
   conditions: z.array(pageConditionSchema).optional(),
+  // Simple conditional routing (option -> pageId mapping)
+  conditionalRouting: z.record(z.string(), z.string()).optional(),
+  // Default next page ID (overrides sequential navigation)
+  nextPageId: z.string().optional(),
   // Show confetti on this page
   showConfetti: z.boolean().optional(),
 });

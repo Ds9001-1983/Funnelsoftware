@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
@@ -76,6 +76,11 @@ import {
   Bold,
   Italic,
   ExternalLink,
+  GitBranch,
+  Variable,
+  LayoutTemplate,
+  Cloud,
+  CloudOff,
 } from "lucide-react";
 import {
   Tooltip,
@@ -118,9 +123,96 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { useHistory, useAutoSave } from "@/hooks/use-history";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Funnel, FunnelPage, PageElement, PageAnimation } from "@shared/schema";
 import confetti from "canvas-confetti";
+
+// Available personalization variables
+const personalizationVariables = [
+  { key: "{{name}}", label: "Name", description: "Name des Besuchers" },
+  { key: "{{email}}", label: "E-Mail", description: "E-Mail-Adresse" },
+  { key: "{{phone}}", label: "Telefon", description: "Telefonnummer" },
+  { key: "{{company}}", label: "Firma", description: "Firmenname" },
+  { key: "{{date}}", label: "Datum", description: "Aktuelles Datum" },
+  { key: "{{answer_1}}", label: "Antwort 1", description: "Erste Antwort" },
+  { key: "{{answer_2}}", label: "Antwort 2", description: "Zweite Antwort" },
+];
+
+// Section templates for quick insertion
+const sectionTemplates = [
+  {
+    id: "hero",
+    name: "Hero-Sektion",
+    description: "Aufmerksamkeitsstarker Einstieg",
+    elements: [
+      { id: "hero-h", type: "heading" as const, content: "Willkommen bei uns!" },
+      { id: "hero-t", type: "text" as const, content: "Entdecke, wie wir dir helfen können." },
+    ],
+  },
+  {
+    id: "features",
+    name: "Vorteile-Liste",
+    description: "3 Vorteile mit Häkchen",
+    elements: [
+      { id: "feat-l", type: "list" as const, listStyle: "check" as const, listItems: [
+        { id: "f1", text: "Schnell und einfach" },
+        { id: "f2", text: "100% kostenlos testen" },
+        { id: "f3", text: "Keine Kreditkarte nötig" },
+      ]},
+    ],
+  },
+  {
+    id: "testimonial",
+    name: "Kundenstimme",
+    description: "Testimonial mit Bewertung",
+    elements: [
+      { id: "test-t", type: "testimonial" as const, slides: [
+        { id: "t1", text: "Absolut begeistert! Hat meine Erwartungen übertroffen.", author: "Maria Schmidt", role: "Geschäftsführerin", rating: 5 },
+      ]},
+    ],
+  },
+  {
+    id: "cta",
+    name: "Call-to-Action",
+    description: "Überschrift mit Button",
+    elements: [
+      { id: "cta-h", type: "heading" as const, content: "Bereit loszulegen?" },
+      { id: "cta-t", type: "text" as const, content: "Starte jetzt und erlebe den Unterschied." },
+    ],
+  },
+  {
+    id: "contact-form",
+    name: "Kontaktformular",
+    description: "Name, E-Mail, Nachricht",
+    elements: [
+      { id: "cf-1", type: "input" as const, placeholder: "Dein Name", required: true },
+      { id: "cf-2", type: "input" as const, placeholder: "Deine E-Mail", required: true },
+      { id: "cf-3", type: "textarea" as const, placeholder: "Deine Nachricht...", required: false },
+    ],
+  },
+  {
+    id: "faq",
+    name: "FAQ-Sektion",
+    description: "Häufige Fragen",
+    elements: [
+      { id: "faq-1", type: "faq" as const, faqItems: [
+        { id: "fq1", question: "Wie funktioniert das?", answer: "Ganz einfach! Melde dich an und los geht's." },
+        { id: "fq2", question: "Ist es wirklich kostenlos?", answer: "Ja, du kannst alles kostenlos testen." },
+        { id: "fq3", question: "Wie erreiche ich den Support?", answer: "Per E-Mail oder Chat - wir sind für dich da!" },
+      ]},
+    ],
+  },
+  {
+    id: "urgency",
+    name: "Dringlichkeit",
+    description: "Timer mit Text",
+    elements: [
+      { id: "urg-h", type: "heading" as const, content: "Nur noch für kurze Zeit!" },
+      { id: "urg-t", type: "timer" as const, timerEndDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), timerStyle: "countdown" as const, timerShowDays: true },
+    ],
+  },
+];
 
 type PageType = FunnelPage["type"];
 
@@ -848,16 +940,220 @@ function ElementPalette({ onAddElement }: { onAddElement: (type: string) => void
   );
 }
 
-function PageEditor({
+// Conditional Logic Editor Component
+function ConditionalLogicEditor({
   page,
-  primaryColor,
+  allPages,
   onUpdate,
 }: {
   page: FunnelPage;
-  primaryColor: string;
+  allPages: FunnelPage[];
   onUpdate: (updates: Partial<FunnelPage>) => void;
 }) {
+  const hasOptions = page.elements.some(el => el.options && el.options.length > 0);
+  const optionElements = page.elements.filter(el => el.options && el.options.length > 0);
+
+  if (!hasOptions) {
+    return (
+      <div className="p-4 bg-muted/30 rounded-lg text-center">
+        <GitBranch className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+        <p className="text-sm text-muted-foreground">
+          Füge Auswahloptionen hinzu, um Conditional Logic zu verwenden
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <GitBranch className="h-4 w-4" />
+        <span>Leite Besucher basierend auf ihrer Antwort weiter</span>
+      </div>
+
+      {optionElements.map((element) => (
+        <div key={element.id} className="space-y-2">
+          <Label className="text-xs font-medium">Wenn Antwort ist:</Label>
+          {element.options?.map((option, optIdx) => (
+            <div key={optIdx} className="flex items-center gap-2 p-2 bg-muted/30 rounded">
+              <span className="text-sm flex-1 truncate">{option}</span>
+              <Select
+                value={page.conditionalRouting?.[`${element.id}-${optIdx}`] || "next"}
+                onValueChange={(value) => {
+                  onUpdate({
+                    conditionalRouting: {
+                      ...page.conditionalRouting,
+                      [`${element.id}-${optIdx}`]: value,
+                    },
+                  });
+                }}
+              >
+                <SelectTrigger className="w-32 h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="next">Nächste Seite</SelectItem>
+                  {allPages.map((p, idx) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {idx + 1}. {p.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Personalization Variables Inserter
+function PersonalizationInserter({
+  onInsert,
+}: {
+  onInsert: (variable: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7"
+            onClick={() => setOpen(true)}
+          >
+            <Variable className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Variable einfügen</TooltipContent>
+      </Tooltip>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Personalisierung einfügen</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-2 mt-4">
+          {personalizationVariables.map((v) => (
+            <div
+              key={v.key}
+              className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors"
+              onClick={() => {
+                onInsert(v.key);
+                setOpen(false);
+              }}
+            >
+              <div>
+                <div className="font-medium text-sm">{v.label}</div>
+                <div className="text-xs text-muted-foreground">{v.description}</div>
+              </div>
+              <code className="text-xs bg-muted px-2 py-1 rounded">{v.key}</code>
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Section Templates Picker
+function SectionTemplatesPicker({
+  onInsert,
+}: {
+  onInsert: (elements: PageElement[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Button
+        variant="outline"
+        className="w-full gap-2"
+        onClick={() => setOpen(true)}
+      >
+        <LayoutTemplate className="h-4 w-4" />
+        Section-Vorlage einfügen
+      </Button>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Section-Vorlage wählen</DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-3 mt-4 max-h-[60vh] overflow-y-auto">
+          {sectionTemplates.map((template) => (
+            <Card
+              key={template.id}
+              className="cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all"
+              onClick={() => {
+                const elementsWithNewIds = template.elements.map(el => ({
+                  ...el,
+                  id: `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                }));
+                onInsert(elementsWithNewIds as PageElement[]);
+                setOpen(false);
+              }}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                    <LayoutTemplate className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <div className="font-medium">{template.name}</div>
+                    <div className="text-xs text-muted-foreground">{template.description}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {template.elements.length} Element{template.elements.length > 1 ? "e" : ""}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PageEditor({
+  page,
+  allPages,
+  primaryColor,
+  onUpdate,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
+}: {
+  page: FunnelPage;
+  allPages: FunnelPage[];
+  primaryColor: string;
+  onUpdate: (updates: Partial<FunnelPage>) => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+}) {
   const [copiedElement, setCopiedElement] = useState<PageElement | null>(null);
+  const [activeTab, setActiveTab] = useState("content");
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const insertVariable = (variable: string) => {
+    if (titleInputRef.current) {
+      const start = titleInputRef.current.selectionStart || 0;
+      const end = titleInputRef.current.selectionEnd || 0;
+      const text = page.title || "";
+      const newText = text.slice(0, start) + variable + text.slice(end);
+      onUpdate({ title: newText });
+    } else {
+      onUpdate({ title: (page.title || "") + " " + variable });
+    }
+  };
+
+  const addSectionElements = (elements: PageElement[]) => {
+    onUpdate({ elements: [...page.elements, ...elements] });
+  };
 
   const addElement = (type: PageElement["type"]) => {
     const newElement: PageElement = {
@@ -967,28 +1263,41 @@ function PageEditor({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Quick Actions Bar */}
       <div className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
         <div className="flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-8 w-8" disabled>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                onClick={onUndo}
+                disabled={!canUndo}
+              >
                 <Undo2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Rückgängig</TooltipContent>
+            <TooltipContent>Rückgängig (Ctrl+Z)</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-8 w-8" disabled>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                onClick={onRedo}
+                disabled={!canRedo}
+              >
                 <Redo2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Wiederholen</TooltipContent>
+            <TooltipContent>Wiederholen (Ctrl+Y)</TooltipContent>
           </Tooltip>
         </div>
         <div className="flex items-center gap-1">
+          <PersonalizationInserter onInsert={insertVariable} />
           {copiedElement && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -1003,8 +1312,17 @@ function PageEditor({
         </div>
       </div>
 
-      {/* Page Settings */}
-      <div className="space-y-4">
+      {/* Tabs for Content / Logic / Settings */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="w-full grid grid-cols-3">
+          <TabsTrigger value="content">Inhalt</TabsTrigger>
+          <TabsTrigger value="logic">Logik</TabsTrigger>
+          <TabsTrigger value="settings">Design</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="content" className="space-y-4 mt-4">
+          {/* Page Settings */}
+          <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="title">Titel</Label>
           <Input
@@ -1467,6 +1785,112 @@ function PageEditor({
           </DndContext>
         </div>
       )}
+        </TabsContent>
+
+        {/* Logic Tab - Conditional Routing */}
+        <TabsContent value="logic" className="space-y-4 mt-4">
+          <div className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20">
+            <div className="flex items-center gap-2 mb-2">
+              <GitBranch className="h-5 w-5 text-primary" />
+              <h4 className="font-medium">Conditional Logic</h4>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Leite Besucher basierend auf ihren Antworten zu verschiedenen Seiten.
+            </p>
+            <ConditionalLogicEditor
+              page={page}
+              allPages={allPages}
+              onUpdate={onUpdate}
+            />
+          </div>
+
+          {/* Default next page */}
+          <div className="space-y-2">
+            <Label>Standard-Weiterleitung</Label>
+            <Select
+              value={page.nextPageId || "auto"}
+              onValueChange={(value) => onUpdate({ nextPageId: value === "auto" ? undefined : value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Automatisch (nächste Seite)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Automatisch (nächste Seite)</SelectItem>
+                {allPages.map((p, idx) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {idx + 1}. {p.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Wohin sollen Besucher geleitet werden, wenn keine Bedingung zutrifft?
+            </p>
+          </div>
+        </TabsContent>
+
+        {/* Settings Tab - Design Options */}
+        <TabsContent value="settings" className="space-y-4 mt-4">
+          {(page.type === "welcome" || page.type === "thankyou") && (
+            <div className="space-y-2">
+              <Label>Hintergrundfarbe</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="color"
+                  value={page.backgroundColor || primaryColor}
+                  onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
+                  className="w-14 h-9 p-1 cursor-pointer"
+                />
+                <Input
+                  value={page.backgroundColor || primaryColor}
+                  onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+          )}
+
+          {page.type === "thankyou" && (
+            <div className="flex items-center justify-between gap-2 p-3 bg-muted/50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <PartyPopper className="h-4 w-4 text-primary" />
+                <div>
+                  <Label className="text-sm">Konfetti-Animation</Label>
+                  <p className="text-xs text-muted-foreground">Zeigt Konfetti bei Seitenaufruf</p>
+                </div>
+              </div>
+              <Switch
+                checked={page.showConfetti || false}
+                onCheckedChange={(checked) => onUpdate({ showConfetti: checked })}
+              />
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label>Seitenanimation</Label>
+            <Select
+              value={page.animation || "fade"}
+              onValueChange={(v) => onUpdate({ animation: v as PageAnimation })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fade">Einblenden</SelectItem>
+                <SelectItem value="slide">Schieben</SelectItem>
+                <SelectItem value="scale">Skalieren</SelectItem>
+                <SelectItem value="none">Keine Animation</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Section Templates */}
+          <div className="pt-4 border-t">
+            <Label className="mb-3 block">Schnell-Vorlagen</Label>
+            <SectionTemplatesPicker onInsert={addSectionElements} />
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -1479,11 +1903,24 @@ export default function FunnelEditor() {
   const [selectedPageIndex, setSelectedPageIndex] = useState(0);
   const [showAddPage, setShowAddPage] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [localFunnel, setLocalFunnel] = useState<Funnel | null>(null);
-  const [hasChanges, setHasChanges] = useState(false);
   const [previewMode, setPreviewMode] = useState<"phone" | "tablet" | "desktop">("phone");
   const [showLeftSidebar, setShowLeftSidebar] = useState(true);
   const [showRightSidebar, setShowRightSidebar] = useState(true);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+  const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
+
+  // History state for undo/redo
+  const {
+    state: localFunnel,
+    set: setLocalFunnel,
+    undo,
+    redo,
+    reset: resetHistory,
+    canUndo,
+    canRedo,
+  } = useHistory<Funnel | null>(null);
+
+  const [hasChanges, setHasChanges] = useState(false);
 
   useDocumentTitle(localFunnel ? `${localFunnel.name} bearbeiten` : "Funnel Editor");
 
@@ -1503,11 +1940,40 @@ export default function FunnelEditor() {
     enabled: !!params?.id,
   });
 
+  // Initialize funnel from query
   useEffect(() => {
     if (funnel && !localFunnel) {
-      setLocalFunnel(funnel);
+      resetHistory(funnel);
     }
   }, [funnel]);
+
+  // Auto-save functionality
+  const performAutoSave = useCallback(() => {
+    if (localFunnel && hasChanges && autoSaveEnabled) {
+      saveMutation.mutate({
+        name: localFunnel.name,
+        description: localFunnel.description,
+        pages: localFunnel.pages,
+        theme: localFunnel.theme,
+        status: localFunnel.status,
+      });
+      setLastAutoSave(new Date());
+    }
+  }, [localFunnel, hasChanges, autoSaveEnabled]);
+
+  const { scheduleAutoSave } = useAutoSave(
+    localFunnel,
+    performAutoSave,
+    30000, // 30 seconds
+    autoSaveEnabled && hasChanges
+  );
+
+  // Schedule auto-save when changes occur
+  useEffect(() => {
+    if (hasChanges && autoSaveEnabled) {
+      scheduleAutoSave();
+    }
+  }, [hasChanges, autoSaveEnabled, scheduleAutoSave]);
 
   const saveMutation = useMutation({
     mutationFn: async (data: Partial<Funnel>) => {
@@ -1555,12 +2021,12 @@ export default function FunnelEditor() {
     },
   });
 
-  const updateLocalFunnel = (updates: Partial<Funnel>) => {
+  const updateLocalFunnel = useCallback((updates: Partial<Funnel>) => {
     if (localFunnel) {
       setLocalFunnel({ ...localFunnel, ...updates });
       setHasChanges(true);
     }
-  };
+  }, [localFunnel, setLocalFunnel]);
 
   const updatePage = (index: number, updates: Partial<FunnelPage>) => {
     if (localFunnel) {
@@ -1655,14 +2121,31 @@ export default function FunnelEditor() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Save: Ctrl+S
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
         if (hasChanges) handleSave();
       }
+      // Undo: Ctrl+Z
+      if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        if (canUndo) {
+          undo();
+          setHasChanges(true);
+        }
+      }
+      // Redo: Ctrl+Y or Ctrl+Shift+Z
+      if ((e.metaKey || e.ctrlKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+        e.preventDefault();
+        if (canRedo) {
+          redo();
+          setHasChanges(true);
+        }
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [hasChanges, localFunnel]);
+  }, [hasChanges, localFunnel, canUndo, canRedo, undo, redo]);
 
   if (isLoading) {
     return (
@@ -1776,6 +2259,64 @@ export default function FunnelEditor() {
 
         {/* Right - Actions */}
         <div className="flex items-center gap-2">
+          {/* Undo/Redo buttons in header */}
+          <div className="flex items-center gap-0.5 mr-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => { undo(); setHasChanges(true); }}
+                  disabled={!canUndo}
+                >
+                  <Undo2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Rückgängig (Ctrl+Z)</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => { redo(); setHasChanges(true); }}
+                  disabled={!canRedo}
+                >
+                  <Redo2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Wiederholen (Ctrl+Y)</TooltipContent>
+            </Tooltip>
+          </div>
+
+          <div className="h-6 w-px bg-border mx-1" />
+
+          {/* Auto-save indicator */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}
+              >
+                {autoSaveEnabled ? (
+                  <Cloud className="h-4 w-4 text-green-500" />
+                ) : (
+                  <CloudOff className="h-4 w-4 text-muted-foreground" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {autoSaveEnabled
+                ? `Auto-Save aktiv${lastAutoSave ? ` (zuletzt: ${lastAutoSave.toLocaleTimeString()})` : ""}`
+                : "Auto-Save deaktiviert - klicken zum aktivieren"
+              }
+            </TooltipContent>
+          </Tooltip>
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -1922,8 +2463,13 @@ export default function FunnelEditor() {
               {selectedPage && (
                 <PageEditor
                   page={selectedPage}
+                  allPages={localFunnel.pages}
                   primaryColor={localFunnel.theme.primaryColor}
                   onUpdate={(updates) => updatePage(selectedPageIndex, updates)}
+                  onUndo={undo}
+                  onRedo={redo}
+                  canUndo={canUndo}
+                  canRedo={canRedo}
                 />
               )}
             </div>
