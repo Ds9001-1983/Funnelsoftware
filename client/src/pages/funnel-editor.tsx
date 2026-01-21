@@ -340,7 +340,7 @@ function FunnelProgress({ currentPage, totalPages, primaryColor }: {
   );
 }
 
-// Enhanced Phone Preview with inline editing
+// Enhanced Phone Preview with inline editing and element selection
 function PhonePreview({
   page,
   pageIndex,
@@ -349,6 +349,8 @@ function PhonePreview({
   onUpdatePage,
   isEditing,
   setIsEditing,
+  selectedElementId,
+  onSelectElement,
 }: {
   page: FunnelPage | null;
   pageIndex: number;
@@ -357,6 +359,8 @@ function PhonePreview({
   onUpdatePage?: (updates: Partial<FunnelPage>) => void;
   isEditing?: boolean;
   setIsEditing?: (editing: boolean) => void;
+  selectedElementId?: string | null;
+  onSelectElement?: (elementId: string | null) => void;
 }) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [localTitle, setLocalTitle] = useState(page?.title || "");
@@ -379,6 +383,32 @@ function PhonePreview({
       onUpdatePage({ subtitle: localSubtitle });
     }
     setEditingField(null);
+  };
+
+  // Element wrapper for selection handling
+  const ElementWrapper = ({ elementId, children }: { elementId: string; children: React.ReactNode }) => {
+    const isSelected = selectedElementId === elementId;
+    return (
+      <div
+        className={`relative group cursor-pointer transition-all rounded-lg ${
+          isSelected
+            ? "ring-2 ring-primary ring-offset-2 bg-primary/5"
+            : "hover:ring-2 hover:ring-primary/30 hover:ring-offset-1"
+        }`}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelectElement?.(elementId);
+        }}
+      >
+        {children}
+        {/* Selection indicator */}
+        {isSelected && (
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+            <Check className="h-2.5 w-2.5 text-primary-foreground" />
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (!page) {
@@ -466,7 +496,7 @@ function PhonePreview({
           {page.type === "contact" && (
             <div className="space-y-3 mt-4">
               {page.elements.map((el) => (
-                <div key={el.id}>
+                <ElementWrapper key={el.id} elementId={el.id}>
                   {el.type === "input" && (
                     <input
                       type="text"
@@ -555,7 +585,7 @@ function PhonePreview({
                       </div>
                     </div>
                   )}
-                </div>
+                </ElementWrapper>
               ))}
             </div>
           )}
@@ -563,11 +593,13 @@ function PhonePreview({
           {page.elements.some((el) => el.type === "video") && page.type !== "contact" && (
             <div className="mt-4 space-y-3">
               {page.elements.filter((el) => el.type === "video").map((el) => (
-                <div key={el.id} className="w-full aspect-video rounded-lg bg-gray-900 flex items-center justify-center shadow-md">
-                  <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                    <Play className="h-7 w-7 text-white ml-1" />
+                <ElementWrapper key={el.id} elementId={el.id}>
+                  <div className="w-full aspect-video rounded-lg bg-gray-900 flex items-center justify-center shadow-md">
+                    <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                      <Play className="h-7 w-7 text-white ml-1" />
+                    </div>
                   </div>
-                </div>
+                </ElementWrapper>
               ))}
             </div>
           )}
@@ -575,23 +607,25 @@ function PhonePreview({
           {page.elements.some((el) => el.type === "testimonial") && (
             <div className="mt-4 space-y-3">
               {page.elements.filter((el) => el.type === "testimonial").map((el) => (
-                <div key={el.id} className="bg-white rounded-xl p-4 shadow-md">
-                  <div className="flex gap-0.5 mb-3">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star key={star} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                    ))}
-                  </div>
-                  <p className="text-sm text-gray-700 mb-3 text-left">
-                    "{el.slides?.[0]?.text || "Großartiger Service!"}"
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400" />
-                    <div className="text-left">
-                      <p className="text-sm font-semibold">{el.slides?.[0]?.author || "Kunde"}</p>
-                      <p className="text-xs text-gray-500">{el.slides?.[0]?.role || "Position"}</p>
+                <ElementWrapper key={el.id} elementId={el.id}>
+                  <div className="bg-white rounded-xl p-4 shadow-md">
+                    <div className="flex gap-0.5 mb-3">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star key={star} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      ))}
+                    </div>
+                    <p className="text-sm text-gray-700 mb-3 text-left">
+                      "{el.slides?.[0]?.text || "Großartiger Service!"}"
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400" />
+                      <div className="text-left">
+                        <p className="text-sm font-semibold">{el.slides?.[0]?.author || "Kunde"}</p>
+                        <p className="text-xs text-gray-500">{el.slides?.[0]?.role || "Position"}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                </ElementWrapper>
               ))}
             </div>
           )}
@@ -599,29 +633,31 @@ function PhonePreview({
           {page.elements.some((el) => el.type === "slider") && (
             <div className="mt-4">
               {page.elements.filter((el) => el.type === "slider").map((el) => (
-                <div key={el.id} className="relative">
-                  <div className="aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl overflow-hidden shadow-md">
-                    <div className="w-full h-full flex items-center justify-center text-gray-400">
-                      <Image className="h-10 w-10" />
+                <ElementWrapper key={el.id} elementId={el.id}>
+                  <div className="relative">
+                    <div className="aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl overflow-hidden shadow-md">
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        <Image className="h-10 w-10" />
+                      </div>
+                    </div>
+                    <button className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <button className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                    <div className="flex justify-center gap-1.5 mt-3">
+                      {(el.slides || [{ id: "1" }, { id: "2" }, { id: "3" }]).map((_, idx) => (
+                        <div
+                          key={idx}
+                          className={`w-2 h-2 rounded-full transition-colors ${
+                            idx === 0 ? "bg-gray-800" : "bg-gray-300"
+                          }`}
+                        />
+                      ))}
                     </div>
                   </div>
-                  <button className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                  <button className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
-                    <ChevronRight className="h-5 w-5" />
-                  </button>
-                  <div className="flex justify-center gap-1.5 mt-3">
-                    {(el.slides || [{ id: "1" }, { id: "2" }, { id: "3" }]).map((_, idx) => (
-                      <div
-                        key={idx}
-                        className={`w-2 h-2 rounded-full transition-colors ${
-                          idx === 0 ? "bg-gray-800" : "bg-gray-300"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </div>
+                </ElementWrapper>
               ))}
             </div>
           )}
@@ -631,24 +667,34 @@ function PhonePreview({
               <div className="space-y-2 mt-4">
                 {page.elements
                   .filter((el) => el.options)
-                  .flatMap((el) =>
-                    el.options?.map((option, idx) => (
-                      <div
-                        key={`${el.id}-${idx}`}
-                        className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 text-sm text-left bg-white hover:border-primary/50 hover:shadow-md transition-all cursor-pointer active:scale-[0.98]"
-                      >
-                        {option}
+                  .map((el) => (
+                    <ElementWrapper key={el.id} elementId={el.id}>
+                      <div className="space-y-2">
+                        {el.options?.map((option, idx) => (
+                          <div
+                            key={`${el.id}-${idx}`}
+                            className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 text-sm text-left bg-white hover:border-primary/50 hover:shadow-md transition-all cursor-pointer active:scale-[0.98]"
+                          >
+                            {option}
+                          </div>
+                        ))}
                       </div>
-                    ))
-                  )}
+                    </ElementWrapper>
+                  ))}
               </div>
             )}
 
           {/* Social Proof Badges */}
           {page.elements.some((el) => el.type === "socialProof") && (
-            <div className="mt-4 flex flex-wrap justify-center gap-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-8 w-16 bg-white/20 rounded" />
+            <div className="mt-4">
+              {page.elements.filter((el) => el.type === "socialProof").map((el) => (
+                <ElementWrapper key={el.id} elementId={el.id}>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-8 w-16 bg-white/20 rounded" />
+                    ))}
+                  </div>
+                </ElementWrapper>
               ))}
             </div>
           )}
@@ -1912,6 +1958,10 @@ export default function FunnelEditor() {
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
 
+  // Perspective-style editor states
+  const [leftSidebarTab, setLeftSidebarTab] = useState<"pages" | "design">("pages");
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+
   // History state for undo/redo
   const {
     state: localFunnel,
@@ -2038,6 +2088,69 @@ export default function FunnelEditor() {
       updateLocalFunnel({ pages: newPages });
     }
   };
+
+  // Get selected element from current page
+  const selectedElement = useMemo(() => {
+    if (!localFunnel || !selectedElementId) return null;
+    const page = localFunnel.pages[selectedPageIndex];
+    return page?.elements.find(el => el.id === selectedElementId) || null;
+  }, [localFunnel, selectedPageIndex, selectedElementId]);
+
+  // Element manipulation functions for the left sidebar
+  const updateSelectedElement = useCallback((updates: Partial<PageElement>) => {
+    if (!localFunnel || !selectedElementId) return;
+    const page = localFunnel.pages[selectedPageIndex];
+    const newElements = page.elements.map(el =>
+      el.id === selectedElementId ? { ...el, ...updates } : el
+    );
+    updatePage(selectedPageIndex, { elements: newElements });
+  }, [localFunnel, selectedPageIndex, selectedElementId, updatePage]);
+
+  const deleteSelectedElement = useCallback(() => {
+    if (!localFunnel || !selectedElementId) return;
+    const page = localFunnel.pages[selectedPageIndex];
+    const newElements = page.elements.filter(el => el.id !== selectedElementId);
+    updatePage(selectedPageIndex, { elements: newElements });
+    setSelectedElementId(null);
+  }, [localFunnel, selectedPageIndex, selectedElementId, updatePage]);
+
+  const duplicateSelectedElement = useCallback(() => {
+    if (!localFunnel || !selectedElementId) return;
+    const page = localFunnel.pages[selectedPageIndex];
+    const elementIndex = page.elements.findIndex(el => el.id === selectedElementId);
+    if (elementIndex === -1) return;
+    const element = page.elements[elementIndex];
+    const newElement = { ...element, id: `el-${Date.now()}` };
+    const newElements = [...page.elements];
+    newElements.splice(elementIndex + 1, 0, newElement);
+    updatePage(selectedPageIndex, { elements: newElements });
+    setSelectedElementId(newElement.id);
+  }, [localFunnel, selectedPageIndex, selectedElementId, updatePage]);
+
+  const moveElementUp = useCallback(() => {
+    if (!localFunnel || !selectedElementId) return;
+    const page = localFunnel.pages[selectedPageIndex];
+    const elementIndex = page.elements.findIndex(el => el.id === selectedElementId);
+    if (elementIndex <= 0) return;
+    const newElements = [...page.elements];
+    [newElements[elementIndex - 1], newElements[elementIndex]] = [newElements[elementIndex], newElements[elementIndex - 1]];
+    updatePage(selectedPageIndex, { elements: newElements });
+  }, [localFunnel, selectedPageIndex, selectedElementId, updatePage]);
+
+  const moveElementDown = useCallback(() => {
+    if (!localFunnel || !selectedElementId) return;
+    const page = localFunnel.pages[selectedPageIndex];
+    const elementIndex = page.elements.findIndex(el => el.id === selectedElementId);
+    if (elementIndex === -1 || elementIndex >= page.elements.length - 1) return;
+    const newElements = [...page.elements];
+    [newElements[elementIndex], newElements[elementIndex + 1]] = [newElements[elementIndex + 1], newElements[elementIndex]];
+    updatePage(selectedPageIndex, { elements: newElements });
+  }, [localFunnel, selectedPageIndex, selectedElementId, updatePage]);
+
+  // Clear element selection when page changes
+  useEffect(() => {
+    setSelectedElementId(null);
+  }, [selectedPageIndex]);
 
   const addPage = (type: PageType) => {
     if (localFunnel) {
@@ -2371,47 +2484,386 @@ export default function FunnelEditor() {
 
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left sidebar - Page list */}
+        {/* Left sidebar - Seiten/Design tabs */}
         <div className={`${showLeftSidebar ? "w-72" : "w-0"} border-r border-border bg-card overflow-hidden transition-all duration-300`}>
           <div className="w-72 h-full flex flex-col">
-            <div className="p-4 border-b border-border">
-              <Button
-                className="w-full gap-2"
-                variant="outline"
-                onClick={() => setShowAddPage(true)}
-                data-testid="button-add-page"
-              >
-                <Plus className="h-4 w-4" />
-                Seite hinzufügen
-              </Button>
-            </div>
-            <div className="flex-1 overflow-y-auto funnel-scrollbar p-2">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={localFunnel.pages.map((p) => p.id)}
-                  strategy={verticalListSortingStrategy}
+            {/* Tabs header */}
+            <div className="border-b border-border">
+              <div className="flex">
+                <button
+                  className={`flex-1 py-3 px-4 text-sm font-medium transition-colors border-b-2 ${
+                    leftSidebarTab === "pages"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                  onClick={() => setLeftSidebarTab("pages")}
                 >
-                  <div className="space-y-1">
-                    {localFunnel.pages.map((page, index) => (
-                      <SortablePageItem
-                        key={page.id}
-                        page={page}
-                        index={index}
-                        selected={index === selectedPageIndex}
-                        onSelect={() => setSelectedPageIndex(index)}
-                        onDelete={() => deletePage(index)}
-                        onDuplicate={() => duplicatePage(index)}
-                        totalPages={localFunnel.pages.length}
-                      />
+                  <Layers className="h-4 w-4 inline-block mr-2" />
+                  Seiten
+                </button>
+                <button
+                  className={`flex-1 py-3 px-4 text-sm font-medium transition-colors border-b-2 ${
+                    leftSidebarTab === "design"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                  onClick={() => setLeftSidebarTab("design")}
+                >
+                  <Settings className="h-4 w-4 inline-block mr-2" />
+                  Design
+                </button>
+              </div>
+            </div>
+
+            {/* Tab content */}
+            {leftSidebarTab === "pages" ? (
+              <>
+                <div className="p-4 border-b border-border">
+                  <Button
+                    className="w-full gap-2"
+                    variant="outline"
+                    onClick={() => setShowAddPage(true)}
+                    data-testid="button-add-page"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Seite hinzufügen
+                  </Button>
+                </div>
+                <div className="flex-1 overflow-y-auto funnel-scrollbar p-2">
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={localFunnel.pages.map((p) => p.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="space-y-1">
+                        {localFunnel.pages.map((page, index) => (
+                          <SortablePageItem
+                            key={page.id}
+                            page={page}
+                            index={index}
+                            selected={index === selectedPageIndex}
+                            onSelect={() => setSelectedPageIndex(index)}
+                            onDelete={() => deletePage(index)}
+                            onDuplicate={() => duplicatePage(index)}
+                            totalPages={localFunnel.pages.length}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 overflow-y-auto funnel-scrollbar">
+                {selectedElement ? (
+                  /* Element Properties Panel */
+                  <div className="p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium text-sm">Element bearbeiten</h4>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => setSelectedElementId(null)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {/* Element type badge */}
+                    <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+                      <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center">
+                        {selectedElement.type === "heading" && <Type className="h-4 w-4 text-primary" />}
+                        {selectedElement.type === "text" && <AlignLeft className="h-4 w-4 text-primary" />}
+                        {selectedElement.type === "image" && <Image className="h-4 w-4 text-primary" />}
+                        {selectedElement.type === "video" && <Video className="h-4 w-4 text-primary" />}
+                        {selectedElement.type === "input" && <Type className="h-4 w-4 text-primary" />}
+                        {selectedElement.type === "textarea" && <MessageSquare className="h-4 w-4 text-primary" />}
+                        {selectedElement.type === "list" && <List className="h-4 w-4 text-primary" />}
+                        {selectedElement.type === "testimonial" && <Star className="h-4 w-4 text-primary" />}
+                        {selectedElement.type === "divider" && <Minus className="h-4 w-4 text-primary" />}
+                        {selectedElement.type === "spacer" && <Space className="h-4 w-4 text-primary" />}
+                        {selectedElement.type === "timer" && <Clock className="h-4 w-4 text-primary" />}
+                      </div>
+                      <span className="text-sm font-medium capitalize">{selectedElement.type}</span>
+                    </div>
+
+                    {/* Quick actions */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={moveElementUp}
+                      >
+                        <ChevronLeft className="h-4 w-4 rotate-90" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={moveElementDown}
+                      >
+                        <ChevronRight className="h-4 w-4 rotate-90" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={duplicateSelectedElement}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={deleteSelectedElement}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {/* Element-specific properties */}
+                    {(selectedElement.type === "heading" || selectedElement.type === "text") && (
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Inhalt</Label>
+                          <Textarea
+                            value={selectedElement.content || ""}
+                            onChange={(e) => updateSelectedElement({ content: e.target.value })}
+                            rows={3}
+                            className="text-sm"
+                          />
+                        </div>
+
+                        {selectedElement.type === "heading" && (
+                          <div className="space-y-2">
+                            <Label className="text-xs">Schriftgröße</Label>
+                            <Select
+                              value={selectedElement.styles?.fontSize || "2xl"}
+                              onValueChange={(v) => updateSelectedElement({
+                                styles: { ...selectedElement.styles, fontSize: v }
+                              })}
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="xl">Klein (XL)</SelectItem>
+                                <SelectItem value="2xl">Normal (2XL)</SelectItem>
+                                <SelectItem value="3xl">Groß (3XL)</SelectItem>
+                                <SelectItem value="4xl">Sehr groß (4XL)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          <Label className="text-xs">Textausrichtung</Label>
+                          <div className="flex gap-1">
+                            <Button
+                              variant={selectedElement.styles?.textAlign === "left" ? "default" : "outline"}
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => updateSelectedElement({
+                                styles: { ...selectedElement.styles, textAlign: "left" }
+                              })}
+                            >
+                              <AlignLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant={(!selectedElement.styles?.textAlign || selectedElement.styles?.textAlign === "center") ? "default" : "outline"}
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => updateSelectedElement({
+                                styles: { ...selectedElement.styles, textAlign: "center" }
+                              })}
+                            >
+                              <AlignCenter className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant={selectedElement.styles?.textAlign === "right" ? "default" : "outline"}
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => updateSelectedElement({
+                                styles: { ...selectedElement.styles, textAlign: "right" }
+                              })}
+                            >
+                              <AlignRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-xs">Textfarbe</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              type="color"
+                              value={selectedElement.styles?.color || "#1a1a1a"}
+                              onChange={(e) => updateSelectedElement({
+                                styles: { ...selectedElement.styles, color: e.target.value }
+                              })}
+                              className="w-12 h-9 p-1 cursor-pointer"
+                            />
+                            <Input
+                              value={selectedElement.styles?.color || "#1a1a1a"}
+                              onChange={(e) => updateSelectedElement({
+                                styles: { ...selectedElement.styles, color: e.target.value }
+                              })}
+                              className="flex-1 h-9 text-sm"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button
+                            variant={selectedElement.styles?.fontWeight === "bold" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => updateSelectedElement({
+                              styles: {
+                                ...selectedElement.styles,
+                                fontWeight: selectedElement.styles?.fontWeight === "bold" ? "normal" : "bold"
+                              }
+                            })}
+                          >
+                            <Bold className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant={selectedElement.styles?.fontStyle === "italic" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => updateSelectedElement({
+                              styles: {
+                                ...selectedElement.styles,
+                                fontStyle: selectedElement.styles?.fontStyle === "italic" ? "normal" : "italic"
+                              }
+                            })}
+                          >
+                            <Italic className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedElement.type === "image" && (
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Bild-URL</Label>
+                          <Input
+                            value={selectedElement.imageUrl || ""}
+                            onChange={(e) => updateSelectedElement({ imageUrl: e.target.value })}
+                            placeholder="https://..."
+                            className="text-sm"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Alt-Text</Label>
+                          <Input
+                            value={selectedElement.imageAlt || ""}
+                            onChange={(e) => updateSelectedElement({ imageAlt: e.target.value })}
+                            placeholder="Bildbeschreibung"
+                            className="text-sm"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedElement.type === "video" && (
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Video-URL</Label>
+                          <Input
+                            value={selectedElement.videoUrl || ""}
+                            onChange={(e) => updateSelectedElement({ videoUrl: e.target.value })}
+                            placeholder="YouTube oder Vimeo URL"
+                            className="text-sm"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Autoplay</Label>
+                          <Switch
+                            checked={selectedElement.videoAutoplay || false}
+                            onCheckedChange={(checked) => updateSelectedElement({ videoAutoplay: checked })}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {(selectedElement.type === "input" || selectedElement.type === "textarea") && (
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Platzhalter</Label>
+                          <Input
+                            value={selectedElement.placeholder || ""}
+                            onChange={(e) => updateSelectedElement({ placeholder: e.target.value })}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Label</Label>
+                          <Input
+                            value={selectedElement.label || ""}
+                            onChange={(e) => updateSelectedElement({ label: e.target.value })}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Pflichtfeld</Label>
+                          <Switch
+                            checked={selectedElement.required || false}
+                            onCheckedChange={(checked) => updateSelectedElement({ required: checked })}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedElement.type === "spacer" && (
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Höhe (px)</Label>
+                          <Slider
+                            value={[selectedElement.spacerHeight || 24]}
+                            onValueChange={([v]) => updateSelectedElement({ spacerHeight: v })}
+                            min={8}
+                            max={120}
+                            step={8}
+                          />
+                          <div className="text-xs text-muted-foreground text-center">
+                            {selectedElement.spacerHeight || 24}px
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Element palette when no element selected */
+                  <div className="p-4 space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Klicke auf ein Element in der Vorschau um es zu bearbeiten, oder füge neue Elemente hinzu:
+                    </p>
+                    {elementCategories.map((category) => (
+                      <div key={category.name}>
+                        <h5 className="text-xs font-medium text-muted-foreground mb-2">{category.name}</h5>
+                        <div className="space-y-1">
+                          {category.elements.map((el) => (
+                            <DraggableElement
+                              key={el.type}
+                              type={el.type}
+                              label={el.label}
+                              icon={el.icon}
+                              description={el.description}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </SortableContext>
-              </DndContext>
-            </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -2427,17 +2879,35 @@ export default function FunnelEditor() {
         </Button>
 
         {/* Center - Preview */}
-        <div className="flex-1 bg-muted/30 overflow-y-auto flex items-center justify-center p-8">
-          <div style={{
-            maxWidth: previewMode === "phone" ? "320px" : previewMode === "tablet" ? "768px" : "1024px",
-            width: "100%"
-          }}>
+        <div
+          className="flex-1 bg-muted/30 overflow-y-auto flex items-center justify-center p-8"
+          onClick={() => {
+            // Deselect element when clicking outside
+            if (selectedElementId) {
+              setSelectedElementId(null);
+            }
+          }}
+        >
+          <div
+            style={{
+              maxWidth: previewMode === "phone" ? "320px" : previewMode === "tablet" ? "768px" : "1024px",
+              width: "100%"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <PhonePreview
               page={selectedPage}
               pageIndex={selectedPageIndex}
               totalPages={localFunnel.pages.length}
               primaryColor={localFunnel.theme.primaryColor}
               onUpdatePage={(updates) => updatePage(selectedPageIndex, updates)}
+              selectedElementId={selectedElementId}
+              onSelectElement={(elementId) => {
+                setSelectedElementId(elementId);
+                if (elementId) {
+                  setLeftSidebarTab("design");
+                }
+              }}
             />
           </div>
         </div>
