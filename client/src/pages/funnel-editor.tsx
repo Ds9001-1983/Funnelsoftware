@@ -41,6 +41,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
   Star,
   Play,
   ListOrdered,
@@ -118,6 +119,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
@@ -364,6 +370,11 @@ function PhonePreview({
   setIsEditing,
   selectedElementId,
   onSelectElement,
+  onAddElement,
+  onDeleteElement,
+  onDuplicateElement,
+  onMoveElementUp,
+  onMoveElementDown,
 }: {
   page: FunnelPage | null;
   pageIndex: number;
@@ -374,7 +385,13 @@ function PhonePreview({
   setIsEditing?: (editing: boolean) => void;
   selectedElementId?: string | null;
   onSelectElement?: (elementId: string | null) => void;
+  onAddElement?: (type: PageElement["type"]) => void;
+  onDeleteElement?: () => void;
+  onDuplicateElement?: () => void;
+  onMoveElementUp?: () => void;
+  onMoveElementDown?: () => void;
 }) {
+  const [showAddMenu, setShowAddMenu] = useState(false);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [localTitle, setLocalTitle] = useState(page?.title || "");
   const [localSubtitle, setLocalSubtitle] = useState(page?.subtitle || "");
@@ -398,7 +415,7 @@ function PhonePreview({
     setEditingField(null);
   };
 
-  // Element wrapper for selection handling
+  // Element wrapper for selection handling with floating action menu
   const ElementWrapper = ({ elementId, children }: { elementId: string; children: React.ReactNode }) => {
     const isSelected = selectedElementId === elementId;
     return (
@@ -414,10 +431,85 @@ function PhonePreview({
         }}
       >
         {children}
-        {/* Selection indicator */}
+        {/* Floating action menu on the right when selected */}
         {isSelected && (
-          <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
-            <Check className="h-2.5 w-2.5 text-primary-foreground" />
+          <div className="absolute -right-12 top-1/2 -translate-y-1/2 flex flex-col gap-1 bg-white rounded-lg shadow-lg border p-1 z-10">
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 transition-colors"
+                  title="Element hinzufügen"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Plus className="h-4 w-4 text-gray-600" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="left" align="start" className="w-64 p-2" onClick={(e) => e.stopPropagation()}>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground px-2">Element hinzufügen</p>
+                  {elementCategories.map((category) => (
+                    <div key={category.name}>
+                      <p className="text-xs text-muted-foreground px-2 py-1">{category.name}</p>
+                      <div className="space-y-0.5">
+                        {category.elements.map((el) => (
+                          <button
+                            key={el.type}
+                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent text-left text-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAddElement?.(el.type);
+                            }}
+                          >
+                            <el.icon className="h-4 w-4 text-muted-foreground" />
+                            <span>{el.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+            <button
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 transition-colors"
+              title="Nach oben"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveElementUp?.();
+              }}
+            >
+              <ChevronUp className="h-4 w-4 text-gray-600" />
+            </button>
+            <button
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 transition-colors"
+              title="Nach unten"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveElementDown?.();
+              }}
+            >
+              <ChevronDown className="h-4 w-4 text-gray-600" />
+            </button>
+            <button
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 transition-colors"
+              title="Duplizieren"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDuplicateElement?.();
+              }}
+            >
+              <Copy className="h-4 w-4 text-gray-600" />
+            </button>
+            <button
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-red-50 transition-colors"
+              title="Löschen"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteElement?.();
+              }}
+            >
+              <Trash2 className="h-4 w-4 text-red-500" />
+            </button>
           </div>
         )}
       </div>
@@ -852,6 +944,48 @@ function PhonePreview({
                   </div>
                 </ElementWrapper>
               ))}
+            </div>
+          )}
+
+          {/* Add Block Button */}
+          {onAddElement && (
+            <div className="mt-6 flex flex-col items-center">
+              <Popover open={showAddMenu} onOpenChange={setShowAddMenu}>
+                <PopoverTrigger asChild>
+                  <button
+                    className="w-12 h-12 rounded-full border-2 border-dashed border-gray-300 hover:border-primary hover:bg-primary/5 flex items-center justify-center transition-all group"
+                    title="Block hinzufügen"
+                  >
+                    <Plus className="h-5 w-5 text-gray-400 group-hover:text-primary transition-colors" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-3" align="center">
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium">Block hinzufügen</p>
+                    {elementCategories.map((category) => (
+                      <div key={category.name}>
+                        <p className="text-xs text-muted-foreground mb-1.5">{category.name}</p>
+                        <div className="grid grid-cols-2 gap-1">
+                          {category.elements.map((el) => (
+                            <button
+                              key={el.type}
+                              className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-accent text-left text-sm transition-colors"
+                              onClick={() => {
+                                onAddElement(el.type);
+                                setShowAddMenu(false);
+                              }}
+                            >
+                              <el.icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span className="truncate">{el.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <span className="text-xs text-gray-400 mt-2">Block hinzufügen</span>
             </div>
           )}
         </div>
@@ -3124,6 +3258,11 @@ export default function FunnelEditor() {
                   setLeftSidebarTab("design");
                 }
               }}
+              onAddElement={addElementToPage}
+              onDeleteElement={deleteSelectedElement}
+              onDuplicateElement={duplicateSelectedElement}
+              onMoveElementUp={moveElementUp}
+              onMoveElementDown={moveElementDown}
             />
           </div>
         </div>
