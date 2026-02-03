@@ -14,3 +14,9 @@ export { DraggableElement } from "./DraggableElement";
 export { FunnelProgress } from "./FunnelProgress";
 export { SortablePageItem } from "./SortablePageItem";
 export { SortableElementItem } from "./SortableElementItem";
+
+// Quiz-Komponenten
+export * from "./QuizElement";
+
+// Device Preview
+export * from "./DevicePreview";
