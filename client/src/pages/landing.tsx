@@ -19,7 +19,9 @@ import {
   PenTool,
   Palette,
   TrendingUp,
+  Cookie,
 } from "lucide-react";
+import { resetCookieConsent } from "@/components/cookie-consent";
 
 // Template preview data with images
 const templatePreviews = [
@@ -592,7 +594,15 @@ export default function Landing() {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link href="/impressum" className="hover:text-foreground">Impressum</Link></li>
                 <li><Link href="/datenschutz" className="hover:text-foreground">Datenschutz</Link></li>
-                <li><a href="#" className="hover:text-foreground">AGB</a></li>
+                <li>
+                  <button 
+                    onClick={resetCookieConsent} 
+                    className="hover:text-foreground flex items-center gap-1"
+                  >
+                    <Cookie className="h-3 w-3" />
+                    Cookie-Einstellungen
+                  </button>
+                </li>
               </ul>
             </div>
           </div>

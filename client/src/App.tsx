@@ -21,6 +21,7 @@ import Login from "@/pages/login";
 import Register from "@/pages/register";
 import Impressum from "@/pages/impressum";
 import Datenschutz from "@/pages/datenschutz";
+import { CookieConsent } from "@/components/cookie-consent";
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   const style = {
@@ -128,6 +129,7 @@ function App() {
           <AuthProvider>
             <Toaster />
             <Router />
+            <CookieConsent />
           </AuthProvider>
         </TooltipProvider>
       </ThemeProvider>
