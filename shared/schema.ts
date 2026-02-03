@@ -121,6 +121,7 @@ export const pageElementSchema = z.object({
   // Video element properties
   videoUrl: z.string().optional(),
   videoType: z.enum(["youtube", "vimeo", "upload"]).optional(),
+  videoAutoplay: z.boolean().optional(),
   // Date element properties
   dateFormat: z.string().optional(),
   includeTime: z.boolean().optional(),
@@ -196,6 +197,7 @@ export const pageElementSchema = z.object({
   styles: z.object({
     fontSize: z.string().optional(),
     fontWeight: z.string().optional(),
+    fontStyle: z.string().optional(),
     textAlign: z.string().optional(),
     color: z.string().optional(),
     backgroundColor: z.string().optional(),

@@ -217,9 +217,14 @@ export default function Register() {
                   "14 Tage kostenlos testen"
                 )}
               </Button>
-              <p className="text-xs text-center text-muted-foreground">
-                Keine Kreditkarte erforderlich
-              </p>
+              <div className="flex items-center justify-center gap-3 mt-2">
+                <span className="text-xs text-muted-foreground">Zahlung mit</span>
+                <div className="flex items-center gap-2 opacity-50">
+                  <span className="text-xs font-semibold">PayPal</span>
+                  <span className="text-xs">Visa</span>
+                  <span className="text-xs">MC</span>
+                </div>
+              </div>
             </form>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
