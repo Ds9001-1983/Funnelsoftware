@@ -281,34 +281,47 @@ const elementCategories: {
   },
 ];
 
-// Draggable element from palette
-function DraggableElement({ type, label, icon: Icon, description }: {
+// Clickable/Draggable element from palette
+function DraggableElement({ type, label, icon: Icon, description, onClick }: {
   type: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   description: string;
+  onClick?: () => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `new-element-${type}`,
     data: { type, isNew: true },
   });
 
+  const handleClick = (e: React.MouseEvent) => {
+    // Only trigger click if not dragging and onClick handler exists
+    if (onClick && !isDragging) {
+      e.stopPropagation();
+      onClick();
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`flex items-center gap-2 p-2 rounded-md cursor-grab active:cursor-grabbing transition-all hover:bg-accent ${
-        isDragging ? "opacity-50 scale-95" : ""
+      onClick={handleClick}
+      className={`group flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all hover:bg-accent ${
+        isDragging ? "opacity-50 scale-95 cursor-grabbing" : ""
       }`}
     >
       <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
         <Icon className="h-4 w-4 text-muted-foreground" />
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="text-sm font-medium truncate">{label}</div>
         <div className="text-xs text-muted-foreground truncate">{description}</div>
       </div>
+      {onClick && (
+        <Plus className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+      )}
     </div>
   );
 }
@@ -519,6 +532,23 @@ function PhonePreview({
                       <ChevronDown className="h-4 w-4 text-gray-400" />
                     </div>
                   )}
+                  {el.type === "radio" && el.options && (
+                    <div className="space-y-2">
+                      {el.label && <p className="text-sm font-medium text-left" style={{ color: textColor }}>{el.label}</p>}
+                      {el.options.map((option, idx) => (
+                        <div key={idx} className="flex items-center gap-3 px-4 py-2 bg-white rounded-lg border border-gray-200 text-sm shadow-sm">
+                          <div className="w-4 h-4 rounded-full border-2 border-gray-300" />
+                          <span>{option}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {el.type === "checkbox" && (
+                    <div className="flex items-center gap-3 px-4 py-3 bg-white rounded-lg border border-gray-200 text-sm shadow-sm">
+                      <div className="w-4 h-4 rounded border-2 border-gray-300" />
+                      <span>{el.label || "Checkbox"}</span>
+                    </div>
+                  )}
                   {el.type === "date" && (
                     <div className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm bg-white flex items-center gap-2 shadow-sm">
                       <Calendar className="h-4 w-4 text-gray-400" />
@@ -583,6 +613,132 @@ function PhonePreview({
                           </div>
                         ))}
                       </div>
+                    </div>
+                  )}
+                  {el.type === "heading" && (
+                    <h3
+                      className="font-bold"
+                      style={{
+                        color: el.styles?.color || textColor,
+                        fontSize: el.styles?.fontSize || "1.25rem",
+                        fontWeight: el.styles?.fontWeight || "bold",
+                        fontStyle: el.styles?.fontStyle || "normal",
+                        textAlign: (el.styles?.textAlign as "left" | "center" | "right") || "center",
+                      }}
+                    >
+                      {el.content || "Überschrift"}
+                    </h3>
+                  )}
+                  {el.type === "text" && (
+                    <p
+                      className="text-sm"
+                      style={{
+                        color: el.styles?.color || textColor,
+                        fontSize: el.styles?.fontSize || "0.875rem",
+                        fontWeight: el.styles?.fontWeight || "normal",
+                        fontStyle: el.styles?.fontStyle || "normal",
+                        textAlign: (el.styles?.textAlign as "left" | "center" | "right") || "center",
+                      }}
+                    >
+                      {el.content || "Text hier..."}
+                    </p>
+                  )}
+                  {el.type === "image" && (
+                    <div className="w-full">
+                      {el.imageUrl ? (
+                        <img
+                          src={el.imageUrl}
+                          alt={el.imageAlt || "Bild"}
+                          className="w-full rounded-lg shadow-md object-cover"
+                          style={{ maxHeight: "200px" }}
+                        />
+                      ) : (
+                        <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+                          <Image className="h-8 w-8 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {el.type === "icon" && (
+                    <div
+                      className="flex justify-center"
+                      style={{ color: el.styles?.color || textColor }}
+                    >
+                      <div className={`${el.iconSize === "xl" ? "h-16 w-16" : el.iconSize === "lg" ? "h-12 w-12" : el.iconSize === "md" ? "h-8 w-8" : "h-6 w-6"}`}>
+                        <Star className="w-full h-full" />
+                      </div>
+                    </div>
+                  )}
+                </ElementWrapper>
+              ))}
+            </div>
+          )}
+
+          {/* Render heading, text, image elements for all page types */}
+          {page.elements.some((el) => ["heading", "text", "image", "icon", "progressBar"].includes(el.type)) && page.type !== "contact" && (
+            <div className="mt-4 space-y-3">
+              {page.elements.filter((el) => ["heading", "text", "image", "icon", "progressBar"].includes(el.type)).map((el) => (
+                <ElementWrapper key={el.id} elementId={el.id}>
+                  {el.type === "heading" && (
+                    <h3
+                      className="font-bold"
+                      style={{
+                        color: el.styles?.color || textColor,
+                        fontSize: el.styles?.fontSize || "1.25rem",
+                        fontWeight: el.styles?.fontWeight || "bold",
+                        fontStyle: el.styles?.fontStyle || "normal",
+                        textAlign: (el.styles?.textAlign as "left" | "center" | "right") || "center",
+                      }}
+                    >
+                      {el.content || "Überschrift"}
+                    </h3>
+                  )}
+                  {el.type === "text" && (
+                    <p
+                      className="text-sm"
+                      style={{
+                        color: el.styles?.color || textColor,
+                        fontSize: el.styles?.fontSize || "0.875rem",
+                        fontWeight: el.styles?.fontWeight || "normal",
+                        fontStyle: el.styles?.fontStyle || "normal",
+                        textAlign: (el.styles?.textAlign as "left" | "center" | "right") || "center",
+                      }}
+                    >
+                      {el.content || "Text hier..."}
+                    </p>
+                  )}
+                  {el.type === "image" && (
+                    <div className="w-full">
+                      {el.imageUrl ? (
+                        <img
+                          src={el.imageUrl}
+                          alt={el.imageAlt || "Bild"}
+                          className="w-full rounded-lg shadow-md object-cover"
+                          style={{ maxHeight: "200px" }}
+                        />
+                      ) : (
+                        <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+                          <Image className="h-8 w-8 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {el.type === "icon" && (
+                    <div
+                      className="flex justify-center"
+                      style={{ color: el.styles?.color || textColor }}
+                    >
+                      <div className={`${el.iconSize === "xl" ? "h-16 w-16" : el.iconSize === "lg" ? "h-12 w-12" : el.iconSize === "md" ? "h-8 w-8" : "h-6 w-6"}`}>
+                        <Star className="w-full h-full" />
+                      </div>
+                    </div>
+                  )}
+                  {el.type === "progressBar" && (
+                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: "60%", backgroundColor: primaryColor }}
+                      />
                     </div>
                   )}
                 </ElementWrapper>
@@ -2147,6 +2303,65 @@ export default function FunnelEditor() {
     updatePage(selectedPageIndex, { elements: newElements });
   }, [localFunnel, selectedPageIndex, selectedElementId, updatePage]);
 
+  // Add element to current page from Design tab
+  const addElementToPage = useCallback((type: PageElement["type"]) => {
+    if (!localFunnel) return;
+    const page = localFunnel.pages[selectedPageIndex];
+    const newElement: PageElement = {
+      id: `el-${Date.now()}`,
+      type,
+      placeholder:
+        type === "input" ? "Dein Text hier..." :
+        type === "textarea" ? "Deine Nachricht..." :
+        type === "select" ? "Option wählen..." :
+        type === "date" ? "Datum auswählen..." : undefined,
+      options:
+        type === "radio" ? ["Option 1", "Option 2", "Option 3"] :
+        type === "select" ? ["Option 1", "Option 2", "Option 3"] : undefined,
+      label:
+        type === "fileUpload" ? "Datei hochladen" :
+        type === "video" ? "Video" :
+        type === "date" ? "Datum" :
+        type === "heading" ? "Überschrift" :
+        type === "text" ? "Dein Text hier..." :
+        type === "select" ? "Auswahl" : undefined,
+      content:
+        type === "heading" ? "Deine Überschrift" :
+        type === "text" ? "Füge hier deinen Text ein. Beschreibe dein Angebot oder gib wichtige Informationen." : undefined,
+      acceptedFileTypes: type === "fileUpload" ? [".pdf", ".jpg", ".jpeg", ".png"] : undefined,
+      maxFileSize: type === "fileUpload" ? 10 : undefined,
+      maxFiles: type === "fileUpload" ? 1 : undefined,
+      videoUrl: type === "video" ? "" : undefined,
+      videoType: type === "video" ? "youtube" : undefined,
+      includeTime: type === "date" ? false : undefined,
+      slides: type === "testimonial" ? [
+        { id: "t1", text: "Großartiger Service! Sehr empfehlenswert.", author: "Max Mustermann", role: "Geschäftsführer", rating: 5 }
+      ] : type === "slider" ? [
+        { id: "s1", title: "Slide 1", text: "" },
+        { id: "s2", title: "Slide 2", text: "" },
+        { id: "s3", title: "Slide 3", text: "" }
+      ] : undefined,
+      faqItems: type === "faq" ? [
+        { id: "faq1", question: "Wie funktioniert das?", answer: "So funktioniert es..." },
+        { id: "faq2", question: "Was kostet das?", answer: "Die Preise sind..." },
+      ] : undefined,
+      listItems: type === "list" ? [
+        { id: "li1", text: "Vorteil Nummer 1" },
+        { id: "li2", text: "Vorteil Nummer 2" },
+        { id: "li3", text: "Vorteil Nummer 3" },
+      ] : undefined,
+      listStyle: type === "list" ? "check" : undefined,
+      spacerHeight: type === "spacer" ? 32 : undefined,
+      dividerStyle: type === "divider" ? "solid" : undefined,
+      timerEndDate: type === "timer" ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
+      timerStyle: type === "timer" ? "countdown" : undefined,
+      timerShowDays: type === "timer" ? true : undefined,
+    };
+    const newElements = [...page.elements, newElement];
+    updatePage(selectedPageIndex, { elements: newElements });
+    setSelectedElementId(newElement.id);
+  }, [localFunnel, selectedPageIndex, updatePage]);
+
   // Clear element selection when page changes
   useEffect(() => {
     setSelectedElementId(null);
@@ -2842,7 +3057,7 @@ export default function FunnelEditor() {
                   /* Element palette when no element selected */
                   <div className="p-4 space-y-4">
                     <p className="text-sm text-muted-foreground">
-                      Klicke auf ein Element in der Vorschau um es zu bearbeiten, oder füge neue Elemente hinzu:
+                      Klicke auf ein Element um es hinzuzufügen:
                     </p>
                     {elementCategories.map((category) => (
                       <div key={category.name}>
@@ -2855,6 +3070,7 @@ export default function FunnelEditor() {
                               label={el.label}
                               icon={el.icon}
                               description={el.description}
+                              onClick={() => addElementToPage(el.type as PageElement["type"])}
                             />
                           ))}
                         </div>
