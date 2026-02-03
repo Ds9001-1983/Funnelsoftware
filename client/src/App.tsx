@@ -19,6 +19,8 @@ import Analytics from "@/pages/analytics";
 import Settings from "@/pages/settings";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
+import Impressum from "@/pages/impressum";
+import Datenschutz from "@/pages/datenschutz";
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   const style = {
@@ -76,6 +78,14 @@ function Router() {
   }
   if (location === "/register") {
     return <Register />;
+  }
+
+  // Legal pages (no sidebar, no auth required)
+  if (location === "/impressum") {
+    return <Impressum />;
+  }
+  if (location === "/datenschutz") {
+    return <Datenschutz />;
   }
 
   // Full-screen pages without sidebar (but protected)
