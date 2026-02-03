@@ -108,7 +108,7 @@ export const pageElementSchema = z.object({
     "heading", "text", "image", "button", "input", "textarea",
     "select", "checkbox", "radio", "fileUpload", "video", "date",
     "slider", "testimonial", "faq", "list", "timer", "socialProof",
-    "divider", "spacer", "progressBar", "icon"
+    "divider", "spacer", "progressBar", "icon", "quiz"
   ]),
   content: z.string().optional(),
   placeholder: z.string().optional(),
@@ -169,6 +169,29 @@ export const pageElementSchema = z.object({
   // Image properties
   imageUrl: z.string().optional(),
   imageAlt: z.string().optional(),
+  // Quiz properties
+  quizConfig: z.object({
+    questions: z.array(z.object({
+      id: z.string(),
+      question: z.string(),
+      answers: z.array(z.object({
+        id: z.string(),
+        text: z.string(),
+        points: z.record(z.string(), z.number()),
+      })),
+    })),
+    results: z.array(z.object({
+      id: z.string(),
+      title: z.string(),
+      description: z.string(),
+      minPoints: z.number(),
+      maxPoints: z.number(),
+      color: z.string(),
+    })),
+    showProgressBar: z.boolean(),
+    shuffleQuestions: z.boolean(),
+    shuffleAnswers: z.boolean(),
+  }).optional(),
   // General styles
   styles: z.object({
     fontSize: z.string().optional(),
