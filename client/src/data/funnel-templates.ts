@@ -77,7 +77,7 @@ const terminTemplate: FunnelTemplate = {
   name: "Termin buchen",
   description: "Präsentiere dein Angebot und ermögliche direkte Terminbuchung",
   category: "leads",
-  thumbnail: "/templates/termin.png",
+  thumbnail: "/templates/termin-buchen.png",
   theme: {
     primaryColor: "#2563EB",
     backgroundColor: "#ffffff",
@@ -151,7 +151,7 @@ const recruitingTemplate: FunnelTemplate = {
   name: "Express Bewerbung",
   description: "Ermögliche schnelle Bewerbungen ohne Lebenslauf",
   category: "recruiting",
-  thumbnail: "/templates/recruiting.png",
+  thumbnail: "/templates/express-bewerbung.png",
   theme: {
     primaryColor: "#059669",
     backgroundColor: "#ffffff",
@@ -236,7 +236,7 @@ const quizTemplate: FunnelTemplate = {
   name: "Quiz Funnel",
   description: "Interaktives Quiz mit personalisierten Ergebnissen",
   category: "quiz",
-  thumbnail: "/templates/quiz.png",
+  thumbnail: "/templates/quiz-funnel.png",
   theme: {
     primaryColor: "#F59E0B",
     backgroundColor: "#ffffff",
@@ -339,7 +339,7 @@ const webinarTemplate: FunnelTemplate = {
   name: "Webinar Anmeldung",
   description: "Sammle Anmeldungen für dein Live-Webinar",
   category: "webinar",
-  thumbnail: "/templates/webinar.png",
+  thumbnail: "/templates/webinar-anmeldung.png",
   theme: {
     primaryColor: "#DC2626",
     backgroundColor: "#ffffff",
@@ -395,7 +395,7 @@ const salesTemplate: FunnelTemplate = {
   name: "Produkt Verkauf",
   description: "Verkaufe dein Produkt oder deine Dienstleistung direkt",
   category: "sales",
-  thumbnail: "/templates/sales.png",
+  thumbnail: "/templates/produkt-verkauf.png",
   theme: {
     primaryColor: "#8B5CF6",
     backgroundColor: "#ffffff",
@@ -465,7 +465,7 @@ const surveyTemplate: FunnelTemplate = {
   name: "Umfrage",
   description: "Erhalte wertvolle Einblicke von deiner Zielgruppe",
   category: "survey",
-  thumbnail: "/templates/survey.png",
+  thumbnail: "/templates/umfrage.png",
   theme: {
     primaryColor: "#0EA5E9",
     backgroundColor: "#ffffff",
