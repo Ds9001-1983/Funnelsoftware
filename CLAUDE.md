@@ -27,7 +27,13 @@ Dieses Dokument enthält wichtige Informationen für KI-Assistenten (wie Claude)
 │   ├── src/
 │   │   ├── components/     # Wiederverwendbare Komponenten
 │   │   │   ├── funnel-editor/  # Editor-spezifische Komponenten
+│   │   │   │   ├── QuizElement.tsx    # Quiz mit Ergebnis-Mapping
+│   │   │   │   ├── DevicePreview.tsx  # Mobile/Tablet/Desktop Vorschau
+│   │   │   │   └── ...                # Weitere Editor-Komponenten
+│   │   │   ├── TemplateSelector.tsx   # Template-Auswahl Dialog
 │   │   │   └── ui/         # shadcn/ui Komponenten
+│   │   ├── data/           # Statische Daten und Konfigurationen
+│   │   │   └── funnel-templates.ts    # 7 professionelle Templates
 │   │   ├── hooks/          # Custom React Hooks
 │   │   ├── lib/            # Utilities und Konfiguration
 │   │   ├── pages/          # Seiten-Komponenten
