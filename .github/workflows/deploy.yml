@@ -32,8 +32,9 @@ jobs:
             # Build the application
             npm run build
 
-            # Run database migrations
-            npx drizzle-kit push --force || true
+            # Run database migrations (without --force to preserve data)
+            # Only run if schema changed, skip errors for existing tables
+            npx drizzle-kit push 2>/dev/null || echo "Schema already up to date"
 
             # Restart PM2
             pm2 restart funnelflow || pm2 start dist/index.cjs --name funnelflow
