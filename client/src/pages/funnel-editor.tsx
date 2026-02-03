@@ -82,6 +82,9 @@ import {
   LayoutTemplate,
   Cloud,
   CloudOff,
+  Scissors,
+  Maximize2,
+  Search,
 } from "lucide-react";
 import {
   Tooltip,
@@ -416,14 +419,39 @@ function PhonePreview({
     setEditingField(null);
   };
 
+  // Element type labels for display
+  const elementTypeLabels: Record<string, string> = {
+    heading: "Überschrift",
+    text: "Text",
+    image: "Bild",
+    video: "Video",
+    input: "Eingabefeld",
+    textarea: "Textbereich",
+    select: "Dropdown",
+    radio: "Auswahl",
+    checkbox: "Checkbox",
+    date: "Datum",
+    fileUpload: "Datei-Upload",
+    list: "Liste",
+    faq: "FAQ",
+    testimonial: "Bewertung",
+    slider: "Slider",
+    socialProof: "Social Proof",
+    divider: "Trennlinie",
+    spacer: "Abstand",
+    timer: "Timer",
+    progressBar: "Fortschritt",
+    icon: "Icon",
+  };
+
   // Element wrapper for selection handling with floating action menu
-  const ElementWrapper = ({ elementId, children }: { elementId: string; children: React.ReactNode }) => {
+  const ElementWrapper = ({ elementId, elementType, children }: { elementId: string; elementType: string; children: React.ReactNode }) => {
     const isSelected = selectedElementId === elementId;
     return (
       <div
         className={`relative group cursor-pointer transition-all rounded-lg ${
           isSelected
-            ? "ring-2 ring-primary ring-offset-2 bg-primary/5"
+            ? "ring-2 ring-primary ring-offset-2"
             : "hover:ring-2 hover:ring-primary/30 hover:ring-offset-1"
         }`}
         onClick={(e) => {
@@ -432,6 +460,14 @@ function PhonePreview({
         }}
       >
         {children}
+        {/* Element type label at top-left when selected */}
+        {isSelected && (
+          <div className="absolute -top-3 left-2 z-10">
+            <span className="px-2 py-0.5 text-xs font-medium bg-primary text-primary-foreground rounded">
+              {elementTypeLabels[elementType] || elementType}
+            </span>
+          </div>
+        )}
         {/* Floating action menu on the right when selected */}
         {isSelected && (
           <div className="absolute -right-12 top-1/2 -translate-y-1/2 flex flex-col gap-1 bg-white rounded-lg shadow-lg border p-1 z-10">
@@ -576,7 +612,7 @@ function PhonePreview({
           {page.type === "contact" && (
             <div className="space-y-3 mt-4">
               {page.elements.map((el) => (
-                <ElementWrapper key={el.id} elementId={el.id}>
+                <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
                   {el.type === "input" && (
                     <input
                       type="text"
@@ -745,7 +781,7 @@ function PhonePreview({
           {page.elements.some((el) => ["heading", "text", "image", "icon", "progressBar"].includes(el.type)) && page.type !== "contact" && (
             <div className="mt-4 space-y-3">
               {page.elements.filter((el) => ["heading", "text", "image", "icon", "progressBar"].includes(el.type)).map((el) => (
-                <ElementWrapper key={el.id} elementId={el.id}>
+                <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
                   {el.type === "heading" && (
                     <h3
                       className="font-bold"
@@ -816,7 +852,7 @@ function PhonePreview({
           {page.elements.some((el) => el.type === "video") && page.type !== "contact" && (
             <div className="mt-4 space-y-3">
               {page.elements.filter((el) => el.type === "video").map((el) => (
-                <ElementWrapper key={el.id} elementId={el.id}>
+                <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
                   <div className="w-full aspect-video rounded-lg bg-gray-900 flex items-center justify-center shadow-md">
                     <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
                       <Play className="h-7 w-7 text-white ml-1" />
@@ -830,7 +866,7 @@ function PhonePreview({
           {page.elements.some((el) => el.type === "testimonial") && (
             <div className="mt-4 space-y-3">
               {page.elements.filter((el) => el.type === "testimonial").map((el) => (
-                <ElementWrapper key={el.id} elementId={el.id}>
+                <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
                   <div className="bg-white rounded-xl p-4 shadow-md">
                     <div className="flex gap-0.5 mb-3">
                       {[1, 2, 3, 4, 5].map((star) => (
@@ -856,7 +892,7 @@ function PhonePreview({
           {page.elements.some((el) => el.type === "slider") && (
             <div className="mt-4">
               {page.elements.filter((el) => el.type === "slider").map((el) => (
-                <ElementWrapper key={el.id} elementId={el.id}>
+                <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
                   <div className="relative">
                     <div className="aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl overflow-hidden shadow-md">
                       <div className="w-full h-full flex items-center justify-center text-gray-400">
@@ -891,7 +927,7 @@ function PhonePreview({
                 {page.elements
                   .filter((el) => el.options)
                   .map((el) => (
-                    <ElementWrapper key={el.id} elementId={el.id}>
+                    <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
                       <div className="space-y-2">
                         {el.options?.map((option, idx) => (
                           <div
@@ -911,7 +947,7 @@ function PhonePreview({
           {page.elements.some((el) => el.type === "socialProof") && (
             <div className="mt-4">
               {page.elements.filter((el) => el.type === "socialProof").map((el) => (
-                <ElementWrapper key={el.id} elementId={el.id}>
+                <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
                   <div className="flex flex-wrap justify-center gap-3">
                     {[1, 2, 3].map((i) => (
                       <div key={i} className="h-8 w-16 bg-white/20 rounded" />
@@ -994,70 +1030,23 @@ function SortablePageItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`group flex items-center gap-2 p-3 rounded-lg cursor-pointer transition-all ${
+      className={`group flex items-center gap-3 py-2.5 px-3 rounded-lg cursor-pointer transition-all ${
         selected
-          ? "bg-accent ring-2 ring-primary/20"
-          : "hover:bg-muted/50"
+          ? "bg-primary/10 text-primary"
+          : "hover:bg-muted/50 text-foreground"
       } ${isDragging ? "z-50 shadow-xl" : ""}`}
       onClick={onSelect}
       data-testid={`page-item-${index}`}
+      {...attributes}
+      {...listeners}
     >
-      <button
-        {...attributes}
-        {...listeners}
-        className="cursor-grab active:cursor-grabbing touch-none p-1 -ml-1 opacity-50 group-hover:opacity-100 transition-opacity"
-        data-testid={`drag-handle-${index}`}
-      >
-        <GripVertical className="h-4 w-4 text-muted-foreground" />
-      </button>
-      <div
-        className="h-9 w-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 shadow-sm"
-        style={{ backgroundColor: page.backgroundColor || "#e5e5e5" }}
-      >
-        <span style={{ color: page.backgroundColor ? "#fff" : "#666" }}>
-          {pageTypeIcons[page.type]}
-        </span>
-      </div>
+      {/* Page number */}
+      <span className={`text-sm font-medium w-5 shrink-0 ${selected ? "text-primary" : "text-muted-foreground"}`}>
+        {index + 1}
+      </span>
+      {/* Page title */}
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium truncate">{page.title}</div>
-        <div className="text-xs text-muted-foreground">
-          {pageTypeLabels[page.type]}
-        </div>
-      </div>
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDuplicate();
-              }}
-            >
-              <Copy className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Duplizieren</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 text-destructive hover:text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              disabled={totalPages <= 1}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Löschen</TooltipContent>
-        </Tooltip>
+        <div className="text-sm truncate">{page.title}</div>
       </div>
     </div>
   );
@@ -2859,71 +2848,35 @@ export default function FunnelEditor() {
             ) : (
               <div className="flex-1 overflow-y-auto funnel-scrollbar">
                 {selectedElement ? (
-                  /* Element Properties Panel */
-                  <div className="p-4 space-y-4">
+                  /* Element Properties Panel - Perspective Style */
+                  <div className="p-4 space-y-6">
+                    {/* Element type header */}
                     <div className="flex items-center justify-between">
-                      <h4 className="font-medium text-sm">Element bearbeiten</h4>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
+                      <h4 className="font-semibold">
+                        {selectedElement.type === "heading" && "Überschrift"}
+                        {selectedElement.type === "text" && "Text"}
+                        {selectedElement.type === "image" && "Bild"}
+                        {selectedElement.type === "video" && "Video"}
+                        {selectedElement.type === "input" && "Eingabefeld"}
+                        {selectedElement.type === "textarea" && "Textbereich"}
+                        {selectedElement.type === "select" && "Dropdown"}
+                        {selectedElement.type === "radio" && "Auswahl"}
+                        {selectedElement.type === "checkbox" && "Checkbox"}
+                        {selectedElement.type === "list" && "Liste"}
+                        {selectedElement.type === "testimonial" && "Bewertung"}
+                        {selectedElement.type === "faq" && "FAQ"}
+                        {selectedElement.type === "divider" && "Trennlinie"}
+                        {selectedElement.type === "spacer" && "Abstand"}
+                        {selectedElement.type === "timer" && "Timer"}
+                        {selectedElement.type === "slider" && "Slider"}
+                        {!["heading", "text", "image", "video", "input", "textarea", "select", "radio", "checkbox", "list", "testimonial", "faq", "divider", "spacer", "timer", "slider"].includes(selectedElement.type) && selectedElement.type}
+                      </h4>
+                      <button
+                        className="p-1 rounded hover:bg-muted"
                         onClick={() => setSelectedElementId(null)}
                       >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    {/* Element type badge */}
-                    <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
-                      <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center">
-                        {selectedElement.type === "heading" && <Type className="h-4 w-4 text-primary" />}
-                        {selectedElement.type === "text" && <AlignLeft className="h-4 w-4 text-primary" />}
-                        {selectedElement.type === "image" && <Image className="h-4 w-4 text-primary" />}
-                        {selectedElement.type === "video" && <Video className="h-4 w-4 text-primary" />}
-                        {selectedElement.type === "input" && <Type className="h-4 w-4 text-primary" />}
-                        {selectedElement.type === "textarea" && <MessageSquare className="h-4 w-4 text-primary" />}
-                        {selectedElement.type === "list" && <List className="h-4 w-4 text-primary" />}
-                        {selectedElement.type === "testimonial" && <Star className="h-4 w-4 text-primary" />}
-                        {selectedElement.type === "divider" && <Minus className="h-4 w-4 text-primary" />}
-                        {selectedElement.type === "spacer" && <Space className="h-4 w-4 text-primary" />}
-                        {selectedElement.type === "timer" && <Clock className="h-4 w-4 text-primary" />}
-                      </div>
-                      <span className="text-sm font-medium capitalize">{selectedElement.type}</span>
-                    </div>
-
-                    {/* Quick actions */}
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={moveElementUp}
-                      >
-                        <ChevronLeft className="h-4 w-4 rotate-90" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={moveElementDown}
-                      >
-                        <ChevronRight className="h-4 w-4 rotate-90" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={duplicateSelectedElement}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={deleteSelectedElement}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                        <Info className="h-4 w-4 text-muted-foreground" />
+                      </button>
                     </div>
 
                     {/* Element-specific properties */}
@@ -3048,23 +3001,112 @@ export default function FunnelEditor() {
                     )}
 
                     {selectedElement.type === "image" && (
-                      <div className="space-y-3">
+                      <div className="space-y-4">
+                        {/* Size options like Perspective */}
+                        <div className="space-y-2">
+                          <div className="flex gap-1">
+                            {["S", "M", "L", "XL"].map((size) => (
+                              <Button
+                                key={size}
+                                variant={(selectedElement.styles?.imageSize || "L") === size ? "default" : "outline"}
+                                size="sm"
+                                className="flex-1 text-xs font-medium"
+                                onClick={() => updateSelectedElement({
+                                  styles: { ...selectedElement.styles, imageSize: size }
+                                })}
+                              >
+                                {size}
+                              </Button>
+                            ))}
+                            <Button variant="outline" size="sm" className="px-2">
+                              <Settings className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex gap-1">
+                          <Button variant="outline" size="sm" className="flex-1 text-xs">
+                            <Scissors className="h-3.5 w-3.5 mr-1" />
+                            Zuschneiden
+                          </Button>
+                          <Button variant="outline" size="sm" className="flex-1 text-xs">
+                            <Maximize2 className="h-3.5 w-3.5 mr-1" />
+                            Vollbild
+                          </Button>
+                          <Button variant="outline" size="sm" className="px-2">
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+
+                        {/* Hintergrund section */}
+                        <div className="space-y-2">
+                          <Label className="text-xs font-medium">Hintergrund</Label>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" className="flex-1 justify-start gap-2 h-9">
+                              <ChevronUp className="h-3.5 w-3.5" />
+                              <div className="flex-1 h-1 bg-muted rounded" />
+                            </Button>
+                            <Button variant="outline" size="sm" className="flex-1 justify-start gap-2 h-9">
+                              <ChevronDown className="h-3.5 w-3.5" />
+                              <div className="flex-1 h-1 bg-muted rounded" />
+                            </Button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="color"
+                              value={selectedElement.styles?.backgroundColor || "#ffffff"}
+                              onChange={(e) => updateSelectedElement({
+                                styles: { ...selectedElement.styles, backgroundColor: e.target.value }
+                              })}
+                              className="w-10 h-8 p-1 cursor-pointer"
+                            />
+                            <span className="text-xs text-muted-foreground">Hintergrundfarbe</span>
+                          </div>
+                        </div>
+
+                        {/* Alle Medien section */}
+                        <div className="space-y-2">
+                          <Label className="text-xs font-medium">Alle Medien</Label>
+                          <div className="relative">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                            <Input
+                              placeholder="Suche"
+                              className="pl-8 h-8 text-sm"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Upload dropzone */}
+                        <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center hover:border-primary/50 transition-colors cursor-pointer">
+                          <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-xs text-muted-foreground">
+                            Bild ablegen oder klicken zum Durchsuchen
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            (Max. 10MB; .png .jpg .webp .gif)
+                          </p>
+                        </div>
+
+                        {/* Image URL input */}
                         <div className="space-y-2">
                           <Label className="text-xs">Bild-URL</Label>
                           <Input
                             value={selectedElement.imageUrl || ""}
                             onChange={(e) => updateSelectedElement({ imageUrl: e.target.value })}
                             placeholder="https://..."
-                            className="text-sm"
+                            className="text-sm h-8"
                           />
                         </div>
+
+                        {/* Alt text */}
                         <div className="space-y-2">
-                          <Label className="text-xs">Alt-Text</Label>
+                          <Label className="text-xs">Alt-Text (SEO)</Label>
                           <Input
                             value={selectedElement.imageAlt || ""}
                             onChange={(e) => updateSelectedElement({ imageAlt: e.target.value })}
                             placeholder="Bildbeschreibung"
-                            className="text-sm"
+                            className="text-sm h-8"
                           />
                         </div>
                       </div>
