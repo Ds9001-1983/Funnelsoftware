@@ -101,14 +101,24 @@ export type User = typeof users.$inferSelect;
 // Funnel Page Types
 export type PageType = "welcome" | "question" | "multiChoice" | "contact" | "calendar" | "thankyou";
 
-// Page element schema
+// Page element/block schema - Extended with OpenFunnels block types
 export const pageElementSchema = z.object({
   id: z.string(),
   type: z.enum([
-    "heading", "text", "image", "button", "input", "textarea",
-    "select", "checkbox", "radio", "fileUpload", "video", "date",
-    "slider", "testimonial", "faq", "list", "timer", "socialProof",
-    "divider", "spacer", "progressBar", "icon", "quiz"
+    // Basic
+    "heading", "text", "image", "button",
+    // Form elements
+    "input", "textarea", "select", "checkbox", "radio", "fileUpload", "date",
+    // Media
+    "video", "audio", "embed",
+    // Interactive
+    "slider", "testimonial", "faq", "list", "timer", "calendar", "countdown",
+    // Advanced
+    "code", "map", "chart",
+    // Layout
+    "socialProof", "divider", "spacer", "progressBar", "icon",
+    // Special
+    "quiz", "product", "team"
   ]),
   content: z.string().optional(),
   placeholder: z.string().optional(),
@@ -193,7 +203,63 @@ export const pageElementSchema = z.object({
     shuffleQuestions: z.boolean(),
     shuffleAnswers: z.boolean(),
   }).optional(),
-  // General styles
+  // Audio properties
+  audioUrl: z.string().optional(),
+  audioAutoplay: z.boolean().optional(),
+  audioLoop: z.boolean().optional(),
+  // Calendar/Booking properties
+  calendarProvider: z.enum(["calendly", "cal", "custom"]).optional(),
+  calendarUrl: z.string().optional(),
+  // Map properties
+  mapAddress: z.string().optional(),
+  mapLat: z.number().optional(),
+  mapLng: z.number().optional(),
+  mapZoom: z.number().optional(),
+  mapStyle: z.enum(["roadmap", "satellite", "terrain"]).optional(),
+  // Chart properties
+  chartType: z.enum(["bar", "line", "pie", "doughnut"]).optional(),
+  chartData: z.object({
+    labels: z.array(z.string()),
+    datasets: z.array(z.object({
+      label: z.string(),
+      data: z.array(z.number()),
+      color: z.string().optional(),
+    })),
+  }).optional(),
+  // Code/Embed properties
+  codeContent: z.string().optional(),
+  codeLanguage: z.string().optional(),
+  embedCode: z.string().optional(),
+  embedUrl: z.string().optional(),
+  // Countdown properties
+  countdownDate: z.string().optional(),
+  countdownStyle: z.enum(["flip", "simple", "circular"]).optional(),
+  countdownShowLabels: z.boolean().optional(),
+  // Product properties
+  productName: z.string().optional(),
+  productPrice: z.string().optional(),
+  productImage: z.string().optional(),
+  productDescription: z.string().optional(),
+  productButtonText: z.string().optional(),
+  productButtonUrl: z.string().optional(),
+  // Team properties
+  teamMembers: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    role: z.string().optional(),
+    image: z.string().optional(),
+    bio: z.string().optional(),
+    social: z.object({
+      linkedin: z.string().optional(),
+      twitter: z.string().optional(),
+      email: z.string().optional(),
+    }).optional(),
+  })).optional(),
+  // Button properties
+  buttonUrl: z.string().optional(),
+  buttonTarget: z.enum(["_self", "_blank"]).optional(),
+  buttonVariant: z.enum(["primary", "secondary", "outline", "ghost"]).optional(),
+  // General styles (extended)
   styles: z.object({
     fontSize: z.string().optional(),
     fontWeight: z.string().optional(),
@@ -204,10 +270,58 @@ export const pageElementSchema = z.object({
     padding: z.string().optional(),
     margin: z.string().optional(),
     borderRadius: z.string().optional(),
+    // Extended styles from OpenFunnels
+    imageSize: z.string().optional(),
+    minHeight: z.string().optional(),
+    maxWidth: z.string().optional(),
+    boxShadow: z.string().optional(),
+    border: z.string().optional(),
+    opacity: z.number().optional(),
   }).optional(),
 });
 
 export type PageElement = z.infer<typeof pageElementSchema>;
+
+// Column schema for flexible layouts (from OpenFunnels)
+export const columnSchema = z.object({
+  id: z.string(),
+  width: z.number().min(10).max(100), // Percentage width
+  elements: z.array(pageElementSchema),
+  styles: z.object({
+    backgroundColor: z.string().optional(),
+    padding: z.string().optional(),
+    verticalAlign: z.enum(["top", "middle", "bottom"]).optional(),
+  }).optional(),
+});
+
+export type Column = z.infer<typeof columnSchema>;
+
+// Section schema for grouping columns (from OpenFunnels)
+export const sectionSchema = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  columns: z.array(columnSchema),
+  layout: z.enum([
+    "single",           // 100%
+    "two-equal",        // 50% / 50%
+    "two-left",         // 66% / 33%
+    "two-right",        // 33% / 66%
+    "three-equal",      // 33% / 33% / 33%
+    "three-wide-center",// 25% / 50% / 25%
+    "four-equal",       // 25% / 25% / 25% / 25%
+    "custom",           // Custom widths
+  ]).optional(),
+  styles: z.object({
+    backgroundColor: z.string().optional(),
+    backgroundImage: z.string().optional(),
+    padding: z.string().optional(),
+    margin: z.string().optional(),
+    minHeight: z.string().optional(),
+    fullWidth: z.boolean().optional(),
+  }).optional(),
+});
+
+export type Section = z.infer<typeof sectionSchema>;
 
 // Page transition animation types
 export type PageAnimation = "fade" | "slide" | "scale" | "none";
@@ -222,13 +336,18 @@ export const pageConditionSchema = z.object({
 
 export type PageCondition = z.infer<typeof pageConditionSchema>;
 
-// Funnel page schema
+// Funnel page schema - Extended with sections support
 export const funnelPageSchema = z.object({
   id: z.string(),
   type: z.enum(["welcome", "question", "multiChoice", "contact", "calendar", "thankyou"]),
   title: z.string(),
   subtitle: z.string().optional(),
+  // Legacy flat elements array (backward compatible)
   elements: z.array(pageElementSchema),
+  // New: Sections with columns for flexible layouts (OpenFunnels style)
+  sections: z.array(sectionSchema).optional(),
+  // Use sections mode or flat elements mode
+  useAdvancedLayout: z.boolean().optional(),
   buttonText: z.string().optional(),
   backgroundColor: z.string().optional(),
   backgroundImage: z.string().optional(),
@@ -242,6 +361,12 @@ export const funnelPageSchema = z.object({
   nextPageId: z.string().optional(),
   // Show confetti on this page
   showConfetti: z.boolean().optional(),
+  // Page-level styles (OpenFunnels)
+  pageStyles: z.object({
+    maxWidth: z.string().optional(),
+    padding: z.string().optional(),
+    fontFamily: z.string().optional(),
+  }).optional(),
 });
 
 export type FunnelPage = z.infer<typeof funnelPageSchema>;

@@ -85,6 +85,18 @@ import {
   Scissors,
   Maximize2,
   Search,
+  // New icons for OpenFunnels-style elements
+  Music,
+  MapPin,
+  Code,
+  BarChart2,
+  ShoppingBag,
+  Timer,
+  Link,
+  Columns,
+  LayoutGrid,
+  PanelLeft,
+  PanelRight,
 } from "lucide-react";
 import {
   Tooltip,
@@ -243,7 +255,7 @@ const pageTypeIcons: Record<PageType, string> = {
   thankyou: "T",
 };
 
-// Element palette categories
+// Element palette categories - Extended with OpenFunnels block types
 const elementCategories: {
   name: string;
   elements: { type: PageElement["type"]; label: string; icon: React.ComponentType<{ className?: string }>; description: string }[];
@@ -255,6 +267,7 @@ const elementCategories: {
       { type: "text", label: "Text", icon: AlignLeft, description: "Absatztext" },
       { type: "image", label: "Bild", icon: Image, description: "Bild einfügen" },
       { type: "video", label: "Video", icon: Video, description: "YouTube, Vimeo" },
+      { type: "audio", label: "Audio", icon: Music, description: "Audio/Podcast" },
       { type: "list", label: "Liste", icon: List, description: "Aufzählungsliste" },
       { type: "faq", label: "FAQ", icon: HelpCircle, description: "Fragen & Antworten" },
     ],
@@ -269,6 +282,7 @@ const elementCategories: {
       { type: "checkbox", label: "Checkbox", icon: CheckSquare, description: "Multi Choice" },
       { type: "date", label: "Datum", icon: Calendar, description: "Datumsauswahl" },
       { type: "fileUpload", label: "Datei", icon: Upload, description: "Datei-Upload" },
+      { type: "calendar", label: "Kalender", icon: Calendar, description: "Terminbuchung" },
     ],
   },
   {
@@ -277,17 +291,50 @@ const elementCategories: {
       { type: "testimonial", label: "Bewertung", icon: Star, description: "Kundenbewertung" },
       { type: "slider", label: "Slider", icon: Layers, description: "Bild-Karussell" },
       { type: "socialProof", label: "Logos", icon: Award, description: "Partner-Logos" },
+      { type: "team", label: "Team", icon: Users, description: "Team-Mitglieder" },
     ],
   },
   {
-    name: "Design",
+    name: "Interaktiv",
     elements: [
-      { type: "divider", label: "Trennlinie", icon: Minus, description: "Horizontale Linie" },
-      { type: "spacer", label: "Abstand", icon: Space, description: "Vertikaler Abstand" },
+      { type: "button", label: "Button", icon: MousePointer2, description: "Klickbarer Button" },
       { type: "timer", label: "Timer", icon: Clock, description: "Countdown Timer" },
+      { type: "countdown", label: "Countdown", icon: Timer, description: "Ablauf-Counter" },
       { type: "progressBar", label: "Fortschritt", icon: BarChart3, description: "Fortschrittsbalken" },
     ],
   },
+  {
+    name: "E-Commerce",
+    elements: [
+      { type: "product", label: "Produkt", icon: ShoppingBag, description: "Produkt-Karte" },
+    ],
+  },
+  {
+    name: "Erweitert",
+    elements: [
+      { type: "map", label: "Karte", icon: MapPin, description: "Google Maps" },
+      { type: "chart", label: "Diagramm", icon: BarChart2, description: "Daten-Visualisierung" },
+      { type: "code", label: "Code", icon: Code, description: "Code-Snippet" },
+      { type: "embed", label: "Einbetten", icon: Link, description: "Externe Inhalte" },
+    ],
+  },
+  {
+    name: "Layout",
+    elements: [
+      { type: "divider", label: "Trennlinie", icon: Minus, description: "Horizontale Linie" },
+      { type: "spacer", label: "Abstand", icon: Space, description: "Vertikaler Abstand" },
+    ],
+  },
+];
+
+// Layout templates for section creation (OpenFunnels style)
+const layoutTemplates = [
+  { id: "single", name: "1 Spalte", icon: LayoutGrid, columns: [100], description: "Volle Breite" },
+  { id: "two-equal", name: "2 Spalten", icon: Columns, columns: [50, 50], description: "Gleiche Breite" },
+  { id: "two-left", name: "2 Spalten Links", icon: PanelLeft, columns: [66, 34], description: "Links größer" },
+  { id: "two-right", name: "2 Spalten Rechts", icon: PanelRight, columns: [34, 66], description: "Rechts größer" },
+  { id: "three-equal", name: "3 Spalten", icon: LayoutGrid, columns: [33, 34, 33], description: "Drei gleich" },
+  { id: "four-equal", name: "4 Spalten", icon: LayoutGrid, columns: [25, 25, 25, 25], description: "Vier gleich" },
 ];
 
 // Clickable/Draggable element from palette
@@ -419,12 +466,18 @@ function PhonePreview({
     setEditingField(null);
   };
 
-  // Element type labels for display
+  // Element type labels for display - Extended with OpenFunnels types
   const elementTypeLabels: Record<string, string> = {
+    // Basic
     heading: "Überschrift",
     text: "Text",
     image: "Bild",
+    button: "Button",
+    // Media
     video: "Video",
+    audio: "Audio",
+    embed: "Einbetten",
+    // Form
     input: "Eingabefeld",
     textarea: "Textbereich",
     select: "Dropdown",
@@ -432,15 +485,27 @@ function PhonePreview({
     checkbox: "Checkbox",
     date: "Datum",
     fileUpload: "Datei-Upload",
+    calendar: "Kalender",
+    // Interactive
     list: "Liste",
     faq: "FAQ",
+    timer: "Timer",
+    countdown: "Countdown",
+    progressBar: "Fortschritt",
+    // Social Proof
     testimonial: "Bewertung",
     slider: "Slider",
     socialProof: "Social Proof",
+    team: "Team",
+    // Advanced
+    map: "Karte",
+    chart: "Diagramm",
+    code: "Code",
+    // E-Commerce
+    product: "Produkt",
+    // Layout
     divider: "Trennlinie",
     spacer: "Abstand",
-    timer: "Timer",
-    progressBar: "Fortschritt",
     icon: "Icon",
   };
 
@@ -2376,13 +2441,14 @@ export default function FunnelEditor() {
     updatePage(selectedPageIndex, { elements: newElements });
   }, [localFunnel, selectedPageIndex, selectedElementId, updatePage]);
 
-  // Add element to current page from Design tab
+  // Add element to current page from Design tab - Extended with OpenFunnels block types
   const addElementToPage = useCallback((type: PageElement["type"]) => {
     if (!localFunnel) return;
     const page = localFunnel.pages[selectedPageIndex];
     const newElement: PageElement = {
       id: `el-${Date.now()}`,
       type,
+      // Form placeholders
       placeholder:
         type === "input" ? "Dein Text hier..." :
         type === "textarea" ? "Deine Nachricht..." :
@@ -2391,22 +2457,40 @@ export default function FunnelEditor() {
       options:
         type === "radio" ? ["Option 1", "Option 2", "Option 3"] :
         type === "select" ? ["Option 1", "Option 2", "Option 3"] : undefined,
+      // Labels
       label:
         type === "fileUpload" ? "Datei hochladen" :
         type === "video" ? "Video" :
+        type === "audio" ? "Audio" :
         type === "date" ? "Datum" :
         type === "heading" ? "Überschrift" :
         type === "text" ? "Dein Text hier..." :
-        type === "select" ? "Auswahl" : undefined,
+        type === "select" ? "Auswahl" :
+        type === "button" ? "Klicken" :
+        type === "calendar" ? "Termin buchen" : undefined,
+      // Content
       content:
         type === "heading" ? "Deine Überschrift" :
-        type === "text" ? "Füge hier deinen Text ein. Beschreibe dein Angebot oder gib wichtige Informationen." : undefined,
+        type === "text" ? "Füge hier deinen Text ein. Beschreibe dein Angebot oder gib wichtige Informationen." :
+        type === "button" ? "Jetzt starten" : undefined,
+      // File upload
       acceptedFileTypes: type === "fileUpload" ? [".pdf", ".jpg", ".jpeg", ".png"] : undefined,
       maxFileSize: type === "fileUpload" ? 10 : undefined,
       maxFiles: type === "fileUpload" ? 1 : undefined,
+      // Video
       videoUrl: type === "video" ? "" : undefined,
       videoType: type === "video" ? "youtube" : undefined,
+      videoAutoplay: type === "video" ? false : undefined,
+      // Audio (new)
+      audioUrl: type === "audio" ? "" : undefined,
+      audioAutoplay: type === "audio" ? false : undefined,
+      audioLoop: type === "audio" ? false : undefined,
+      // Date
       includeTime: type === "date" ? false : undefined,
+      // Calendar/Booking (new)
+      calendarProvider: type === "calendar" ? "calendly" : undefined,
+      calendarUrl: type === "calendar" ? "" : undefined,
+      // Slides (testimonial/slider)
       slides: type === "testimonial" ? [
         { id: "t1", text: "Großartiger Service! Sehr empfehlenswert.", author: "Max Mustermann", role: "Geschäftsführer", rating: 5 }
       ] : type === "slider" ? [
@@ -2414,21 +2498,57 @@ export default function FunnelEditor() {
         { id: "s2", title: "Slide 2", text: "" },
         { id: "s3", title: "Slide 3", text: "" }
       ] : undefined,
+      // FAQ
       faqItems: type === "faq" ? [
         { id: "faq1", question: "Wie funktioniert das?", answer: "So funktioniert es..." },
         { id: "faq2", question: "Was kostet das?", answer: "Die Preise sind..." },
       ] : undefined,
+      // List
       listItems: type === "list" ? [
         { id: "li1", text: "Vorteil Nummer 1" },
         { id: "li2", text: "Vorteil Nummer 2" },
         { id: "li3", text: "Vorteil Nummer 3" },
       ] : undefined,
       listStyle: type === "list" ? "check" : undefined,
+      // Layout
       spacerHeight: type === "spacer" ? 32 : undefined,
       dividerStyle: type === "divider" ? "solid" : undefined,
-      timerEndDate: type === "timer" ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
+      // Timer/Countdown
+      timerEndDate: (type === "timer" || type === "countdown") ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
       timerStyle: type === "timer" ? "countdown" : undefined,
-      timerShowDays: type === "timer" ? true : undefined,
+      timerShowDays: (type === "timer" || type === "countdown") ? true : undefined,
+      countdownDate: type === "countdown" ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
+      countdownStyle: type === "countdown" ? "flip" : undefined,
+      countdownShowLabels: type === "countdown" ? true : undefined,
+      // Map (new)
+      mapAddress: type === "map" ? "Berlin, Germany" : undefined,
+      mapZoom: type === "map" ? 14 : undefined,
+      mapStyle: type === "map" ? "roadmap" : undefined,
+      // Chart (new)
+      chartType: type === "chart" ? "bar" : undefined,
+      chartData: type === "chart" ? {
+        labels: ["Jan", "Feb", "Mär", "Apr"],
+        datasets: [{ label: "Daten", data: [10, 20, 30, 40], color: "#7C3AED" }]
+      } : undefined,
+      // Code/Embed (new)
+      codeContent: type === "code" ? "// Dein Code hier\nconsole.log('Hello!');" : undefined,
+      codeLanguage: type === "code" ? "javascript" : undefined,
+      embedCode: type === "embed" ? "" : undefined,
+      embedUrl: type === "embed" ? "" : undefined,
+      // Product (new)
+      productName: type === "product" ? "Premium Produkt" : undefined,
+      productPrice: type === "product" ? "99,00 €" : undefined,
+      productDescription: type === "product" ? "Beschreibung deines Produkts..." : undefined,
+      productButtonText: type === "product" ? "Jetzt kaufen" : undefined,
+      // Team (new)
+      teamMembers: type === "team" ? [
+        { id: "tm1", name: "Max Mustermann", role: "CEO", image: "", bio: "Gründer und Visionär" },
+        { id: "tm2", name: "Erika Musterfrau", role: "CTO", image: "", bio: "Technische Leitung" },
+      ] : undefined,
+      // Button (new)
+      buttonUrl: type === "button" ? "" : undefined,
+      buttonTarget: type === "button" ? "_self" : undefined,
+      buttonVariant: type === "button" ? "primary" : undefined,
     };
     const newElements = [...page.elements, newElement];
     updatePage(selectedPageIndex, { elements: newElements });
