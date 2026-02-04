@@ -2831,10 +2831,30 @@ export default function FunnelEditor() {
   const [showAddPage, setShowAddPage] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [previewMode, setPreviewMode] = useState<"phone" | "tablet" | "desktop">("phone");
-  const [showLeftSidebar, setShowLeftSidebar] = useState(true);
-  const [showRightSidebar, setShowRightSidebar] = useState(true);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
+
+  // Mobile detection and responsive sidebar states
+  const [isMobile, setIsMobile] = useState(false);
+  const [showLeftSidebar, setShowLeftSidebar] = useState(true);
+  const [showRightSidebar, setShowRightSidebar] = useState(true);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      // Auto-hide sidebars on mobile
+      if (mobile) {
+        setShowLeftSidebar(false);
+        setShowRightSidebar(false);
+      }
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Perspective-style editor states
   const [leftSidebarTab, setLeftSidebarTab] = useState<"pages" | "design">("pages");
@@ -3293,9 +3313,9 @@ export default function FunnelEditor() {
   const selectedPage = localFunnel.pages[selectedPageIndex];
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className={`h-screen flex flex-col bg-background ${isMobile ? "pb-16" : ""}`}>
       {/* Header */}
-      <div className="h-14 border-b border-border bg-card flex items-center justify-between px-4 shrink-0">
+      <div className="h-14 border-b border-border bg-card flex items-center justify-between px-2 md:px-4 shrink-0">
         <div className="flex items-center gap-3">
           <Button
             size="icon"
@@ -3475,9 +3495,24 @@ export default function FunnelEditor() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Mobile sidebar backdrop */}
+        {isMobile && (showLeftSidebar || showRightSidebar) && (
+          <div
+            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+            onClick={() => {
+              setShowLeftSidebar(false);
+              setShowRightSidebar(false);
+            }}
+          />
+        )}
+
         {/* Left sidebar - Seiten/Design tabs */}
-        <div className={`${showLeftSidebar ? "w-72" : "w-0"} border-r border-border bg-card overflow-hidden transition-all duration-300`}>
+        <div className={`
+          ${isMobile ? "fixed left-0 top-14 bottom-0 z-50" : "relative"}
+          ${showLeftSidebar ? "w-72" : "w-0"}
+          border-r border-border bg-card overflow-hidden transition-all duration-300
+        `}>
           <div className="w-72 h-full flex flex-col">
             {/* Tabs header */}
             <div className="border-b border-border">
@@ -4517,16 +4552,18 @@ export default function FunnelEditor() {
         <Button
           size="icon"
           variant="ghost"
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-r-md rounded-l-none bg-card border border-l-0"
+          className={`absolute top-1/2 -translate-y-1/2 z-[60] rounded-r-md rounded-l-none bg-card border border-l-0 shadow-md
+            ${isMobile ? "h-10 w-8" : "h-6 w-6"}
+          `}
           onClick={() => setShowLeftSidebar(!showLeftSidebar)}
-          style={{ left: showLeftSidebar ? "286px" : "0" }}
+          style={{ left: showLeftSidebar && !isMobile ? "286px" : showLeftSidebar && isMobile ? "288px" : "0" }}
         >
-          {showLeftSidebar ? <ChevronLeft className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          {showLeftSidebar ? <ChevronLeft className={isMobile ? "h-5 w-5" : "h-3 w-3"} /> : <ChevronRight className={isMobile ? "h-5 w-5" : "h-3 w-3"} />}
         </Button>
 
         {/* Center - Preview */}
         <div
-          className="flex-1 bg-muted/30 overflow-y-auto flex items-center justify-center p-8"
+          className="flex-1 bg-muted/30 overflow-y-auto flex items-center justify-center p-2 md:p-8"
           onClick={() => {
             // Deselect element when clicking outside
             if (selectedElementId) {
@@ -4571,15 +4608,21 @@ export default function FunnelEditor() {
         <Button
           size="icon"
           variant="ghost"
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-l-md rounded-r-none bg-card border border-r-0"
+          className={`absolute top-1/2 -translate-y-1/2 z-[60] rounded-l-md rounded-r-none bg-card border border-r-0 shadow-md
+            ${isMobile ? "h-10 w-8" : "h-6 w-6"}
+          `}
           onClick={() => setShowRightSidebar(!showRightSidebar)}
-          style={{ right: showRightSidebar ? "318px" : "0" }}
+          style={{ right: showRightSidebar && !isMobile ? "318px" : showRightSidebar && isMobile ? "320px" : "0" }}
         >
-          {showRightSidebar ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
+          {showRightSidebar ? <ChevronRight className={isMobile ? "h-5 w-5" : "h-3 w-3"} /> : <ChevronLeft className={isMobile ? "h-5 w-5" : "h-3 w-3"} />}
         </Button>
 
         {/* Right sidebar - Page editor */}
-        <div className={`${showRightSidebar ? "w-80" : "w-0"} border-l border-border bg-card overflow-hidden transition-all duration-300`}>
+        <div className={`
+          ${isMobile ? "fixed right-0 top-14 bottom-0 z-50" : "relative"}
+          ${showRightSidebar ? "w-80" : "w-0"}
+          border-l border-border bg-card overflow-hidden transition-all duration-300
+        `}>
           <div className="w-80 h-full flex flex-col">
             <div className="p-4 border-b border-border">
               <h3 className="font-semibold">Seite bearbeiten</h3>
@@ -4761,6 +4804,59 @@ export default function FunnelEditor() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Mobile Bottom Navigation Bar */}
+      {isMobile && (
+        <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 md:hidden safe-area-inset-bottom">
+          <div className="flex items-center justify-around py-2 px-4">
+            <button
+              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
+                showLeftSidebar && leftSidebarTab === "pages" ? "text-primary bg-primary/10" : "text-muted-foreground"
+              }`}
+              onClick={() => {
+                setLeftSidebarTab("pages");
+                setShowLeftSidebar(!showLeftSidebar || leftSidebarTab !== "pages");
+                setShowRightSidebar(false);
+              }}
+            >
+              <Layers className="h-5 w-5" />
+              <span className="text-xs">Seiten</span>
+            </button>
+            <button
+              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
+                showLeftSidebar && leftSidebarTab === "design" ? "text-primary bg-primary/10" : "text-muted-foreground"
+              }`}
+              onClick={() => {
+                setLeftSidebarTab("design");
+                setShowLeftSidebar(!showLeftSidebar || leftSidebarTab !== "design");
+                setShowRightSidebar(false);
+              }}
+            >
+              <Plus className="h-5 w-5" />
+              <span className="text-xs">Elemente</span>
+            </button>
+            <button
+              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
+                showRightSidebar ? "text-primary bg-primary/10" : "text-muted-foreground"
+              }`}
+              onClick={() => {
+                setShowRightSidebar(!showRightSidebar);
+                setShowLeftSidebar(false);
+              }}
+            >
+              <Settings className="h-5 w-5" />
+              <span className="text-xs">Bearbeiten</span>
+            </button>
+            <button
+              className="flex flex-col items-center gap-1 p-2 rounded-lg text-muted-foreground"
+              onClick={() => window.open(`/preview/${params?.id}`, '_blank')}
+            >
+              <Eye className="h-5 w-5" />
+              <span className="text-xs">Vorschau</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
