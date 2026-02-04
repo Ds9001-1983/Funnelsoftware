@@ -146,7 +146,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useHistory, useAutoSave } from "@/hooks/use-history";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { Funnel, FunnelPage, PageElement, PageAnimation } from "@shared/schema";
+import type { Funnel, FunnelPage, PageElement, PageAnimation, Section, Column } from "@shared/schema";
 import confetti from "canvas-confetti";
 
 // Available personalization variables
@@ -1023,6 +1023,320 @@ function PhonePreview({
             </div>
           )}
 
+          {/* New OpenFunnels Elements */}
+
+          {/* Audio Element */}
+          {page.elements.some((el) => el.type === "audio") && (
+            <div className="mt-4 space-y-3">
+              {page.elements.filter((el) => el.type === "audio").map((el) => (
+                <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
+                  <div className="bg-gray-100 rounded-xl p-4 flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center">
+                      <Play className="h-5 w-5 text-white ml-0.5" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="h-1 bg-gray-300 rounded-full">
+                        <div className="h-1 bg-primary rounded-full w-1/3" />
+                      </div>
+                      <div className="flex justify-between mt-1 text-xs text-gray-500">
+                        <span>0:00</span>
+                        <span>3:24</span>
+                      </div>
+                    </div>
+                  </div>
+                </ElementWrapper>
+              ))}
+            </div>
+          )}
+
+          {/* Button Element */}
+          {page.elements.some((el) => el.type === "button") && (
+            <div className="mt-4 space-y-3">
+              {page.elements.filter((el) => el.type === "button").map((el) => (
+                <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
+                  <button
+                    className={`w-full py-3 px-6 rounded-xl font-semibold text-sm transition-all ${
+                      el.buttonVariant === "outline"
+                        ? "border-2 border-primary text-primary bg-transparent"
+                        : el.buttonVariant === "secondary"
+                        ? "bg-gray-200 text-gray-800"
+                        : el.buttonVariant === "ghost"
+                        ? "bg-transparent text-primary hover:bg-primary/10"
+                        : "bg-primary text-white"
+                    }`}
+                    style={el.buttonVariant === "primary" ? { backgroundColor: primaryColor } : undefined}
+                  >
+                    {el.content || "Button"}
+                  </button>
+                </ElementWrapper>
+              ))}
+            </div>
+          )}
+
+          {/* Calendar/Booking Element */}
+          {page.elements.some((el) => el.type === "calendar") && (
+            <div className="mt-4 space-y-3">
+              {page.elements.filter((el) => el.type === "calendar").map((el) => (
+                <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
+                  <div className="bg-white rounded-xl p-4 shadow-md border">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Calendar className="h-5 w-5 text-primary" />
+                      <span className="font-medium">Termin buchen</span>
+                    </div>
+                    <div className="grid grid-cols-7 gap-1 text-center text-xs mb-3">
+                      {["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map((d) => (
+                        <div key={d} className="text-gray-500 py-1">{d}</div>
+                      ))}
+                      {Array.from({ length: 28 }, (_, i) => (
+                        <div key={i} className={`py-1 rounded ${i === 14 ? "bg-primary text-white" : "hover:bg-gray-100"}`}>
+                          {i + 1}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 text-center">
+                      {el.calendarProvider === "calendly" ? "Powered by Calendly" : "Terminauswahl"}
+                    </p>
+                  </div>
+                </ElementWrapper>
+              ))}
+            </div>
+          )}
+
+          {/* Countdown Element */}
+          {page.elements.some((el) => el.type === "countdown") && (
+            <div className="mt-4 space-y-3">
+              {page.elements.filter((el) => el.type === "countdown").map((el) => (
+                <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
+                  <div className={`p-4 rounded-xl ${el.countdownStyle === "flip" ? "bg-gray-900" : "bg-white border"}`}>
+                    <div className="flex justify-center gap-2">
+                      {[
+                        { value: "07", label: "Tage" },
+                        { value: "12", label: "Std" },
+                        { value: "45", label: "Min" },
+                        { value: "30", label: "Sek" },
+                      ].map((item, idx) => (
+                        <div key={idx} className="text-center">
+                          <div className={`text-2xl font-bold px-3 py-2 rounded ${
+                            el.countdownStyle === "flip"
+                              ? "bg-gray-800 text-white"
+                              : "bg-gray-100 text-gray-900"
+                          }`}>
+                            {item.value}
+                          </div>
+                          {el.countdownShowLabels !== false && (
+                            <div className={`text-xs mt-1 ${el.countdownStyle === "flip" ? "text-gray-400" : "text-gray-500"}`}>
+                              {item.label}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </ElementWrapper>
+              ))}
+            </div>
+          )}
+
+          {/* Map Element */}
+          {page.elements.some((el) => el.type === "map") && (
+            <div className="mt-4 space-y-3">
+              {page.elements.filter((el) => el.type === "map").map((el) => (
+                <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
+                  <div className="aspect-video bg-gray-200 rounded-xl overflow-hidden relative">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center">
+                        <MapPin className="h-8 w-8 text-primary mx-auto mb-2" />
+                        <p className="text-sm text-gray-600">{el.mapAddress || "Karte"}</p>
+                      </div>
+                    </div>
+                    <div className="absolute bottom-2 right-2 bg-white rounded px-2 py-1 text-xs shadow">
+                      Google Maps
+                    </div>
+                  </div>
+                </ElementWrapper>
+              ))}
+            </div>
+          )}
+
+          {/* Chart Element */}
+          {page.elements.some((el) => el.type === "chart") && (
+            <div className="mt-4 space-y-3">
+              {page.elements.filter((el) => el.type === "chart").map((el) => (
+                <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
+                  <div className="bg-white rounded-xl p-4 shadow-md border">
+                    <div className="flex items-end justify-around h-32 gap-2">
+                      {(el.chartData?.datasets[0]?.data || [10, 20, 30, 40]).map((value, idx) => (
+                        <div key={idx} className="flex-1 flex flex-col items-center">
+                          <div
+                            className="w-full rounded-t"
+                            style={{
+                              height: `${(value / 50) * 100}%`,
+                              backgroundColor: primaryColor,
+                              minHeight: "8px"
+                            }}
+                          />
+                          <span className="text-xs text-gray-500 mt-1">
+                            {el.chartData?.labels[idx] || `${idx + 1}`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </ElementWrapper>
+              ))}
+            </div>
+          )}
+
+          {/* Code Element */}
+          {page.elements.some((el) => el.type === "code") && (
+            <div className="mt-4 space-y-3">
+              {page.elements.filter((el) => el.type === "code").map((el) => (
+                <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
+                  <div className="bg-gray-900 rounded-xl p-4 overflow-hidden">
+                    <div className="flex gap-1.5 mb-3">
+                      <div className="w-3 h-3 rounded-full bg-red-500" />
+                      <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                      <div className="w-3 h-3 rounded-full bg-green-500" />
+                    </div>
+                    <pre className="text-xs text-green-400 font-mono overflow-x-auto">
+                      <code>{el.codeContent || "// Code hier..."}</code>
+                    </pre>
+                  </div>
+                </ElementWrapper>
+              ))}
+            </div>
+          )}
+
+          {/* Embed Element */}
+          {page.elements.some((el) => el.type === "embed") && (
+            <div className="mt-4 space-y-3">
+              {page.elements.filter((el) => el.type === "embed").map((el) => (
+                <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
+                  <div className="aspect-video bg-gray-100 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-300">
+                    <div className="text-center">
+                      <Code className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">Eingebetteter Inhalt</p>
+                      <p className="text-xs text-gray-400 mt-1">{el.embedUrl || "URL hinzufügen"}</p>
+                    </div>
+                  </div>
+                </ElementWrapper>
+              ))}
+            </div>
+          )}
+
+          {/* Product Element */}
+          {page.elements.some((el) => el.type === "product") && (
+            <div className="mt-4 space-y-3">
+              {page.elements.filter((el) => el.type === "product").map((el) => (
+                <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
+                  <div className="bg-white rounded-xl shadow-md overflow-hidden border">
+                    <div className="aspect-square bg-gray-100 flex items-center justify-center">
+                      {el.productImage ? (
+                        <img src={el.productImage} alt={el.productName} className="w-full h-full object-cover" />
+                      ) : (
+                        <ShoppingBag className="h-12 w-12 text-gray-300" />
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <h4 className="font-semibold">{el.productName || "Produkt"}</h4>
+                      <p className="text-sm text-gray-600 mt-1">{el.productDescription || "Beschreibung..."}</p>
+                      <div className="flex items-center justify-between mt-3">
+                        <span className="text-lg font-bold" style={{ color: primaryColor }}>
+                          {el.productPrice || "€99"}
+                        </span>
+                        <button
+                          className="px-4 py-2 rounded-lg text-sm font-medium text-white"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          {el.productButtonText || "Kaufen"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </ElementWrapper>
+              ))}
+            </div>
+          )}
+
+          {/* Team Element */}
+          {page.elements.some((el) => el.type === "team") && (
+            <div className="mt-4 space-y-3">
+              {page.elements.filter((el) => el.type === "team").map((el) => (
+                <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(el.teamMembers || []).slice(0, 4).map((member) => (
+                      <div key={member.id} className="bg-white rounded-xl p-3 shadow-md border text-center">
+                        <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center mb-2">
+                          {member.image ? (
+                            <img src={member.image} alt={member.name} className="w-full h-full rounded-full object-cover" />
+                          ) : (
+                            <Users className="h-6 w-6 text-primary" />
+                          )}
+                        </div>
+                        <h5 className="font-medium text-sm">{member.name}</h5>
+                        <p className="text-xs text-gray-500">{member.role}</p>
+                      </div>
+                    ))}
+                  </div>
+                </ElementWrapper>
+              ))}
+            </div>
+          )}
+
+          {/* Sections with Columns */}
+          {page.sections && page.sections.length > 0 && (
+            <div className="mt-4 space-y-4">
+              {page.sections.map((section) => (
+                <div
+                  key={section.id}
+                  className="rounded-xl overflow-hidden"
+                  style={{
+                    backgroundColor: section.styles?.backgroundColor || "transparent",
+                    padding: section.styles?.padding || "16px",
+                    minHeight: section.styles?.minHeight,
+                  }}
+                >
+                  {section.name && (
+                    <div className="text-xs text-gray-500 mb-2 font-medium">
+                      {section.name}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    {section.columns.map((column) => (
+                      <div
+                        key={column.id}
+                        className="min-h-[60px] rounded-lg border-2 border-dashed border-gray-200 hover:border-primary/30 transition-colors p-2"
+                        style={{
+                          width: `${column.width}%`,
+                          backgroundColor: column.styles?.backgroundColor || "transparent",
+                          padding: column.styles?.padding || "8px",
+                        }}
+                      >
+                        {column.elements.length > 0 ? (
+                          <div className="space-y-2">
+                            {column.elements.map((el) => (
+                              <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
+                                {/* Simplified element rendering for column view */}
+                                <div className="text-xs text-gray-600 bg-gray-50 rounded p-2 text-center">
+                                  {elementTypeLabels[el.type] || el.type}
+                                </div>
+                              </ElementWrapper>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-xs text-gray-400">
+                            <Plus className="h-3 w-3 mr-1" />
+                            Element
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Add Block Button */}
           {onShowElementPicker && (
             <div className="mt-6 flex flex-col items-center">
@@ -1459,6 +1773,226 @@ function SectionTemplatesPicker({
   );
 }
 
+// Layout Selector for creating sections with columns
+function LayoutSelector({
+  onSelect,
+  selectedLayout,
+}: {
+  onSelect: (layoutId: string, columns: number[]) => void;
+  selectedLayout?: string;
+}) {
+  return (
+    <div className="space-y-3">
+      <Label className="text-xs font-medium">Spalten-Layout wählen</Label>
+      <div className="grid grid-cols-3 gap-2">
+        {layoutTemplates.map((layout) => {
+          const Icon = layout.icon;
+          return (
+            <button
+              key={layout.id}
+              onClick={() => onSelect(layout.id, layout.columns)}
+              className={`p-3 rounded-lg border-2 transition-all hover:border-primary/50 ${
+                selectedLayout === layout.id
+                  ? "border-primary bg-primary/5"
+                  : "border-muted hover:bg-muted/50"
+              }`}
+            >
+              <div className="flex justify-center mb-2">
+                {/* Visual representation of columns */}
+                <div className="flex gap-0.5 h-6 w-full max-w-[60px]">
+                  {layout.columns.map((width, idx) => (
+                    <div
+                      key={idx}
+                      className={`rounded-sm ${
+                        selectedLayout === layout.id ? "bg-primary" : "bg-muted-foreground/30"
+                      }`}
+                      style={{ width: `${width}%` }}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="text-xs font-medium text-center">{layout.name}</div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Section Editor Component for managing sections and columns
+function SectionEditor({
+  sections,
+  onAddSection,
+  onUpdateSection,
+  onDeleteSection,
+  onSelectSection,
+  selectedSectionId,
+}: {
+  sections: Section[];
+  onAddSection: (layout: string, columns: number[]) => void;
+  onUpdateSection: (sectionId: string, updates: Partial<Section>) => void;
+  onDeleteSection: (sectionId: string) => void;
+  onSelectSection: (sectionId: string | null) => void;
+  selectedSectionId: string | null;
+}) {
+  const [showLayoutPicker, setShowLayoutPicker] = useState(false);
+
+  return (
+    <div className="space-y-4">
+      {/* Section List */}
+      <div className="space-y-2">
+        {sections.map((section, index) => (
+          <div
+            key={section.id}
+            onClick={() => onSelectSection(section.id)}
+            className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+              selectedSectionId === section.id
+                ? "border-primary bg-primary/5"
+                : "border-muted hover:border-muted-foreground/30"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">
+                {section.name || `Section ${index + 1}`}
+              </span>
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteSection(section.id);
+                  }}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+            {/* Column preview */}
+            <div className="flex gap-1 h-4">
+              {section.columns.map((col) => (
+                <div
+                  key={col.id}
+                  className="bg-muted-foreground/20 rounded-sm flex items-center justify-center"
+                  style={{ width: `${col.width}%` }}
+                >
+                  <span className="text-[8px] text-muted-foreground">
+                    {col.elements.length}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add Section Button */}
+      {showLayoutPicker ? (
+        <div className="p-3 border rounded-lg space-y-3">
+          <LayoutSelector
+            onSelect={(layoutId, columns) => {
+              onAddSection(layoutId, columns);
+              setShowLayoutPicker(false);
+            }}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full"
+            onClick={() => setShowLayoutPicker(false)}
+          >
+            Abbrechen
+          </Button>
+        </div>
+      ) : (
+        <Button
+          variant="outline"
+          className="w-full gap-2"
+          onClick={() => setShowLayoutPicker(true)}
+        >
+          <Plus className="h-4 w-4" />
+          Neue Sektion hinzufügen
+        </Button>
+      )}
+
+      {/* Selected Section Editor */}
+      {selectedSectionId && (
+        <div className="p-3 border rounded-lg space-y-3">
+          <Label className="text-xs font-medium">Sektion bearbeiten</Label>
+          {sections
+            .filter((s) => s.id === selectedSectionId)
+            .map((section) => (
+              <div key={section.id} className="space-y-3">
+                <Input
+                  value={section.name || ""}
+                  onChange={(e) =>
+                    onUpdateSection(section.id, { name: e.target.value })
+                  }
+                  placeholder="Sektion Name"
+                  className="h-8 text-sm"
+                />
+                <div className="space-y-2">
+                  <Label className="text-xs">Hintergrundfarbe</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="color"
+                      value={section.styles?.backgroundColor || "#ffffff"}
+                      onChange={(e) =>
+                        onUpdateSection(section.id, {
+                          styles: {
+                            ...section.styles,
+                            backgroundColor: e.target.value,
+                          },
+                        })
+                      }
+                      className="w-10 h-8 p-1 cursor-pointer"
+                    />
+                    <Input
+                      value={section.styles?.backgroundColor || "#ffffff"}
+                      onChange={(e) =>
+                        onUpdateSection(section.id, {
+                          styles: {
+                            ...section.styles,
+                            backgroundColor: e.target.value,
+                          },
+                        })
+                      }
+                      className="flex-1 h-8 text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Innenabstand</Label>
+                  <Select
+                    value={section.styles?.padding || "16px"}
+                    onValueChange={(v) =>
+                      onUpdateSection(section.id, {
+                        styles: { ...section.styles, padding: v },
+                      })
+                    }
+                  >
+                    <SelectTrigger className="h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="8px">Klein (8px)</SelectItem>
+                      <SelectItem value="16px">Normal (16px)</SelectItem>
+                      <SelectItem value="24px">Mittel (24px)</SelectItem>
+                      <SelectItem value="32px">Groß (32px)</SelectItem>
+                      <SelectItem value="48px">Sehr groß (48px)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PageEditor({
   page,
   allPages,
@@ -1480,7 +2014,44 @@ function PageEditor({
 }) {
   const [copiedElement, setCopiedElement] = useState<PageElement | null>(null);
   const [activeTab, setActiveTab] = useState("content");
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Section management handlers
+  const addSection = (layout: string, columnWidths: number[]) => {
+    const newSection: Section = {
+      id: `section-${Date.now()}`,
+      name: "",
+      layout: layout as Section["layout"],
+      columns: columnWidths.map((width, idx) => ({
+        id: `col-${Date.now()}-${idx}`,
+        width,
+        elements: [],
+      })),
+      styles: {
+        padding: "16px",
+      },
+    };
+    const currentSections = page.sections || [];
+    onUpdate({ sections: [...currentSections, newSection] });
+    setSelectedSectionId(newSection.id);
+  };
+
+  const updateSection = (sectionId: string, updates: Partial<Section>) => {
+    const currentSections = page.sections || [];
+    const updatedSections = currentSections.map((s) =>
+      s.id === sectionId ? { ...s, ...updates } : s
+    );
+    onUpdate({ sections: updatedSections });
+  };
+
+  const deleteSection = (sectionId: string) => {
+    const currentSections = page.sections || [];
+    onUpdate({ sections: currentSections.filter((s) => s.id !== sectionId) });
+    if (selectedSectionId === sectionId) {
+      setSelectedSectionId(null);
+    }
+  };
 
   const insertVariable = (variable: string) => {
     if (titleInputRef.current) {
@@ -2225,6 +2796,19 @@ function PageEditor({
                 <SelectItem value="none">Keine Animation</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Section/Column Editor */}
+          <div className="pt-4 border-t">
+            <Label className="mb-3 block">Sektionen & Spalten</Label>
+            <SectionEditor
+              sections={page.sections || []}
+              onAddSection={addSection}
+              onUpdateSection={updateSection}
+              onDeleteSection={deleteSection}
+              onSelectSection={setSelectedSectionId}
+              selectedSectionId={selectedSectionId}
+            />
           </div>
 
           {/* Section Templates */}
@@ -2989,7 +3573,21 @@ export default function FunnelEditor() {
                         {selectedElement.type === "spacer" && "Abstand"}
                         {selectedElement.type === "timer" && "Timer"}
                         {selectedElement.type === "slider" && "Slider"}
-                        {!["heading", "text", "image", "video", "input", "textarea", "select", "radio", "checkbox", "list", "testimonial", "faq", "divider", "spacer", "timer", "slider"].includes(selectedElement.type) && selectedElement.type}
+                        {selectedElement.type === "button" && "Button"}
+                        {selectedElement.type === "audio" && "Audio"}
+                        {selectedElement.type === "calendar" && "Kalender"}
+                        {selectedElement.type === "countdown" && "Countdown"}
+                        {selectedElement.type === "map" && "Karte"}
+                        {selectedElement.type === "chart" && "Diagramm"}
+                        {selectedElement.type === "code" && "Code"}
+                        {selectedElement.type === "embed" && "Embed"}
+                        {selectedElement.type === "product" && "Produkt"}
+                        {selectedElement.type === "team" && "Team"}
+                        {selectedElement.type === "quiz" && "Quiz"}
+                        {selectedElement.type === "icon" && "Icon"}
+                        {selectedElement.type === "progressBar" && "Fortschritt"}
+                        {selectedElement.type === "socialProof" && "Social Proof"}
+                        {!["heading", "text", "image", "video", "input", "textarea", "select", "radio", "checkbox", "list", "testimonial", "faq", "divider", "spacer", "timer", "slider", "button", "audio", "calendar", "countdown", "map", "chart", "code", "embed", "product", "team", "quiz", "icon", "progressBar", "socialProof"].includes(selectedElement.type) && selectedElement.type}
                       </h4>
                       <button
                         className="p-1 rounded hover:bg-muted"
@@ -3294,6 +3892,592 @@ export default function FunnelEditor() {
                           />
                           <div className="text-xs text-muted-foreground text-center">
                             {selectedElement.spacerHeight || 24}px
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Button Editor */}
+                    {selectedElement.type === "button" && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Button-Text</Label>
+                          <Input
+                            value={selectedElement.content || ""}
+                            onChange={(e) => updateSelectedElement({ content: e.target.value })}
+                            placeholder="Jetzt starten"
+                            className="text-sm h-8"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Variante</Label>
+                          <div className="flex gap-1">
+                            {(["primary", "secondary", "outline", "ghost"] as const).map((variant) => (
+                              <Button
+                                key={variant}
+                                variant={(selectedElement.buttonVariant || "primary") === variant ? "default" : "outline"}
+                                size="sm"
+                                className="flex-1 text-xs capitalize"
+                                onClick={() => updateSelectedElement({ buttonVariant: variant })}
+                              >
+                                {variant === "primary" ? "Primär" : variant === "secondary" ? "Sekundär" : variant === "outline" ? "Rahmen" : "Ghost"}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Link-URL</Label>
+                          <Input
+                            value={selectedElement.buttonUrl || ""}
+                            onChange={(e) => updateSelectedElement({ buttonUrl: e.target.value })}
+                            placeholder="https://..."
+                            className="text-sm h-8"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">In neuem Tab öffnen</Label>
+                          <Switch
+                            checked={selectedElement.buttonTarget === "_blank"}
+                            onCheckedChange={(checked) => updateSelectedElement({ buttonTarget: checked ? "_blank" : "_self" })}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Audio Editor */}
+                    {selectedElement.type === "audio" && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Audio-URL</Label>
+                          <Input
+                            value={selectedElement.audioUrl || ""}
+                            onChange={(e) => updateSelectedElement({ audioUrl: e.target.value })}
+                            placeholder="https://example.com/audio.mp3"
+                            className="text-sm h-8"
+                          />
+                        </div>
+                        <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center hover:border-primary/50 transition-colors cursor-pointer">
+                          <Music className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-xs text-muted-foreground">
+                            Audio-Datei ablegen oder klicken
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            (Max. 50MB; .mp3 .wav .ogg)
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Autoplay</Label>
+                          <Switch
+                            checked={selectedElement.audioAutoplay || false}
+                            onCheckedChange={(checked) => updateSelectedElement({ audioAutoplay: checked })}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Wiederholen</Label>
+                          <Switch
+                            checked={selectedElement.audioLoop || false}
+                            onCheckedChange={(checked) => updateSelectedElement({ audioLoop: checked })}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Calendar/Booking Editor */}
+                    {selectedElement.type === "calendar" && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Anbieter</Label>
+                          <Select
+                            value={selectedElement.calendarProvider || "calendly"}
+                            onValueChange={(v) => updateSelectedElement({ calendarProvider: v as "calendly" | "cal" | "custom" })}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="calendly">Calendly</SelectItem>
+                              <SelectItem value="cal">Cal.com</SelectItem>
+                              <SelectItem value="custom">Eigene URL</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Kalender-URL</Label>
+                          <Input
+                            value={selectedElement.calendarUrl || ""}
+                            onChange={(e) => updateSelectedElement({ calendarUrl: e.target.value })}
+                            placeholder="https://calendly.com/username"
+                            className="text-sm h-8"
+                          />
+                        </div>
+                        <div className="p-3 bg-muted rounded-md">
+                          <p className="text-xs text-muted-foreground">
+                            💡 Füge deine Kalender-Embed-URL ein, um Termine direkt im Funnel buchbar zu machen.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Countdown Editor */}
+                    {selectedElement.type === "countdown" && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Zieldatum</Label>
+                          <Input
+                            type="datetime-local"
+                            value={selectedElement.countdownDate || ""}
+                            onChange={(e) => updateSelectedElement({ countdownDate: e.target.value })}
+                            className="text-sm h-8"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Stil</Label>
+                          <div className="flex gap-1">
+                            {(["flip", "simple", "circular"] as const).map((style) => (
+                              <Button
+                                key={style}
+                                variant={(selectedElement.countdownStyle || "flip") === style ? "default" : "outline"}
+                                size="sm"
+                                className="flex-1 text-xs capitalize"
+                                onClick={() => updateSelectedElement({ countdownStyle: style })}
+                              >
+                                {style === "flip" ? "Flip" : style === "simple" ? "Einfach" : "Kreise"}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Labels anzeigen</Label>
+                          <Switch
+                            checked={selectedElement.countdownShowLabels !== false}
+                            onCheckedChange={(checked) => updateSelectedElement({ countdownShowLabels: checked })}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Map Editor */}
+                    {selectedElement.type === "map" && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Adresse</Label>
+                          <Textarea
+                            value={selectedElement.mapAddress || ""}
+                            onChange={(e) => updateSelectedElement({ mapAddress: e.target.value })}
+                            placeholder="Musterstraße 1, 12345 Berlin"
+                            rows={2}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Zoom-Stufe</Label>
+                          <Slider
+                            value={[selectedElement.mapZoom || 15]}
+                            onValueChange={([v]) => updateSelectedElement({ mapZoom: v })}
+                            min={1}
+                            max={20}
+                            step={1}
+                          />
+                          <div className="text-xs text-muted-foreground text-center">
+                            Zoom: {selectedElement.mapZoom || 15}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Karten-Stil</Label>
+                          <Select
+                            value={selectedElement.mapStyle || "roadmap"}
+                            onValueChange={(v) => updateSelectedElement({ mapStyle: v as "roadmap" | "satellite" | "terrain" })}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="roadmap">Straßenkarte</SelectItem>
+                              <SelectItem value="satellite">Satellit</SelectItem>
+                              <SelectItem value="terrain">Gelände</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Chart Editor */}
+                    {selectedElement.type === "chart" && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Diagramm-Typ</Label>
+                          <div className="grid grid-cols-2 gap-1">
+                            {(["bar", "line", "pie", "doughnut"] as const).map((type) => (
+                              <Button
+                                key={type}
+                                variant={(selectedElement.chartType || "bar") === type ? "default" : "outline"}
+                                size="sm"
+                                className="text-xs capitalize"
+                                onClick={() => updateSelectedElement({ chartType: type })}
+                              >
+                                {type === "bar" ? "Balken" : type === "line" ? "Linie" : type === "pie" ? "Kreis" : "Donut"}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Titel</Label>
+                          <Input
+                            value={selectedElement.content || ""}
+                            onChange={(e) => updateSelectedElement({ content: e.target.value })}
+                            placeholder="Diagramm-Titel"
+                            className="text-sm h-8"
+                          />
+                        </div>
+                        <div className="p-3 bg-muted rounded-md">
+                          <p className="text-xs text-muted-foreground">
+                            📊 Daten können über die API oder ein verbundenes Spreadsheet eingespielt werden.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Code Editor */}
+                    {selectedElement.type === "code" && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Programmiersprache</Label>
+                          <Select
+                            value={selectedElement.codeLanguage || "javascript"}
+                            onValueChange={(v) => updateSelectedElement({ codeLanguage: v })}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="javascript">JavaScript</SelectItem>
+                              <SelectItem value="typescript">TypeScript</SelectItem>
+                              <SelectItem value="python">Python</SelectItem>
+                              <SelectItem value="html">HTML</SelectItem>
+                              <SelectItem value="css">CSS</SelectItem>
+                              <SelectItem value="json">JSON</SelectItem>
+                              <SelectItem value="bash">Bash</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Code</Label>
+                          <Textarea
+                            value={selectedElement.codeContent || ""}
+                            onChange={(e) => updateSelectedElement({ codeContent: e.target.value })}
+                            placeholder="// Dein Code hier..."
+                            rows={8}
+                            className="text-sm font-mono"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Embed Editor */}
+                    {selectedElement.type === "embed" && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Embed-URL</Label>
+                          <Input
+                            value={selectedElement.embedUrl || ""}
+                            onChange={(e) => updateSelectedElement({ embedUrl: e.target.value })}
+                            placeholder="https://..."
+                            className="text-sm h-8"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Oder HTML-Code</Label>
+                          <Textarea
+                            value={selectedElement.embedCode || ""}
+                            onChange={(e) => updateSelectedElement({ embedCode: e.target.value })}
+                            placeholder='<iframe src="..."></iframe>'
+                            rows={4}
+                            className="text-sm font-mono"
+                          />
+                        </div>
+                        <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
+                          <p className="text-xs text-yellow-600">
+                            ⚠️ Achte darauf, nur vertrauenswürdige Embed-Codes zu verwenden.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Product Editor */}
+                    {selectedElement.type === "product" && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Produktname</Label>
+                          <Input
+                            value={selectedElement.productName || ""}
+                            onChange={(e) => updateSelectedElement({ productName: e.target.value })}
+                            placeholder="Premium Coaching"
+                            className="text-sm h-8"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Preis</Label>
+                          <Input
+                            value={selectedElement.productPrice || ""}
+                            onChange={(e) => updateSelectedElement({ productPrice: e.target.value })}
+                            placeholder="€ 997"
+                            className="text-sm h-8"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Produktbild URL</Label>
+                          <Input
+                            value={selectedElement.productImage || ""}
+                            onChange={(e) => updateSelectedElement({ productImage: e.target.value })}
+                            placeholder="https://..."
+                            className="text-sm h-8"
+                          />
+                        </div>
+                        <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center hover:border-primary/50 transition-colors cursor-pointer">
+                          <ShoppingBag className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-xs text-muted-foreground">
+                            Produktbild hochladen
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Beschreibung</Label>
+                          <Textarea
+                            value={selectedElement.productDescription || ""}
+                            onChange={(e) => updateSelectedElement({ productDescription: e.target.value })}
+                            placeholder="Kurze Produktbeschreibung..."
+                            rows={3}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Button-Text</Label>
+                          <Input
+                            value={selectedElement.productButtonText || ""}
+                            onChange={(e) => updateSelectedElement({ productButtonText: e.target.value })}
+                            placeholder="Jetzt kaufen"
+                            className="text-sm h-8"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Button-URL</Label>
+                          <Input
+                            value={selectedElement.productButtonUrl || ""}
+                            onChange={(e) => updateSelectedElement({ productButtonUrl: e.target.value })}
+                            placeholder="https://checkout..."
+                            className="text-sm h-8"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Team Editor */}
+                    {selectedElement.type === "team" && (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs font-medium">Team-Mitglieder</Label>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              const members = selectedElement.teamMembers || [];
+                              updateSelectedElement({
+                                teamMembers: [
+                                  ...members,
+                                  {
+                                    id: `member-${Date.now()}`,
+                                    name: "Neues Mitglied",
+                                    role: "Position",
+                                    image: "",
+                                  },
+                                ],
+                              });
+                            }}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Hinzufügen
+                          </Button>
+                        </div>
+                        <div className="space-y-3">
+                          {(selectedElement.teamMembers || []).map((member, idx) => (
+                            <div key={member.id} className="p-3 border rounded-lg space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-medium">Mitglied {idx + 1}</span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 text-destructive"
+                                  onClick={() => {
+                                    const members = [...(selectedElement.teamMembers || [])];
+                                    members.splice(idx, 1);
+                                    updateSelectedElement({ teamMembers: members });
+                                  }}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                              <Input
+                                value={member.name}
+                                onChange={(e) => {
+                                  const members = [...(selectedElement.teamMembers || [])];
+                                  members[idx] = { ...members[idx], name: e.target.value };
+                                  updateSelectedElement({ teamMembers: members });
+                                }}
+                                placeholder="Name"
+                                className="text-sm h-8"
+                              />
+                              <Input
+                                value={member.role || ""}
+                                onChange={(e) => {
+                                  const members = [...(selectedElement.teamMembers || [])];
+                                  members[idx] = { ...members[idx], role: e.target.value };
+                                  updateSelectedElement({ teamMembers: members });
+                                }}
+                                placeholder="Position"
+                                className="text-sm h-8"
+                              />
+                              <Input
+                                value={member.image || ""}
+                                onChange={(e) => {
+                                  const members = [...(selectedElement.teamMembers || [])];
+                                  members[idx] = { ...members[idx], image: e.target.value };
+                                  updateSelectedElement({ teamMembers: members });
+                                }}
+                                placeholder="Bild-URL"
+                                className="text-sm h-8"
+                              />
+                            </div>
+                          ))}
+                          {(!selectedElement.teamMembers || selectedElement.teamMembers.length === 0) && (
+                            <div className="text-center py-4 text-sm text-muted-foreground">
+                              Noch keine Mitglieder. Klicke auf "Hinzufügen".
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Quiz Editor - basic */}
+                    {selectedElement.type === "quiz" && (
+                      <div className="space-y-4">
+                        <div className="p-3 bg-muted rounded-md">
+                          <p className="text-xs text-muted-foreground">
+                            🎯 Der Quiz-Editor wird separat in einem erweiterten Modal geöffnet.
+                          </p>
+                        </div>
+                        <Button variant="outline" size="sm" className="w-full">
+                          Quiz bearbeiten
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Select/Dropdown Editor */}
+                    {selectedElement.type === "select" && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Label</Label>
+                          <Input
+                            value={selectedElement.label || ""}
+                            onChange={(e) => updateSelectedElement({ label: e.target.value })}
+                            placeholder="Dropdown Label"
+                            className="text-sm h-8"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Optionen (eine pro Zeile)</Label>
+                          <Textarea
+                            value={(selectedElement.options || []).join("\n")}
+                            onChange={(e) => updateSelectedElement({ options: e.target.value.split("\n").filter(Boolean) })}
+                            placeholder="Option 1&#10;Option 2&#10;Option 3"
+                            rows={4}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Pflichtfeld</Label>
+                          <Switch
+                            checked={selectedElement.required || false}
+                            onCheckedChange={(checked) => updateSelectedElement({ required: checked })}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Radio Editor */}
+                    {selectedElement.type === "radio" && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Frage / Label</Label>
+                          <Input
+                            value={selectedElement.label || ""}
+                            onChange={(e) => updateSelectedElement({ label: e.target.value })}
+                            placeholder="Wähle eine Option"
+                            className="text-sm h-8"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Optionen (eine pro Zeile)</Label>
+                          <Textarea
+                            value={(selectedElement.options || []).join("\n")}
+                            onChange={(e) => updateSelectedElement({ options: e.target.value.split("\n").filter(Boolean) })}
+                            placeholder="Option A&#10;Option B&#10;Option C"
+                            rows={4}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Pflichtfeld</Label>
+                          <Switch
+                            checked={selectedElement.required || false}
+                            onCheckedChange={(checked) => updateSelectedElement({ required: checked })}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Checkbox Editor */}
+                    {selectedElement.type === "checkbox" && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Label</Label>
+                          <Input
+                            value={selectedElement.label || ""}
+                            onChange={(e) => updateSelectedElement({ label: e.target.value })}
+                            placeholder="Ich akzeptiere die AGB"
+                            className="text-sm h-8"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Pflichtfeld</Label>
+                          <Switch
+                            checked={selectedElement.required || false}
+                            onCheckedChange={(checked) => updateSelectedElement({ required: checked })}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Divider Editor */}
+                    {selectedElement.type === "divider" && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Farbe</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              type="color"
+                              value={selectedElement.styles?.color || "#e5e7eb"}
+                              onChange={(e) => updateSelectedElement({
+                                styles: { ...selectedElement.styles, color: e.target.value }
+                              })}
+                              className="w-12 h-8 p-1 cursor-pointer"
+                            />
+                            <Input
+                              value={selectedElement.styles?.color || "#e5e7eb"}
+                              onChange={(e) => updateSelectedElement({
+                                styles: { ...selectedElement.styles, color: e.target.value }
+                              })}
+                              className="flex-1 h-8 text-sm"
+                            />
                           </div>
                         </div>
                       </div>
