@@ -596,8 +596,12 @@ export default function Landing() {
               </ul>
             </div>
           </div>
-          <div className="pt-8 border-t text-center text-sm text-muted-foreground">
+          <div className="pt-8 border-t flex items-center justify-between text-sm text-muted-foreground">
             <p>&copy; {new Date().getFullYear()} Trichterwerk. Alle Rechte vorbehalten.</p>
+            {/* Diskreter Admin-Zugang */}
+            <Link href="/admin" className="opacity-30 hover:opacity-100 transition-opacity">
+              Admin
+            </Link>
           </div>
         </div>
       </footer>

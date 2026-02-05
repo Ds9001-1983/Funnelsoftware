@@ -12,8 +12,13 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   displayName: text("display_name"),
+  isAdmin: boolean("is_admin").notNull().default(false),
   trialEndsAt: timestamp("trial_ends_at"),
   isPro: boolean("is_pro").notNull().default(false),
+  subscriptionStatus: text("subscription_status").notNull().default("trial"), // trial, active, cancelled, expired
+  subscriptionPlan: text("subscription_plan"), // basic, pro, enterprise
+  subscriptionStartedAt: timestamp("subscription_started_at"),
+  lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -89,9 +94,37 @@ export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   password: true,
   displayName: true,
+  isAdmin: true,
   trialEndsAt: true,
   isPro: true,
+  subscriptionStatus: true,
+  subscriptionPlan: true,
+  subscriptionStartedAt: true,
 });
+
+// Admin user schema for customer management
+export const adminUserSchema = z.object({
+  id: z.number(),
+  username: z.string(),
+  email: z.string(),
+  displayName: z.string().nullable(),
+  isAdmin: z.boolean(),
+  trialEndsAt: z.string().nullable(),
+  isPro: z.boolean(),
+  subscriptionStatus: z.string(),
+  subscriptionPlan: z.string().nullable(),
+  subscriptionStartedAt: z.string().nullable(),
+  lastLoginAt: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  // Additional computed fields for admin view
+  funnelCount: z.number().optional(),
+  leadCount: z.number().optional(),
+  daysInTrial: z.number().optional(),
+  isTrialExpired: z.boolean().optional(),
+});
+
+export type AdminUser = z.infer<typeof adminUserSchema>;
 
 export const selectUserSchema = createSelectSchema(users);
 

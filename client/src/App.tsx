@@ -19,6 +19,7 @@ import Analytics from "@/pages/analytics";
 import Settings from "@/pages/settings";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
+import Admin from "@/pages/admin";
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   const style = {
@@ -76,6 +77,11 @@ function Router() {
   }
   if (location === "/register") {
     return <Register />;
+  }
+
+  // Admin page (has its own auth)
+  if (location === "/admin") {
+    return <Admin />;
   }
 
   // Full-screen pages without sidebar (but protected)

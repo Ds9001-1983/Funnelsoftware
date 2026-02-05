@@ -432,6 +432,187 @@ export class DatabaseStorage implements IStorage {
     await db.insert(templates).values(defaultTemplates);
     console.log("Default templates seeded successfully");
   }
+
+  // ============ ADMIN METHODS ============
+
+  // Get all users (admin only)
+  async getAllUsers(limit = 50, offset = 0, search?: string): Promise<{
+    users: Array<{
+      id: number;
+      username: string;
+      email: string;
+      displayName: string | null;
+      isAdmin: boolean;
+      trialEndsAt: Date | null;
+      isPro: boolean;
+      subscriptionStatus: string;
+      subscriptionPlan: string | null;
+      subscriptionStartedAt: Date | null;
+      lastLoginAt: Date | null;
+      createdAt: Date;
+      updatedAt: Date;
+      funnelCount: number;
+      leadCount: number;
+    }>;
+    total: number;
+  }> {
+    // Get total count
+    const [countResult] = await db.select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(search ? sql`${users.username} ILIKE ${`%${search}%`} OR ${users.email} ILIKE ${`%${search}%`}` : undefined);
+
+    // Get users with funnel and lead counts
+    const usersResult = await db.select({
+      id: users.id,
+      username: users.username,
+      email: users.email,
+      displayName: users.displayName,
+      isAdmin: users.isAdmin,
+      trialEndsAt: users.trialEndsAt,
+      isPro: users.isPro,
+      subscriptionStatus: users.subscriptionStatus,
+      subscriptionPlan: users.subscriptionPlan,
+      subscriptionStartedAt: users.subscriptionStartedAt,
+      lastLoginAt: users.lastLoginAt,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+    })
+      .from(users)
+      .where(search ? sql`${users.username} ILIKE ${`%${search}%`} OR ${users.email} ILIKE ${`%${search}%`}` : undefined)
+      .orderBy(desc(users.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    // Get funnel and lead counts for each user
+    const usersWithCounts = await Promise.all(usersResult.map(async (user) => {
+      const [funnelCount] = await db.select({ count: sql<number>`count(*)` })
+        .from(funnels)
+        .where(eq(funnels.userId, user.id));
+
+      const [leadCount] = await db.select({ count: sql<number>`count(*)` })
+        .from(leads)
+        .where(eq(leads.userId, user.id));
+
+      return {
+        ...user,
+        funnelCount: Number(funnelCount?.count || 0),
+        leadCount: Number(leadCount?.count || 0),
+      };
+    }));
+
+    return {
+      users: usersWithCounts,
+      total: Number(countResult?.count || 0),
+    };
+  }
+
+  // Update user (admin only)
+  async updateUserAdmin(userId: number, updates: {
+    isPro?: boolean;
+    isAdmin?: boolean;
+    subscriptionStatus?: string;
+    subscriptionPlan?: string;
+    trialEndsAt?: Date | null;
+    subscriptionStartedAt?: Date | null;
+  }): Promise<User | undefined> {
+    const [user] = await db.update(users)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+
+    return user;
+  }
+
+  // Delete user (admin only)
+  async deleteUserAdmin(userId: number): Promise<boolean> {
+    const result = await db.delete(users)
+      .where(eq(users.id, userId))
+      .returning({ id: users.id });
+
+    return result.length > 0;
+  }
+
+  // Update last login timestamp
+  async updateLastLogin(userId: number): Promise<void> {
+    await db.update(users)
+      .set({ lastLoginAt: new Date() })
+      .where(eq(users.id, userId));
+  }
+
+  // Get admin statistics
+  async getAdminStats(): Promise<{
+    totalUsers: number;
+    activeTrials: number;
+    proUsers: number;
+    totalFunnels: number;
+    totalLeads: number;
+    newUsersToday: number;
+    newUsersThisWeek: number;
+  }> {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const [totalUsers] = await db.select({ count: sql<number>`count(*)` }).from(users);
+    const [activeTrials] = await db.select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(and(
+        eq(users.subscriptionStatus, "trial"),
+        sql`${users.trialEndsAt} > NOW()`
+      ));
+    const [proUsers] = await db.select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(eq(users.isPro, true));
+    const [totalFunnels] = await db.select({ count: sql<number>`count(*)` }).from(funnels);
+    const [totalLeads] = await db.select({ count: sql<number>`count(*)` }).from(leads);
+    const [newUsersToday] = await db.select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(sql`${users.createdAt} >= ${startOfDay}`);
+    const [newUsersThisWeek] = await db.select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(sql`${users.createdAt} >= ${startOfWeek}`);
+
+    return {
+      totalUsers: Number(totalUsers?.count || 0),
+      activeTrials: Number(activeTrials?.count || 0),
+      proUsers: Number(proUsers?.count || 0),
+      totalFunnels: Number(totalFunnels?.count || 0),
+      totalLeads: Number(totalLeads?.count || 0),
+      newUsersToday: Number(newUsersToday?.count || 0),
+      newUsersThisWeek: Number(newUsersThisWeek?.count || 0),
+    };
+  }
+
+  // Create or ensure admin user exists
+  async ensureAdminUser(username: string, password: string, email: string): Promise<User> {
+    const existingAdmin = await this.getUserByUsername(username);
+    if (existingAdmin) {
+      // Update to admin if not already
+      if (!existingAdmin.isAdmin) {
+        await db.update(users)
+          .set({ isAdmin: true })
+          .where(eq(users.id, existingAdmin.id));
+      }
+      return existingAdmin;
+    }
+
+    // Create admin user
+    const hashedPassword = await hashPassword(password);
+    const [admin] = await db.insert(users).values({
+      username,
+      email,
+      password: hashedPassword,
+      isAdmin: true,
+      isPro: true,
+      subscriptionStatus: "active",
+      subscriptionPlan: "enterprise",
+    }).returning();
+
+    return admin;
+  }
 }
 
 // Export singleton instance
