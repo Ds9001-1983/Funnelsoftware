@@ -149,265 +149,32 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Funnel, FunnelPage, PageElement, PageAnimation, Section, Column } from "@shared/schema";
 import confetti from "canvas-confetti";
 
-// Available personalization variables
-const personalizationVariables = [
-  { key: "{{name}}", label: "Name", description: "Name des Besuchers" },
-  { key: "{{email}}", label: "E-Mail", description: "E-Mail-Adresse" },
-  { key: "{{phone}}", label: "Telefon", description: "Telefonnummer" },
-  { key: "{{company}}", label: "Firma", description: "Firmenname" },
-  { key: "{{date}}", label: "Datum", description: "Aktuelles Datum" },
-  { key: "{{answer_1}}", label: "Antwort 1", description: "Erste Antwort" },
-  { key: "{{answer_2}}", label: "Antwort 2", description: "Zweite Antwort" },
-];
-
-// Section templates for quick insertion
-const sectionTemplates = [
-  {
-    id: "hero",
-    name: "Hero-Sektion",
-    description: "Aufmerksamkeitsstarker Einstieg",
-    elements: [
-      { id: "hero-h", type: "heading" as const, content: "Willkommen bei uns!" },
-      { id: "hero-t", type: "text" as const, content: "Entdecke, wie wir dir helfen können." },
-    ],
-  },
-  {
-    id: "features",
-    name: "Vorteile-Liste",
-    description: "3 Vorteile mit Häkchen",
-    elements: [
-      { id: "feat-l", type: "list" as const, listStyle: "check" as const, listItems: [
-        { id: "f1", text: "Schnell und einfach" },
-        { id: "f2", text: "100% kostenlos testen" },
-        { id: "f3", text: "Keine Kreditkarte nötig" },
-      ]},
-    ],
-  },
-  {
-    id: "testimonial",
-    name: "Kundenstimme",
-    description: "Testimonial mit Bewertung",
-    elements: [
-      { id: "test-t", type: "testimonial" as const, slides: [
-        { id: "t1", text: "Absolut begeistert! Hat meine Erwartungen übertroffen.", author: "Maria Schmidt", role: "Geschäftsführerin", rating: 5 },
-      ]},
-    ],
-  },
-  {
-    id: "cta",
-    name: "Call-to-Action",
-    description: "Überschrift mit Button",
-    elements: [
-      { id: "cta-h", type: "heading" as const, content: "Bereit loszulegen?" },
-      { id: "cta-t", type: "text" as const, content: "Starte jetzt und erlebe den Unterschied." },
-    ],
-  },
-  {
-    id: "contact-form",
-    name: "Kontaktformular",
-    description: "Name, E-Mail, Nachricht",
-    elements: [
-      { id: "cf-1", type: "input" as const, placeholder: "Dein Name", required: true },
-      { id: "cf-2", type: "input" as const, placeholder: "Deine E-Mail", required: true },
-      { id: "cf-3", type: "textarea" as const, placeholder: "Deine Nachricht...", required: false },
-    ],
-  },
-  {
-    id: "faq",
-    name: "FAQ-Sektion",
-    description: "Häufige Fragen",
-    elements: [
-      { id: "faq-1", type: "faq" as const, faqItems: [
-        { id: "fq1", question: "Wie funktioniert das?", answer: "Ganz einfach! Melde dich an und los geht's." },
-        { id: "fq2", question: "Ist es wirklich kostenlos?", answer: "Ja, du kannst alles kostenlos testen." },
-        { id: "fq3", question: "Wie erreiche ich den Support?", answer: "Per E-Mail oder Chat - wir sind für dich da!" },
-      ]},
-    ],
-  },
-  {
-    id: "urgency",
-    name: "Dringlichkeit",
-    description: "Timer mit Text",
-    elements: [
-      { id: "urg-h", type: "heading" as const, content: "Nur noch für kurze Zeit!" },
-      { id: "urg-t", type: "timer" as const, timerEndDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), timerStyle: "countdown" as const, timerShowDays: true },
-    ],
-  },
-];
+// Import extracted funnel-editor components
+import {
+  personalizationVariables,
+  sectionTemplates,
+  pageTypeLabels,
+  pageTypeIcons,
+  elementCategories,
+  layoutTemplates,
+  SortablePageItem,
+  SortableElementItem,
+  AddPageDialog,
+  ElementPalette,
+  ConditionalLogicEditor,
+  PersonalizationInserter,
+  SectionTemplatesPicker,
+  LayoutSelector,
+  SectionEditor,
+  PageEditor,
+  DraggableElement,
+  FunnelProgress,
+  FormFieldWithValidation,
+  validateAllFields,
+  ABTestEditor,
+} from "@/components/funnel-editor";
 
 type PageType = FunnelPage["type"];
-
-const pageTypeLabels: Record<PageType, string> = {
-  welcome: "Willkommen",
-  question: "Frage",
-  multiChoice: "Mehrfachauswahl",
-  contact: "Kontakt",
-  calendar: "Kalender",
-  thankyou: "Danke",
-};
-
-const pageTypeIcons: Record<PageType, string> = {
-  welcome: "W",
-  question: "?",
-  multiChoice: "C",
-  contact: "@",
-  calendar: "K",
-  thankyou: "T",
-};
-
-// Element palette categories - Extended with OpenFunnels block types
-const elementCategories: {
-  name: string;
-  elements: { type: PageElement["type"]; label: string; icon: React.ComponentType<{ className?: string }>; description: string }[];
-}[] = [
-  {
-    name: "Inhalt",
-    elements: [
-      { type: "heading", label: "Überschrift", icon: Type, description: "Große Überschrift" },
-      { type: "text", label: "Text", icon: AlignLeft, description: "Absatztext" },
-      { type: "image", label: "Bild", icon: Image, description: "Bild einfügen" },
-      { type: "video", label: "Video", icon: Video, description: "YouTube, Vimeo" },
-      { type: "audio", label: "Audio", icon: Music, description: "Audio/Podcast" },
-      { type: "list", label: "Liste", icon: List, description: "Aufzählungsliste" },
-      { type: "faq", label: "FAQ", icon: HelpCircle, description: "Fragen & Antworten" },
-    ],
-  },
-  {
-    name: "Formular",
-    elements: [
-      { type: "input", label: "Textfeld", icon: Type, description: "Einzeiliges Feld" },
-      { type: "textarea", label: "Textbereich", icon: MessageSquare, description: "Mehrzeiliges Feld" },
-      { type: "select", label: "Dropdown", icon: ListOrdered, description: "Auswahlfeld" },
-      { type: "radio", label: "Auswahl", icon: CheckSquare, description: "Single Choice" },
-      { type: "checkbox", label: "Checkbox", icon: CheckSquare, description: "Multi Choice" },
-      { type: "date", label: "Datum", icon: Calendar, description: "Datumsauswahl" },
-      { type: "fileUpload", label: "Datei", icon: Upload, description: "Datei-Upload" },
-      { type: "calendar", label: "Kalender", icon: Calendar, description: "Terminbuchung" },
-    ],
-  },
-  {
-    name: "Social Proof",
-    elements: [
-      { type: "testimonial", label: "Bewertung", icon: Star, description: "Kundenbewertung" },
-      { type: "slider", label: "Slider", icon: Layers, description: "Bild-Karussell" },
-      { type: "socialProof", label: "Logos", icon: Award, description: "Partner-Logos" },
-      { type: "team", label: "Team", icon: Users, description: "Team-Mitglieder" },
-    ],
-  },
-  {
-    name: "Interaktiv",
-    elements: [
-      { type: "button", label: "Button", icon: MousePointer2, description: "Klickbarer Button" },
-      { type: "timer", label: "Timer", icon: Clock, description: "Countdown Timer" },
-      { type: "countdown", label: "Countdown", icon: Timer, description: "Ablauf-Counter" },
-      { type: "progressBar", label: "Fortschritt", icon: BarChart3, description: "Fortschrittsbalken" },
-    ],
-  },
-  {
-    name: "E-Commerce",
-    elements: [
-      { type: "product", label: "Produkt", icon: ShoppingBag, description: "Produkt-Karte" },
-    ],
-  },
-  {
-    name: "Erweitert",
-    elements: [
-      { type: "map", label: "Karte", icon: MapPin, description: "Google Maps" },
-      { type: "chart", label: "Diagramm", icon: BarChart2, description: "Daten-Visualisierung" },
-      { type: "code", label: "Code", icon: Code, description: "Code-Snippet" },
-      { type: "embed", label: "Einbetten", icon: Link, description: "Externe Inhalte" },
-    ],
-  },
-  {
-    name: "Layout",
-    elements: [
-      { type: "divider", label: "Trennlinie", icon: Minus, description: "Horizontale Linie" },
-      { type: "spacer", label: "Abstand", icon: Space, description: "Vertikaler Abstand" },
-    ],
-  },
-];
-
-// Layout templates for section creation (OpenFunnels style)
-const layoutTemplates = [
-  { id: "single", name: "1 Spalte", icon: LayoutGrid, columns: [100], description: "Volle Breite" },
-  { id: "two-equal", name: "2 Spalten", icon: Columns, columns: [50, 50], description: "Gleiche Breite" },
-  { id: "two-left", name: "2 Spalten Links", icon: PanelLeft, columns: [66, 34], description: "Links größer" },
-  { id: "two-right", name: "2 Spalten Rechts", icon: PanelRight, columns: [34, 66], description: "Rechts größer" },
-  { id: "three-equal", name: "3 Spalten", icon: LayoutGrid, columns: [33, 34, 33], description: "Drei gleich" },
-  { id: "four-equal", name: "4 Spalten", icon: LayoutGrid, columns: [25, 25, 25, 25], description: "Vier gleich" },
-];
-
-// Clickable/Draggable element from palette
-function DraggableElement({ type, label, icon: Icon, description, onClick }: {
-  type: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  description: string;
-  onClick?: () => void;
-}) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `new-element-${type}`,
-    data: { type, isNew: true },
-  });
-
-  const handleClick = (e: React.MouseEvent) => {
-    // Only trigger click if not dragging and onClick handler exists
-    if (onClick && !isDragging) {
-      e.stopPropagation();
-      onClick();
-    }
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      onClick={handleClick}
-      className={`group flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all hover:bg-accent ${
-        isDragging ? "opacity-50 scale-95 cursor-grabbing" : ""
-      }`}
-    >
-      <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium truncate">{label}</div>
-        <div className="text-xs text-muted-foreground truncate">{description}</div>
-      </div>
-      {onClick && (
-        <Plus className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-      )}
-    </div>
-  );
-}
-
-// Progress indicator for funnel
-function FunnelProgress({ currentPage, totalPages, primaryColor }: {
-  currentPage: number;
-  totalPages: number;
-  primaryColor: string;
-}) {
-  const progress = ((currentPage + 1) / totalPages) * 100;
-
-  return (
-    <div className="w-full px-4 py-2">
-      <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-        <span>Schritt {currentPage + 1} von {totalPages}</span>
-        <span>{Math.round(progress)}%</span>
-      </div>
-      <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-        <div
-          className="h-full rounded-full transition-all duration-500 ease-out"
-          style={{
-            width: `${progress}%`,
-            backgroundColor: primaryColor
-          }}
-        />
-      </div>
-    </div>
-  );
-}
 
 // Enhanced Phone Preview with inline editing and element selection
 function PhonePreview({
@@ -446,11 +213,18 @@ function PhonePreview({
   const [editingField, setEditingField] = useState<string | null>(null);
   const [localTitle, setLocalTitle] = useState(page?.title || "");
   const [localSubtitle, setLocalSubtitle] = useState(page?.subtitle || "");
+  // State for form field values (for validation preview)
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setLocalTitle(page?.title || "");
     setLocalSubtitle(page?.subtitle || "");
   }, [page?.title, page?.subtitle]);
+
+  // Update form value for a specific element
+  const updateFormValue = (elementId: string, value: string) => {
+    setFormValues(prev => ({ ...prev, [elementId]: value }));
+  };
 
   const handleTitleSave = () => {
     if (onUpdatePage && localTitle !== page?.title) {
@@ -679,19 +453,19 @@ function PhonePreview({
               {page.elements.map((el) => (
                 <ElementWrapper key={el.id} elementId={el.id} elementType={el.type}>
                   {el.type === "input" && (
-                    <input
-                      type="text"
-                      placeholder={el.placeholder}
-                      className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm bg-white shadow-sm focus:ring-2 focus:ring-primary/20 outline-none transition-shadow"
-                      readOnly
+                    <FormFieldWithValidation
+                      element={el}
+                      value={formValues[el.id] || ""}
+                      onChange={(value) => updateFormValue(el.id, value)}
+                      className="shadow-sm"
                     />
                   )}
                   {el.type === "textarea" && (
-                    <textarea
-                      placeholder={el.placeholder}
-                      className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm resize-none bg-white shadow-sm"
-                      rows={3}
-                      readOnly
+                    <FormFieldWithValidation
+                      element={el}
+                      value={formValues[el.id] || ""}
+                      onChange={(value) => updateFormValue(el.id, value)}
+                      className="shadow-sm"
                     />
                   )}
                   {el.type === "select" && (
@@ -1373,1454 +1147,6 @@ function PhonePreview({
   );
 }
 
-function SortablePageItem({
-  page,
-  index,
-  selected,
-  onSelect,
-  onDelete,
-  onDuplicate,
-  totalPages,
-}: {
-  page: FunnelPage;
-  index: number;
-  selected: boolean;
-  onSelect: () => void;
-  onDelete: () => void;
-  onDuplicate: () => void;
-  totalPages: number;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: page.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`group flex items-center gap-3 py-2.5 px-3 rounded-lg cursor-pointer transition-all ${
-        selected
-          ? "bg-primary/10 text-primary"
-          : "hover:bg-muted/50 text-foreground"
-      } ${isDragging ? "z-50 shadow-xl" : ""}`}
-      onClick={onSelect}
-      data-testid={`page-item-${index}`}
-      {...attributes}
-      {...listeners}
-    >
-      {/* Page number */}
-      <span className={`text-sm font-medium w-5 shrink-0 ${selected ? "text-primary" : "text-muted-foreground"}`}>
-        {index + 1}
-      </span>
-      {/* Page title */}
-      <div className="flex-1 min-w-0">
-        <div className="text-sm truncate">{page.title}</div>
-      </div>
-    </div>
-  );
-}
-
-function SortableElementItem({
-  element,
-  onDelete,
-  onDuplicate,
-  children,
-}: {
-  element: PageElement;
-  onDelete: () => void;
-  onDuplicate: () => void;
-  children: React.ReactNode;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: element.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`group relative ${isDragging ? "z-50 shadow-xl" : ""}`}
-    >
-      <div
-        {...attributes}
-        {...listeners}
-        className="absolute left-0 top-0 bottom-0 w-8 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none bg-muted/50 rounded-l-lg hover:bg-muted transition-colors opacity-50 group-hover:opacity-100"
-        data-testid={`element-drag-handle-${element.id}`}
-      >
-        <GripVertical className="h-4 w-4 text-muted-foreground" />
-      </div>
-      <div className="ml-8">
-        {children}
-      </div>
-      <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-6 w-6"
-          onClick={onDuplicate}
-        >
-          <Copy className="h-3 w-3" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-6 w-6 text-destructive"
-          onClick={onDelete}
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function AddPageDialog({
-  open,
-  onOpenChange,
-  onAdd,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onAdd: (type: PageType) => void;
-}) {
-  const pageTypes: { type: PageType; label: string; description: string; icon: string }[] = [
-    { type: "welcome", label: "Willkommen", description: "Begrüßungsseite mit Hero", icon: "W" },
-    { type: "question", label: "Frage", description: "Einfache Textfrage", icon: "?" },
-    { type: "multiChoice", label: "Mehrfachauswahl", description: "Multiple-Choice", icon: "C" },
-    { type: "contact", label: "Kontakt", description: "Kontaktformular", icon: "@" },
-    { type: "calendar", label: "Kalender", description: "Terminbuchung", icon: "K" },
-    { type: "thankyou", label: "Danke", description: "Abschlussseite", icon: "T" },
-  ];
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Neue Seite hinzufügen</DialogTitle>
-        </DialogHeader>
-        <div className="grid grid-cols-2 gap-3 mt-4">
-          {pageTypes.map((pt) => (
-            <Card
-              key={pt.type}
-              className="cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all hover:shadow-md"
-              onClick={() => {
-                onAdd(pt.type);
-                onOpenChange(false);
-              }}
-              data-testid={`add-page-${pt.type}`}
-            >
-              <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center font-bold text-lg text-primary">
-                  {pt.icon}
-                </div>
-                <div>
-                  <div className="font-medium">{pt.label}</div>
-                  <div className="text-xs text-muted-foreground">{pt.description}</div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// Element Palette Component
-function ElementPalette({ onAddElement }: { onAddElement: (type: PageElement["type"]) => void }) {
-  const [openCategories, setOpenCategories] = useState<string[]>(["Inhalt", "Formular"]);
-
-  const toggleCategory = (name: string) => {
-    setOpenCategories(prev =>
-      prev.includes(name)
-        ? prev.filter(c => c !== name)
-        : [...prev, name]
-    );
-  };
-
-  return (
-    <div className="space-y-2">
-      {elementCategories.map((category) => (
-        <Collapsible
-          key={category.name}
-          open={openCategories.includes(category.name)}
-          onOpenChange={() => toggleCategory(category.name)}
-        >
-          <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-md hover:bg-muted/50 transition-colors">
-            <span className="text-sm font-medium">{category.name}</span>
-            <ChevronDown className={`h-4 w-4 transition-transform ${
-              openCategories.includes(category.name) ? "rotate-180" : ""
-            }`} />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-1 mt-1">
-            {category.elements.map((element) => (
-              <div
-                key={element.type}
-                onClick={() => onAddElement(element.type)}
-                className="flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all hover:bg-accent"
-              >
-                <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
-                  <element.icon className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">{element.label}</div>
-                  <div className="text-xs text-muted-foreground truncate">{element.description}</div>
-                </div>
-              </div>
-            ))}
-          </CollapsibleContent>
-        </Collapsible>
-      ))}
-    </div>
-  );
-}
-
-// Conditional Logic Editor Component
-function ConditionalLogicEditor({
-  page,
-  allPages,
-  onUpdate,
-}: {
-  page: FunnelPage;
-  allPages: FunnelPage[];
-  onUpdate: (updates: Partial<FunnelPage>) => void;
-}) {
-  const hasOptions = page.elements.some(el => el.options && el.options.length > 0);
-  const optionElements = page.elements.filter(el => el.options && el.options.length > 0);
-
-  if (!hasOptions) {
-    return (
-      <div className="p-4 bg-muted/30 rounded-lg text-center">
-        <GitBranch className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-        <p className="text-sm text-muted-foreground">
-          Füge Auswahloptionen hinzu, um Conditional Logic zu verwenden
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <GitBranch className="h-4 w-4" />
-        <span>Leite Besucher basierend auf ihrer Antwort weiter</span>
-      </div>
-
-      {optionElements.map((element) => (
-        <div key={element.id} className="space-y-2">
-          <Label className="text-xs font-medium">Wenn Antwort ist:</Label>
-          {element.options?.map((option, optIdx) => (
-            <div key={optIdx} className="flex items-center gap-2 p-2 bg-muted/30 rounded">
-              <span className="text-sm flex-1 truncate">{option}</span>
-              <Select
-                value={page.conditionalRouting?.[`${element.id}-${optIdx}`] || "next"}
-                onValueChange={(value) => {
-                  onUpdate({
-                    conditionalRouting: {
-                      ...page.conditionalRouting,
-                      [`${element.id}-${optIdx}`]: value,
-                    },
-                  });
-                }}
-              >
-                <SelectTrigger className="w-32 h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="next">Nächste Seite</SelectItem>
-                  {allPages.map((p, idx) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {idx + 1}. {p.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// Personalization Variables Inserter
-function PersonalizationInserter({
-  onInsert,
-}: {
-  onInsert: (variable: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            onClick={() => setOpen(true)}
-          >
-            <Variable className="h-4 w-4" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>Variable einfügen</TooltipContent>
-      </Tooltip>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Personalisierung einfügen</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-2 mt-4">
-          {personalizationVariables.map((v) => (
-            <div
-              key={v.key}
-              className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors"
-              onClick={() => {
-                onInsert(v.key);
-                setOpen(false);
-              }}
-            >
-              <div>
-                <div className="font-medium text-sm">{v.label}</div>
-                <div className="text-xs text-muted-foreground">{v.description}</div>
-              </div>
-              <code className="text-xs bg-muted px-2 py-1 rounded">{v.key}</code>
-            </div>
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// Section Templates Picker
-function SectionTemplatesPicker({
-  onInsert,
-}: {
-  onInsert: (elements: PageElement[]) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <Button
-        variant="outline"
-        className="w-full gap-2"
-        onClick={() => setOpen(true)}
-      >
-        <LayoutTemplate className="h-4 w-4" />
-        Section-Vorlage einfügen
-      </Button>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Section-Vorlage wählen</DialogTitle>
-        </DialogHeader>
-        <div className="grid grid-cols-2 gap-3 mt-4 max-h-[60vh] overflow-y-auto">
-          {sectionTemplates.map((template) => (
-            <Card
-              key={template.id}
-              className="cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all"
-              onClick={() => {
-                const elementsWithNewIds = template.elements.map(el => ({
-                  ...el,
-                  id: `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                }));
-                onInsert(elementsWithNewIds as PageElement[]);
-                setOpen(false);
-              }}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-                    <LayoutTemplate className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <div className="font-medium">{template.name}</div>
-                    <div className="text-xs text-muted-foreground">{template.description}</div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {template.elements.length} Element{template.elements.length > 1 ? "e" : ""}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// Layout Selector for creating sections with columns
-function LayoutSelector({
-  onSelect,
-  selectedLayout,
-}: {
-  onSelect: (layoutId: string, columns: number[]) => void;
-  selectedLayout?: string;
-}) {
-  return (
-    <div className="space-y-3">
-      <Label className="text-xs font-medium">Spalten-Layout wählen</Label>
-      <div className="grid grid-cols-3 gap-2">
-        {layoutTemplates.map((layout) => {
-          const Icon = layout.icon;
-          return (
-            <button
-              key={layout.id}
-              onClick={() => onSelect(layout.id, layout.columns)}
-              className={`p-3 rounded-lg border-2 transition-all hover:border-primary/50 ${
-                selectedLayout === layout.id
-                  ? "border-primary bg-primary/5"
-                  : "border-muted hover:bg-muted/50"
-              }`}
-            >
-              <div className="flex justify-center mb-2">
-                {/* Visual representation of columns */}
-                <div className="flex gap-0.5 h-6 w-full max-w-[60px]">
-                  {layout.columns.map((width, idx) => (
-                    <div
-                      key={idx}
-                      className={`rounded-sm ${
-                        selectedLayout === layout.id ? "bg-primary" : "bg-muted-foreground/30"
-                      }`}
-                      style={{ width: `${width}%` }}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="text-xs font-medium text-center">{layout.name}</div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// Section Editor Component for managing sections and columns
-function SectionEditor({
-  sections,
-  onAddSection,
-  onUpdateSection,
-  onDeleteSection,
-  onSelectSection,
-  selectedSectionId,
-}: {
-  sections: Section[];
-  onAddSection: (layout: string, columns: number[]) => void;
-  onUpdateSection: (sectionId: string, updates: Partial<Section>) => void;
-  onDeleteSection: (sectionId: string) => void;
-  onSelectSection: (sectionId: string | null) => void;
-  selectedSectionId: string | null;
-}) {
-  const [showLayoutPicker, setShowLayoutPicker] = useState(false);
-
-  return (
-    <div className="space-y-4">
-      {/* Section List */}
-      <div className="space-y-2">
-        {sections.map((section, index) => (
-          <div
-            key={section.id}
-            onClick={() => onSelectSection(section.id)}
-            className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-              selectedSectionId === section.id
-                ? "border-primary bg-primary/5"
-                : "border-muted hover:border-muted-foreground/30"
-            }`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">
-                {section.name || `Section ${index + 1}`}
-              </span>
-              <div className="flex gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteSection(section.id);
-                  }}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
-            {/* Column preview */}
-            <div className="flex gap-1 h-4">
-              {section.columns.map((col) => (
-                <div
-                  key={col.id}
-                  className="bg-muted-foreground/20 rounded-sm flex items-center justify-center"
-                  style={{ width: `${col.width}%` }}
-                >
-                  <span className="text-[8px] text-muted-foreground">
-                    {col.elements.length}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Add Section Button */}
-      {showLayoutPicker ? (
-        <div className="p-3 border rounded-lg space-y-3">
-          <LayoutSelector
-            onSelect={(layoutId, columns) => {
-              onAddSection(layoutId, columns);
-              setShowLayoutPicker(false);
-            }}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full"
-            onClick={() => setShowLayoutPicker(false)}
-          >
-            Abbrechen
-          </Button>
-        </div>
-      ) : (
-        <Button
-          variant="outline"
-          className="w-full gap-2"
-          onClick={() => setShowLayoutPicker(true)}
-        >
-          <Plus className="h-4 w-4" />
-          Neue Sektion hinzufügen
-        </Button>
-      )}
-
-      {/* Selected Section Editor */}
-      {selectedSectionId && (
-        <div className="p-3 border rounded-lg space-y-3">
-          <Label className="text-xs font-medium">Sektion bearbeiten</Label>
-          {sections
-            .filter((s) => s.id === selectedSectionId)
-            .map((section) => (
-              <div key={section.id} className="space-y-3">
-                <Input
-                  value={section.name || ""}
-                  onChange={(e) =>
-                    onUpdateSection(section.id, { name: e.target.value })
-                  }
-                  placeholder="Sektion Name"
-                  className="h-8 text-sm"
-                />
-                <div className="space-y-2">
-                  <Label className="text-xs">Hintergrundfarbe</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="color"
-                      value={section.styles?.backgroundColor || "#ffffff"}
-                      onChange={(e) =>
-                        onUpdateSection(section.id, {
-                          styles: {
-                            ...section.styles,
-                            backgroundColor: e.target.value,
-                          },
-                        })
-                      }
-                      className="w-10 h-8 p-1 cursor-pointer"
-                    />
-                    <Input
-                      value={section.styles?.backgroundColor || "#ffffff"}
-                      onChange={(e) =>
-                        onUpdateSection(section.id, {
-                          styles: {
-                            ...section.styles,
-                            backgroundColor: e.target.value,
-                          },
-                        })
-                      }
-                      className="flex-1 h-8 text-sm"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Innenabstand</Label>
-                  <Select
-                    value={section.styles?.padding || "16px"}
-                    onValueChange={(v) =>
-                      onUpdateSection(section.id, {
-                        styles: { ...section.styles, padding: v },
-                      })
-                    }
-                  >
-                    <SelectTrigger className="h-8">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="8px">Klein (8px)</SelectItem>
-                      <SelectItem value="16px">Normal (16px)</SelectItem>
-                      <SelectItem value="24px">Mittel (24px)</SelectItem>
-                      <SelectItem value="32px">Groß (32px)</SelectItem>
-                      <SelectItem value="48px">Sehr groß (48px)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function PageEditor({
-  page,
-  allPages,
-  primaryColor,
-  onUpdate,
-  onUndo,
-  onRedo,
-  canUndo,
-  canRedo,
-}: {
-  page: FunnelPage;
-  allPages: FunnelPage[];
-  primaryColor: string;
-  onUpdate: (updates: Partial<FunnelPage>) => void;
-  onUndo: () => void;
-  onRedo: () => void;
-  canUndo: boolean;
-  canRedo: boolean;
-}) {
-  const [copiedElement, setCopiedElement] = useState<PageElement | null>(null);
-  const [activeTab, setActiveTab] = useState("content");
-  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
-  const titleInputRef = useRef<HTMLInputElement>(null);
-
-  // Section management handlers
-  const addSection = (layout: string, columnWidths: number[]) => {
-    const newSection: Section = {
-      id: `section-${Date.now()}`,
-      name: "",
-      layout: layout as Section["layout"],
-      columns: columnWidths.map((width, idx) => ({
-        id: `col-${Date.now()}-${idx}`,
-        width,
-        elements: [],
-      })),
-      styles: {
-        padding: "16px",
-      },
-    };
-    const currentSections = page.sections || [];
-    onUpdate({ sections: [...currentSections, newSection] });
-    setSelectedSectionId(newSection.id);
-  };
-
-  const updateSection = (sectionId: string, updates: Partial<Section>) => {
-    const currentSections = page.sections || [];
-    const updatedSections = currentSections.map((s) =>
-      s.id === sectionId ? { ...s, ...updates } : s
-    );
-    onUpdate({ sections: updatedSections });
-  };
-
-  const deleteSection = (sectionId: string) => {
-    const currentSections = page.sections || [];
-    onUpdate({ sections: currentSections.filter((s) => s.id !== sectionId) });
-    if (selectedSectionId === sectionId) {
-      setSelectedSectionId(null);
-    }
-  };
-
-  const insertVariable = (variable: string) => {
-    if (titleInputRef.current) {
-      const start = titleInputRef.current.selectionStart || 0;
-      const end = titleInputRef.current.selectionEnd || 0;
-      const text = page.title || "";
-      const newText = text.slice(0, start) + variable + text.slice(end);
-      onUpdate({ title: newText });
-    } else {
-      onUpdate({ title: (page.title || "") + " " + variable });
-    }
-  };
-
-  const addSectionElements = (elements: PageElement[]) => {
-    onUpdate({ elements: [...page.elements, ...elements] });
-  };
-
-  const addElement = (type: PageElement["type"]) => {
-    const newElement: PageElement = {
-      id: `el-${Date.now()}`,
-      type,
-      placeholder:
-        type === "input" ? "Dein Text hier..." :
-        type === "textarea" ? "Deine Nachricht..." :
-        type === "select" ? "Option wählen..." :
-        type === "date" ? "Datum auswählen..." : undefined,
-      options:
-        type === "radio" ? ["Option 1", "Option 2", "Option 3"] :
-        type === "select" ? ["Option 1", "Option 2", "Option 3"] : undefined,
-      label:
-        type === "fileUpload" ? "Datei hochladen" :
-        type === "video" ? "Video" :
-        type === "date" ? "Datum" :
-        type === "heading" ? "Überschrift" :
-        type === "text" ? "Dein Text hier..." :
-        type === "select" ? "Auswahl" : undefined,
-      content:
-        type === "heading" ? "Deine Überschrift" :
-        type === "text" ? "Füge hier deinen Text ein. Beschreibe dein Angebot oder gib wichtige Informationen." : undefined,
-      acceptedFileTypes: type === "fileUpload" ? [".pdf", ".jpg", ".jpeg", ".png"] : undefined,
-      maxFileSize: type === "fileUpload" ? 10 : undefined,
-      maxFiles: type === "fileUpload" ? 1 : undefined,
-      videoUrl: type === "video" ? "" : undefined,
-      videoType: type === "video" ? "youtube" : undefined,
-      includeTime: type === "date" ? false : undefined,
-      slides: type === "testimonial" ? [
-        { id: "t1", text: "Großartiger Service! Sehr empfehlenswert.", author: "Max Mustermann", role: "Geschäftsführer", rating: 5 }
-      ] : type === "slider" ? [
-        { id: "s1", title: "Slide 1", text: "" },
-        { id: "s2", title: "Slide 2", text: "" },
-        { id: "s3", title: "Slide 3", text: "" }
-      ] : undefined,
-      faqItems: type === "faq" ? [
-        { id: "faq1", question: "Wie funktioniert das?", answer: "So funktioniert es..." },
-        { id: "faq2", question: "Was kostet das?", answer: "Die Preise sind..." },
-      ] : undefined,
-      listItems: type === "list" ? [
-        { id: "li1", text: "Vorteil Nummer 1" },
-        { id: "li2", text: "Vorteil Nummer 2" },
-        { id: "li3", text: "Vorteil Nummer 3" },
-      ] : undefined,
-      listStyle: type === "list" ? "check" : undefined,
-      spacerHeight: type === "spacer" ? 32 : undefined,
-      dividerStyle: type === "divider" ? "solid" : undefined,
-      timerEndDate: type === "timer" ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
-      timerStyle: type === "timer" ? "countdown" : undefined,
-      timerShowDays: type === "timer" ? true : undefined,
-    };
-    onUpdate({ elements: [...page.elements, newElement] });
-  };
-
-  const updateElement = (id: string, updates: Partial<PageElement>) => {
-    onUpdate({
-      elements: page.elements.map((el) =>
-        el.id === id ? { ...el, ...updates } : el
-      ),
-    });
-  };
-
-  const removeElement = (id: string) => {
-    onUpdate({ elements: page.elements.filter((el) => el.id !== id) });
-  };
-
-  const duplicateElement = (element: PageElement) => {
-    const newElement = { ...element, id: `el-${Date.now()}` };
-    const index = page.elements.findIndex(el => el.id === element.id);
-    const newElements = [...page.elements];
-    newElements.splice(index + 1, 0, newElement);
-    onUpdate({ elements: newElements });
-  };
-
-  const copyElement = (element: PageElement) => {
-    setCopiedElement(element);
-  };
-
-  const pasteElement = () => {
-    if (copiedElement) {
-      const newElement = { ...copiedElement, id: `el-${Date.now()}` };
-      onUpdate({ elements: [...page.elements, newElement] });
-    }
-  };
-
-  const reorderElements = (activeId: string, overId: string) => {
-    const oldIndex = page.elements.findIndex((el) => el.id === activeId);
-    const newIndex = page.elements.findIndex((el) => el.id === overId);
-    if (oldIndex !== -1 && newIndex !== -1) {
-      onUpdate({ elements: arrayMove(page.elements, oldIndex, newIndex) });
-    }
-  };
-
-  const elementSensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  const handleElementDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      reorderElements(active.id as string, over.id as string);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Quick Actions Bar */}
-      <div className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
-        <div className="flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8"
-                onClick={onUndo}
-                disabled={!canUndo}
-              >
-                <Undo2 className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Rückgängig (Ctrl+Z)</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8"
-                onClick={onRedo}
-                disabled={!canRedo}
-              >
-                <Redo2 className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Wiederholen (Ctrl+Y)</TooltipContent>
-          </Tooltip>
-        </div>
-        <div className="flex items-center gap-1">
-          <PersonalizationInserter onInsert={insertVariable} />
-          {copiedElement && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button size="sm" variant="outline" onClick={pasteElement}>
-                  <Clipboard className="h-3.5 w-3.5 mr-1" />
-                  Einfügen
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Element einfügen</TooltipContent>
-            </Tooltip>
-          )}
-        </div>
-      </div>
-
-      {/* Tabs for Content / Logic / Settings */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full grid grid-cols-3">
-          <TabsTrigger value="content">Inhalt</TabsTrigger>
-          <TabsTrigger value="logic">Logik</TabsTrigger>
-          <TabsTrigger value="settings">Design</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="content" className="space-y-4 mt-4">
-          {/* Page Settings */}
-          <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="title">Titel</Label>
-          <Input
-            id="title"
-            value={page.title}
-            onChange={(e) => onUpdate({ title: e.target.value })}
-            data-testid="input-page-title"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="subtitle">Untertitel</Label>
-          <Textarea
-            id="subtitle"
-            value={page.subtitle || ""}
-            onChange={(e) => onUpdate({ subtitle: e.target.value })}
-            rows={2}
-            data-testid="input-page-subtitle"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="buttonText">Button-Text</Label>
-          <Input
-            id="buttonText"
-            value={page.buttonText || ""}
-            onChange={(e) => onUpdate({ buttonText: e.target.value })}
-            data-testid="input-page-button"
-          />
-        </div>
-        {(page.type === "welcome" || page.type === "thankyou") && (
-          <div className="space-y-2">
-            <Label htmlFor="bgColor">Hintergrundfarbe</Label>
-            <div className="flex gap-2">
-              <Input
-                id="bgColor"
-                type="color"
-                value={page.backgroundColor || primaryColor}
-                onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
-                className="w-14 h-9 p-1 cursor-pointer"
-              />
-              <Input
-                value={page.backgroundColor || primaryColor}
-                onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
-                className="flex-1"
-              />
-            </div>
-          </div>
-        )}
-
-        {page.type === "thankyou" && (
-          <div className="flex items-center justify-between gap-2 p-3 bg-muted/50 rounded-lg">
-            <div className="flex items-center gap-2">
-              <PartyPopper className="h-4 w-4 text-primary" />
-              <div>
-                <Label className="text-sm">Konfetti-Animation</Label>
-                <p className="text-xs text-muted-foreground">Zeigt Konfetti bei Seitenaufruf</p>
-              </div>
-            </div>
-            <Switch
-              checked={page.showConfetti || false}
-              onCheckedChange={(checked) => onUpdate({ showConfetti: checked })}
-            />
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <Label>Seitenanimation</Label>
-          <Select
-            value={page.animation || "fade"}
-            onValueChange={(v) => onUpdate({ animation: v as PageAnimation })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="fade">Einblenden</SelectItem>
-              <SelectItem value="slide">Schieben</SelectItem>
-              <SelectItem value="scale">Skalieren</SelectItem>
-              <SelectItem value="none">Keine Animation</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Element Palette */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Label className="text-base">Elemente hinzufügen</Label>
-        </div>
-        <ElementPalette onAddElement={addElement} />
-      </div>
-
-      {/* Current Elements */}
-      {page.elements.length > 0 && (
-        <div className="space-y-3">
-          <Label className="text-base">Aktuelle Elemente</Label>
-          <DndContext
-            sensors={elementSensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleElementDragEnd}
-          >
-            <SortableContext
-              items={page.elements.map((el) => el.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="space-y-2">
-                {page.elements.map((el) => (
-                  <SortableElementItem
-                    key={el.id}
-                    element={el}
-                    onDelete={() => removeElement(el.id)}
-                    onDuplicate={() => duplicateElement(el)}
-                  >
-                    <Card>
-                      <CardContent className="p-3 space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <Badge variant="secondary" className="capitalize">
-                            {el.type === "input" ? "Textfeld" :
-                             el.type === "textarea" ? "Textbereich" :
-                             el.type === "fileUpload" ? "Datei-Upload" :
-                             el.type === "video" ? "Video" :
-                             el.type === "date" ? "Datum" :
-                             el.type === "select" ? "Dropdown" :
-                             el.type === "testimonial" ? "Bewertung" :
-                             el.type === "slider" ? "Slider" :
-                             el.type === "heading" ? "Überschrift" :
-                             el.type === "text" ? "Text" :
-                             el.type === "faq" ? "FAQ" :
-                             el.type === "list" ? "Liste" :
-                             el.type === "timer" ? "Timer" :
-                             el.type === "divider" ? "Trennlinie" :
-                             el.type === "spacer" ? "Abstand" :
-                             el.type === "image" ? "Bild" : "Auswahl"}
-                          </Badge>
-                          {(el.type === "input" || el.type === "textarea" || el.type === "fileUpload" || el.type === "date" || el.type === "select") && (
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <span>Pflicht</span>
-                              <Switch
-                                checked={el.required || false}
-                                onCheckedChange={(checked) =>
-                                  updateElement(el.id, { required: checked })
-                                }
-                              />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Element-specific editors */}
-                        {(el.type === "heading" || el.type === "text") && (
-                          <div className="space-y-2">
-                            {el.type === "heading" ? (
-                              <Input
-                                placeholder="Überschrift"
-                                value={el.content || ""}
-                                onChange={(e) => updateElement(el.id, { content: e.target.value })}
-                              />
-                            ) : (
-                              <Textarea
-                                placeholder="Text eingeben..."
-                                value={el.content || ""}
-                                onChange={(e) => updateElement(el.id, { content: e.target.value })}
-                                rows={3}
-                              />
-                            )}
-                          </div>
-                        )}
-
-                        {(el.type === "input" || el.type === "textarea") && (
-                          <Input
-                            placeholder="Placeholder-Text"
-                            value={el.placeholder || ""}
-                            onChange={(e) => updateElement(el.id, { placeholder: e.target.value })}
-                          />
-                        )}
-
-                        {el.type === "fileUpload" && (
-                          <div className="space-y-3">
-                            <Input
-                              placeholder="z.B. Lebenslauf hochladen"
-                              value={el.label || ""}
-                              onChange={(e) => updateElement(el.id, { label: e.target.value })}
-                            />
-                            <Select
-                              value={el.acceptedFileTypes?.join(",") || "all"}
-                              onValueChange={(v) =>
-                                updateElement(el.id, {
-                                  acceptedFileTypes: v === "all" ? undefined : v.split(",")
-                                })
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Dateitypen" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="all">Alle Dateien</SelectItem>
-                                <SelectItem value=".pdf">Nur PDF</SelectItem>
-                                <SelectItem value=".jpg,.jpeg,.png,.gif">Nur Bilder</SelectItem>
-                                <SelectItem value=".pdf,.doc,.docx">Dokumente</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
-
-                        {(el.type === "radio" || el.type === "select") && el.options && (
-                          <div className="space-y-2">
-                            {el.options.map((opt, optIdx) => (
-                              <div key={optIdx} className="flex gap-2">
-                                <Input
-                                  value={opt}
-                                  onChange={(e) => {
-                                    const newOptions = [...el.options!];
-                                    newOptions[optIdx] = e.target.value;
-                                    updateElement(el.id, { options: newOptions });
-                                  }}
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="shrink-0"
-                                  onClick={() => {
-                                    const newOptions = el.options!.filter((_, i) => i !== optIdx);
-                                    updateElement(el.id, { options: newOptions });
-                                  }}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="w-full"
-                              onClick={() => {
-                                updateElement(el.id, {
-                                  options: [...(el.options || []), `Option ${(el.options?.length || 0) + 1}`],
-                                });
-                              }}
-                            >
-                              <Plus className="h-4 w-4 mr-1" />
-                              Option
-                            </Button>
-                          </div>
-                        )}
-
-                        {el.type === "video" && (
-                          <div className="space-y-2">
-                            <Select
-                              value={el.videoType || "youtube"}
-                              onValueChange={(v) => updateElement(el.id, { videoType: v as "youtube" | "vimeo" | "upload" })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="youtube">YouTube</SelectItem>
-                                <SelectItem value="vimeo">Vimeo</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Input
-                              placeholder="Video-URL"
-                              value={el.videoUrl || ""}
-                              onChange={(e) => updateElement(el.id, { videoUrl: e.target.value })}
-                            />
-                          </div>
-                        )}
-
-                        {el.type === "testimonial" && el.slides && (
-                          <div className="space-y-2">
-                            <Textarea
-                              placeholder="Testimonial-Text"
-                              value={el.slides[0]?.text || ""}
-                              onChange={(e) =>
-                                updateElement(el.id, {
-                                  slides: [{ ...el.slides![0], text: e.target.value }]
-                                })
-                              }
-                              rows={2}
-                            />
-                            <div className="grid grid-cols-2 gap-2">
-                              <Input
-                                placeholder="Name"
-                                value={el.slides[0]?.author || ""}
-                                onChange={(e) =>
-                                  updateElement(el.id, {
-                                    slides: [{ ...el.slides![0], author: e.target.value }]
-                                  })
-                                }
-                              />
-                              <Input
-                                placeholder="Position"
-                                value={el.slides[0]?.role || ""}
-                                onChange={(e) =>
-                                  updateElement(el.id, {
-                                    slides: [{ ...el.slides![0], role: e.target.value }]
-                                  })
-                                }
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {el.type === "faq" && el.faqItems && (
-                          <div className="space-y-2">
-                            {el.faqItems.map((item, idx) => (
-                              <div key={item.id} className="space-y-1 p-2 bg-muted/50 rounded">
-                                <Input
-                                  placeholder="Frage"
-                                  value={item.question}
-                                  onChange={(e) => {
-                                    const newItems = [...el.faqItems!];
-                                    newItems[idx] = { ...item, question: e.target.value };
-                                    updateElement(el.id, { faqItems: newItems });
-                                  }}
-                                />
-                                <Textarea
-                                  placeholder="Antwort"
-                                  value={item.answer}
-                                  onChange={(e) => {
-                                    const newItems = [...el.faqItems!];
-                                    newItems[idx] = { ...item, answer: e.target.value };
-                                    updateElement(el.id, { faqItems: newItems });
-                                  }}
-                                  rows={2}
-                                />
-                              </div>
-                            ))}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="w-full"
-                              onClick={() => {
-                                updateElement(el.id, {
-                                  faqItems: [...(el.faqItems || []), {
-                                    id: `faq-${Date.now()}`,
-                                    question: "Neue Frage",
-                                    answer: "Antwort..."
-                                  }],
-                                });
-                              }}
-                            >
-                              <Plus className="h-4 w-4 mr-1" />
-                              FAQ hinzufügen
-                            </Button>
-                          </div>
-                        )}
-
-                        {el.type === "list" && el.listItems && (
-                          <div className="space-y-2">
-                            <Select
-                              value={el.listStyle || "check"}
-                              onValueChange={(v) => updateElement(el.id, { listStyle: v as "bullet" | "number" | "check" | "icon" })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="check">Häkchen</SelectItem>
-                                <SelectItem value="bullet">Punkte</SelectItem>
-                                <SelectItem value="number">Nummern</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            {el.listItems.map((item, idx) => (
-                              <div key={item.id} className="flex gap-2">
-                                <Input
-                                  value={item.text}
-                                  onChange={(e) => {
-                                    const newItems = [...el.listItems!];
-                                    newItems[idx] = { ...item, text: e.target.value };
-                                    updateElement(el.id, { listItems: newItems });
-                                  }}
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    const newItems = el.listItems!.filter((_, i) => i !== idx);
-                                    updateElement(el.id, { listItems: newItems });
-                                  }}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="w-full"
-                              onClick={() => {
-                                updateElement(el.id, {
-                                  listItems: [...(el.listItems || []), { id: `li-${Date.now()}`, text: "Neuer Punkt" }],
-                                });
-                              }}
-                            >
-                              <Plus className="h-4 w-4 mr-1" />
-                              Punkt hinzufügen
-                            </Button>
-                          </div>
-                        )}
-
-                        {el.type === "spacer" && (
-                          <div className="space-y-2">
-                            <Label className="text-xs">Höhe: {el.spacerHeight || 32}px</Label>
-                            <Slider
-                              value={[el.spacerHeight || 32]}
-                              onValueChange={([v]) => updateElement(el.id, { spacerHeight: v })}
-                              min={8}
-                              max={128}
-                              step={8}
-                            />
-                          </div>
-                        )}
-
-                        {el.type === "timer" && (
-                          <div className="space-y-2">
-                            <Label className="text-xs">Enddatum</Label>
-                            <Input
-                              type="datetime-local"
-                              value={el.timerEndDate ? new Date(el.timerEndDate).toISOString().slice(0, 16) : ""}
-                              onChange={(e) => updateElement(el.id, { timerEndDate: new Date(e.target.value).toISOString() })}
-                            />
-                          </div>
-                        )}
-
-                        {el.type === "date" && (
-                          <div className="space-y-2">
-                            <Input
-                              placeholder="z.B. Geburtsdatum"
-                              value={el.label || ""}
-                              onChange={(e) => updateElement(el.id, { label: e.target.value })}
-                            />
-                            <div className="flex items-center justify-between">
-                              <Label className="text-xs">Uhrzeit einbeziehen</Label>
-                              <Switch
-                                checked={el.includeTime || false}
-                                onCheckedChange={(checked) => updateElement(el.id, { includeTime: checked })}
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {el.type === "image" && (
-                          <div className="space-y-2">
-                            <Input
-                              placeholder="Bild-URL"
-                              value={el.imageUrl || ""}
-                              onChange={(e) => updateElement(el.id, { imageUrl: e.target.value })}
-                            />
-                            <Input
-                              placeholder="Alt-Text"
-                              value={el.imageAlt || ""}
-                              onChange={(e) => updateElement(el.id, { imageAlt: e.target.value })}
-                            />
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </SortableElementItem>
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-        </div>
-      )}
-        </TabsContent>
-
-        {/* Logic Tab - Conditional Routing */}
-        <TabsContent value="logic" className="space-y-4 mt-4">
-          <div className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20">
-            <div className="flex items-center gap-2 mb-2">
-              <GitBranch className="h-5 w-5 text-primary" />
-              <h4 className="font-medium">Conditional Logic</h4>
-            </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Leite Besucher basierend auf ihren Antworten zu verschiedenen Seiten.
-            </p>
-            <ConditionalLogicEditor
-              page={page}
-              allPages={allPages}
-              onUpdate={onUpdate}
-            />
-          </div>
-
-          {/* Default next page */}
-          <div className="space-y-2">
-            <Label>Standard-Weiterleitung</Label>
-            <Select
-              value={page.nextPageId || "auto"}
-              onValueChange={(value) => onUpdate({ nextPageId: value === "auto" ? undefined : value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Automatisch (nächste Seite)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="auto">Automatisch (nächste Seite)</SelectItem>
-                {allPages.map((p, idx) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {idx + 1}. {p.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Wohin sollen Besucher geleitet werden, wenn keine Bedingung zutrifft?
-            </p>
-          </div>
-        </TabsContent>
-
-        {/* Settings Tab - Design Options */}
-        <TabsContent value="settings" className="space-y-4 mt-4">
-          {(page.type === "welcome" || page.type === "thankyou") && (
-            <div className="space-y-2">
-              <Label>Hintergrundfarbe</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="color"
-                  value={page.backgroundColor || primaryColor}
-                  onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
-                  className="w-14 h-9 p-1 cursor-pointer"
-                />
-                <Input
-                  value={page.backgroundColor || primaryColor}
-                  onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
-                  className="flex-1"
-                />
-              </div>
-            </div>
-          )}
-
-          {page.type === "thankyou" && (
-            <div className="flex items-center justify-between gap-2 p-3 bg-muted/50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <PartyPopper className="h-4 w-4 text-primary" />
-                <div>
-                  <Label className="text-sm">Konfetti-Animation</Label>
-                  <p className="text-xs text-muted-foreground">Zeigt Konfetti bei Seitenaufruf</p>
-                </div>
-              </div>
-              <Switch
-                checked={page.showConfetti || false}
-                onCheckedChange={(checked) => onUpdate({ showConfetti: checked })}
-              />
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label>Seitenanimation</Label>
-            <Select
-              value={page.animation || "fade"}
-              onValueChange={(v) => onUpdate({ animation: v as PageAnimation })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="fade">Einblenden</SelectItem>
-                <SelectItem value="slide">Schieben</SelectItem>
-                <SelectItem value="scale">Skalieren</SelectItem>
-                <SelectItem value="none">Keine Animation</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Section/Column Editor */}
-          <div className="pt-4 border-t">
-            <Label className="mb-3 block">Sektionen & Spalten</Label>
-            <SectionEditor
-              sections={page.sections || []}
-              onAddSection={addSection}
-              onUpdateSection={updateSection}
-              onDeleteSection={deleteSection}
-              onSelectSection={setSelectedSectionId}
-              selectedSectionId={selectedSectionId}
-            />
-          </div>
-
-          {/* Section Templates */}
-          <div className="pt-4 border-t">
-            <Label className="mb-3 block">Schnell-Vorlagen</Label>
-            <SectionTemplatesPicker onInsert={addSectionElements} />
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
 
 export default function FunnelEditor() {
   const [, params] = useRoute("/funnels/:id");
@@ -2859,6 +1185,12 @@ export default function FunnelEditor() {
   // Perspective-style editor states
   const [leftSidebarTab, setLeftSidebarTab] = useState<"pages" | "design">("pages");
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+
+  // Global clipboard for copy/paste functionality
+  const [clipboard, setClipboard] = useState<{
+    type: "element" | "section" | "page";
+    data: PageElement | Section | FunnelPage;
+  } | null>(null);
 
   // History state for undo/redo
   const {
@@ -2907,6 +1239,7 @@ export default function FunnelEditor() {
         pages: localFunnel.pages,
         theme: localFunnel.theme,
         status: localFunnel.status,
+        abTests: localFunnel.abTests,
       });
       setLastAutoSave(new Date());
     }
@@ -2987,6 +1320,67 @@ export default function FunnelEditor() {
     }
   };
 
+  // A/B Test handlers
+  const createABTest = useCallback((test: import("@shared/schema").ABTest) => {
+    if (!localFunnel) return;
+    const currentTests = localFunnel.abTests || [];
+    updateLocalFunnel({ abTests: [...currentTests, test] });
+    toast({
+      title: "A/B Test erstellt",
+      description: `Der Test "${test.name}" wurde erstellt.`,
+    });
+  }, [localFunnel, updateLocalFunnel, toast]);
+
+  const updateABTest = useCallback((testId: string, updates: Partial<import("@shared/schema").ABTest>) => {
+    if (!localFunnel) return;
+    const currentTests = localFunnel.abTests || [];
+    const updatedTests = currentTests.map(t =>
+      t.id === testId ? { ...t, ...updates } : t
+    );
+    updateLocalFunnel({ abTests: updatedTests });
+  }, [localFunnel, updateLocalFunnel]);
+
+  const deleteABTest = useCallback((testId: string) => {
+    if (!localFunnel) return;
+    const currentTests = localFunnel.abTests || [];
+    updateLocalFunnel({ abTests: currentTests.filter(t => t.id !== testId) });
+    toast({
+      title: "A/B Test gelöscht",
+      description: "Der Test wurde entfernt.",
+    });
+  }, [localFunnel, updateLocalFunnel, toast]);
+
+  const startABTest = useCallback((testId: string) => {
+    updateABTest(testId, {
+      status: "running",
+      startedAt: new Date().toISOString(),
+    });
+    toast({
+      title: "A/B Test gestartet",
+      description: "Der Test läuft jetzt und sammelt Daten.",
+    });
+  }, [updateABTest, toast]);
+
+  const pauseABTest = useCallback((testId: string) => {
+    updateABTest(testId, { status: "paused" });
+    toast({
+      title: "A/B Test pausiert",
+      description: "Der Test wurde pausiert.",
+    });
+  }, [updateABTest, toast]);
+
+  const completeABTest = useCallback((testId: string, winnerId: string) => {
+    updateABTest(testId, {
+      status: "completed",
+      winnerId,
+      completedAt: new Date().toISOString(),
+    });
+    toast({
+      title: "A/B Test abgeschlossen",
+      description: "Der Gewinner wurde festgelegt.",
+    });
+  }, [updateABTest, toast]);
+
   // Get selected element from current page
   const selectedElement = useMemo(() => {
     if (!localFunnel || !selectedElementId) return null;
@@ -3024,6 +1418,111 @@ export default function FunnelEditor() {
     updatePage(selectedPageIndex, { elements: newElements });
     setSelectedElementId(newElement.id);
   }, [localFunnel, selectedPageIndex, selectedElementId, updatePage]);
+
+  // Copy/Paste functions for elements, sections, and pages
+  const copySelectedElement = useCallback(() => {
+    if (!localFunnel || !selectedElementId) return;
+    const page = localFunnel.pages[selectedPageIndex];
+    const element = page.elements.find(el => el.id === selectedElementId);
+    if (element) {
+      setClipboard({ type: "element", data: element });
+      toast({
+        title: "Element kopiert",
+        description: "Das Element wurde in die Zwischenablage kopiert.",
+      });
+    }
+  }, [localFunnel, selectedPageIndex, selectedElementId, toast]);
+
+  const copyCurrentPage = useCallback(() => {
+    if (!localFunnel) return;
+    const page = localFunnel.pages[selectedPageIndex];
+    setClipboard({ type: "page", data: page });
+    toast({
+      title: "Seite kopiert",
+      description: `"${page.title}" wurde in die Zwischenablage kopiert.`,
+    });
+  }, [localFunnel, selectedPageIndex, toast]);
+
+  const pasteFromClipboard = useCallback(() => {
+    if (!localFunnel || !clipboard) return;
+
+    if (clipboard.type === "element") {
+      const element = clipboard.data as PageElement;
+      const newElement = { ...element, id: `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` };
+      const page = localFunnel.pages[selectedPageIndex];
+      updatePage(selectedPageIndex, { elements: [...page.elements, newElement] });
+      setSelectedElementId(newElement.id);
+      toast({
+        title: "Element eingefügt",
+        description: "Das Element wurde eingefügt.",
+      });
+    } else if (clipboard.type === "page") {
+      const pageToCopy = clipboard.data as FunnelPage;
+      const newPage: FunnelPage = {
+        ...pageToCopy,
+        id: `page-${Date.now()}`,
+        title: `${pageToCopy.title} (Kopie)`,
+        elements: pageToCopy.elements.map(el => ({
+          ...el,
+          id: `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        })),
+      };
+      const newPages = [...localFunnel.pages];
+      newPages.splice(selectedPageIndex + 1, 0, newPage);
+      setLocalFunnel({ ...localFunnel, pages: newPages });
+      setHasChanges(true);
+      setSelectedPageIndex(selectedPageIndex + 1);
+      toast({
+        title: "Seite eingefügt",
+        description: `"${newPage.title}" wurde eingefügt.`,
+      });
+    }
+  }, [localFunnel, clipboard, selectedPageIndex, updatePage, setLocalFunnel, toast]);
+
+  // Keyboard shortcuts for copy/paste and undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if we're in an input field
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
+        return;
+      }
+
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      const modKey = isMac ? e.metaKey : e.ctrlKey;
+
+      if (modKey && e.key === "c") {
+        e.preventDefault();
+        if (selectedElementId) {
+          copySelectedElement();
+        } else {
+          copyCurrentPage();
+        }
+      } else if (modKey && e.key === "v") {
+        e.preventDefault();
+        pasteFromClipboard();
+      } else if (modKey && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if (modKey && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+        e.preventDefault();
+        redo();
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        if (selectedElementId) {
+          e.preventDefault();
+          deleteSelectedElement();
+        }
+      } else if (modKey && e.key === "d") {
+        e.preventDefault();
+        if (selectedElementId) {
+          duplicateSelectedElement();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedElementId, copySelectedElement, copyCurrentPage, pasteFromClipboard, undo, redo, deleteSelectedElement, duplicateSelectedElement]);
 
   const moveElementUp = useCallback(() => {
     if (!localFunnel || !selectedElementId) return;
@@ -3242,6 +1741,7 @@ export default function FunnelEditor() {
         pages: localFunnel.pages,
         theme: localFunnel.theme,
         status: localFunnel.status,
+        abTests: localFunnel.abTests,
       });
     }
   };
@@ -4632,16 +3132,32 @@ export default function FunnelEditor() {
             </div>
             <div className="flex-1 overflow-y-auto funnel-scrollbar p-4">
               {selectedPage && (
-                <PageEditor
-                  page={selectedPage}
-                  allPages={localFunnel.pages}
-                  primaryColor={localFunnel.theme.primaryColor}
-                  onUpdate={(updates) => updatePage(selectedPageIndex, updates)}
-                  onUndo={undo}
-                  onRedo={redo}
-                  canUndo={canUndo}
-                  canRedo={canRedo}
-                />
+                <>
+                  <PageEditor
+                    page={selectedPage}
+                    allPages={localFunnel.pages}
+                    primaryColor={localFunnel.theme.primaryColor}
+                    onUpdate={(updates) => updatePage(selectedPageIndex, updates)}
+                    onUndo={undo}
+                    onRedo={redo}
+                    canUndo={canUndo}
+                    canRedo={canRedo}
+                  />
+
+                  {/* A/B Testing Section */}
+                  <div className="mt-6 pt-6 border-t">
+                    <ABTestEditor
+                      page={selectedPage}
+                      abTests={localFunnel.abTests || []}
+                      onCreateTest={createABTest}
+                      onUpdateTest={updateABTest}
+                      onDeleteTest={deleteABTest}
+                      onStartTest={startABTest}
+                      onPauseTest={pauseABTest}
+                      onCompleteTest={completeABTest}
+                    />
+                  </div>
+                </>
               )}
             </div>
           </div>

@@ -17,6 +17,19 @@ import {
   Space,
   Clock,
   BarChart3,
+  LayoutGrid,
+  Columns,
+  PanelLeft,
+  PanelRight,
+  Music,
+  MapPin,
+  Code,
+  BarChart2,
+  ShoppingBag,
+  Timer,
+  Link,
+  MousePointer2,
+  Users,
 } from "lucide-react";
 import type { FunnelPage, PageElement } from "@shared/schema";
 
@@ -47,6 +60,14 @@ export interface ElementCategoryItem {
 export interface ElementCategory {
   name: string;
   elements: ElementCategoryItem[];
+}
+
+export interface LayoutTemplate {
+  id: string;
+  name: string;
+  icon: React.ComponentType<{ className?: string }>;
+  columns: number[];
+  description: string;
 }
 
 // ============ CONSTANTS ============
@@ -179,6 +200,7 @@ export const elementCategories: ElementCategory[] = [
       { type: "text", label: "Text", icon: AlignLeft, description: "Absatztext" },
       { type: "image", label: "Bild", icon: Image, description: "Bild einfügen" },
       { type: "video", label: "Video", icon: Video, description: "YouTube, Vimeo" },
+      { type: "audio", label: "Audio", icon: Music, description: "Audio/Podcast" },
       { type: "list", label: "Liste", icon: List, description: "Aufzählungsliste" },
       { type: "faq", label: "FAQ", icon: HelpCircle, description: "Fragen & Antworten" },
     ],
@@ -193,6 +215,7 @@ export const elementCategories: ElementCategory[] = [
       { type: "checkbox", label: "Checkbox", icon: CheckSquare, description: "Multi Choice" },
       { type: "date", label: "Datum", icon: Calendar, description: "Datumsauswahl" },
       { type: "fileUpload", label: "Datei", icon: Upload, description: "Datei-Upload" },
+      { type: "calendar", label: "Kalender", icon: Calendar, description: "Terminbuchung" },
     ],
   },
   {
@@ -201,15 +224,51 @@ export const elementCategories: ElementCategory[] = [
       { type: "testimonial", label: "Bewertung", icon: Star, description: "Kundenbewertung" },
       { type: "slider", label: "Slider", icon: Layers, description: "Bild-Karussell" },
       { type: "socialProof", label: "Logos", icon: Award, description: "Partner-Logos" },
+      { type: "team", label: "Team", icon: Users, description: "Team-Mitglieder" },
     ],
   },
   {
-    name: "Design",
+    name: "Interaktiv",
     elements: [
-      { type: "divider", label: "Trennlinie", icon: Minus, description: "Horizontale Linie" },
-      { type: "spacer", label: "Abstand", icon: Space, description: "Vertikaler Abstand" },
+      { type: "button", label: "Button", icon: MousePointer2, description: "Klickbarer Button" },
       { type: "timer", label: "Timer", icon: Clock, description: "Countdown Timer" },
+      { type: "countdown", label: "Countdown", icon: Timer, description: "Ablauf-Counter" },
       { type: "progressBar", label: "Fortschritt", icon: BarChart3, description: "Fortschrittsbalken" },
     ],
   },
+  {
+    name: "E-Commerce",
+    elements: [
+      { type: "product", label: "Produkt", icon: ShoppingBag, description: "Produkt-Karte" },
+    ],
+  },
+  {
+    name: "Erweitert",
+    elements: [
+      { type: "map", label: "Karte", icon: MapPin, description: "Google Maps" },
+      { type: "chart", label: "Diagramm", icon: BarChart2, description: "Daten-Visualisierung" },
+      { type: "code", label: "Code", icon: Code, description: "Code-Snippet" },
+      { type: "embed", label: "Einbetten", icon: Link, description: "Externe Inhalte" },
+    ],
+  },
+  {
+    name: "Layout",
+    elements: [
+      { type: "divider", label: "Trennlinie", icon: Minus, description: "Horizontale Linie" },
+      { type: "spacer", label: "Abstand", icon: Space, description: "Vertikaler Abstand" },
+    ],
+  },
+];
+
+/**
+ * Layout-Templates für Spalten-Sektionen.
+ * Definiert verschiedene Spaltenaufteilungen für responsive Designs.
+ */
+export const layoutTemplates: LayoutTemplate[] = [
+  { id: "single", name: "1 Spalte", icon: LayoutGrid, columns: [100], description: "Volle Breite" },
+  { id: "two-equal", name: "2 Spalten", icon: Columns, columns: [50, 50], description: "Gleiche Breite" },
+  { id: "two-left", name: "2 Spalten Links", icon: PanelLeft, columns: [66, 34], description: "Links größer" },
+  { id: "two-right", name: "2 Spalten Rechts", icon: PanelRight, columns: [34, 66], description: "Rechts größer" },
+  { id: "three-equal", name: "3 Spalten", icon: LayoutGrid, columns: [33, 34, 33], description: "Drei gleich" },
+  { id: "four-equal", name: "4 Spalten", icon: LayoutGrid, columns: [25, 25, 25, 25], description: "Vier gleich" },
 ];

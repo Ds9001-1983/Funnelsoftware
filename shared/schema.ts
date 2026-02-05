@@ -123,6 +123,16 @@ export const pageElementSchema = z.object({
   content: z.string().optional(),
   placeholder: z.string().optional(),
   required: z.boolean().optional(),
+  // Validation options for form elements
+  validation: z.object({
+    type: z.enum(["text", "email", "phone", "url", "number", "custom"]).optional(),
+    minLength: z.number().optional(),
+    maxLength: z.number().optional(),
+    min: z.number().optional(), // For number inputs
+    max: z.number().optional(), // For number inputs
+    pattern: z.string().optional(), // Custom regex pattern
+    errorMessage: z.string().optional(), // Custom error message
+  }).optional(),
   options: z.array(z.string()).optional(),
   label: z.string().optional(),
   acceptedFileTypes: z.array(z.string()).optional(),
@@ -371,6 +381,53 @@ export const funnelPageSchema = z.object({
 
 export type FunnelPage = z.infer<typeof funnelPageSchema>;
 
+// A/B Test Variant schema
+export const abTestVariantSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  // Variant can override any page properties
+  title: z.string().optional(),
+  subtitle: z.string().optional(),
+  elements: z.array(pageElementSchema).optional(),
+  backgroundColor: z.string().optional(),
+  buttonText: z.string().optional(),
+  // Traffic allocation percentage (0-100)
+  trafficAllocation: z.number().min(0).max(100).default(50),
+  // Variant-specific metrics
+  views: z.number().default(0),
+  conversions: z.number().default(0),
+});
+
+export type ABTestVariant = z.infer<typeof abTestVariantSchema>;
+
+// A/B Test schema for page-level testing
+export const abTestSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  pageId: z.string(),
+  // Control is the original page, variants are the alternatives
+  variants: z.array(abTestVariantSchema),
+  // Test status
+  status: z.enum(["draft", "running", "paused", "completed"]).default("draft"),
+  // Winner variant ID (set when test is completed)
+  winnerId: z.string().optional(),
+  // Test configuration
+  config: z.object({
+    // Minimum sample size per variant
+    minSampleSize: z.number().default(100),
+    // Statistical significance threshold (e.g., 0.95 for 95%)
+    significanceThreshold: z.number().default(0.95),
+    // Metric to optimize: conversion or engagement
+    goalMetric: z.enum(["conversion", "engagement", "time_on_page"]).default("conversion"),
+  }).optional(),
+  // Test dates
+  startedAt: z.string().optional(),
+  completedAt: z.string().optional(),
+  createdAt: z.string().optional(),
+});
+
+export type ABTest = z.infer<typeof abTestSchema>;
+
 // Theme schema
 export const themeSchema = z.object({
   primaryColor: z.string(),
@@ -391,6 +448,8 @@ export const funnelSchema = z.object({
   status: z.enum(["draft", "published", "archived"]),
   pages: z.array(funnelPageSchema),
   theme: themeSchema,
+  // A/B Tests
+  abTests: z.array(abTestSchema).optional(),
   views: z.number(),
   leads: z.number(),
   createdAt: z.string().or(z.date()),
@@ -411,6 +470,7 @@ export const insertFunnelSchema = z.object({
     textColor: "#1a1a1a",
     fontFamily: "Inter",
   }),
+  abTests: z.array(abTestSchema).optional(),
 });
 
 export type InsertFunnel = z.infer<typeof insertFunnelSchema>;
