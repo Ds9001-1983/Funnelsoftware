@@ -172,6 +172,8 @@ import {
   FormFieldWithValidation,
   validateAllFields,
   ABTestEditor,
+  InlineElementPicker,
+  FloatingToolbar,
 } from "@/components/funnel-editor";
 
 type PageType = FunnelPage["type"];
@@ -283,14 +285,16 @@ function PhonePreview({
     icon: "Icon",
   };
 
-  // Element wrapper for selection handling with floating action menu
+  // Element wrapper for selection handling
   // Verbessertes visuelles Feedback für Hover und Auswahl
+  // OHNE Floating Action Menu - dieses wird separat außerhalb der Preview gerendert
   const ElementWrapper = ({ elementId, elementType, children }: { elementId: string; elementType: string; children: React.ReactNode }) => {
     const isSelected = selectedElementId === elementId;
     const [isHovered, setIsHovered] = useState(false);
 
     return (
       <div
+        data-element-id={elementId}
         className={`element-wrapper relative group cursor-pointer transition-all duration-200 rounded-lg p-1 ${
           isSelected
             ? "ring-2 ring-primary ring-offset-2 bg-primary/5"
@@ -320,81 +324,13 @@ function PhonePreview({
           </div>
         )}
 
-        {/* Quick action buttons on hover (right side) */}
-        {isHovered && !isSelected && (
-          <div className="absolute -right-2 top-0 flex flex-col gap-0.5 opacity-80 hover:opacity-100 transition-opacity">
-            <button
-              className="w-6 h-6 flex items-center justify-center rounded bg-white shadow border border-gray-200 hover:bg-primary/10 transition-colors"
-              title="Auswählen"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectElement?.(elementId);
-              }}
-            >
-              <MousePointer2 className="h-3 w-3 text-gray-500" />
-            </button>
-          </div>
-        )}
-
-        {/* Floating action menu on the right when selected */}
-        {isSelected && (
-          <div className="floating-action-menu">
-            <button
-              title="Element hinzufügen"
-              onClick={(e) => {
-                e.stopPropagation();
-                onShowElementPicker?.();
-              }}
-            >
-              <Plus className="h-4 w-4 text-gray-600" />
-            </button>
-            <button
-              title="Nach oben"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMoveElementUp?.();
-              }}
-            >
-              <ChevronUp className="h-4 w-4 text-gray-600" />
-            </button>
-            <button
-              title="Nach unten"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMoveElementDown?.();
-              }}
-            >
-              <ChevronDown className="h-4 w-4 text-gray-600" />
-            </button>
-            <button
-              title="Duplizieren"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDuplicateElement?.();
-              }}
-            >
-              <Copy className="h-4 w-4 text-gray-600" />
-            </button>
-            <button
-              className="danger"
-              title="Löschen"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeleteElement?.();
-              }}
-            >
-              <Trash2 className="h-4 w-4 text-red-500" />
-            </button>
-          </div>
-        )}
-
         {/* Resize handles when selected (visual only for now) */}
         {isSelected && (
           <>
-            <div className="absolute -top-1 -left-1 w-2 h-2 bg-primary rounded-full cursor-nw-resize" />
-            <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full cursor-ne-resize" />
-            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-primary rounded-full cursor-sw-resize" />
-            <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-primary rounded-full cursor-se-resize" />
+            <div className="absolute -top-1 -left-1 w-2 h-2 bg-primary rounded-full" />
+            <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
+            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-primary rounded-full" />
+            <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-primary rounded-full" />
           </>
         )}
       </div>
@@ -1145,21 +1081,9 @@ function PhonePreview({
             </div>
           )}
 
-          {/* Add Block Button */}
-          {onShowElementPicker && (
-            <div className="mt-6 flex flex-col items-center">
-              <button
-                className="w-12 h-12 rounded-full border-2 border-dashed border-gray-300 hover:border-primary hover:bg-primary/5 flex items-center justify-center transition-all group"
-                title="Block hinzufügen"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onShowElementPicker();
-                }}
-              >
-                <Plus className="h-5 w-5 text-gray-400 group-hover:text-primary transition-colors" />
-              </button>
-              <span className="text-xs text-gray-400 mt-2">Block hinzufügen</span>
-            </div>
+          {/* Inline Element Picker - direkt per Klick oder Drag & Drop */}
+          {onAddElement && (
+            <InlineElementPicker onAddElement={onAddElement} />
           )}
         </div>
 
@@ -3097,7 +3021,7 @@ export default function FunnelEditor() {
 
         {/* Center - Preview */}
         <div
-          className="flex-1 bg-muted/30 overflow-y-auto flex items-center justify-center p-2 md:p-8"
+          className="flex-1 bg-muted/30 overflow-y-auto flex items-center justify-center p-2 md:p-8 relative"
           onClick={() => {
             // Deselect element when clicking outside
             if (selectedElementId) {
@@ -3136,6 +3060,51 @@ export default function FunnelEditor() {
               }}
             />
           </div>
+
+          {/* Floating Toolbar - außerhalb der Preview, rechts daneben */}
+          {selectedElementId && selectedElement && (
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 z-50">
+              <div className="flex flex-col gap-1 bg-white rounded-lg shadow-xl border p-1.5">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0"
+                  onClick={moveElementUp}
+                  title="Nach oben"
+                >
+                  <ChevronUp className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0"
+                  onClick={moveElementDown}
+                  title="Nach unten"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+                <div className="h-px bg-border my-0.5" />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0"
+                  onClick={duplicateSelectedElement}
+                  title="Duplizieren"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={deleteSelectedElement}
+                  title="Löschen"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Toggle Right Sidebar */}
