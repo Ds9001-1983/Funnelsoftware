@@ -1,10 +1,4 @@
-import { useState } from "react";
-import { ChevronDown } from "lucide-react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { useDraggable } from "@dnd-kit/core";
 import { elementCategories } from "./constants";
 import type { PageElement } from "@shared/schema";
 
@@ -12,53 +6,115 @@ interface ElementPaletteProps {
   onAddElement: (type: PageElement["type"]) => void;
 }
 
-/**
- * Palette mit allen verfügbaren Elementen, gruppiert nach Kategorien.
- * Elemente können durch Klick zur Seite hinzugefügt werden.
- */
-export function ElementPalette({ onAddElement }: ElementPaletteProps) {
-  const [openCategories, setOpenCategories] = useState<string[]>(["Inhalt", "Formular"]);
+interface DraggablePaletteItemProps {
+  type: PageElement["type"];
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  description: string;
+  onClick: () => void;
+}
 
-  const toggleCategory = (name: string) => {
-    setOpenCategories(prev =>
-      prev.includes(name)
-        ? prev.filter(c => c !== name)
-        : [...prev, name]
-    );
-  };
+/**
+ * Einzelnes Element in der Palette, das per Drag & Drop oder Klick hinzugefügt werden kann.
+ */
+function DraggablePaletteItem({ type, label, icon: Icon, description, onClick }: DraggablePaletteItemProps) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `palette-${type}`,
+    data: { type, isNew: true },
+  });
 
   return (
-    <div className="space-y-2">
-      {elementCategories.map((category) => (
-        <Collapsible
-          key={category.name}
-          open={openCategories.includes(category.name)}
-          onOpenChange={() => toggleCategory(category.name)}
-        >
-          <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-md hover:bg-muted/50 transition-colors">
-            <span className="text-sm font-medium">{category.name}</span>
-            <ChevronDown className={`h-4 w-4 transition-transform ${
-              openCategories.includes(category.name) ? "rotate-180" : ""
-            }`} />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-1 mt-1">
-            {category.elements.map((element) => (
-              <div
-                key={element.type}
-                onClick={() => onAddElement(element.type)}
-                className="flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all hover:bg-accent"
-              >
-                <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
-                  <element.icon className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">{element.label}</div>
-                  <div className="text-xs text-muted-foreground truncate">{element.description}</div>
-                </div>
-              </div>
-            ))}
-          </CollapsibleContent>
-        </Collapsible>
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      onClick={onClick}
+      className={`
+        flex flex-col items-center justify-center p-3 rounded-lg cursor-grab
+        bg-muted/30 hover:bg-primary/10 border border-transparent hover:border-primary/30
+        transition-all duration-200 group
+        ${isDragging ? "opacity-50 scale-95 ring-2 ring-primary shadow-lg cursor-grabbing" : ""}
+      `}
+      title={description}
+    >
+      <div className={`
+        h-10 w-10 rounded-lg flex items-center justify-center mb-2
+        bg-muted group-hover:bg-primary/20 transition-colors
+        ${isDragging ? "bg-primary/20" : ""}
+      `}>
+        <Icon className={`h-5 w-5 transition-colors ${
+          isDragging ? "text-primary" : "text-muted-foreground group-hover:text-primary"
+        }`} />
+      </div>
+      <span className={`text-xs font-medium text-center truncate w-full transition-colors ${
+        isDragging ? "text-primary" : "group-hover:text-primary"
+      }`}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Palette mit allen verfügbaren Elementen im Grid-Layout.
+ * Alle Elemente sind auf einen Blick sichtbar - keine versteckten Kategorien.
+ * Elemente können durch Klick oder Drag & Drop zur Seite hinzugefügt werden.
+ */
+export function ElementPalette({ onAddElement }: ElementPaletteProps) {
+  // Alle Elemente in einem flachen Array sammeln
+  const allElements = elementCategories.flatMap(category =>
+    category.elements.map(element => ({
+      ...element,
+      category: category.name,
+    }))
+  );
+
+  return (
+    <div className="space-y-3">
+      {/* Hinweis */}
+      <p className="text-xs text-muted-foreground">
+        Klicken oder ziehen zum Hinzufügen
+      </p>
+
+      {/* Grid mit allen Elementen */}
+      <div className="grid grid-cols-3 gap-2">
+        {allElements.map((element) => (
+          <DraggablePaletteItem
+            key={element.type}
+            type={element.type}
+            label={element.label}
+            icon={element.icon}
+            description={element.description}
+            onClick={() => onAddElement(element.type)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Kompakte Version der Element-Palette für die Sidebar.
+ * Zeigt nur die häufigsten Elemente an.
+ */
+export function ElementPaletteCompact({ onAddElement }: ElementPaletteProps) {
+  // Nur die wichtigsten Elemente
+  const quickElements = [
+    ...elementCategories.find(c => c.name === "Inhalt")?.elements.slice(0, 4) || [],
+    ...elementCategories.find(c => c.name === "Formular")?.elements.slice(0, 4) || [],
+  ];
+
+  return (
+    <div className="grid grid-cols-4 gap-1">
+      {quickElements.map((element) => (
+        <DraggablePaletteItem
+          key={element.type}
+          type={element.type}
+          label={element.label}
+          icon={element.icon}
+          description={element.description}
+          onClick={() => onAddElement(element.type)}
+        />
       ))}
     </div>
   );

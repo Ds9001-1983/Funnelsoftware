@@ -284,34 +284,62 @@ function PhonePreview({
   };
 
   // Element wrapper for selection handling with floating action menu
+  // Verbessertes visuelles Feedback für Hover und Auswahl
   const ElementWrapper = ({ elementId, elementType, children }: { elementId: string; elementType: string; children: React.ReactNode }) => {
     const isSelected = selectedElementId === elementId;
+    const [isHovered, setIsHovered] = useState(false);
+
     return (
       <div
-        className={`relative group cursor-pointer transition-all rounded-lg ${
+        className={`element-wrapper relative group cursor-pointer transition-all duration-200 rounded-lg p-1 ${
           isSelected
-            ? "ring-2 ring-primary ring-offset-2"
+            ? "ring-2 ring-primary ring-offset-2 bg-primary/5"
+            : isHovered
+            ? "ring-2 ring-primary/40 ring-offset-1 bg-primary/5"
             : "hover:ring-2 hover:ring-primary/30 hover:ring-offset-1"
         }`}
         onClick={(e) => {
           e.stopPropagation();
           onSelectElement?.(elementId);
         }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
         {children}
-        {/* Element type label at top-left when selected */}
-        {isSelected && (
-          <div className="absolute -top-3 left-2 z-10">
-            <span className="px-2 py-0.5 text-xs font-medium bg-primary text-primary-foreground rounded">
+
+        {/* Element type label at top-left - shown on hover or when selected */}
+        {(isSelected || isHovered) && (
+          <div className="absolute -top-3 left-2 z-10 transition-opacity duration-200">
+            <span className={`px-2 py-0.5 text-xs font-medium rounded shadow-sm transition-all ${
+              isSelected
+                ? "bg-primary text-primary-foreground"
+                : "bg-white text-gray-700 border border-gray-200"
+            }`}>
               {elementTypeLabels[elementType] || elementType}
             </span>
           </div>
         )}
+
+        {/* Quick action buttons on hover (right side) */}
+        {isHovered && !isSelected && (
+          <div className="absolute -right-2 top-0 flex flex-col gap-0.5 opacity-80 hover:opacity-100 transition-opacity">
+            <button
+              className="w-6 h-6 flex items-center justify-center rounded bg-white shadow border border-gray-200 hover:bg-primary/10 transition-colors"
+              title="Auswählen"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectElement?.(elementId);
+              }}
+            >
+              <MousePointer2 className="h-3 w-3 text-gray-500" />
+            </button>
+          </div>
+        )}
+
         {/* Floating action menu on the right when selected */}
         {isSelected && (
-          <div className="absolute -right-12 top-1/2 -translate-y-1/2 flex flex-col gap-1 bg-white rounded-lg shadow-lg border p-1 z-10">
+          <div className="floating-action-menu">
             <button
-              className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 transition-colors"
               title="Element hinzufügen"
               onClick={(e) => {
                 e.stopPropagation();
@@ -321,7 +349,6 @@ function PhonePreview({
               <Plus className="h-4 w-4 text-gray-600" />
             </button>
             <button
-              className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 transition-colors"
               title="Nach oben"
               onClick={(e) => {
                 e.stopPropagation();
@@ -331,7 +358,6 @@ function PhonePreview({
               <ChevronUp className="h-4 w-4 text-gray-600" />
             </button>
             <button
-              className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 transition-colors"
               title="Nach unten"
               onClick={(e) => {
                 e.stopPropagation();
@@ -341,7 +367,6 @@ function PhonePreview({
               <ChevronDown className="h-4 w-4 text-gray-600" />
             </button>
             <button
-              className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 transition-colors"
               title="Duplizieren"
               onClick={(e) => {
                 e.stopPropagation();
@@ -351,7 +376,7 @@ function PhonePreview({
               <Copy className="h-4 w-4 text-gray-600" />
             </button>
             <button
-              className="w-8 h-8 flex items-center justify-center rounded hover:bg-red-50 transition-colors"
+              className="danger"
               title="Löschen"
               onClick={(e) => {
                 e.stopPropagation();
@@ -362,18 +387,27 @@ function PhonePreview({
             </button>
           </div>
         )}
+
+        {/* Resize handles when selected (visual only for now) */}
+        {isSelected && (
+          <>
+            <div className="absolute -top-1 -left-1 w-2 h-2 bg-primary rounded-full cursor-nw-resize" />
+            <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full cursor-ne-resize" />
+            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-primary rounded-full cursor-sw-resize" />
+            <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-primary rounded-full cursor-se-resize" />
+          </>
+        )}
       </div>
     );
   };
 
   if (!page) {
     return (
-      <div className="phone-frame max-w-[320px] mx-auto">
-        <div className="phone-screen aspect-[9/16] flex items-center justify-center bg-muted">
-          <div className="text-center text-muted-foreground p-6">
-            <Smartphone className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>Wähle eine Seite aus</p>
-          </div>
+      <div className="preview-container w-full min-h-[400px] flex items-center justify-center bg-muted/30">
+        <div className="text-center text-muted-foreground p-6">
+          <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p className="text-lg font-medium">Wähle eine Seite aus</p>
+          <p className="text-sm mt-1">Klicke links auf eine Seite zum Bearbeiten</p>
         </div>
       </div>
     );
@@ -385,9 +419,9 @@ function PhonePreview({
   const textColor = isWelcome || isThankyou ? "#ffffff" : "#1a1a1a";
 
   return (
-    <div className="phone-frame max-w-[320px] mx-auto">
+    <div className="preview-container w-full rounded-lg shadow-lg border border-gray-200 overflow-hidden">
       <div
-        className="phone-screen aspect-[9/16] flex flex-col overflow-hidden"
+        className="min-h-[500px] flex flex-col overflow-hidden"
         style={{ backgroundColor: bgColor }}
       >
         {/* Progress bar */}

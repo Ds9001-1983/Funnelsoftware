@@ -287,6 +287,75 @@
   @apply opacity-50;
 }
 
+/* Drop indicator for drag & drop */
+.drop-indicator {
+  @apply h-0.5 bg-primary rounded-full my-1;
+  animation: dropIndicatorPulse 1s ease-in-out infinite;
+}
+
+@keyframes dropIndicatorPulse {
+  0%, 100% { opacity: 0.5; transform: scaleX(0.9); }
+  50% { opacity: 1; transform: scaleX(1); }
+}
+
+/* Improved element selection */
+.element-wrapper {
+  @apply relative cursor-pointer transition-all duration-200;
+}
+
+.element-wrapper:hover {
+  @apply ring-2 ring-primary/40 ring-offset-1 rounded-lg;
+}
+
+.element-wrapper.selected {
+  @apply ring-2 ring-primary ring-offset-2 rounded-lg;
+}
+
+.element-wrapper.selected::before {
+  content: attr(data-type);
+  @apply absolute -top-3 left-2 px-2 py-0.5 text-xs font-medium bg-primary text-primary-foreground rounded z-10;
+}
+
+/* Preview container without phone frame */
+.preview-container {
+  @apply bg-white rounded-lg shadow-lg overflow-hidden transition-all duration-300;
+}
+
+.preview-container.desktop {
+  @apply max-w-full;
+}
+
+.preview-container.tablet {
+  max-width: 768px;
+}
+
+.preview-container.mobile {
+  max-width: 375px;
+}
+
+/* Floating action menu */
+.floating-action-menu {
+  @apply absolute -right-12 top-1/2 -translate-y-1/2 flex flex-col gap-1 bg-white rounded-lg shadow-lg border p-1 z-10;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translate(8px, -50%); }
+  to { opacity: 1; transform: translate(0, -50%); }
+}
+
+.floating-action-menu button {
+  @apply w-8 h-8 flex items-center justify-center rounded transition-colors;
+}
+
+.floating-action-menu button:hover {
+  @apply bg-gray-100;
+}
+
+.floating-action-menu button.danger:hover {
+  @apply bg-red-50;
+}
+
 /* Enhanced drag animations */
 [data-dragging="true"] {
   animation: pulse-drag 0.3s ease-in-out;
