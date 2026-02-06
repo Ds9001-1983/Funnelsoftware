@@ -44,3 +44,11 @@ export * from "./QuizElement";
 
 // Device Preview
 export * from "./DevicePreview";
+
+// Phone Preview (extracted from funnel-editor.tsx)
+export { PhonePreview } from "./PhonePreview";
+export { ElementWrapper, elementTypeLabels } from "./ElementWrapper";
+export { ElementPreviewRenderer, SectionPreviewRenderer } from "./ElementPreviewRenderer";
+
+// Element Properties Panel (extracted from funnel-editor.tsx)
+export { ElementPropertiesPanel } from "./ElementPropertiesPanel";
