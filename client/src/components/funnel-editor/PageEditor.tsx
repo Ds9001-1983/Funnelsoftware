@@ -187,6 +187,16 @@ export function PageEditor({
       timerEndDate: type === "timer" ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
       timerStyle: type === "timer" ? "countdown" : undefined,
       timerShowDays: type === "timer" ? true : undefined,
+      socialProofType: type === "socialProof" ? "logos" : undefined,
+      socialProofItems: type === "socialProof" ? [
+        { id: "sp1", image: "", text: "", value: "" },
+        { id: "sp2", image: "", text: "", value: "" },
+        { id: "sp3", image: "", text: "", value: "" },
+      ] : undefined,
+      progressValue: type === "progressBar" ? 60 : undefined,
+      progressShowLabel: type === "progressBar" ? true : undefined,
+      iconName: type === "icon" ? "star" : undefined,
+      iconSize: type === "icon" ? "md" : undefined,
     };
     onUpdate({ elements: [...page.elements, newElement] });
   };
@@ -380,7 +390,10 @@ export function PageEditor({
                                  el.type === "timer" ? "Timer" :
                                  el.type === "divider" ? "Trennlinie" :
                                  el.type === "spacer" ? "Abstand" :
-                                 el.type === "image" ? "Bild" : "Auswahl"}
+                                 el.type === "image" ? "Bild" :
+                                 el.type === "socialProof" ? "Social Proof" :
+                                 el.type === "progressBar" ? "Fortschritt" :
+                                 el.type === "icon" ? "Icon" : "Auswahl"}
                               </Badge>
                               {(el.type === "input" || el.type === "textarea" || el.type === "fileUpload" || el.type === "date" || el.type === "select") && (
                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -549,6 +562,75 @@ export function PageEditor({
                               </div>
                             )}
 
+                            {el.type === "slider" && el.slides && (
+                              <div className="space-y-2">
+                                {el.slides.map((slide, idx) => (
+                                  <div key={slide.id} className="space-y-1 p-2 bg-muted/50 rounded">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs font-medium">Slide {idx + 1}</span>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-6 w-6"
+                                        onClick={() => {
+                                          const newSlides = el.slides!.filter((_, i) => i !== idx);
+                                          updateElement(el.id, { slides: newSlides });
+                                        }}
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                    <Input
+                                      placeholder="Titel"
+                                      value={slide.title || ""}
+                                      onChange={(e) => {
+                                        const newSlides = [...el.slides!];
+                                        newSlides[idx] = { ...slide, title: e.target.value };
+                                        updateElement(el.id, { slides: newSlides });
+                                      }}
+                                    />
+                                    <Input
+                                      placeholder="Bild-URL"
+                                      value={slide.image || ""}
+                                      onChange={(e) => {
+                                        const newSlides = [...el.slides!];
+                                        newSlides[idx] = { ...slide, image: e.target.value };
+                                        updateElement(el.id, { slides: newSlides });
+                                      }}
+                                    />
+                                    <Textarea
+                                      placeholder="Beschreibung (optional)"
+                                      value={slide.text || ""}
+                                      onChange={(e) => {
+                                        const newSlides = [...el.slides!];
+                                        newSlides[idx] = { ...slide, text: e.target.value };
+                                        updateElement(el.id, { slides: newSlides });
+                                      }}
+                                      rows={2}
+                                    />
+                                  </div>
+                                ))}
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="w-full"
+                                  onClick={() => {
+                                    updateElement(el.id, {
+                                      slides: [...(el.slides || []), {
+                                        id: `slide-${Date.now()}`,
+                                        title: `Slide ${(el.slides?.length || 0) + 1}`,
+                                        image: "",
+                                        text: ""
+                                      }],
+                                    });
+                                  }}
+                                >
+                                  <Plus className="h-4 w-4 mr-1" />
+                                  Slide hinzufügen
+                                </Button>
+                              </div>
+                            )}
+
                             {el.type === "faq" && el.faqItems && (
                               <div className="space-y-2">
                                 {el.faqItems.map((item, idx) => (
@@ -668,6 +750,25 @@ export function PageEditor({
                                   value={el.timerEndDate ? new Date(el.timerEndDate).toISOString().slice(0, 16) : ""}
                                   onChange={(e) => updateElement(el.id, { timerEndDate: new Date(e.target.value).toISOString() })}
                                 />
+                                <Select
+                                  value={el.timerStyle || "countdown"}
+                                  onValueChange={(v) => updateElement(el.id, { timerStyle: v as "countdown" | "stopwatch" })}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="countdown">Countdown</SelectItem>
+                                    <SelectItem value="stopwatch">Stoppuhr</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <div className="flex items-center justify-between">
+                                  <Label className="text-xs">Tage anzeigen</Label>
+                                  <Switch
+                                    checked={el.timerShowDays !== false}
+                                    onCheckedChange={(checked) => updateElement(el.id, { timerShowDays: checked })}
+                                  />
+                                </div>
                               </div>
                             )}
 
@@ -700,6 +801,171 @@ export function PageEditor({
                                   value={el.imageAlt || ""}
                                   onChange={(e) => updateElement(el.id, { imageAlt: e.target.value })}
                                 />
+                              </div>
+                            )}
+
+                            {el.type === "socialProof" && (
+                              <div className="space-y-2">
+                                <Select
+                                  value={el.socialProofType || "logos"}
+                                  onValueChange={(v) => updateElement(el.id, { socialProofType: v as "badges" | "logos" | "stats" | "reviews" })}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="logos">Logos</SelectItem>
+                                    <SelectItem value="badges">Badges</SelectItem>
+                                    <SelectItem value="stats">Statistiken</SelectItem>
+                                    <SelectItem value="reviews">Bewertungen</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                {(el.socialProofItems || []).map((item, idx) => (
+                                  <div key={item.id} className="space-y-1 p-2 bg-muted/50 rounded">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs font-medium">Element {idx + 1}</span>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-6 w-6"
+                                        onClick={() => {
+                                          const newItems = el.socialProofItems!.filter((_, i) => i !== idx);
+                                          updateElement(el.id, { socialProofItems: newItems });
+                                        }}
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                    <Input
+                                      placeholder="Bild-URL (Logo)"
+                                      value={item.image || ""}
+                                      onChange={(e) => {
+                                        const newItems = [...el.socialProofItems!];
+                                        newItems[idx] = { ...item, image: e.target.value };
+                                        updateElement(el.id, { socialProofItems: newItems });
+                                      }}
+                                    />
+                                    {(el.socialProofType === "stats" || el.socialProofType === "reviews") && (
+                                      <>
+                                        <Input
+                                          placeholder="Wert (z.B. 500+)"
+                                          value={item.value || ""}
+                                          onChange={(e) => {
+                                            const newItems = [...el.socialProofItems!];
+                                            newItems[idx] = { ...item, value: e.target.value };
+                                            updateElement(el.id, { socialProofItems: newItems });
+                                          }}
+                                        />
+                                        <Input
+                                          placeholder="Beschreibung"
+                                          value={item.text || ""}
+                                          onChange={(e) => {
+                                            const newItems = [...el.socialProofItems!];
+                                            newItems[idx] = { ...item, text: e.target.value };
+                                            updateElement(el.id, { socialProofItems: newItems });
+                                          }}
+                                        />
+                                      </>
+                                    )}
+                                  </div>
+                                ))}
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="w-full"
+                                  onClick={() => {
+                                    updateElement(el.id, {
+                                      socialProofItems: [...(el.socialProofItems || []), {
+                                        id: `sp-${Date.now()}`,
+                                        image: "",
+                                        text: "",
+                                        value: ""
+                                      }],
+                                    });
+                                  }}
+                                >
+                                  <Plus className="h-4 w-4 mr-1" />
+                                  Element hinzufügen
+                                </Button>
+                              </div>
+                            )}
+
+                            {el.type === "divider" && (
+                              <div className="space-y-2">
+                                <Label className="text-xs">Stil</Label>
+                                <Select
+                                  value={el.dividerStyle || "solid"}
+                                  onValueChange={(v) => updateElement(el.id, { dividerStyle: v as "solid" | "dashed" | "dotted" | "gradient" })}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="solid">Durchgezogen</SelectItem>
+                                    <SelectItem value="dashed">Gestrichelt</SelectItem>
+                                    <SelectItem value="dotted">Gepunktet</SelectItem>
+                                    <SelectItem value="gradient">Gradient</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
+
+                            {el.type === "progressBar" && (
+                              <div className="space-y-2">
+                                <Label className="text-xs">Fortschritt: {el.progressValue || 60}%</Label>
+                                <Slider
+                                  value={[el.progressValue || 60]}
+                                  onValueChange={([v]) => updateElement(el.id, { progressValue: v })}
+                                  min={0}
+                                  max={100}
+                                  step={5}
+                                />
+                                <div className="flex items-center justify-between">
+                                  <Label className="text-xs">Prozent anzeigen</Label>
+                                  <Switch
+                                    checked={el.progressShowLabel !== false}
+                                    onCheckedChange={(checked) => updateElement(el.id, { progressShowLabel: checked })}
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {el.type === "icon" && (
+                              <div className="space-y-2">
+                                <Label className="text-xs">Icon-Name</Label>
+                                <Select
+                                  value={el.iconName || "star"}
+                                  onValueChange={(v) => updateElement(el.id, { iconName: v })}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="star">Stern</SelectItem>
+                                    <SelectItem value="heart">Herz</SelectItem>
+                                    <SelectItem value="check">Häkchen</SelectItem>
+                                    <SelectItem value="award">Auszeichnung</SelectItem>
+                                    <SelectItem value="shield">Schild</SelectItem>
+                                    <SelectItem value="trophy">Pokal</SelectItem>
+                                    <SelectItem value="rocket">Rakete</SelectItem>
+                                    <SelectItem value="lightning">Blitz</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Label className="text-xs">Größe</Label>
+                                <Select
+                                  value={el.iconSize || "md"}
+                                  onValueChange={(v) => updateElement(el.id, { iconSize: v as "sm" | "md" | "lg" | "xl" })}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="sm">Klein</SelectItem>
+                                    <SelectItem value="md">Mittel</SelectItem>
+                                    <SelectItem value="lg">Groß</SelectItem>
+                                    <SelectItem value="xl">Sehr groß</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </div>
                             )}
 

@@ -217,6 +217,9 @@ export const pageElementSchema = z.object({
   dividerStyle: z.enum(["solid", "dashed", "dotted", "gradient"]).optional(),
   // Spacer properties
   spacerHeight: z.number().optional(),
+  // ProgressBar properties
+  progressValue: z.number().optional(),
+  progressShowLabel: z.boolean().optional(),
   // Icon properties
   iconName: z.string().optional(),
   iconSize: z.enum(["sm", "md", "lg", "xl"]).optional(),

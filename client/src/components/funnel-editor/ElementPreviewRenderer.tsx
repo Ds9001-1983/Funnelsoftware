@@ -14,6 +14,13 @@ import {
   ShoppingBag,
   Users,
   Music,
+  Heart,
+  Award,
+  Shield,
+  Trophy,
+  Rocket,
+  Zap,
+  Circle,
 } from "lucide-react";
 import type { PageElement, Section } from "@shared/schema";
 import { ElementWrapper, elementTypeLabels } from "./ElementWrapper";
@@ -170,7 +177,21 @@ export function ElementPreviewRenderer({
           <div className="text-left space-y-2">
             {el.listItems?.map((item, idx) => (
               <div key={idx} className="flex items-start gap-2">
-                <Check className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+                {el.listStyle === "number" ? (
+                  <span
+                    className="text-sm font-medium shrink-0 w-5 text-center"
+                    style={{ color: primaryColor }}
+                  >
+                    {idx + 1}.
+                  </span>
+                ) : el.listStyle === "bullet" ? (
+                  <Circle
+                    className="h-2 w-2 shrink-0 mt-1.5"
+                    style={{ fill: primaryColor, color: primaryColor }}
+                  />
+                ) : (
+                  <Check className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+                )}
                 <span className="text-sm" style={{ color: textColor }}>
                   {item.text}
                 </span>
@@ -199,7 +220,17 @@ export function ElementPreviewRenderer({
     case "divider":
       return (
         <ElementWrapper {...wrapperProps}>
-          <hr className="my-4 border-gray-200" />
+          {el.dividerStyle === "gradient" ? (
+            <div className="my-4 h-0.5 bg-gradient-to-r from-transparent via-gray-400 to-transparent" />
+          ) : (
+            <hr
+              className="my-4"
+              style={{
+                borderStyle: el.dividerStyle || "solid",
+                borderColor: el.styles?.color || "#e5e7eb",
+              }}
+            />
+          )}
         </ElementWrapper>
       );
 
@@ -210,18 +241,30 @@ export function ElementPreviewRenderer({
         </ElementWrapper>
       );
 
-    case "timer":
+    case "timer": {
+      const timerUnits = el.timerShowDays !== false
+        ? [
+            { value: "00", label: "Tage" },
+            { value: "12", label: "Std" },
+            { value: "45", label: "Min" },
+            { value: "30", label: "Sek" },
+          ]
+        : [
+            { value: "12", label: "Std" },
+            { value: "45", label: "Min" },
+            { value: "30", label: "Sek" },
+          ];
       return (
         <ElementWrapper {...wrapperProps}>
           <div className="bg-white/10 backdrop-blur rounded-lg p-4 text-center">
             <div className="flex justify-center gap-3">
-              {["00", "12", "45", "30"].map((val, idx) => (
+              {timerUnits.map((unit, idx) => (
                 <div key={idx}>
                   <div className="text-2xl font-bold" style={{ color: textColor }}>
-                    {val}
+                    {unit.value}
                   </div>
                   <div className="text-xs opacity-60" style={{ color: textColor }}>
-                    {["Tage", "Std", "Min", "Sek"][idx]}
+                    {unit.label}
                   </div>
                 </div>
               ))}
@@ -229,6 +272,7 @@ export function ElementPreviewRenderer({
           </div>
         </ElementWrapper>
       );
+    }
 
     case "countdown":
       return (
@@ -327,38 +371,59 @@ export function ElementPreviewRenderer({
         </ElementWrapper>
       );
 
-    case "icon":
+    case "icon": {
+      const iconSizeClass =
+        el.iconSize === "xl"
+          ? "h-16 w-16"
+          : el.iconSize === "lg"
+          ? "h-12 w-12"
+          : el.iconSize === "sm"
+          ? "h-6 w-6"
+          : "h-8 w-8";
+
+      const IconComponent = {
+        star: Star,
+        heart: Heart,
+        check: Check,
+        award: Award,
+        shield: Shield,
+        trophy: Trophy,
+        rocket: Rocket,
+        lightning: Zap,
+      }[el.iconName || "star"] || Star;
+
       return (
         <ElementWrapper {...wrapperProps}>
           <div
             className="flex justify-center"
             style={{ color: el.styles?.color || textColor }}
           >
-            <div
-              className={`${
-                el.iconSize === "xl"
-                  ? "h-16 w-16"
-                  : el.iconSize === "lg"
-                  ? "h-12 w-12"
-                  : el.iconSize === "md"
-                  ? "h-8 w-8"
-                  : "h-6 w-6"
-              }`}
-            >
-              <Star className="w-full h-full" />
+            <div className={iconSizeClass}>
+              <IconComponent className="w-full h-full" />
             </div>
           </div>
         </ElementWrapper>
       );
+    }
 
     case "progressBar":
       return (
         <ElementWrapper {...wrapperProps}>
-          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full"
-              style={{ width: "60%", backgroundColor: primaryColor }}
-            />
+          <div className="w-full">
+            {el.progressShowLabel !== false && (
+              <div className="flex justify-between mb-1">
+                <span className="text-xs text-gray-500">Fortschritt</span>
+                <span className="text-xs font-medium" style={{ color: primaryColor }}>
+                  {el.progressValue || 60}%
+                </span>
+              </div>
+            )}
+            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{ width: `${el.progressValue || 60}%`, backgroundColor: primaryColor }}
+              />
+            </div>
           </div>
         </ElementWrapper>
       );
@@ -406,14 +471,30 @@ export function ElementPreviewRenderer({
         </ElementWrapper>
       );
 
-    case "slider":
+    case "slider": {
+      const slides = el.slides || [{ id: "1" }, { id: "2" }, { id: "3" }];
+      const firstSlide = slides[0];
       return (
         <ElementWrapper {...wrapperProps}>
           <div className="relative">
             <div className="aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl overflow-hidden shadow-md">
-              <div className="w-full h-full flex items-center justify-center text-gray-400">
-                <Image className="h-10 w-10" />
-              </div>
+              {firstSlide?.image ? (
+                <img
+                  src={firstSlide.image}
+                  alt={firstSlide.title || "Slide"}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 p-4">
+                  <Image className="h-10 w-10 mb-2" />
+                  {firstSlide?.title && (
+                    <h4 className="text-sm font-medium text-gray-600">{firstSlide.title}</h4>
+                  )}
+                  {firstSlide?.text && (
+                    <p className="text-xs text-gray-500 text-center mt-1">{firstSlide.text}</p>
+                  )}
+                </div>
+              )}
             </div>
             <button className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
               <ChevronLeft className="h-5 w-5" />
@@ -422,7 +503,7 @@ export function ElementPreviewRenderer({
               <ChevronRight className="h-5 w-5" />
             </button>
             <div className="flex justify-center gap-1.5 mt-3">
-              {(el.slides || [{ id: "1" }, { id: "2" }, { id: "3" }]).map((_, idx) => (
+              {slides.map((_, idx) => (
                 <div
                   key={idx}
                   className={`w-2 h-2 rounded-full transition-colors ${
@@ -434,14 +515,43 @@ export function ElementPreviewRenderer({
           </div>
         </ElementWrapper>
       );
+    }
 
     case "socialProof":
       return (
         <ElementWrapper {...wrapperProps}>
           <div className="flex flex-wrap justify-center gap-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-8 w-16 bg-white/20 rounded" />
-            ))}
+            {el.socialProofItems && el.socialProofItems.length > 0 ? (
+              el.socialProofItems.map((item) => (
+                <div key={item.id} className="flex flex-col items-center">
+                  {item.image ? (
+                    <img
+                      src={item.image}
+                      alt={item.text || "Logo"}
+                      className="h-8 w-auto object-contain"
+                    />
+                  ) : (
+                    <div className="h-8 w-16 bg-white/20 rounded" />
+                  )}
+                  {(el.socialProofType === "stats" || el.socialProofType === "reviews") && (
+                    <div className="text-center mt-1">
+                      {item.value && (
+                        <div className="text-lg font-bold" style={{ color: textColor }}>
+                          {item.value}
+                        </div>
+                      )}
+                      {item.text && (
+                        <div className="text-xs text-gray-500">{item.text}</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              [1, 2, 3].map((i) => (
+                <div key={i} className="h-8 w-16 bg-white/20 rounded" />
+              ))
+            )}
           </div>
         </ElementWrapper>
       );
