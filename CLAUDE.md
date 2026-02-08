@@ -26,28 +26,94 @@ Dieses Dokument enthält wichtige Informationen für KI-Assistenten (wie Claude)
 ├── client/                 # Frontend-Anwendung
 │   ├── src/
 │   │   ├── components/     # Wiederverwendbare Komponenten
-│   │   │   ├── funnel-editor/  # Editor-spezifische Komponenten
-│   │   │   │   ├── QuizElement.tsx    # Quiz mit Ergebnis-Mapping
-│   │   │   │   ├── DevicePreview.tsx  # Mobile/Tablet/Desktop Vorschau
-│   │   │   │   └── ...                # Weitere Editor-Komponenten
+│   │   │   ├── funnel-editor/  # Editor-spezifische Komponenten (33+)
+│   │   │   │   ├── PageEditor.tsx           # Seiten-Editor mit Sektionen
+│   │   │   │   ├── ElementPreviewRenderer.tsx   # Element-Vorschau Rendering
+│   │   │   │   ├── ElementPropertiesPanel.tsx   # Eigenschaften-Panel
+│   │   │   │   ├── ElementWrapper.tsx       # Element-Container
+│   │   │   │   ├── PhonePreview.tsx         # Mobile Vorschau
+│   │   │   │   ├── QuizElement.tsx          # Quiz mit Ergebnis-Mapping
+│   │   │   │   ├── DevicePreview.tsx        # Mobile/Tablet/Desktop Vorschau
+│   │   │   │   ├── ABTestEditor.tsx         # A/B-Test Konfiguration
+│   │   │   │   ├── ConditionalLogicEditor.tsx   # Bedingte Logik
+│   │   │   │   ├── NavigatorPanel.tsx       # Seiten/Element Navigator
+│   │   │   │   ├── FloatingToolbar.tsx      # Schwebende Toolbar
+│   │   │   │   ├── DraggableElement.tsx     # Drag & Drop Wrapper
+│   │   │   │   └── ...                      # Weitere Editor-Komponenten
 │   │   │   ├── TemplateSelector.tsx   # Template-Auswahl Dialog
-│   │   │   └── ui/         # shadcn/ui Komponenten
-│   │   ├── data/           # Statische Daten und Konfigurationen
-│   │   │   └── funnel-templates.ts    # 7 professionelle Templates
+│   │   │   ├── app-sidebar.tsx        # App Navigation Sidebar
+│   │   │   └── ui/         # shadcn/ui Komponenten (31 Basis-Komponenten)
 │   │   ├── hooks/          # Custom React Hooks
+│   │   │   ├── use-auth.tsx
+│   │   │   ├── use-toast.ts
+│   │   │   ├── use-history.tsx
+│   │   │   ├── use-mobile.tsx
+│   │   │   └── use-document-title.ts
 │   │   ├── lib/            # Utilities und Konfiguration
-│   │   ├── pages/          # Seiten-Komponenten
+│   │   │   ├── templates.ts       # 10 professionelle Funnel-Templates
+│   │   │   ├── queryClient.ts     # TanStack Query Setup
+│   │   │   └── utils.ts
+│   │   ├── pages/          # Seiten-Komponenten (12 Seiten)
+│   │   │   ├── funnel-editor.tsx  # Haupt-Editor (~1500 Zeilen)
+│   │   │   ├── admin.tsx          # Admin-Dashboard (Kundenverwaltung)
+│   │   │   ├── dashboard.tsx      # Benutzer-Dashboard
+│   │   │   ├── analytics.tsx      # Analytics-Dashboard
+│   │   │   ├── funnels.tsx        # Funnel-Liste
+│   │   │   ├── leads.tsx          # Lead-Verwaltung
+│   │   │   ├── settings.tsx       # Benutzer-Einstellungen
+│   │   │   └── ...
 │   │   └── test/           # Test-Utilities und Setup
 │   └── public/             # Statische Assets
 ├── server/                 # Backend-API
+│   ├── index.ts           # Server-Einstiegspunkt
 │   ├── auth.ts            # Authentifizierung (Passport.js)
 │   ├── db.ts              # Datenbankverbindung
 │   ├── routes.ts          # API-Routen
-│   └── storage.ts         # Datenbankoperationen
+│   ├── storage.ts         # Datenbankoperationen
+│   └── static.ts          # Statische Dateien
 ├── shared/                 # Gemeinsamer Code
 │   └── schema.ts          # Zod-Schemas und TypeScript-Typen
 └── deploy/                 # Deployment-Konfiguration
 ```
+
+## Template-System
+
+Die Templates befinden sich in `/client/src/lib/templates.ts` und beinhalten **10 professionelle vorgefertigte Funnels**:
+
+| Template | Kategorie | Beschreibung |
+|----------|-----------|--------------|
+| Termin | Leads | Terminbuchung mit Qualifizierungsfragen |
+| VSL Demo | Sales | Video Sales Letter Demo Funnel |
+| Recruiting | Recruiting | Recruiting-Qualifizierungs-Funnel |
+| Leadmagnet | Leads | Lead-Magnet Capture Funnel |
+| Masterclass | Webinar | Masterclass-Registrierung |
+| Immobilien | Sales | Immobilien-Listing Funnel |
+| Onboarding | Webinar | Onboarding-Funnel |
+| Quiz | Quiz | Quiz-basierter Funnel mit Ergebnis-Mapping |
+| Sales | Sales | Verkaufspräsentations-Funnel |
+| Survey | Survey | Kundenumfrage-Funnel |
+
+**Kategorien**: Leads, Sales, Recruiting, Webinar, Quiz, Survey
+
+## Editor-Komponenten
+
+### Kern-Komponenten
+
+| Komponente | Beschreibung |
+|------------|--------------|
+| `PageEditor.tsx` | Haupt-Editor für Seiten mit Sektionen und Elementen |
+| `ElementPreviewRenderer.tsx` | Rendert alle Element-Typen für die Vorschau |
+| `ElementPropertiesPanel.tsx` | Konfigurationsbereich für Element-Eigenschaften |
+| `ElementWrapper.tsx` | Container mit Auswahl und Aktionen |
+| `PhonePreview.tsx` | Mobile-Geräte-Vorschau |
+
+### Unterstützte Element-Typen
+
+- **Text-Elemente**: Headline, Text, Button
+- **Medien**: Image, Video, Icon
+- **Formulare**: Input, Textarea, Form, Quiz
+- **Layout**: Divider, Spacer, ProgressBar
+- **Interaktiv**: Timer, Slider, SocialProof
 
 ## Wichtige Konventionen
 
@@ -124,11 +190,18 @@ describe("MyComponent", () => {
 });
 ```
 
+### Vorhandene Tests
+
+- `FunnelProgress.test.tsx` - Fortschrittsanzeige
+- `QuizElement.test.ts` - Quiz-Komponente
+- `constants.test.ts` - Konstanten
+- `templates.test.ts` - Template-Validierung
+
 ## Datenbank-Schema
 
 Die wichtigsten Tabellen sind:
 
-- **users**: Benutzerkonten mit Authentifizierung
+- **users**: Benutzerkonten mit Authentifizierung und Subscription-Status
 - **funnels**: Funnel-Definitionen mit Seiten und Theme
 - **leads**: Gesammelte Kontaktdaten aus Funnels
 - **templates**: Vorgefertigte Funnel-Templates
@@ -151,6 +224,12 @@ Schema-Änderungen werden in `shared/schema.ts` definiert und mit `npm run db:pu
 - `PATCH /api/funnels/:id` - Funnel aktualisieren
 - `DELETE /api/funnels/:id` - Funnel löschen
 
+### Admin (geschützt)
+- `GET /api/admin/users` - Alle Benutzer abrufen
+- `PATCH /api/admin/users/:id` - Benutzer aktualisieren
+- `DELETE /api/admin/users/:id` - Benutzer löschen
+- `GET /api/admin/stats` - Admin-Statistiken
+
 ### Öffentlich
 - `GET /api/public/funnels/:uuid` - Veröffentlichten Funnel anzeigen
 - `POST /api/public/leads` - Lead erstellen
@@ -158,7 +237,7 @@ Schema-Änderungen werden in `shared/schema.ts` definiert und mit `npm run db:pu
 
 ## Bekannte Einschränkungen
 
-1. **funnel-editor.tsx**: Diese Datei ist noch sehr groß (~2600 Zeilen). Weitere Refactoring-Arbeit ist geplant.
+1. **Große Komponenten**: `PageEditor.tsx` (~53KB) und `ElementPropertiesPanel.tsx` (~37KB) könnten weiter aufgeteilt werden.
 2. **Bildoptimierung**: Template-Bilder in `/client/public/templates/` sind nicht optimiert.
 3. **E2E-Tests**: Noch nicht implementiert.
 
@@ -169,6 +248,7 @@ Schema-Änderungen werden in `shared/schema.ts` definiert und mit `npm run db:pu
 3. **Typen**: Nutze die Zod-Schemas in `shared/schema.ts` für Validierung.
 4. **Commits**: Verwende aussagekräftige Commit-Messages auf Deutsch oder Englisch.
 5. **Branch-Strategie**: Arbeite auf Feature-Branches, nicht direkt auf `main`.
+6. **Bundle-Optimierung**: Templates nutzen Code-Splitting (Lazy Loading).
 
 ## Kontakt
 
