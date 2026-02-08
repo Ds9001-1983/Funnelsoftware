@@ -4,7 +4,7 @@ import {
   templateCategories,
   getTemplatesByCategory,
   getTemplateById,
-} from "./funnel-templates";
+} from "./templates";
 
 describe("funnel-templates", () => {
   describe("funnelTemplates", () => {
@@ -83,9 +83,9 @@ describe("funnel-templates", () => {
 
   describe("getTemplateById", () => {
     it("sollte das richtige Template für eine gültige ID zurückgeben", () => {
-      const template = getTemplateById("lead-magnet");
+      const template = getTemplateById("template-leadmagnet");
       expect(template).toBeDefined();
-      expect(template?.id).toBe("lead-magnet");
+      expect(template?.id).toBe("template-leadmagnet");
       expect(template?.name).toBe("Lead Magnet");
     });
 
