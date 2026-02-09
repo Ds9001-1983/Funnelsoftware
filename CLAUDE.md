@@ -26,7 +26,7 @@ Dieses Dokument enthält wichtige Informationen für KI-Assistenten (wie Claude)
 ├── client/                 # Frontend-Anwendung
 │   ├── src/
 │   │   ├── components/     # Wiederverwendbare Komponenten
-│   │   │   ├── funnel-editor/  # Editor-spezifische Komponenten (33+)
+│   │   │   ├── funnel-editor/  # Editor-spezifische Komponenten (28)
 │   │   │   │   ├── PageEditor.tsx           # Seiten-Editor mit Sektionen
 │   │   │   │   ├── ElementPreviewRenderer.tsx   # Element-Vorschau Rendering
 │   │   │   │   ├── ElementPropertiesPanel.tsx   # Eigenschaften-Panel
@@ -39,9 +39,14 @@ Dieses Dokument enthält wichtige Informationen für KI-Assistenten (wie Claude)
 │   │   │   │   ├── NavigatorPanel.tsx       # Seiten/Element Navigator
 │   │   │   │   ├── FloatingToolbar.tsx      # Schwebende Toolbar
 │   │   │   │   ├── DraggableElement.tsx     # Drag & Drop Wrapper
+│   │   │   │   ├── SectionEditor.tsx        # Sektions-Editor
+│   │   │   │   ├── ElementPalette.tsx       # Element-Auswahl Palette
+│   │   │   │   ├── FormValidationEditor.tsx # Formular-Validierung
 │   │   │   │   └── ...                      # Weitere Editor-Komponenten
 │   │   │   ├── TemplateSelector.tsx   # Template-Auswahl Dialog
 │   │   │   ├── app-sidebar.tsx        # App Navigation Sidebar
+│   │   │   ├── theme-provider.tsx     # Theme Context Provider
+│   │   │   ├── theme-toggle.tsx       # Dark/Light Mode Toggle
 │   │   │   └── ui/         # shadcn/ui Komponenten (31 Basis-Komponenten)
 │   │   ├── hooks/          # Custom React Hooks
 │   │   │   ├── use-auth.tsx
@@ -61,7 +66,11 @@ Dieses Dokument enthält wichtige Informationen für KI-Assistenten (wie Claude)
 │   │   │   ├── funnels.tsx        # Funnel-Liste
 │   │   │   ├── leads.tsx          # Lead-Verwaltung
 │   │   │   ├── settings.tsx       # Benutzer-Einstellungen
-│   │   │   └── ...
+│   │   │   ├── new-funnel.tsx     # Neuen Funnel erstellen
+│   │   │   ├── landing.tsx        # Landing Page
+│   │   │   ├── login.tsx          # Login-Seite
+│   │   │   ├── register.tsx       # Registrierungs-Seite
+│   │   │   └── not-found.tsx      # 404-Seite
 │   │   └── test/           # Test-Utilities und Setup
 │   └── public/             # Statische Assets
 ├── server/                 # Backend-API
@@ -70,7 +79,8 @@ Dieses Dokument enthält wichtige Informationen für KI-Assistenten (wie Claude)
 │   ├── db.ts              # Datenbankverbindung
 │   ├── routes.ts          # API-Routen
 │   ├── storage.ts         # Datenbankoperationen
-│   └── static.ts          # Statische Dateien
+│   ├── static.ts          # Statische Dateien
+│   └── vite.ts            # Vite Dev-Server Integration
 ├── shared/                 # Gemeinsamer Code
 │   └── schema.ts          # Zod-Schemas und TypeScript-Typen
 └── deploy/                 # Deployment-Konfiguration
@@ -87,13 +97,13 @@ Die Templates befinden sich in `/client/src/lib/templates.ts` und beinhalten **1
 | Recruiting | Recruiting | Recruiting-Qualifizierungs-Funnel |
 | Leadmagnet | Leads | Lead-Magnet Capture Funnel |
 | Masterclass | Webinar | Masterclass-Registrierung |
-| Immobilien | Sales | Immobilien-Listing Funnel |
-| Onboarding | Webinar | Onboarding-Funnel |
+| Immobilien | Leads | Immobilien-Bewertungs-Funnel |
+| Onboarding | Leads | Agentur-Onboarding-Funnel |
 | Quiz | Quiz | Quiz-basierter Funnel mit Ergebnis-Mapping |
-| Sales | Sales | Verkaufspräsentations-Funnel |
+| Sales | Sales | Coaching-Verkaufs-Funnel |
 | Survey | Survey | Kundenumfrage-Funnel |
 
-**Kategorien**: Leads, Sales, Recruiting, Webinar, Quiz, Survey
+**Kategorien**: Leads (4), Sales (2), Recruiting (1), Webinar (1), Quiz (1), Survey (1)
 
 ## Editor-Komponenten
 
@@ -192,10 +202,10 @@ describe("MyComponent", () => {
 
 ### Vorhandene Tests
 
-- `FunnelProgress.test.tsx` - Fortschrittsanzeige
-- `QuizElement.test.ts` - Quiz-Komponente
-- `constants.test.ts` - Konstanten
-- `templates.test.ts` - Template-Validierung
+- `funnel-editor/FunnelProgress.test.tsx` - Fortschrittsanzeige
+- `funnel-editor/QuizElement.test.ts` - Quiz-Komponente
+- `funnel-editor/constants.test.ts` - Editor-Konstanten
+- `lib/templates.test.ts` - Template-Validierung
 
 ## Datenbank-Schema
 
@@ -237,7 +247,7 @@ Schema-Änderungen werden in `shared/schema.ts` definiert und mit `npm run db:pu
 
 ## Bekannte Einschränkungen
 
-1. **Große Komponenten**: `PageEditor.tsx` (~53KB) und `ElementPropertiesPanel.tsx` (~37KB) könnten weiter aufgeteilt werden.
+1. **Große Komponenten**: `PageEditor.tsx` (~1100 Zeilen) und `ElementPropertiesPanel.tsx` (~1000 Zeilen) könnten weiter aufgeteilt werden.
 2. **Bildoptimierung**: Template-Bilder in `/client/public/templates/` sind nicht optimiert.
 3. **E2E-Tests**: Noch nicht implementiert.
 
