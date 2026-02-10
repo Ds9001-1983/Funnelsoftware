@@ -1,10 +1,72 @@
 import { useState, useEffect } from "react";
-import { Layers } from "lucide-react";
+import { useDroppable } from "@dnd-kit/core";
+import { Layers, Plus } from "lucide-react";
 import type { FunnelPage, PageElement } from "@shared/schema";
 import { FunnelProgress } from "./FunnelProgress";
-import { InlineElementPicker } from "./FloatingToolbar";
 import { ElementPreviewRenderer, SectionPreviewRenderer } from "./ElementPreviewRenderer";
 import { ElementWrapper } from "./ElementWrapper";
+
+interface PreviewDropZoneProps {
+  id: string;
+  children?: React.ReactNode;
+}
+
+/**
+ * Drop-Zone zwischen Elementen in der Vorschau.
+ * Zeigt einen visuellen Indikator, wenn ein Element darüber gezogen wird.
+ */
+function PreviewDropZone({ id, children }: PreviewDropZoneProps) {
+  const { isOver, setNodeRef } = useDroppable({
+    id,
+    data: { type: "preview-drop-zone" },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`transition-all duration-200 ${
+        isOver
+          ? "py-3"
+          : "py-0.5"
+      }`}
+    >
+      {isOver ? (
+        <div className="h-1 bg-primary rounded-full mx-2 animate-pulse" />
+      ) : children ? (
+        children
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Leere Drop-Zone wenn keine Elemente vorhanden sind.
+ */
+function EmptyPreviewDropZone() {
+  const { isOver, setNodeRef } = useDroppable({
+    id: "preview-drop-empty",
+    data: { type: "preview-drop-zone" },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex flex-col items-center justify-center py-12 rounded-xl border-2 border-dashed transition-all duration-200 ${
+        isOver
+          ? "border-primary bg-primary/10"
+          : "border-gray-300/60"
+      }`}
+    >
+      <Plus className={`h-8 w-8 mb-2 ${isOver ? "text-primary" : "text-gray-400"}`} />
+      <p className={`text-sm font-medium ${isOver ? "text-primary" : "text-gray-500"}`}>
+        {isOver ? "Element hier ablegen" : "Element hierhin ziehen"}
+      </p>
+      <p className="text-xs text-gray-400 mt-1">
+        oder aus der Palette links klicken
+      </p>
+    </div>
+  );
+}
 
 interface PhonePreviewProps {
   page: FunnelPage | null;
@@ -25,8 +87,9 @@ interface PhonePreviewProps {
 }
 
 /**
- * Enhanced Phone Preview with inline editing and element selection.
- * Displays a funnel page in a phone-like frame with interactive elements.
+ * Enhanced Phone Preview with inline editing, element selection and drag-and-drop.
+ * Displays a funnel page with elements rendered in their actual order,
+ * with drop zones between elements for Elementor-style DnD.
  */
 export function PhonePreview({
   page,
@@ -82,40 +145,6 @@ export function PhonePreview({
   const isThankyou = page.type === "thankyou";
   const bgColor = page.backgroundColor || (isWelcome || isThankyou ? primaryColor : "#ffffff");
   const textColor = isWelcome || isThankyou ? "#ffffff" : "#1a1a1a";
-
-  // Filter elements by type for different rendering groups
-  const contactElements = page.type === "contact" ? page.elements : [];
-  const basicElements = page.elements.filter((el) =>
-    ["heading", "text", "image", "icon", "progressBar"].includes(el.type)
-  );
-  const videoElements = page.elements.filter((el) => el.type === "video");
-  const testimonialElements = page.elements.filter((el) => el.type === "testimonial");
-  const sliderElements = page.elements.filter((el) => el.type === "slider");
-  const socialProofElements = page.elements.filter((el) => el.type === "socialProof");
-  const audioElements = page.elements.filter((el) => el.type === "audio");
-  const buttonElements = page.elements.filter((el) => el.type === "button");
-  const calendarElements = page.elements.filter((el) => el.type === "calendar");
-  const countdownElements = page.elements.filter((el) => el.type === "countdown");
-  const mapElements = page.elements.filter((el) => el.type === "map");
-  const chartElements = page.elements.filter((el) => el.type === "chart");
-  const codeElements = page.elements.filter((el) => el.type === "code");
-  const embedElements = page.elements.filter((el) => el.type === "embed");
-  const productElements = page.elements.filter((el) => el.type === "product");
-  const teamElements = page.elements.filter((el) => el.type === "team");
-  const optionElements = page.elements.filter((el) => el.options);
-
-  const renderElement = (el: PageElement) => (
-    <ElementPreviewRenderer
-      key={el.id}
-      element={el}
-      textColor={textColor}
-      primaryColor={primaryColor}
-      selectedElementId={selectedElementId}
-      onSelectElement={onSelectElement}
-      formValues={formValues}
-      updateFormValue={updateFormValue}
-    />
-  );
 
   return (
     <div className="preview-container w-full rounded-lg shadow-lg border border-gray-200 overflow-hidden">
@@ -179,111 +208,32 @@ export function PhonePreview({
               </p>
             ))}
 
-          {/* Contact page elements */}
-          {page.type === "contact" && (
-            <div className="space-y-3 mt-4">{contactElements.map(renderElement)}</div>
-          )}
+          {/* Elements rendered in order with drop zones */}
+          {page.elements.length > 0 ? (
+            <div className="mt-4 space-y-0">
+              {/* Drop zone before first element */}
+              <PreviewDropZone id="preview-drop-0" />
 
-          {/* Basic elements (heading, text, image, icon, progressBar) */}
-          {basicElements.length > 0 && page.type !== "contact" && (
-            <div className="mt-4 space-y-3">{basicElements.map(renderElement)}</div>
-          )}
-
-          {/* Video elements */}
-          {videoElements.length > 0 && page.type !== "contact" && (
-            <div className="mt-4 space-y-3">{videoElements.map(renderElement)}</div>
-          )}
-
-          {/* Testimonial elements */}
-          {testimonialElements.length > 0 && (
-            <div className="mt-4 space-y-3">{testimonialElements.map(renderElement)}</div>
-          )}
-
-          {/* Slider elements */}
-          {sliderElements.length > 0 && (
-            <div className="mt-4">{sliderElements.map(renderElement)}</div>
-          )}
-
-          {/* Multi-choice / Question page options */}
-          {(page.type === "multiChoice" || page.type === "question") &&
-            optionElements.length > 0 && (
-              <div className="space-y-2 mt-4">
-                {optionElements.map((el) => (
-                  <ElementWrapper
-                    key={el.id}
-                    elementId={el.id}
-                    elementType={el.type}
+              {page.elements.map((el, index) => (
+                <div key={el.id}>
+                  <ElementPreviewRenderer
+                    element={el}
+                    textColor={textColor}
+                    primaryColor={primaryColor}
                     selectedElementId={selectedElementId}
                     onSelectElement={onSelectElement}
-                  >
-                    <div className="space-y-2">
-                      {el.options?.map((option, idx) => (
-                        <div
-                          key={`${el.id}-${idx}`}
-                          className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 text-sm text-left bg-white hover:border-primary/50 hover:shadow-md transition-all cursor-pointer active:scale-[0.98]"
-                        >
-                          {option}
-                        </div>
-                      ))}
-                    </div>
-                  </ElementWrapper>
-                ))}
-              </div>
-            )}
-
-          {/* Social Proof elements */}
-          {socialProofElements.length > 0 && (
-            <div className="mt-4">{socialProofElements.map(renderElement)}</div>
-          )}
-
-          {/* Audio elements */}
-          {audioElements.length > 0 && (
-            <div className="mt-4 space-y-3">{audioElements.map(renderElement)}</div>
-          )}
-
-          {/* Button elements */}
-          {buttonElements.length > 0 && (
-            <div className="mt-4 space-y-3">{buttonElements.map(renderElement)}</div>
-          )}
-
-          {/* Calendar elements */}
-          {calendarElements.length > 0 && (
-            <div className="mt-4 space-y-3">{calendarElements.map(renderElement)}</div>
-          )}
-
-          {/* Countdown elements */}
-          {countdownElements.length > 0 && (
-            <div className="mt-4 space-y-3">{countdownElements.map(renderElement)}</div>
-          )}
-
-          {/* Map elements */}
-          {mapElements.length > 0 && (
-            <div className="mt-4 space-y-3">{mapElements.map(renderElement)}</div>
-          )}
-
-          {/* Chart elements */}
-          {chartElements.length > 0 && (
-            <div className="mt-4 space-y-3">{chartElements.map(renderElement)}</div>
-          )}
-
-          {/* Code elements */}
-          {codeElements.length > 0 && (
-            <div className="mt-4 space-y-3">{codeElements.map(renderElement)}</div>
-          )}
-
-          {/* Embed elements */}
-          {embedElements.length > 0 && (
-            <div className="mt-4 space-y-3">{embedElements.map(renderElement)}</div>
-          )}
-
-          {/* Product elements */}
-          {productElements.length > 0 && (
-            <div className="mt-4 space-y-3">{productElements.map(renderElement)}</div>
-          )}
-
-          {/* Team elements */}
-          {teamElements.length > 0 && (
-            <div className="mt-4 space-y-3">{teamElements.map(renderElement)}</div>
+                    formValues={formValues}
+                    updateFormValue={updateFormValue}
+                  />
+                  {/* Drop zone after each element */}
+                  <PreviewDropZone id={`preview-drop-${index + 1}`} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-4">
+              <EmptyPreviewDropZone />
+            </div>
           )}
 
           {/* Sections with Columns */}
@@ -299,9 +249,6 @@ export function PhonePreview({
               ))}
             </div>
           )}
-
-          {/* Inline Element Picker */}
-          {onAddElement && <InlineElementPicker onAddElement={onAddElement} />}
         </div>
 
         {/* Page button */}

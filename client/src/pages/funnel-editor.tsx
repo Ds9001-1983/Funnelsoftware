@@ -218,6 +218,9 @@ export default function FunnelEditor() {
   const [leftSidebarTab, setLeftSidebarTab] = useState<"pages" | "design">("pages");
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
 
+  // Drag state for unified DnD
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
   // Global clipboard for copy/paste functionality
   const [clipboard, setClipboard] = useState<{
     type: "element" | "section" | "page";
@@ -690,6 +693,102 @@ export default function FunnelEditor() {
     setSelectedElementId(newElement.id);
   }, [localFunnel, selectedPageIndex, updatePage]);
 
+  // Add element at specific index (for DnD drop into preview)
+  const addElementAtIndex = useCallback((type: PageElement["type"], index: number) => {
+    if (!localFunnel) return;
+    const page = localFunnel.pages[selectedPageIndex];
+    const newElement: PageElement = {
+      id: `el-${Date.now()}`,
+      type,
+      placeholder:
+        type === "input" ? "Dein Text hier..." :
+        type === "textarea" ? "Deine Nachricht..." :
+        type === "select" ? "Option wählen..." :
+        type === "date" ? "Datum auswählen..." : undefined,
+      options:
+        type === "radio" ? ["Option 1", "Option 2", "Option 3"] :
+        type === "select" ? ["Option 1", "Option 2", "Option 3"] : undefined,
+      label:
+        type === "fileUpload" ? "Datei hochladen" :
+        type === "video" ? "Video" :
+        type === "audio" ? "Audio" :
+        type === "date" ? "Datum" :
+        type === "heading" ? "Überschrift" :
+        type === "text" ? "Dein Text hier..." :
+        type === "select" ? "Auswahl" :
+        type === "button" ? "Klicken" :
+        type === "calendar" ? "Termin buchen" : undefined,
+      content:
+        type === "heading" ? "Deine Überschrift" :
+        type === "text" ? "Füge hier deinen Text ein. Beschreibe dein Angebot oder gib wichtige Informationen." :
+        type === "button" ? "Jetzt starten" : undefined,
+      acceptedFileTypes: type === "fileUpload" ? [".pdf", ".jpg", ".jpeg", ".png"] : undefined,
+      maxFileSize: type === "fileUpload" ? 10 : undefined,
+      maxFiles: type === "fileUpload" ? 1 : undefined,
+      videoUrl: type === "video" ? "" : undefined,
+      videoType: type === "video" ? "youtube" : undefined,
+      videoAutoplay: type === "video" ? false : undefined,
+      audioUrl: type === "audio" ? "" : undefined,
+      audioAutoplay: type === "audio" ? false : undefined,
+      audioLoop: type === "audio" ? false : undefined,
+      includeTime: type === "date" ? false : undefined,
+      calendarProvider: type === "calendar" ? "calendly" : undefined,
+      calendarUrl: type === "calendar" ? "" : undefined,
+      slides: type === "testimonial" ? [
+        { id: "t1", text: "Großartiger Service! Sehr empfehlenswert.", author: "Max Mustermann", role: "Geschäftsführer", rating: 5 }
+      ] : type === "slider" ? [
+        { id: "s1", title: "Slide 1", text: "" },
+        { id: "s2", title: "Slide 2", text: "" },
+        { id: "s3", title: "Slide 3", text: "" }
+      ] : undefined,
+      faqItems: type === "faq" ? [
+        { id: "faq1", question: "Wie funktioniert das?", answer: "So funktioniert es..." },
+        { id: "faq2", question: "Was kostet das?", answer: "Die Preise sind..." },
+      ] : undefined,
+      listItems: type === "list" ? [
+        { id: "li1", text: "Vorteil Nummer 1" },
+        { id: "li2", text: "Vorteil Nummer 2" },
+        { id: "li3", text: "Vorteil Nummer 3" },
+      ] : undefined,
+      listStyle: type === "list" ? "check" : undefined,
+      spacerHeight: type === "spacer" ? 32 : undefined,
+      dividerStyle: type === "divider" ? "solid" : undefined,
+      timerEndDate: (type === "timer" || type === "countdown") ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
+      timerStyle: type === "timer" ? "countdown" : undefined,
+      timerShowDays: (type === "timer" || type === "countdown") ? true : undefined,
+      countdownDate: type === "countdown" ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
+      countdownStyle: type === "countdown" ? "flip" : undefined,
+      countdownShowLabels: type === "countdown" ? true : undefined,
+      mapAddress: type === "map" ? "Berlin, Germany" : undefined,
+      mapZoom: type === "map" ? 14 : undefined,
+      mapStyle: type === "map" ? "roadmap" : undefined,
+      chartType: type === "chart" ? "bar" : undefined,
+      chartData: type === "chart" ? {
+        labels: ["Jan", "Feb", "Mär", "Apr"],
+        datasets: [{ label: "Daten", data: [10, 20, 30, 40], color: "#7C3AED" }]
+      } : undefined,
+      codeContent: type === "code" ? "// Dein Code hier\nconsole.log('Hello!');" : undefined,
+      codeLanguage: type === "code" ? "javascript" : undefined,
+      embedCode: type === "embed" ? "" : undefined,
+      embedUrl: type === "embed" ? "" : undefined,
+      productName: type === "product" ? "Premium Produkt" : undefined,
+      productPrice: type === "product" ? "99,00 €" : undefined,
+      productDescription: type === "product" ? "Beschreibung deines Produkts..." : undefined,
+      productButtonText: type === "product" ? "Jetzt kaufen" : undefined,
+      teamMembers: type === "team" ? [
+        { id: "tm1", name: "Max Mustermann", role: "CEO", image: "", bio: "Gründer und Visionär" },
+        { id: "tm2", name: "Erika Musterfrau", role: "CTO", image: "", bio: "Technische Leitung" },
+      ] : undefined,
+      buttonUrl: type === "button" ? "" : undefined,
+      buttonTarget: type === "button" ? "_self" : undefined,
+      buttonVariant: type === "button" ? "primary" : undefined,
+    };
+    const newElements = [...page.elements];
+    newElements.splice(index, 0, newElement);
+    updatePage(selectedPageIndex, { elements: newElements });
+    setSelectedElementId(newElement.id);
+  }, [localFunnel, selectedPageIndex, updatePage]);
+
   // Clear element selection when page changes
   useEffect(() => {
     setSelectedElementId(null);
@@ -754,6 +853,50 @@ export default function FunnelEditor() {
       }
     }
   };
+
+  // Unified editor drag handlers for element palette → preview DnD
+  const handleEditorDragStart = useCallback((event: DragStartEvent) => {
+    setActiveDragId(String(event.active.id));
+  }, []);
+
+  const handleEditorDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+
+    if (!over || !localFunnel) return;
+
+    const activeData = active.data.current;
+    const overId = String(over.id);
+
+    // Handle new element drop from palette into preview
+    if (activeData?.isNew && (overId.startsWith("preview-drop-") || overId === "preview-drop-empty")) {
+      const elementType = activeData.type as PageElement["type"];
+
+      if (overId === "preview-drop-empty") {
+        // Drop into empty preview → add at index 0
+        addElementAtIndex(elementType, 0);
+      } else {
+        // Extract drop index from id: "preview-drop-3" → 3
+        const dropIndex = parseInt(overId.replace("preview-drop-", ""), 10);
+        if (!isNaN(dropIndex)) {
+          addElementAtIndex(elementType, dropIndex);
+        }
+      }
+    }
+  }, [localFunnel, addElementAtIndex]);
+
+  // Get label for active drag element (for DragOverlay)
+  const activeDragLabel = useMemo(() => {
+    if (!activeDragId) return null;
+    if (activeDragId.startsWith("new-element-")) {
+      const type = activeDragId.replace("new-element-", "");
+      for (const cat of elementCategories) {
+        const found = cat.elements.find(el => el.type === type);
+        if (found) return { label: found.label, icon: found.icon };
+      }
+    }
+    return null;
+  }, [activeDragId]);
 
   const deletePage = (index: number) => {
     if (localFunnel && localFunnel.pages.length > 1) {
@@ -1026,7 +1169,13 @@ export default function FunnelEditor() {
         </div>
       </div>
 
-      {/* Main content */}
+      {/* Main content - wrapped in DndContext for palette → preview DnD */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleEditorDragStart}
+        onDragEnd={handleEditorDragEnd}
+      >
       <div className="flex-1 flex overflow-hidden relative">
         {/* Mobile sidebar backdrop */}
         {isMobile && (showLeftSidebar || showRightSidebar) && (
@@ -1314,6 +1463,17 @@ export default function FunnelEditor() {
           </div>
         </div>
       </div>
+
+      {/* DragOverlay for visual feedback when dragging from palette */}
+      <DragOverlay dropAnimation={null}>
+        {activeDragLabel && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg shadow-xl border-2 border-primary/50 pointer-events-none">
+            <activeDragLabel.icon className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">{activeDragLabel.label}</span>
+          </div>
+        )}
+      </DragOverlay>
+      </DndContext>
 
       <AddPageDialog
         open={showAddPage}
