@@ -90,7 +90,7 @@ function FunnelGridCard({ funnel, onDelete }: { funnel: Funnel; onDelete: () => 
                 <Copy className="h-4 w-4 mr-2" />
                 Duplizieren
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => window.open(`/f/${funnel.uuid}`, '_blank')}>
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Vorschau
               </DropdownMenuItem>
@@ -207,12 +207,12 @@ function FunnelListRow({ funnel, onDelete }: { funnel: Funnel; onDelete: () => v
               <Copy className="h-4 w-4 mr-2" />
               Duplizieren
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => window.open(`/f/${funnel.uuid}`, '_blank')}>
               <ExternalLink className="h-4 w-4 mr-2" />
               Vorschau
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
+            <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={onDelete}
             >

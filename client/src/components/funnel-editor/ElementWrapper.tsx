@@ -35,6 +35,8 @@ export const elementTypeLabels: Record<string, string> = {
   map: "Karte",
   chart: "Diagramm",
   code: "Code",
+  // Quiz
+  quiz: "Quiz",
   // E-Commerce
   product: "Produkt",
   // Layout

@@ -21,6 +21,8 @@ import {
   Rocket,
   Zap,
   Circle,
+  Brain,
+  AlertCircle,
 } from "lucide-react";
 import type { PageElement, Section } from "@shared/schema";
 import { ElementWrapper, elementTypeLabels } from "./ElementWrapper";
@@ -723,8 +725,59 @@ export function ElementPreviewRenderer({
         </ElementWrapper>
       );
 
+    case "quiz": {
+      const quiz = el.quizConfig;
+      const firstQuestion = quiz?.questions?.[0];
+      return (
+        <ElementWrapper {...wrapperProps}>
+          <div className="bg-white rounded-xl p-4 shadow-md border">
+            <div className="flex items-center gap-2 mb-3">
+              <Brain className="h-5 w-5 text-primary" />
+              <span className="font-semibold text-sm">Quiz</span>
+              {quiz?.showProgressBar && (
+                <div className="flex-1 h-1.5 bg-gray-100 rounded-full ml-2">
+                  <div className="h-full w-1/3 bg-primary rounded-full" />
+                </div>
+              )}
+            </div>
+            {firstQuestion ? (
+              <>
+                <p className="text-sm font-medium mb-3">{firstQuestion.question}</p>
+                <div className="space-y-2">
+                  {firstQuestion.answers.map((answer) => (
+                    <div
+                      key={answer.id}
+                      className="px-3 py-2 bg-gray-50 rounded-lg text-sm border hover:border-primary/30 cursor-pointer transition-colors"
+                    >
+                      {answer.text}
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">Quiz konfigurieren...</p>
+            )}
+            {quiz?.results && quiz.results.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-3">
+                {quiz.questions?.length || 0} Fragen, {quiz.results.length} Ergebnisse
+              </p>
+            )}
+          </div>
+        </ElementWrapper>
+      );
+    }
+
     default:
-      return null;
+      return (
+        <ElementWrapper {...wrapperProps}>
+          <div className="flex items-center gap-2 px-3 py-3 bg-muted/50 rounded-lg border border-dashed border-muted-foreground/30">
+            <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="text-sm text-muted-foreground">
+              Element: {el.type}
+            </span>
+          </div>
+        </ElementWrapper>
+      );
   }
 }
 

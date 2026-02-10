@@ -18,6 +18,7 @@ interface EditorCanvasProps {
   onAddElementAtIndex: (type: PageElement["type"], index: number) => void;
   onDeleteElement: (elementId: string) => void;
   onDuplicateElement: (elementId: string) => void;
+  isDragActive?: boolean;
 }
 
 /**
@@ -36,6 +37,7 @@ export function EditorCanvas({
   onAddElementAtIndex,
   onDeleteElement,
   onDuplicateElement,
+  isDragActive = false,
 }: EditorCanvasProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [localTitle, setLocalTitle] = useState(page?.title || "");
@@ -165,6 +167,7 @@ export function EditorCanvas({
                 <CanvasDropZone
                   id="canvas-drop-0"
                   onAddElement={(type) => onAddElementAtIndex(type, 0)}
+                  isDragActive={isDragActive}
                 />
 
                 {page.elements.map((el, index) => (
@@ -184,6 +187,7 @@ export function EditorCanvas({
                     <CanvasDropZone
                       id={`canvas-drop-${index + 1}`}
                       onAddElement={(type) => onAddElementAtIndex(type, index + 1)}
+                      isDragActive={isDragActive}
                     />
                   </Fragment>
                 ))}
@@ -193,6 +197,7 @@ export function EditorCanvas({
             <div className="mt-4">
               <EmptyCanvasDropZone
                 onAddElement={(type) => onAddElementAtIndex(type, 0)}
+                isDragActive={isDragActive}
               />
             </div>
           )}

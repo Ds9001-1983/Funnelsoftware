@@ -23,6 +23,7 @@ const Leads = lazy(() => import("@/pages/leads"));
 const Analytics = lazy(() => import("@/pages/analytics"));
 const Settings = lazy(() => import("@/pages/settings"));
 const Admin = lazy(() => import("@/pages/admin"));
+const PublicFunnel = lazy(() => import("@/pages/public-funnel"));
 
 // Loading spinner component for Suspense fallback
 function PageLoader() {
@@ -75,6 +76,15 @@ function Router() {
       <div className="flex items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
+    );
+  }
+
+  // Public funnel viewer (no auth required)
+  if (location.startsWith("/f/")) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <PublicFunnel />
+      </Suspense>
     );
   }
 

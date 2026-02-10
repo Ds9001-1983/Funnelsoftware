@@ -30,6 +30,8 @@ import {
   Link,
   MousePointer2,
   Users,
+  Sparkles,
+  Brain,
 } from "lucide-react";
 import type { FunnelPage, PageElement } from "@shared/schema";
 
@@ -234,6 +236,7 @@ export const elementCategories: ElementCategory[] = [
       { type: "timer", label: "Timer", icon: Clock, description: "Countdown Timer" },
       { type: "countdown", label: "Countdown", icon: Timer, description: "Ablauf-Counter" },
       { type: "progressBar", label: "Fortschritt", icon: BarChart3, description: "Fortschrittsbalken" },
+      { type: "quiz", label: "Quiz", icon: Brain, description: "Quiz mit Ergebnis-Mapping" },
     ],
   },
   {
@@ -256,6 +259,7 @@ export const elementCategories: ElementCategory[] = [
     elements: [
       { type: "divider", label: "Trennlinie", icon: Minus, description: "Horizontale Linie" },
       { type: "spacer", label: "Abstand", icon: Space, description: "Vertikaler Abstand" },
+      { type: "icon", label: "Icon", icon: Sparkles, description: "Dekoratives Icon" },
     ],
   },
 ];

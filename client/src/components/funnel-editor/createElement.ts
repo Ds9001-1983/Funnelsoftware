@@ -29,12 +29,17 @@ export function createNewElement(type: PageElement["type"]): PageElement {
       type === "text" ? "Dein Text hier..." :
       type === "select" ? "Auswahl" :
       type === "button" ? "Klicken" :
-      type === "calendar" ? "Termin buchen" : undefined,
+      type === "calendar" ? "Termin buchen" :
+      type === "image" ? "Bild" :
+      type === "quiz" ? "Quiz" : undefined,
     // Content
     content:
       type === "heading" ? "Deine Überschrift" :
       type === "text" ? "Füge hier deinen Text ein. Beschreibe dein Angebot oder gib wichtige Informationen." :
       type === "button" ? "Jetzt starten" : undefined,
+    // Image
+    imageUrl: type === "image" ? "" : undefined,
+    imageAlt: type === "image" ? "" : undefined,
     // File upload
     acceptedFileTypes: type === "fileUpload" ? [".pdf", ".jpg", ".jpeg", ".png"] : undefined,
     maxFileSize: type === "fileUpload" ? 10 : undefined,
@@ -120,6 +125,26 @@ export function createNewElement(type: PageElement["type"]): PageElement {
       { id: "tm1", name: "Max Mustermann", role: "CEO", image: "", bio: "Gründer und Visionär" },
       { id: "tm2", name: "Erika Musterfrau", role: "CTO", image: "", bio: "Technische Leitung" },
     ] : undefined,
+    // Quiz
+    quizConfig: type === "quiz" ? {
+      questions: [
+        {
+          id: "q1",
+          question: "Beispiel-Frage: Was trifft am besten auf dich zu?",
+          answers: [
+            { id: "a1", text: "Antwort A", points: { r1: 3, r2: 1 } },
+            { id: "a2", text: "Antwort B", points: { r1: 1, r2: 3 } },
+          ],
+        },
+      ],
+      results: [
+        { id: "r1", title: "Ergebnis A", description: "Du passt am besten zu Ergebnis A.", minPoints: 0, maxPoints: 3, color: "#7C3AED" },
+        { id: "r2", title: "Ergebnis B", description: "Du passt am besten zu Ergebnis B.", minPoints: 0, maxPoints: 3, color: "#2563EB" },
+      ],
+      showProgressBar: true,
+      shuffleQuestions: false,
+      shuffleAnswers: false,
+    } : undefined,
     // Button
     buttonUrl: type === "button" ? "" : undefined,
     buttonTarget: type === "button" ? "_self" : undefined,

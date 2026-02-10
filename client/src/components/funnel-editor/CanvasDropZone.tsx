@@ -7,14 +7,16 @@ import { elementCategories } from "./constants";
 interface CanvasDropZoneProps {
   id: string;
   onAddElement: (type: PageElement["type"]) => void;
+  isDragActive?: boolean;
 }
 
 /**
  * Drop-Zone zwischen Elementen im Canvas mit Plus-Button.
  * Zeigt Drop-Indikator beim Drag und einen Plus-Button bei Hover.
  * Der Plus-Button öffnet ein Element-Picker-Popover.
+ * Bei aktivem Drag wird die Zone vergrößert für bessere Treffbarkeit.
  */
-export function CanvasDropZone({ id, onAddElement }: CanvasDropZoneProps) {
+export function CanvasDropZone({ id, onAddElement, isDragActive = false }: CanvasDropZoneProps) {
   const { isOver, setNodeRef } = useDroppable({
     id,
     data: { type: "canvas-drop-zone" },
@@ -38,16 +40,18 @@ export function CanvasDropZone({ id, onAddElement }: CanvasDropZoneProps) {
     <div
       ref={setNodeRef}
       className={`relative group transition-all duration-200 ${
-        isOver ? "py-3" : "py-1"
+        isOver ? "py-4" : isDragActive ? "py-3" : "py-1"
       }`}
     >
-      {/* Drop-Indikator (beim Drag) */}
-      {isOver && (
+      {/* Drop-Indikator: Sichtbar bei isOver ODER bei aktivem Drag */}
+      {isOver ? (
         <div className="h-1 bg-primary rounded-full mx-2 animate-pulse" />
-      )}
+      ) : isDragActive ? (
+        <div className="h-0.5 bg-primary/30 rounded-full mx-4 border border-dashed border-primary/40" />
+      ) : null}
 
-      {/* Plus-Button (bei Hover, wenn nicht gerade Drop aktiv) */}
-      {!isOver && (
+      {/* Plus-Button (bei Hover, wenn KEIN Drag aktiv) */}
+      {!isDragActive && !isOver && (
         <div className="flex justify-center">
           <button
             onClick={(e) => {
@@ -79,13 +83,14 @@ export function CanvasDropZone({ id, onAddElement }: CanvasDropZoneProps) {
 
 interface EmptyCanvasDropZoneProps {
   onAddElement: (type: PageElement["type"]) => void;
+  isDragActive?: boolean;
 }
 
 /**
  * Leere Drop-Zone wenn der Canvas keine Elemente hat.
  * Zeigt einen großen Bereich zum Ablegen oder Klicken.
  */
-export function EmptyCanvasDropZone({ onAddElement }: EmptyCanvasDropZoneProps) {
+export function EmptyCanvasDropZone({ onAddElement, isDragActive = false }: EmptyCanvasDropZoneProps) {
   const { isOver, setNodeRef } = useDroppable({
     id: "canvas-drop-empty",
     data: { type: "canvas-drop-zone" },
@@ -113,19 +118,21 @@ export function EmptyCanvasDropZone({ onAddElement }: EmptyCanvasDropZoneProps) 
         className={`flex flex-col items-center justify-center py-16 rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 ${
           isOver
             ? "border-primary bg-primary/10"
+            : isDragActive
+            ? "border-primary/50 bg-primary/5"
             : "border-gray-300/60 hover:border-primary/50 hover:bg-primary/5"
         }`}
       >
-        <Plus className={`h-10 w-10 mb-3 ${isOver ? "text-primary" : "text-gray-400"}`} />
-        <p className={`text-sm font-medium ${isOver ? "text-primary" : "text-gray-500"}`}>
-          {isOver ? "Element hier ablegen" : "Element hinzufügen"}
+        <Plus className={`h-10 w-10 mb-3 ${isOver ? "text-primary" : isDragActive ? "text-primary/60" : "text-gray-400"}`} />
+        <p className={`text-sm font-medium ${isOver ? "text-primary" : isDragActive ? "text-primary/70" : "text-gray-500"}`}>
+          {isOver ? "Element hier ablegen" : isDragActive ? "Element hier ablegen" : "Element hinzufügen"}
         </p>
         <p className="text-xs text-gray-400 mt-1">
-          Ziehe ein Element hierhin oder klicke zum Auswählen
+          {isDragActive ? "Lasse das Element hier los" : "Ziehe ein Element hierhin oder klicke zum Auswählen"}
         </p>
       </div>
 
-      {showPicker && (
+      {showPicker && !isDragActive && (
         <div ref={pickerRef} className="absolute left-1/2 -translate-x-1/2 top-full z-50 mt-2">
           <ElementPickerPopover
             onAdd={(type) => {
