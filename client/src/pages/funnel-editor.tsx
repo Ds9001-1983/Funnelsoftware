@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   DndContext,
   closestCenter,
+  pointerWithin,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -13,6 +14,7 @@ import {
   DragOverlay,
   useDraggable,
   useDroppable,
+  type CollisionDetection,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -177,6 +179,8 @@ import {
   PhonePreview,
   ElementPropertiesPanel,
 } from "@/components/funnel-editor";
+import { EditorCanvas } from "@/components/funnel-editor/EditorCanvas";
+import { createNewElement } from "@/components/funnel-editor/createElement";
 
 type PageType = FunnelPage["type"];
 
@@ -579,212 +583,49 @@ export default function FunnelEditor() {
     updatePage(selectedPageIndex, { elements: newElements });
   }, [localFunnel, selectedPageIndex, selectedElementId, updatePage]);
 
-  // Add element to current page from Design tab - Extended with OpenFunnels block types
+  // Add element to current page (appends at end)
   const addElementToPage = useCallback((type: PageElement["type"]) => {
     if (!localFunnel) return;
     const page = localFunnel.pages[selectedPageIndex];
-    const newElement: PageElement = {
-      id: `el-${Date.now()}`,
-      type,
-      // Form placeholders
-      placeholder:
-        type === "input" ? "Dein Text hier..." :
-        type === "textarea" ? "Deine Nachricht..." :
-        type === "select" ? "Option wählen..." :
-        type === "date" ? "Datum auswählen..." : undefined,
-      options:
-        type === "radio" ? ["Option 1", "Option 2", "Option 3"] :
-        type === "select" ? ["Option 1", "Option 2", "Option 3"] : undefined,
-      // Labels
-      label:
-        type === "fileUpload" ? "Datei hochladen" :
-        type === "video" ? "Video" :
-        type === "audio" ? "Audio" :
-        type === "date" ? "Datum" :
-        type === "heading" ? "Überschrift" :
-        type === "text" ? "Dein Text hier..." :
-        type === "select" ? "Auswahl" :
-        type === "button" ? "Klicken" :
-        type === "calendar" ? "Termin buchen" : undefined,
-      // Content
-      content:
-        type === "heading" ? "Deine Überschrift" :
-        type === "text" ? "Füge hier deinen Text ein. Beschreibe dein Angebot oder gib wichtige Informationen." :
-        type === "button" ? "Jetzt starten" : undefined,
-      // File upload
-      acceptedFileTypes: type === "fileUpload" ? [".pdf", ".jpg", ".jpeg", ".png"] : undefined,
-      maxFileSize: type === "fileUpload" ? 10 : undefined,
-      maxFiles: type === "fileUpload" ? 1 : undefined,
-      // Video
-      videoUrl: type === "video" ? "" : undefined,
-      videoType: type === "video" ? "youtube" : undefined,
-      videoAutoplay: type === "video" ? false : undefined,
-      // Audio (new)
-      audioUrl: type === "audio" ? "" : undefined,
-      audioAutoplay: type === "audio" ? false : undefined,
-      audioLoop: type === "audio" ? false : undefined,
-      // Date
-      includeTime: type === "date" ? false : undefined,
-      // Calendar/Booking (new)
-      calendarProvider: type === "calendar" ? "calendly" : undefined,
-      calendarUrl: type === "calendar" ? "" : undefined,
-      // Slides (testimonial/slider)
-      slides: type === "testimonial" ? [
-        { id: "t1", text: "Großartiger Service! Sehr empfehlenswert.", author: "Max Mustermann", role: "Geschäftsführer", rating: 5 }
-      ] : type === "slider" ? [
-        { id: "s1", title: "Slide 1", text: "" },
-        { id: "s2", title: "Slide 2", text: "" },
-        { id: "s3", title: "Slide 3", text: "" }
-      ] : undefined,
-      // FAQ
-      faqItems: type === "faq" ? [
-        { id: "faq1", question: "Wie funktioniert das?", answer: "So funktioniert es..." },
-        { id: "faq2", question: "Was kostet das?", answer: "Die Preise sind..." },
-      ] : undefined,
-      // List
-      listItems: type === "list" ? [
-        { id: "li1", text: "Vorteil Nummer 1" },
-        { id: "li2", text: "Vorteil Nummer 2" },
-        { id: "li3", text: "Vorteil Nummer 3" },
-      ] : undefined,
-      listStyle: type === "list" ? "check" : undefined,
-      // Layout
-      spacerHeight: type === "spacer" ? 32 : undefined,
-      dividerStyle: type === "divider" ? "solid" : undefined,
-      // Timer/Countdown
-      timerEndDate: (type === "timer" || type === "countdown") ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
-      timerStyle: type === "timer" ? "countdown" : undefined,
-      timerShowDays: (type === "timer" || type === "countdown") ? true : undefined,
-      countdownDate: type === "countdown" ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
-      countdownStyle: type === "countdown" ? "flip" : undefined,
-      countdownShowLabels: type === "countdown" ? true : undefined,
-      // Map (new)
-      mapAddress: type === "map" ? "Berlin, Germany" : undefined,
-      mapZoom: type === "map" ? 14 : undefined,
-      mapStyle: type === "map" ? "roadmap" : undefined,
-      // Chart (new)
-      chartType: type === "chart" ? "bar" : undefined,
-      chartData: type === "chart" ? {
-        labels: ["Jan", "Feb", "Mär", "Apr"],
-        datasets: [{ label: "Daten", data: [10, 20, 30, 40], color: "#7C3AED" }]
-      } : undefined,
-      // Code/Embed (new)
-      codeContent: type === "code" ? "// Dein Code hier\nconsole.log('Hello!');" : undefined,
-      codeLanguage: type === "code" ? "javascript" : undefined,
-      embedCode: type === "embed" ? "" : undefined,
-      embedUrl: type === "embed" ? "" : undefined,
-      // Product (new)
-      productName: type === "product" ? "Premium Produkt" : undefined,
-      productPrice: type === "product" ? "99,00 €" : undefined,
-      productDescription: type === "product" ? "Beschreibung deines Produkts..." : undefined,
-      productButtonText: type === "product" ? "Jetzt kaufen" : undefined,
-      // Team (new)
-      teamMembers: type === "team" ? [
-        { id: "tm1", name: "Max Mustermann", role: "CEO", image: "", bio: "Gründer und Visionär" },
-        { id: "tm2", name: "Erika Musterfrau", role: "CTO", image: "", bio: "Technische Leitung" },
-      ] : undefined,
-      // Button (new)
-      buttonUrl: type === "button" ? "" : undefined,
-      buttonTarget: type === "button" ? "_self" : undefined,
-      buttonVariant: type === "button" ? "primary" : undefined,
-    };
-    const newElements = [...page.elements, newElement];
-    updatePage(selectedPageIndex, { elements: newElements });
+    const newElement = createNewElement(type);
+    updatePage(selectedPageIndex, { elements: [...page.elements, newElement] });
     setSelectedElementId(newElement.id);
   }, [localFunnel, selectedPageIndex, updatePage]);
 
-  // Add element at specific index (for DnD drop into preview)
+  // Add element at specific index (for DnD drop into canvas)
   const addElementAtIndex = useCallback((type: PageElement["type"], index: number) => {
     if (!localFunnel) return;
     const page = localFunnel.pages[selectedPageIndex];
-    const newElement: PageElement = {
-      id: `el-${Date.now()}`,
-      type,
-      placeholder:
-        type === "input" ? "Dein Text hier..." :
-        type === "textarea" ? "Deine Nachricht..." :
-        type === "select" ? "Option wählen..." :
-        type === "date" ? "Datum auswählen..." : undefined,
-      options:
-        type === "radio" ? ["Option 1", "Option 2", "Option 3"] :
-        type === "select" ? ["Option 1", "Option 2", "Option 3"] : undefined,
-      label:
-        type === "fileUpload" ? "Datei hochladen" :
-        type === "video" ? "Video" :
-        type === "audio" ? "Audio" :
-        type === "date" ? "Datum" :
-        type === "heading" ? "Überschrift" :
-        type === "text" ? "Dein Text hier..." :
-        type === "select" ? "Auswahl" :
-        type === "button" ? "Klicken" :
-        type === "calendar" ? "Termin buchen" : undefined,
-      content:
-        type === "heading" ? "Deine Überschrift" :
-        type === "text" ? "Füge hier deinen Text ein. Beschreibe dein Angebot oder gib wichtige Informationen." :
-        type === "button" ? "Jetzt starten" : undefined,
-      acceptedFileTypes: type === "fileUpload" ? [".pdf", ".jpg", ".jpeg", ".png"] : undefined,
-      maxFileSize: type === "fileUpload" ? 10 : undefined,
-      maxFiles: type === "fileUpload" ? 1 : undefined,
-      videoUrl: type === "video" ? "" : undefined,
-      videoType: type === "video" ? "youtube" : undefined,
-      videoAutoplay: type === "video" ? false : undefined,
-      audioUrl: type === "audio" ? "" : undefined,
-      audioAutoplay: type === "audio" ? false : undefined,
-      audioLoop: type === "audio" ? false : undefined,
-      includeTime: type === "date" ? false : undefined,
-      calendarProvider: type === "calendar" ? "calendly" : undefined,
-      calendarUrl: type === "calendar" ? "" : undefined,
-      slides: type === "testimonial" ? [
-        { id: "t1", text: "Großartiger Service! Sehr empfehlenswert.", author: "Max Mustermann", role: "Geschäftsführer", rating: 5 }
-      ] : type === "slider" ? [
-        { id: "s1", title: "Slide 1", text: "" },
-        { id: "s2", title: "Slide 2", text: "" },
-        { id: "s3", title: "Slide 3", text: "" }
-      ] : undefined,
-      faqItems: type === "faq" ? [
-        { id: "faq1", question: "Wie funktioniert das?", answer: "So funktioniert es..." },
-        { id: "faq2", question: "Was kostet das?", answer: "Die Preise sind..." },
-      ] : undefined,
-      listItems: type === "list" ? [
-        { id: "li1", text: "Vorteil Nummer 1" },
-        { id: "li2", text: "Vorteil Nummer 2" },
-        { id: "li3", text: "Vorteil Nummer 3" },
-      ] : undefined,
-      listStyle: type === "list" ? "check" : undefined,
-      spacerHeight: type === "spacer" ? 32 : undefined,
-      dividerStyle: type === "divider" ? "solid" : undefined,
-      timerEndDate: (type === "timer" || type === "countdown") ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
-      timerStyle: type === "timer" ? "countdown" : undefined,
-      timerShowDays: (type === "timer" || type === "countdown") ? true : undefined,
-      countdownDate: type === "countdown" ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
-      countdownStyle: type === "countdown" ? "flip" : undefined,
-      countdownShowLabels: type === "countdown" ? true : undefined,
-      mapAddress: type === "map" ? "Berlin, Germany" : undefined,
-      mapZoom: type === "map" ? 14 : undefined,
-      mapStyle: type === "map" ? "roadmap" : undefined,
-      chartType: type === "chart" ? "bar" : undefined,
-      chartData: type === "chart" ? {
-        labels: ["Jan", "Feb", "Mär", "Apr"],
-        datasets: [{ label: "Daten", data: [10, 20, 30, 40], color: "#7C3AED" }]
-      } : undefined,
-      codeContent: type === "code" ? "// Dein Code hier\nconsole.log('Hello!');" : undefined,
-      codeLanguage: type === "code" ? "javascript" : undefined,
-      embedCode: type === "embed" ? "" : undefined,
-      embedUrl: type === "embed" ? "" : undefined,
-      productName: type === "product" ? "Premium Produkt" : undefined,
-      productPrice: type === "product" ? "99,00 €" : undefined,
-      productDescription: type === "product" ? "Beschreibung deines Produkts..." : undefined,
-      productButtonText: type === "product" ? "Jetzt kaufen" : undefined,
-      teamMembers: type === "team" ? [
-        { id: "tm1", name: "Max Mustermann", role: "CEO", image: "", bio: "Gründer und Visionär" },
-        { id: "tm2", name: "Erika Musterfrau", role: "CTO", image: "", bio: "Technische Leitung" },
-      ] : undefined,
-      buttonUrl: type === "button" ? "" : undefined,
-      buttonTarget: type === "button" ? "_self" : undefined,
-      buttonVariant: type === "button" ? "primary" : undefined,
-    };
+    const newElement = createNewElement(type);
     const newElements = [...page.elements];
     newElements.splice(index, 0, newElement);
+    updatePage(selectedPageIndex, { elements: newElements });
+    setSelectedElementId(newElement.id);
+    setLeftSidebarTab("design");
+  }, [localFunnel, selectedPageIndex, updatePage]);
+
+  // Delete element by ID (for EditorCanvas)
+  const deleteElementById = useCallback((elementId: string) => {
+    if (!localFunnel) return;
+    const page = localFunnel.pages[selectedPageIndex];
+    updatePage(selectedPageIndex, {
+      elements: page.elements.filter((el) => el.id !== elementId),
+    });
+    if (selectedElementId === elementId) {
+      setSelectedElementId(null);
+    }
+  }, [localFunnel, selectedPageIndex, updatePage, selectedElementId]);
+
+  // Duplicate element by ID (for EditorCanvas)
+  const duplicateElementById = useCallback((elementId: string) => {
+    if (!localFunnel) return;
+    const page = localFunnel.pages[selectedPageIndex];
+    const element = page.elements.find((el) => el.id === elementId);
+    if (!element) return;
+    const newElement = { ...element, id: `el-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` };
+    const index = page.elements.findIndex((el) => el.id === elementId);
+    const newElements = [...page.elements];
+    newElements.splice(index + 1, 0, newElement);
     updatePage(selectedPageIndex, { elements: newElements });
     setSelectedElementId(newElement.id);
   }, [localFunnel, selectedPageIndex, updatePage]);
@@ -834,32 +675,28 @@ export default function FunnelEditor() {
     }
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
+  // Custom collision detection: palette items prefer canvas drop zones
+  const customCollisionDetection: CollisionDetection = useCallback((args) => {
+    const activeData = args.active.data.current;
 
-    if (over && active.id !== over.id && localFunnel) {
-      const oldIndex = localFunnel.pages.findIndex((p) => p.id === active.id);
-      const newIndex = localFunnel.pages.findIndex((p) => p.id === over.id);
-
-      const newPages = arrayMove(localFunnel.pages, oldIndex, newIndex);
-      updateLocalFunnel({ pages: newPages });
-
-      if (selectedPageIndex === oldIndex) {
-        setSelectedPageIndex(newIndex);
-      } else if (oldIndex < selectedPageIndex && newIndex >= selectedPageIndex) {
-        setSelectedPageIndex(selectedPageIndex - 1);
-      } else if (oldIndex > selectedPageIndex && newIndex <= selectedPageIndex) {
-        setSelectedPageIndex(selectedPageIndex + 1);
-      }
+    if (activeData?.isNew) {
+      // For new elements from palette, prefer drop zones using pointerWithin
+      const pointerCollisions = pointerWithin(args);
+      if (pointerCollisions.length > 0) return pointerCollisions;
+      return closestCenter(args);
     }
-  };
 
-  // Unified editor drag handlers for element palette → preview DnD
-  const handleEditorDragStart = useCallback((event: DragStartEvent) => {
+    // For everything else (page reorder, element reorder), use closestCenter
+    return closestCenter(args);
+  }, []);
+
+  // Unified drag start handler
+  const handleUnifiedDragStart = useCallback((event: DragStartEvent) => {
     setActiveDragId(String(event.active.id));
   }, []);
 
-  const handleEditorDragEnd = useCallback((event: DragEndEvent) => {
+  // Unified drag end handler: handles 3 drag types
+  const handleUnifiedDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragId(null);
 
@@ -868,35 +705,87 @@ export default function FunnelEditor() {
     const activeData = active.data.current;
     const overId = String(over.id);
 
-    // Handle new element drop from palette into preview
-    if (activeData?.isNew && (overId.startsWith("preview-drop-") || overId === "preview-drop-empty")) {
-      const elementType = activeData.type as PageElement["type"];
+    // Case 1: Page reorder (SortablePageItem with sortableType "page")
+    if (activeData?.sortableType === "page") {
+      if (active.id !== over.id) {
+        const oldIndex = localFunnel.pages.findIndex((p) => p.id === active.id);
+        const newIndex = localFunnel.pages.findIndex((p) => p.id === over.id);
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newPages = arrayMove(localFunnel.pages, oldIndex, newIndex);
+          updateLocalFunnel({ pages: newPages });
+          if (selectedPageIndex === oldIndex) {
+            setSelectedPageIndex(newIndex);
+          } else if (oldIndex < selectedPageIndex && newIndex >= selectedPageIndex) {
+            setSelectedPageIndex(selectedPageIndex - 1);
+          } else if (oldIndex > selectedPageIndex && newIndex <= selectedPageIndex) {
+            setSelectedPageIndex(selectedPageIndex + 1);
+          }
+        }
+      }
+      return;
+    }
 
-      if (overId === "preview-drop-empty") {
-        // Drop into empty preview → add at index 0
+    // Case 2: New element from palette dropped onto canvas
+    if (activeData?.isNew) {
+      const elementType = activeData.type as PageElement["type"];
+      if (overId === "canvas-drop-empty") {
         addElementAtIndex(elementType, 0);
-      } else {
-        // Extract drop index from id: "preview-drop-3" → 3
-        const dropIndex = parseInt(overId.replace("preview-drop-", ""), 10);
+      } else if (overId.startsWith("canvas-drop-")) {
+        const dropIndex = parseInt(overId.replace("canvas-drop-", ""), 10);
         if (!isNaN(dropIndex)) {
           addElementAtIndex(elementType, dropIndex);
         }
+      } else {
+        // Dropped on a canvas element directly → insert after it
+        const page = localFunnel.pages[selectedPageIndex];
+        const targetIndex = page.elements.findIndex((el) => el.id === overId);
+        if (targetIndex !== -1) {
+          addElementAtIndex(elementType, targetIndex + 1);
+        }
       }
+      return;
     }
-  }, [localFunnel, addElementAtIndex]);
 
-  // Get label for active drag element (for DragOverlay)
-  const activeDragLabel = useMemo(() => {
+    // Case 3: Canvas element reorder (useSortable with sortableType "canvas-element")
+    if (activeData?.sortableType === "canvas-element") {
+      const page = localFunnel.pages[selectedPageIndex];
+      const oldIndex = page.elements.findIndex((el) => el.id === active.id);
+      let newIndex: number;
+
+      if (overId.startsWith("canvas-drop-")) {
+        newIndex = parseInt(overId.replace("canvas-drop-", ""), 10);
+        if (newIndex > oldIndex) newIndex--;
+      } else {
+        newIndex = page.elements.findIndex((el) => el.id === over.id);
+      }
+
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+        updatePage(selectedPageIndex, {
+          elements: arrayMove(page.elements, oldIndex, newIndex),
+        });
+      }
+      return;
+    }
+  }, [localFunnel, selectedPageIndex, addElementAtIndex, updatePage, updateLocalFunnel]);
+
+  // Get info for active drag element (for DragOverlay)
+  const activeDragInfo = useMemo(() => {
     if (!activeDragId) return null;
     if (activeDragId.startsWith("new-element-")) {
       const type = activeDragId.replace("new-element-", "");
       for (const cat of elementCategories) {
         const found = cat.elements.find(el => el.type === type);
-        if (found) return { label: found.label, icon: found.icon };
+        if (found) return { type: "palette" as const, label: found.label, icon: found.icon };
       }
     }
+    // Canvas element being dragged
+    if (localFunnel) {
+      const page = localFunnel.pages[selectedPageIndex];
+      const element = page?.elements.find(el => el.id === activeDragId);
+      if (element) return { type: "canvas-element" as const, elementType: element.type };
+    }
     return null;
-  }, [activeDragId]);
+  }, [activeDragId, localFunnel, selectedPageIndex]);
 
   const deletePage = (index: number) => {
     if (localFunnel && localFunnel.pages.length > 1) {
@@ -1169,12 +1058,12 @@ export default function FunnelEditor() {
         </div>
       </div>
 
-      {/* Main content - wrapped in DndContext for palette → preview DnD */}
+      {/* Main content - single unified DndContext for all drag operations */}
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleEditorDragStart}
-        onDragEnd={handleEditorDragEnd}
+        collisionDetection={customCollisionDetection}
+        onDragStart={handleUnifiedDragStart}
+        onDragEnd={handleUnifiedDragEnd}
       >
       <div className="flex-1 flex overflow-hidden relative">
         {/* Mobile sidebar backdrop */}
@@ -1238,31 +1127,25 @@ export default function FunnelEditor() {
                   </Button>
                 </div>
                 <div className="flex-1 overflow-y-auto funnel-scrollbar p-2">
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
+                  <SortableContext
+                    items={localFunnel.pages.map((p) => p.id)}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <SortableContext
-                      items={localFunnel.pages.map((p) => p.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      <div className="space-y-1">
-                        {localFunnel.pages.map((page, index) => (
-                          <SortablePageItem
-                            key={page.id}
-                            page={page}
-                            index={index}
-                            selected={index === selectedPageIndex}
-                            onSelect={() => setSelectedPageIndex(index)}
-                            onDelete={() => deletePage(index)}
-                            onDuplicate={() => duplicatePage(index)}
-                            totalPages={localFunnel.pages.length}
-                          />
-                        ))}
-                      </div>
-                    </SortableContext>
-                  </DndContext>
+                    <div className="space-y-1">
+                      {localFunnel.pages.map((page, index) => (
+                        <SortablePageItem
+                          key={page.id}
+                          page={page}
+                          index={index}
+                          selected={index === selectedPageIndex}
+                          onSelect={() => setSelectedPageIndex(index)}
+                          onDelete={() => deletePage(index)}
+                          onDuplicate={() => duplicatePage(index)}
+                          totalPages={localFunnel.pages.length}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
                 </div>
               </>
             ) : (
@@ -1316,29 +1199,19 @@ export default function FunnelEditor() {
           {showLeftSidebar ? <ChevronLeft className={isMobile ? "h-5 w-5" : "h-3 w-3"} /> : <ChevronRight className={isMobile ? "h-5 w-5" : "h-3 w-3"} />}
         </Button>
 
-        {/* Center - Preview */}
-        <div
-          className="flex-1 bg-muted/30 overflow-y-auto flex items-center justify-center p-2 md:p-8 relative"
-          onClick={() => {
-            // Deselect element when clicking outside
-            if (selectedElementId) {
-              setSelectedElementId(null);
-            }
-          }}
-        >
+        {/* Center - Interactive Editor Canvas */}
+        <div className="flex-1 bg-muted/30 overflow-y-auto flex items-start justify-center p-2 md:p-8">
           <div
             style={{
-              maxWidth: previewMode === "phone" ? "320px" : previewMode === "tablet" ? "768px" : "1024px",
+              maxWidth: previewMode === "phone" ? "420px" : previewMode === "tablet" ? "768px" : "1024px",
               width: "100%"
             }}
-            onClick={(e) => e.stopPropagation()}
           >
-            <PhonePreview
+            <EditorCanvas
               page={selectedPage}
               pageIndex={selectedPageIndex}
               totalPages={localFunnel.pages.length}
               primaryColor={localFunnel.theme.primaryColor}
-              onUpdatePage={(updates) => updatePage(selectedPageIndex, updates)}
               selectedElementId={selectedElementId}
               onSelectElement={(elementId) => {
                 setSelectedElementId(elementId);
@@ -1346,62 +1219,12 @@ export default function FunnelEditor() {
                   setLeftSidebarTab("design");
                 }
               }}
-              onAddElement={addElementToPage}
-              onDeleteElement={deleteSelectedElement}
-              onDuplicateElement={duplicateSelectedElement}
-              onMoveElementUp={moveElementUp}
-              onMoveElementDown={moveElementDown}
-              onShowElementPicker={() => {
-                setSelectedElementId(null);
-                setLeftSidebarTab("design");
-              }}
+              onUpdatePage={(updates) => updatePage(selectedPageIndex, updates)}
+              onAddElementAtIndex={addElementAtIndex}
+              onDeleteElement={deleteElementById}
+              onDuplicateElement={duplicateElementById}
             />
           </div>
-
-          {/* Floating Toolbar - außerhalb der Preview, rechts daneben */}
-          {selectedElementId && selectedElement && (
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 z-50">
-              <div className="flex flex-col gap-1 bg-white rounded-lg shadow-xl border p-1.5">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 w-8 p-0"
-                  onClick={moveElementUp}
-                  title="Nach oben"
-                >
-                  <ChevronUp className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 w-8 p-0"
-                  onClick={moveElementDown}
-                  title="Nach unten"
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-                <div className="h-px bg-border my-0.5" />
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 w-8 p-0"
-                  onClick={duplicateSelectedElement}
-                  title="Duplizieren"
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={deleteSelectedElement}
-                  title="Löschen"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Toggle Right Sidebar */}
@@ -1464,12 +1287,19 @@ export default function FunnelEditor() {
         </div>
       </div>
 
-      {/* DragOverlay for visual feedback when dragging from palette */}
+      {/* DragOverlay for visual feedback during drag */}
       <DragOverlay dropAnimation={null}>
-        {activeDragLabel && (
+        {activeDragInfo?.type === "palette" && (
           <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg shadow-xl border-2 border-primary/50 pointer-events-none">
-            <activeDragLabel.icon className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">{activeDragLabel.label}</span>
+            <activeDragInfo.icon className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">{activeDragInfo.label}</span>
+          </div>
+        )}
+        {activeDragInfo?.type === "canvas-element" && (
+          <div className="px-4 py-2 bg-white rounded-lg shadow-xl border-2 border-primary/50 pointer-events-none opacity-80">
+            <span className="text-sm font-medium text-primary">
+              Element verschieben
+            </span>
           </div>
         )}
       </DragOverlay>

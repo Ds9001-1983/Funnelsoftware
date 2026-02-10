@@ -40,7 +40,7 @@ export function SortablePageItem({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: page.id });
+  } = useSortable({ id: page.id, data: { sortableType: "page" } });
 
   const style = {
     transform: CSS.Transform.toString(transform),

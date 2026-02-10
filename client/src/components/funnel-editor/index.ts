@@ -45,6 +45,12 @@ export * from "./QuizElement";
 // Device Preview
 export * from "./DevicePreview";
 
+// Canvas-Komponenten (Elementor-Style Editor)
+export { EditorCanvas } from "./EditorCanvas";
+export { SortableCanvasElement } from "./SortableCanvasElement";
+export { CanvasDropZone, EmptyCanvasDropZone } from "./CanvasDropZone";
+export { createNewElement } from "./createElement";
+
 // Phone Preview (extracted from funnel-editor.tsx)
 export { PhonePreview } from "./PhonePreview";
 export { ElementWrapper, elementTypeLabels } from "./ElementWrapper";
