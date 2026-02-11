@@ -199,7 +199,6 @@ export default function FunnelEditor() {
   // Mobile detection and responsive sidebar states
   const [isMobile, setIsMobile] = useState(false);
   const [showLeftSidebar, setShowLeftSidebar] = useState(true);
-  const [showRightSidebar, setShowRightSidebar] = useState(true);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -209,7 +208,6 @@ export default function FunnelEditor() {
       // Auto-hide sidebars on mobile
       if (mobile) {
         setShowLeftSidebar(false);
-        setShowRightSidebar(false);
       }
     };
 
@@ -219,7 +217,7 @@ export default function FunnelEditor() {
   }, []);
 
   // Perspective-style editor states
-  const [leftSidebarTab, setLeftSidebarTab] = useState<"pages" | "design">("pages");
+  const [leftSidebarTab, setLeftSidebarTab] = useState<"pages" | "elements" | "page">("pages");
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
 
   // Drag state for unified DnD
@@ -601,7 +599,7 @@ export default function FunnelEditor() {
     newElements.splice(index, 0, newElement);
     updatePage(selectedPageIndex, { elements: newElements });
     setSelectedElementId(newElement.id);
-    setLeftSidebarTab("design");
+    setLeftSidebarTab("elements");
   }, [localFunnel, selectedPageIndex, updatePage]);
 
   // Delete element by ID (for EditorCanvas)
@@ -1067,47 +1065,55 @@ export default function FunnelEditor() {
       >
       <div className="flex-1 flex overflow-hidden relative">
         {/* Mobile sidebar backdrop */}
-        {isMobile && (showLeftSidebar || showRightSidebar) && (
+        {isMobile && showLeftSidebar && (
           <div
             className="fixed inset-0 bg-black/50 z-40 md:hidden"
-            onClick={() => {
-              setShowLeftSidebar(false);
-              setShowRightSidebar(false);
-            }}
+            onClick={() => setShowLeftSidebar(false)}
           />
         )}
 
         {/* Left sidebar - Seiten/Design tabs */}
         <div className={`
           ${isMobile ? "fixed left-0 top-14 bottom-0 z-50" : "relative"}
-          ${showLeftSidebar ? "w-72" : "w-0"}
+          ${showLeftSidebar ? "w-80" : "w-0"}
           border-r border-border bg-card overflow-hidden transition-all duration-300
         `}>
-          <div className="w-72 h-full flex flex-col">
+          <div className="w-80 h-full flex flex-col">
             {/* Tabs header */}
             <div className="border-b border-border">
               <div className="flex">
                 <button
-                  className={`flex-1 py-3 px-4 text-sm font-medium transition-colors border-b-2 ${
+                  className={`flex-1 py-2.5 px-2 text-xs font-medium transition-colors border-b-2 ${
                     leftSidebarTab === "pages"
                       ? "border-primary text-primary"
                       : "border-transparent text-muted-foreground hover:text-foreground"
                   }`}
                   onClick={() => setLeftSidebarTab("pages")}
                 >
-                  <Layers className="h-4 w-4 inline-block mr-2" />
+                  <Layers className="h-4 w-4 mx-auto mb-0.5" />
                   Seiten
                 </button>
                 <button
-                  className={`flex-1 py-3 px-4 text-sm font-medium transition-colors border-b-2 ${
-                    leftSidebarTab === "design"
+                  className={`flex-1 py-2.5 px-2 text-xs font-medium transition-colors border-b-2 ${
+                    leftSidebarTab === "elements"
                       ? "border-primary text-primary"
                       : "border-transparent text-muted-foreground hover:text-foreground"
                   }`}
-                  onClick={() => setLeftSidebarTab("design")}
+                  onClick={() => setLeftSidebarTab("elements")}
                 >
-                  <Settings className="h-4 w-4 inline-block mr-2" />
-                  Design
+                  <Plus className="h-4 w-4 mx-auto mb-0.5" />
+                  Elemente
+                </button>
+                <button
+                  className={`flex-1 py-2.5 px-2 text-xs font-medium transition-colors border-b-2 ${
+                    leftSidebarTab === "page"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                  onClick={() => setLeftSidebarTab("page")}
+                >
+                  <Settings className="h-4 w-4 mx-auto mb-0.5" />
+                  Seite
                 </button>
               </div>
             </div>
@@ -1148,19 +1154,33 @@ export default function FunnelEditor() {
                   </SortableContext>
                 </div>
               </>
-            ) : (
+            ) : leftSidebarTab === "elements" ? (
               <div className="flex-1 overflow-y-auto funnel-scrollbar">
                 {selectedElement ? (
-                  <ElementPropertiesPanel
-                    element={selectedElement}
-                    onUpdate={updateSelectedElement}
-                    onClose={() => setSelectedElementId(null)}
-                  />
+                  <div className="h-full flex flex-col">
+                    {/* Zurück-Button */}
+                    <div className="p-3 border-b border-border shrink-0">
+                      <button
+                        onClick={() => setSelectedElementId(null)}
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Zur Palette
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                      <ElementPropertiesPanel
+                        element={selectedElement}
+                        onUpdate={updateSelectedElement}
+                        onClose={() => setSelectedElementId(null)}
+                      />
+                    </div>
+                  </div>
                 ) : (
                   /* Element palette when no element selected */
                   <div className="p-4 space-y-4">
                     <p className="text-sm text-muted-foreground">
-                      Klicke auf ein Element um es hinzuzufügen:
+                      Klicke oder ziehe ein Element in den Canvas:
                     </p>
                     {elementCategories.map((category) => (
                       <div key={category.name}>
@@ -1182,6 +1202,38 @@ export default function FunnelEditor() {
                   </div>
                 )}
               </div>
+            ) : (
+              /* Page settings tab */
+              <div className="flex-1 overflow-y-auto funnel-scrollbar p-4">
+                {selectedPage && (
+                  <>
+                    <PageEditor
+                      page={selectedPage}
+                      allPages={localFunnel.pages}
+                      primaryColor={localFunnel.theme.primaryColor}
+                      onUpdate={(updates) => updatePage(selectedPageIndex, updates)}
+                      onUndo={undo}
+                      onRedo={redo}
+                      canUndo={canUndo}
+                      canRedo={canRedo}
+                    />
+
+                    {/* A/B Testing Section */}
+                    <div className="mt-6 pt-6 border-t">
+                      <ABTestEditor
+                        page={selectedPage}
+                        abTests={localFunnel.abTests || []}
+                        onCreateTest={createABTest}
+                        onUpdateTest={updateABTest}
+                        onDeleteTest={deleteABTest}
+                        onStartTest={startABTest}
+                        onPauseTest={pauseABTest}
+                        onCompleteTest={completeABTest}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -1194,7 +1246,7 @@ export default function FunnelEditor() {
             ${isMobile ? "h-10 w-8" : "h-6 w-6"}
           `}
           onClick={() => setShowLeftSidebar(!showLeftSidebar)}
-          style={{ left: showLeftSidebar && !isMobile ? "286px" : showLeftSidebar && isMobile ? "288px" : "0" }}
+          style={{ left: showLeftSidebar && !isMobile ? "318px" : showLeftSidebar && isMobile ? "320px" : "0" }}
         >
           {showLeftSidebar ? <ChevronLeft className={isMobile ? "h-5 w-5" : "h-3 w-3"} /> : <ChevronRight className={isMobile ? "h-5 w-5" : "h-3 w-3"} />}
         </Button>
@@ -1216,7 +1268,8 @@ export default function FunnelEditor() {
               onSelectElement={(elementId) => {
                 setSelectedElementId(elementId);
                 if (elementId) {
-                  setLeftSidebarTab("design");
+                  setLeftSidebarTab("elements");
+                  setShowLeftSidebar(true);
                 }
               }}
               onUpdatePage={(updates) => updatePage(selectedPageIndex, updates)}
@@ -1228,64 +1281,7 @@ export default function FunnelEditor() {
           </div>
         </div>
 
-        {/* Toggle Right Sidebar */}
-        <Button
-          size="icon"
-          variant="ghost"
-          className={`absolute top-1/2 -translate-y-1/2 z-[60] rounded-l-md rounded-r-none bg-card border border-r-0 shadow-md
-            ${isMobile ? "h-10 w-8" : "h-6 w-6"}
-          `}
-          onClick={() => setShowRightSidebar(!showRightSidebar)}
-          style={{ right: showRightSidebar && !isMobile ? "318px" : showRightSidebar && isMobile ? "320px" : "0" }}
-        >
-          {showRightSidebar ? <ChevronRight className={isMobile ? "h-5 w-5" : "h-3 w-3"} /> : <ChevronLeft className={isMobile ? "h-5 w-5" : "h-3 w-3"} />}
-        </Button>
-
-        {/* Right sidebar - Page editor */}
-        <div className={`
-          ${isMobile ? "fixed right-0 top-14 bottom-0 z-50" : "relative"}
-          ${showRightSidebar ? "w-80" : "w-0"}
-          border-l border-border bg-card overflow-hidden transition-all duration-300
-        `}>
-          <div className="w-80 h-full flex flex-col">
-            <div className="p-4 border-b border-border">
-              <h3 className="font-semibold">Seite bearbeiten</h3>
-              <p className="text-sm text-muted-foreground">
-                {pageTypeLabels[selectedPage?.type || "welcome"]}
-              </p>
-            </div>
-            <div className="flex-1 overflow-y-auto funnel-scrollbar p-4">
-              {selectedPage && (
-                <>
-                  <PageEditor
-                    page={selectedPage}
-                    allPages={localFunnel.pages}
-                    primaryColor={localFunnel.theme.primaryColor}
-                    onUpdate={(updates) => updatePage(selectedPageIndex, updates)}
-                    onUndo={undo}
-                    onRedo={redo}
-                    canUndo={canUndo}
-                    canRedo={canRedo}
-                  />
-
-                  {/* A/B Testing Section */}
-                  <div className="mt-6 pt-6 border-t">
-                    <ABTestEditor
-                      page={selectedPage}
-                      abTests={localFunnel.abTests || []}
-                      onCreateTest={createABTest}
-                      onUpdateTest={updateABTest}
-                      onDeleteTest={deleteABTest}
-                      onStartTest={startABTest}
-                      onPauseTest={pauseABTest}
-                      onCompleteTest={completeABTest}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+        {/* Right sidebar removed — all content now in left sidebar */}
       </div>
 
       {/* DragOverlay for visual feedback during drag */}
@@ -1474,7 +1470,6 @@ export default function FunnelEditor() {
               onClick={() => {
                 setLeftSidebarTab("pages");
                 setShowLeftSidebar(!showLeftSidebar || leftSidebarTab !== "pages");
-                setShowRightSidebar(false);
               }}
             >
               <Layers className="h-5 w-5" />
@@ -1482,12 +1477,11 @@ export default function FunnelEditor() {
             </button>
             <button
               className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
-                showLeftSidebar && leftSidebarTab === "design" ? "text-primary bg-primary/10" : "text-muted-foreground"
+                showLeftSidebar && leftSidebarTab === "elements" ? "text-primary bg-primary/10" : "text-muted-foreground"
               }`}
               onClick={() => {
-                setLeftSidebarTab("design");
-                setShowLeftSidebar(!showLeftSidebar || leftSidebarTab !== "design");
-                setShowRightSidebar(false);
+                setLeftSidebarTab("elements");
+                setShowLeftSidebar(!showLeftSidebar || leftSidebarTab !== "elements");
               }}
             >
               <Plus className="h-5 w-5" />
@@ -1495,15 +1489,15 @@ export default function FunnelEditor() {
             </button>
             <button
               className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
-                showRightSidebar ? "text-primary bg-primary/10" : "text-muted-foreground"
+                showLeftSidebar && leftSidebarTab === "page" ? "text-primary bg-primary/10" : "text-muted-foreground"
               }`}
               onClick={() => {
-                setShowRightSidebar(!showRightSidebar);
-                setShowLeftSidebar(false);
+                setLeftSidebarTab("page");
+                setShowLeftSidebar(!showLeftSidebar || leftSidebarTab !== "page");
               }}
             >
               <Settings className="h-5 w-5" />
-              <span className="text-xs">Bearbeiten</span>
+              <span className="text-xs">Seite</span>
             </button>
             <button
               className="flex flex-col items-center gap-1 p-2 rounded-lg text-muted-foreground"
