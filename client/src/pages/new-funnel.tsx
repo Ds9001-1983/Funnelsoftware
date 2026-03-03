@@ -10,6 +10,7 @@ import {
   FileQuestion,
   ShoppingCart,
   Sparkles,
+  ClipboardList,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ const categoryIcons: Record<ClientTemplate["category"], React.ElementType> = {
   recruiting: Users,
   webinar: Calendar,
   quiz: FileQuestion,
+  survey: ClipboardList,
 };
 
 const categoryLabels: Record<ClientTemplate["category"], string> = {
@@ -37,6 +39,7 @@ const categoryLabels: Record<ClientTemplate["category"], string> = {
   recruiting: "Recruiting",
   webinar: "Webinar",
   quiz: "Quiz",
+  survey: "Umfrage",
 };
 
 function TemplateCard({

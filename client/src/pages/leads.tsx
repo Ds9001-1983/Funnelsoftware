@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Search,
@@ -12,6 +12,9 @@ import {
   Trash2,
   Eye,
   Users,
+  FileSpreadsheet,
+  FileText,
+  CalendarRange,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,7 +39,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -159,6 +165,261 @@ function LeadDetailDialog({
             </div>
           )}
         </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+type ExportFormat = "csv" | "excel";
+
+interface ExportOptions {
+  format: ExportFormat;
+  includeAnswers: boolean;
+  dateFrom: string;
+  dateTo: string;
+}
+
+function ExportDialog({
+  open,
+  onOpenChange,
+  leads,
+  statusFilter,
+  funnelFilter,
+  funnelName,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  leads: Lead[];
+  statusFilter: StatusFilter;
+  funnelFilter: string;
+  funnelName?: string;
+}) {
+  const [format, setFormat] = useState<ExportFormat>("csv");
+  const [includeAnswers, setIncludeAnswers] = useState(true);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  // Filter leads by date range
+  const filteredLeads = useMemo(() => {
+    return leads.filter(lead => {
+      const leadDate = new Date(lead.createdAt);
+      if (dateFrom && leadDate < new Date(dateFrom)) return false;
+      if (dateTo) {
+        const endDate = new Date(dateTo);
+        endDate.setHours(23, 59, 59, 999);
+        if (leadDate > endDate) return false;
+      }
+      return true;
+    });
+  }, [leads, dateFrom, dateTo]);
+
+  const formatDate = (dateStr: string | Date) => {
+    const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
+    return date.toLocaleDateString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
+
+  const exportToCSV = () => {
+    const headers = ["Name", "E-Mail", "Telefon", "Unternehmen", "Status", "Funnel", "Quelle", "Erstellt"];
+    if (includeAnswers) {
+      headers.push("Antworten");
+    }
+
+    const rows = filteredLeads.map(lead => {
+      const row = [
+        lead.name || "",
+        lead.email || "",
+        lead.phone || "",
+        lead.company || "",
+        statusLabels[lead.status],
+        lead.funnelName || "",
+        lead.source || "",
+        formatDate(lead.createdAt),
+      ];
+      if (includeAnswers && lead.answers) {
+        row.push(JSON.stringify(lead.answers));
+      }
+      return row;
+    });
+
+    const csvContent = [
+      headers.join(";"),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(";"))
+    ].join("\n");
+
+    const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `leads-export-${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+    onOpenChange(false);
+  };
+
+  const exportToExcel = () => {
+    // Create a simple HTML table for Excel export
+    const headers = ["Name", "E-Mail", "Telefon", "Unternehmen", "Status", "Funnel", "Quelle", "Erstellt"];
+    if (includeAnswers) {
+      headers.push("Antworten");
+    }
+
+    const rows = filteredLeads.map(lead => {
+      const row = [
+        lead.name || "",
+        lead.email || "",
+        lead.phone || "",
+        lead.company || "",
+        statusLabels[lead.status],
+        lead.funnelName || "",
+        lead.source || "",
+        formatDate(lead.createdAt),
+      ];
+      if (includeAnswers && lead.answers) {
+        row.push(JSON.stringify(lead.answers));
+      }
+      return row;
+    });
+
+    const tableHtml = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+      <head><meta charset="UTF-8"></head>
+      <body>
+        <table>
+          <thead>
+            <tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr>
+          </thead>
+          <tbody>
+            ${rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join("")}</tr>`).join("")}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([tableHtml], { type: "application/vnd.ms-excel;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `leads-export-${new Date().toISOString().split("T")[0]}.xls`;
+    link.click();
+    onOpenChange(false);
+  };
+
+  const handleExport = () => {
+    if (format === "csv") {
+      exportToCSV();
+    } else {
+      exportToExcel();
+    }
+  };
+
+  const filterDescription = [];
+  if (statusFilter !== "all") {
+    filterDescription.push(`Status: ${statusLabels[statusFilter as Lead["status"]]}`);
+  }
+  if (funnelFilter !== "all" && funnelName) {
+    filterDescription.push(`Funnel: ${funnelName}`);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Leads exportieren</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          {/* Filter info */}
+          <div className="p-3 bg-muted/50 rounded-lg">
+            <div className="text-sm font-medium mb-1">Export-Übersicht</div>
+            <div className="text-sm text-muted-foreground">
+              {filteredLeads.length} Lead{filteredLeads.length !== 1 ? "s" : ""} werden exportiert
+              {filterDescription.length > 0 && (
+                <div className="text-xs mt-1">
+                  Filter: {filterDescription.join(", ")}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Format selection */}
+          <div className="space-y-2">
+            <Label>Export-Format</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setFormat("csv")}
+                className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                  format === "csv"
+                    ? "border-primary bg-primary/5"
+                    : "border-muted hover:border-muted-foreground/50"
+                }`}
+              >
+                <FileText className="h-5 w-5" />
+                <span className="font-medium">CSV</span>
+              </button>
+              <button
+                onClick={() => setFormat("excel")}
+                className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                  format === "excel"
+                    ? "border-primary bg-primary/5"
+                    : "border-muted hover:border-muted-foreground/50"
+                }`}
+              >
+                <FileSpreadsheet className="h-5 w-5" />
+                <span className="font-medium">Excel</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Date range filter */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <CalendarRange className="h-4 w-4" />
+              Zeitraum (optional)
+            </Label>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs text-muted-foreground">Von</Label>
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Bis</Label>
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Options */}
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="includeAnswers"
+              checked={includeAnswers}
+              onCheckedChange={(checked) => setIncludeAnswers(checked === true)}
+            />
+            <Label htmlFor="includeAnswers" className="text-sm cursor-pointer">
+              Funnel-Antworten einschließen
+            </Label>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Abbrechen
+          </Button>
+          <Button onClick={handleExport} disabled={filteredLeads.length === 0}>
+            <Download className="h-4 w-4 mr-2" />
+            Exportieren ({filteredLeads.length})
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -287,6 +548,7 @@ export default function Leads() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [funnelFilter, setFunnelFilter] = useState<string>("all");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const { toast } = useToast();
 
   const { data: leads, isLoading: leadsLoading } = useQuery<Lead[]>({
@@ -347,7 +609,13 @@ export default function Leads() {
             Verwalte deine Leads und Kontakte
           </p>
         </div>
-        <Button variant="outline" className="gap-2" data-testid="button-export">
+        <Button
+          variant="outline"
+          className="gap-2"
+          data-testid="button-export"
+          onClick={() => setShowExportDialog(true)}
+          disabled={!filteredLeads.length}
+        >
           <Download className="h-4 w-4" />
           Exportieren
         </Button>
@@ -474,6 +742,15 @@ export default function Leads() {
         lead={selectedLead}
         open={!!selectedLead}
         onOpenChange={(open) => !open && setSelectedLead(null)}
+      />
+
+      <ExportDialog
+        open={showExportDialog}
+        onOpenChange={setShowExportDialog}
+        leads={filteredLeads}
+        statusFilter={statusFilter}
+        funnelFilter={funnelFilter}
+        funnelName={funnels?.find(f => String(f.id) === funnelFilter)?.name}
       />
     </div>
   );

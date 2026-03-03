@@ -5,11 +5,14 @@ export interface ClientTemplate {
   id: string;
   name: string;
   description: string;
-  category: "leads" | "sales" | "recruiting" | "webinar" | "quiz";
+  category: "leads" | "sales" | "recruiting" | "webinar" | "quiz" | "survey";
   thumbnail: string;
   pages: FunnelPage[];
   theme: Theme;
 }
+
+// Also export as FunnelTemplate for backward compatibility
+export type FunnelTemplate = ClientTemplate;
 
 export const defaultTemplates: ClientTemplate[] = [
   // ============ TERMINE GENERIEREN ============
@@ -759,13 +762,99 @@ export const defaultTemplates: ClientTemplate[] = [
       fontFamily: "Inter",
     },
   },
+  // ============ UMFRAGE VORLAGEN ============
+  {
+    id: "template-survey",
+    name: "Umfrage",
+    description: "Erhalte wertvolle Einblicke von deiner Zielgruppe",
+    category: "survey",
+    thumbnail: "/templates/umfrage.png",
+    pages: [
+      {
+        id: "page-1",
+        type: "welcome",
+        title: "Deine Meinung zählt!",
+        subtitle: "Diese kurze Umfrage dauert nur 2 Minuten",
+        elements: [
+          { id: "el-1", type: "text", content: "Hilf uns, besser zu werden und teile deine Erfahrungen mit uns." },
+        ],
+        buttonText: "Umfrage starten",
+        backgroundColor: "#0EA5E9",
+      },
+      {
+        id: "page-2",
+        type: "question",
+        title: "Wie zufrieden bist du mit unserem Service?",
+        elements: [
+          { id: "el-1", type: "radio", options: ["Sehr zufrieden", "Zufrieden", "Neutral", "Unzufrieden", "Sehr unzufrieden"] },
+        ],
+        buttonText: "Weiter",
+      },
+      {
+        id: "page-3",
+        type: "question",
+        title: "Was gefällt dir am besten?",
+        elements: [
+          { id: "el-1", type: "radio", options: ["Qualität", "Preis", "Kundenservice", "Benutzerfreundlichkeit", "Sonstiges"] },
+        ],
+        buttonText: "Weiter",
+      },
+      {
+        id: "page-4",
+        type: "question",
+        title: "Was können wir verbessern?",
+        elements: [
+          { id: "el-1", type: "textarea", placeholder: "Dein Feedback hier...", required: false },
+        ],
+        buttonText: "Weiter",
+      },
+      {
+        id: "page-5",
+        type: "question",
+        title: "Würdest du uns weiterempfehlen?",
+        elements: [
+          { id: "el-1", type: "radio", options: ["Ja, auf jeden Fall", "Wahrscheinlich", "Vielleicht", "Eher nicht", "Nein"] },
+        ],
+        buttonText: "Abschließen",
+      },
+      {
+        id: "page-6",
+        type: "thankyou",
+        title: "Vielen Dank für dein Feedback!",
+        subtitle: "Deine Meinung hilft uns, jeden Tag ein bisschen besser zu werden.",
+        elements: [],
+        showConfetti: true,
+      },
+    ],
+    theme: {
+      primaryColor: "#0EA5E9",
+      backgroundColor: "#ffffff",
+      textColor: "#1a1a1a",
+      fontFamily: "Inter",
+    },
+  },
+];
+
+// Also export as funnelTemplates for backward compatibility
+export const funnelTemplates = defaultTemplates;
+
+// Template categories for filtering UI
+export const templateCategories = [
+  { id: "all", name: "Alle", count: defaultTemplates.length },
+  { id: "leads", name: "Lead-Generierung", count: defaultTemplates.filter(t => t.category === "leads").length },
+  { id: "sales", name: "Verkauf", count: defaultTemplates.filter(t => t.category === "sales").length },
+  { id: "recruiting", name: "Recruiting", count: defaultTemplates.filter(t => t.category === "recruiting").length },
+  { id: "webinar", name: "Webinar", count: defaultTemplates.filter(t => t.category === "webinar").length },
+  { id: "quiz", name: "Quiz", count: defaultTemplates.filter(t => t.category === "quiz").length },
+  { id: "survey", name: "Umfrage", count: defaultTemplates.filter(t => t.category === "survey").length },
 ];
 
 export function getTemplateById(id: string): ClientTemplate | undefined {
   return defaultTemplates.find(t => t.id === id);
 }
 
-export function getTemplatesByCategory(category: ClientTemplate["category"]): ClientTemplate[] {
+export function getTemplatesByCategory(category: string): ClientTemplate[] {
+  if (category === "all") return defaultTemplates;
   return defaultTemplates.filter(t => t.category === category);
 }
 

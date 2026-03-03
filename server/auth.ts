@@ -15,6 +15,11 @@ declare global {
       username: string;
       email: string;
       displayName: string | null;
+      isAdmin: boolean;
+      trialEndsAt: Date | null;
+      isPro: boolean;
+      subscriptionStatus: string;
+      subscriptionPlan: string | null;
       createdAt: Date;
       updatedAt: Date;
     }
@@ -112,6 +117,18 @@ export function isAuthenticated(
     return next();
   }
   res.status(401).json({ error: "Nicht autorisiert. Bitte melde dich an." });
+}
+
+// Admin authentication middleware
+export function isAdmin(
+  req: import("express").Request,
+  res: import("express").Response,
+  next: import("express").NextFunction
+) {
+  if (req.isAuthenticated() && req.user?.isAdmin) {
+    return next();
+  }
+  res.status(403).json({ error: "Zugriff verweigert. Admin-Berechtigung erforderlich." });
 }
 
 // Get current user ID from request

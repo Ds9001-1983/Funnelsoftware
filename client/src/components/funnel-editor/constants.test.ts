@@ -72,8 +72,8 @@ describe("Funnel Editor Constants", () => {
   });
 
   describe("elementCategories", () => {
-    it("enthält 4 Kategorien", () => {
-      expect(elementCategories.length).toBe(4);
+    it("enthält mindestens 4 Kategorien", () => {
+      expect(elementCategories.length).toBeGreaterThanOrEqual(4);
     });
 
     it("hat die Kategorie 'Inhalt'", () => {

@@ -12,8 +12,13 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   displayName: text("display_name"),
+  isAdmin: boolean("is_admin").notNull().default(false),
   trialEndsAt: timestamp("trial_ends_at"),
   isPro: boolean("is_pro").notNull().default(false),
+  subscriptionStatus: text("subscription_status").notNull().default("trial"), // trial, active, cancelled, expired
+  subscriptionPlan: text("subscription_plan"), // basic, pro, enterprise
+  subscriptionStartedAt: timestamp("subscription_started_at"),
+  lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -89,9 +94,37 @@ export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   password: true,
   displayName: true,
+  isAdmin: true,
   trialEndsAt: true,
   isPro: true,
+  subscriptionStatus: true,
+  subscriptionPlan: true,
+  subscriptionStartedAt: true,
 });
+
+// Admin user schema for customer management
+export const adminUserSchema = z.object({
+  id: z.number(),
+  username: z.string(),
+  email: z.string(),
+  displayName: z.string().nullable(),
+  isAdmin: z.boolean(),
+  trialEndsAt: z.string().nullable(),
+  isPro: z.boolean(),
+  subscriptionStatus: z.string(),
+  subscriptionPlan: z.string().nullable(),
+  subscriptionStartedAt: z.string().nullable(),
+  lastLoginAt: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  // Additional computed fields for admin view
+  funnelCount: z.number().optional(),
+  leadCount: z.number().optional(),
+  daysInTrial: z.number().optional(),
+  isTrialExpired: z.boolean().optional(),
+});
+
+export type AdminUser = z.infer<typeof adminUserSchema>;
 
 export const selectUserSchema = createSelectSchema(users);
 
@@ -101,18 +134,38 @@ export type User = typeof users.$inferSelect;
 // Funnel Page Types
 export type PageType = "welcome" | "question" | "multiChoice" | "contact" | "calendar" | "thankyou";
 
-// Page element schema
+// Page element/block schema - Extended with OpenFunnels block types
 export const pageElementSchema = z.object({
   id: z.string(),
   type: z.enum([
-    "heading", "text", "image", "button", "input", "textarea",
-    "select", "checkbox", "radio", "fileUpload", "video", "date",
-    "slider", "testimonial", "faq", "list", "timer", "socialProof",
-    "divider", "spacer", "progressBar", "icon", "quiz"
+    // Basic
+    "heading", "text", "image", "button",
+    // Form elements
+    "input", "textarea", "select", "checkbox", "radio", "fileUpload", "date",
+    // Media
+    "video", "audio", "embed",
+    // Interactive
+    "slider", "testimonial", "faq", "list", "timer", "calendar", "countdown",
+    // Advanced
+    "code", "map", "chart",
+    // Layout
+    "socialProof", "divider", "spacer", "progressBar", "icon",
+    // Special
+    "quiz", "product", "team"
   ]),
   content: z.string().optional(),
   placeholder: z.string().optional(),
   required: z.boolean().optional(),
+  // Validation options for form elements
+  validation: z.object({
+    type: z.enum(["text", "email", "phone", "url", "number", "custom"]).optional(),
+    minLength: z.number().optional(),
+    maxLength: z.number().optional(),
+    min: z.number().optional(), // For number inputs
+    max: z.number().optional(), // For number inputs
+    pattern: z.string().optional(), // Custom regex pattern
+    errorMessage: z.string().optional(), // Custom error message
+  }).optional(),
   options: z.array(z.string()).optional(),
   label: z.string().optional(),
   acceptedFileTypes: z.array(z.string()).optional(),
@@ -164,6 +217,9 @@ export const pageElementSchema = z.object({
   dividerStyle: z.enum(["solid", "dashed", "dotted", "gradient"]).optional(),
   // Spacer properties
   spacerHeight: z.number().optional(),
+  // ProgressBar properties
+  progressValue: z.number().optional(),
+  progressShowLabel: z.boolean().optional(),
   // Icon properties
   iconName: z.string().optional(),
   iconSize: z.enum(["sm", "md", "lg", "xl"]).optional(),
@@ -193,7 +249,63 @@ export const pageElementSchema = z.object({
     shuffleQuestions: z.boolean(),
     shuffleAnswers: z.boolean(),
   }).optional(),
-  // General styles
+  // Audio properties
+  audioUrl: z.string().optional(),
+  audioAutoplay: z.boolean().optional(),
+  audioLoop: z.boolean().optional(),
+  // Calendar/Booking properties
+  calendarProvider: z.enum(["calendly", "cal", "custom"]).optional(),
+  calendarUrl: z.string().optional(),
+  // Map properties
+  mapAddress: z.string().optional(),
+  mapLat: z.number().optional(),
+  mapLng: z.number().optional(),
+  mapZoom: z.number().optional(),
+  mapStyle: z.enum(["roadmap", "satellite", "terrain"]).optional(),
+  // Chart properties
+  chartType: z.enum(["bar", "line", "pie", "doughnut"]).optional(),
+  chartData: z.object({
+    labels: z.array(z.string()),
+    datasets: z.array(z.object({
+      label: z.string(),
+      data: z.array(z.number()),
+      color: z.string().optional(),
+    })),
+  }).optional(),
+  // Code/Embed properties
+  codeContent: z.string().optional(),
+  codeLanguage: z.string().optional(),
+  embedCode: z.string().optional(),
+  embedUrl: z.string().optional(),
+  // Countdown properties
+  countdownDate: z.string().optional(),
+  countdownStyle: z.enum(["flip", "simple", "circular"]).optional(),
+  countdownShowLabels: z.boolean().optional(),
+  // Product properties
+  productName: z.string().optional(),
+  productPrice: z.string().optional(),
+  productImage: z.string().optional(),
+  productDescription: z.string().optional(),
+  productButtonText: z.string().optional(),
+  productButtonUrl: z.string().optional(),
+  // Team properties
+  teamMembers: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    role: z.string().optional(),
+    image: z.string().optional(),
+    bio: z.string().optional(),
+    social: z.object({
+      linkedin: z.string().optional(),
+      twitter: z.string().optional(),
+      email: z.string().optional(),
+    }).optional(),
+  })).optional(),
+  // Button properties
+  buttonUrl: z.string().optional(),
+  buttonTarget: z.enum(["_self", "_blank"]).optional(),
+  buttonVariant: z.enum(["primary", "secondary", "outline", "ghost"]).optional(),
+  // General styles (extended)
   styles: z.object({
     fontSize: z.string().optional(),
     fontWeight: z.string().optional(),
@@ -204,10 +316,58 @@ export const pageElementSchema = z.object({
     padding: z.string().optional(),
     margin: z.string().optional(),
     borderRadius: z.string().optional(),
+    // Extended styles from OpenFunnels
+    imageSize: z.string().optional(),
+    minHeight: z.string().optional(),
+    maxWidth: z.string().optional(),
+    boxShadow: z.string().optional(),
+    border: z.string().optional(),
+    opacity: z.number().optional(),
   }).optional(),
 });
 
 export type PageElement = z.infer<typeof pageElementSchema>;
+
+// Column schema for flexible layouts (from OpenFunnels)
+export const columnSchema = z.object({
+  id: z.string(),
+  width: z.number().min(10).max(100), // Percentage width
+  elements: z.array(pageElementSchema),
+  styles: z.object({
+    backgroundColor: z.string().optional(),
+    padding: z.string().optional(),
+    verticalAlign: z.enum(["top", "middle", "bottom"]).optional(),
+  }).optional(),
+});
+
+export type Column = z.infer<typeof columnSchema>;
+
+// Section schema for grouping columns (from OpenFunnels)
+export const sectionSchema = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  columns: z.array(columnSchema),
+  layout: z.enum([
+    "single",           // 100%
+    "two-equal",        // 50% / 50%
+    "two-left",         // 66% / 33%
+    "two-right",        // 33% / 66%
+    "three-equal",      // 33% / 33% / 33%
+    "three-wide-center",// 25% / 50% / 25%
+    "four-equal",       // 25% / 25% / 25% / 25%
+    "custom",           // Custom widths
+  ]).optional(),
+  styles: z.object({
+    backgroundColor: z.string().optional(),
+    backgroundImage: z.string().optional(),
+    padding: z.string().optional(),
+    margin: z.string().optional(),
+    minHeight: z.string().optional(),
+    fullWidth: z.boolean().optional(),
+  }).optional(),
+});
+
+export type Section = z.infer<typeof sectionSchema>;
 
 // Page transition animation types
 export type PageAnimation = "fade" | "slide" | "scale" | "none";
@@ -222,13 +382,18 @@ export const pageConditionSchema = z.object({
 
 export type PageCondition = z.infer<typeof pageConditionSchema>;
 
-// Funnel page schema
+// Funnel page schema - Extended with sections support
 export const funnelPageSchema = z.object({
   id: z.string(),
   type: z.enum(["welcome", "question", "multiChoice", "contact", "calendar", "thankyou"]),
   title: z.string(),
   subtitle: z.string().optional(),
+  // Legacy flat elements array (backward compatible)
   elements: z.array(pageElementSchema),
+  // New: Sections with columns for flexible layouts (OpenFunnels style)
+  sections: z.array(sectionSchema).optional(),
+  // Use sections mode or flat elements mode
+  useAdvancedLayout: z.boolean().optional(),
   buttonText: z.string().optional(),
   backgroundColor: z.string().optional(),
   backgroundImage: z.string().optional(),
@@ -242,9 +407,62 @@ export const funnelPageSchema = z.object({
   nextPageId: z.string().optional(),
   // Show confetti on this page
   showConfetti: z.boolean().optional(),
+  // Page-level styles (OpenFunnels)
+  pageStyles: z.object({
+    maxWidth: z.string().optional(),
+    padding: z.string().optional(),
+    fontFamily: z.string().optional(),
+  }).optional(),
 });
 
 export type FunnelPage = z.infer<typeof funnelPageSchema>;
+
+// A/B Test Variant schema
+export const abTestVariantSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  // Variant can override any page properties
+  title: z.string().optional(),
+  subtitle: z.string().optional(),
+  elements: z.array(pageElementSchema).optional(),
+  backgroundColor: z.string().optional(),
+  buttonText: z.string().optional(),
+  // Traffic allocation percentage (0-100)
+  trafficAllocation: z.number().min(0).max(100).default(50),
+  // Variant-specific metrics
+  views: z.number().default(0),
+  conversions: z.number().default(0),
+});
+
+export type ABTestVariant = z.infer<typeof abTestVariantSchema>;
+
+// A/B Test schema for page-level testing
+export const abTestSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  pageId: z.string(),
+  // Control is the original page, variants are the alternatives
+  variants: z.array(abTestVariantSchema),
+  // Test status
+  status: z.enum(["draft", "running", "paused", "completed"]).default("draft"),
+  // Winner variant ID (set when test is completed)
+  winnerId: z.string().optional(),
+  // Test configuration
+  config: z.object({
+    // Minimum sample size per variant
+    minSampleSize: z.number().default(100),
+    // Statistical significance threshold (e.g., 0.95 for 95%)
+    significanceThreshold: z.number().default(0.95),
+    // Metric to optimize: conversion or engagement
+    goalMetric: z.enum(["conversion", "engagement", "time_on_page"]).default("conversion"),
+  }).optional(),
+  // Test dates
+  startedAt: z.string().optional(),
+  completedAt: z.string().optional(),
+  createdAt: z.string().optional(),
+});
+
+export type ABTest = z.infer<typeof abTestSchema>;
 
 // Theme schema
 export const themeSchema = z.object({
@@ -266,6 +484,8 @@ export const funnelSchema = z.object({
   status: z.enum(["draft", "published", "archived"]),
   pages: z.array(funnelPageSchema),
   theme: themeSchema,
+  // A/B Tests
+  abTests: z.array(abTestSchema).optional(),
   views: z.number(),
   leads: z.number(),
   createdAt: z.string().or(z.date()),
@@ -286,6 +506,7 @@ export const insertFunnelSchema = z.object({
     textColor: "#1a1a1a",
     fontFamily: "Inter",
   }),
+  abTests: z.array(abTestSchema).optional(),
 });
 
 export type InsertFunnel = z.infer<typeof insertFunnelSchema>;

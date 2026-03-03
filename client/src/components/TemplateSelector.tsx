@@ -19,7 +19,7 @@ import {
   templateCategories,
   getTemplatesByCategory,
   type FunnelTemplate,
-} from "@/data/funnel-templates";
+} from "@/lib/templates";
 
 interface TemplateSelectorProps {
   open: boolean;

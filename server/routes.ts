@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { passport, isAuthenticated, getUserId } from "./auth";
+import { passport, isAuthenticated, isAdmin, getUserId } from "./auth";
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema,
   loginSchema, registerSchema
@@ -84,10 +84,12 @@ export async function registerRoutes(
         return res.status(401).json({ error: info?.message || "Ungültige Anmeldedaten" });
       }
 
-      req.login(user, (loginErr) => {
+      req.login(user, async (loginErr) => {
         if (loginErr) {
           return res.status(500).json({ error: "Session konnte nicht erstellt werden" });
         }
+        // Update last login timestamp
+        await storage.updateLastLogin(user.id);
         res.json({ user });
       });
     })(req, res, next);
@@ -468,6 +470,180 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Get analytics error:", error);
       res.status(500).json({ error: "Analytics konnten nicht geladen werden" });
+    }
+  });
+
+  // ============ ADMIN ROUTES ============
+
+  // Admin login (separate endpoint for admin panel)
+  app.post("/api/admin/login", (req, res, next) => {
+    const result = loginSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ error: "Ungültige Anmeldedaten" });
+    }
+
+    passport.authenticate("local", async (err: any, user: any, info: any) => {
+      if (err) {
+        return res.status(500).json({ error: "Login fehlgeschlagen" });
+      }
+      if (!user) {
+        return res.status(401).json({ error: info?.message || "Ungültige Anmeldedaten" });
+      }
+
+      // Check if user is admin
+      const fullUser = await storage.getUser(user.id);
+      if (!fullUser?.isAdmin) {
+        return res.status(403).json({ error: "Kein Admin-Zugang" });
+      }
+
+      req.login(user, async (loginErr) => {
+        if (loginErr) {
+          return res.status(500).json({ error: "Session konnte nicht erstellt werden" });
+        }
+        // Update last login
+        await storage.updateLastLogin(user.id);
+        res.json({ user: { ...user, isAdmin: true } });
+      });
+    })(req, res, next);
+  });
+
+  // Get admin statistics
+  app.get("/api/admin/stats", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getAdminStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Get admin stats error:", error);
+      res.status(500).json({ error: "Statistiken konnten nicht geladen werden" });
+    }
+  });
+
+  // Get all users (admin only)
+  app.get("/api/admin/users", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(String(req.query.limit)) || 50;
+      const offset = parseInt(String(req.query.offset)) || 0;
+      const search = req.query.search as string | undefined;
+
+      const result = await storage.getAllUsers(limit, offset, search);
+
+      // Map users to response format
+      const users = result.users.map(user => ({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        displayName: user.displayName,
+        isAdmin: user.isAdmin,
+        isPro: user.isPro,
+        subscriptionStatus: user.subscriptionStatus,
+        subscriptionPlan: user.subscriptionPlan,
+        trialEndsAt: user.trialEndsAt?.toISOString() || null,
+        subscriptionStartedAt: user.subscriptionStartedAt?.toISOString() || null,
+        lastLoginAt: user.lastLoginAt?.toISOString() || null,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString(),
+        funnelCount: user.funnelCount,
+        leadCount: user.leadCount,
+        daysInTrial: user.trialEndsAt
+          ? Math.ceil((user.trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          : null,
+        isTrialExpired: user.trialEndsAt
+          ? user.trialEndsAt.getTime() < Date.now()
+          : false,
+      }));
+
+      res.json({ users, total: result.total });
+    } catch (error) {
+      console.error("Get users error:", error);
+      res.status(500).json({ error: "Benutzer konnten nicht geladen werden" });
+    }
+  });
+
+  // Update user (admin only)
+  app.patch("/api/admin/users/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(String(req.params.id));
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: "Ungültige Benutzer-ID" });
+      }
+
+      const updates: {
+        isPro?: boolean;
+        isAdmin?: boolean;
+        subscriptionStatus?: string;
+        subscriptionPlan?: string;
+        trialEndsAt?: Date | null;
+        subscriptionStartedAt?: Date | null;
+      } = {};
+
+      if (req.body.isPro !== undefined) updates.isPro = req.body.isPro;
+      if (req.body.isAdmin !== undefined) updates.isAdmin = req.body.isAdmin;
+      if (req.body.subscriptionStatus !== undefined) updates.subscriptionStatus = req.body.subscriptionStatus;
+      if (req.body.subscriptionPlan !== undefined) updates.subscriptionPlan = req.body.subscriptionPlan;
+      if (req.body.trialEndsAt !== undefined) {
+        updates.trialEndsAt = req.body.trialEndsAt ? new Date(req.body.trialEndsAt) : null;
+      }
+      if (req.body.subscriptionStartedAt !== undefined) {
+        updates.subscriptionStartedAt = req.body.subscriptionStartedAt ? new Date(req.body.subscriptionStartedAt) : null;
+      }
+
+      const user = await storage.updateUserAdmin(userId, updates);
+      if (!user) {
+        return res.status(404).json({ error: "Benutzer nicht gefunden" });
+      }
+
+      res.json({ success: true, user });
+    } catch (error) {
+      console.error("Update user error:", error);
+      res.status(500).json({ error: "Benutzer konnte nicht aktualisiert werden" });
+    }
+  });
+
+  // Delete user (admin only)
+  app.delete("/api/admin/users/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(String(req.params.id));
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: "Ungültige Benutzer-ID" });
+      }
+
+      // Prevent deleting yourself
+      if (userId === req.user?.id) {
+        return res.status(400).json({ error: "Du kannst dich nicht selbst löschen" });
+      }
+
+      const deleted = await storage.deleteUserAdmin(userId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Benutzer nicht gefunden" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete user error:", error);
+      res.status(500).json({ error: "Benutzer konnte nicht gelöscht werden" });
+    }
+  });
+
+  // Initialize admin user
+  app.post("/api/admin/init", async (req, res) => {
+    try {
+      // Check if request contains correct credentials
+      const { username, password, email } = req.body;
+
+      if (username !== "Superheld" || password !== "LKW_Peter123!") {
+        return res.status(403).json({ error: "Ungültige Initialisierungsdaten" });
+      }
+
+      await storage.ensureAdminUser(
+        "Superheld",
+        "LKW_Peter123!",
+        email || "admin@superbrand.marketing"
+      );
+
+      res.json({ success: true, message: "Admin-Benutzer wurde initialisiert" });
+    } catch (error) {
+      console.error("Admin init error:", error);
+      res.status(500).json({ error: "Admin konnte nicht initialisiert werden" });
     }
   });
 
