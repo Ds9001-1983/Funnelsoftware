@@ -13,7 +13,7 @@ import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import Funnels from "@/pages/funnels";
 import NewFunnel from "@/pages/new-funnel";
-import FunnelEditor from "@/pages/funnel-editor";
+import FunnelEditor from "@/components/funnel-editor/EditorShell";
 import Leads from "@/pages/leads";
 import Analytics from "@/pages/analytics";
 import Settings from "@/pages/settings";
