@@ -15,6 +15,9 @@ import Dashboard from "@/pages/dashboard";
 import Funnels from "@/pages/funnels";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
+import Impressum from "@/pages/impressum";
+import Datenschutz from "@/pages/datenschutz";
+import { CookieConsent } from "@/components/cookie-consent";
 
 // Lazy-loaded pages for code-splitting
 const NewFunnel = lazy(() => import("@/pages/new-funnel"));
@@ -98,6 +101,12 @@ function Router() {
         <Admin />
       </Suspense>
     );
+  // Legal pages (no sidebar, no auth required)
+  if (location === "/impressum") {
+    return <Impressum />;
+  }
+  if (location === "/datenschutz") {
+    return <Datenschutz />;
   }
 
   // Full-screen pages without sidebar (but protected)
@@ -146,6 +155,7 @@ function App() {
           <AuthProvider>
             <Toaster />
             <Router />
+            <CookieConsent />
           </AuthProvider>
         </TooltipProvider>
       </ThemeProvider>

@@ -19,7 +19,9 @@ import {
   PenTool,
   Palette,
   TrendingUp,
+  Cookie,
 } from "lucide-react";
+import { resetCookieConsent } from "@/components/cookie-consent";
 
 // Template preview data with images
 const templatePreviews = [
@@ -590,18 +592,22 @@ export default function Landing() {
             <div>
               <h4 className="font-semibold mb-4">Legal</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-foreground">Impressum</a></li>
-                <li><a href="#" className="hover:text-foreground">Datenschutz</a></li>
-                <li><a href="#" className="hover:text-foreground">AGB</a></li>
+                <li><Link href="/impressum" className="hover:text-foreground">Impressum</Link></li>
+                <li><Link href="/datenschutz" className="hover:text-foreground">Datenschutz</Link></li>
+                <li>
+                  <button 
+                    onClick={resetCookieConsent} 
+                    className="hover:text-foreground flex items-center gap-1"
+                  >
+                    <Cookie className="h-3 w-3" />
+                    Cookie-Einstellungen
+                  </button>
+                </li>
               </ul>
             </div>
           </div>
-          <div className="pt-8 border-t flex items-center justify-between text-sm text-muted-foreground">
-            <p>&copy; {new Date().getFullYear()} Trichterwerk. Alle Rechte vorbehalten.</p>
-            {/* Diskreter Admin-Zugang */}
-            <Link href="/admin" className="opacity-30 hover:opacity-100 transition-opacity">
-              Admin
-            </Link>
+          <div className="pt-8 border-t text-center text-sm text-muted-foreground">
+            <p>&copy; {new Date().getFullYear()} Trichterwerk · Ein Produkt von <a href="https://superbrand.marketing" target="_blank" rel="noopener noreferrer" className="hover:text-foreground underline">SUPERBRAND.marketing</a></p>
           </div>
         </div>
       </footer>
