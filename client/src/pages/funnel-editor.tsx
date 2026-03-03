@@ -1167,7 +1167,7 @@ export default function FunnelEditor() {
                     <PageEditor
                       page={selectedPage}
                       allPages={localFunnel.pages}
-                      onUpdate={handlePageUpdate}
+                      onUpdate={(updates) => updatePage(selectedPageIndex, updates)}
                       onUndo={undo}
                       onRedo={redo}
                       canUndo={canUndo}
