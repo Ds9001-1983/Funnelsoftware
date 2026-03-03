@@ -97,6 +97,8 @@ import {
   LayoutGrid,
   PanelLeft,
   PanelRight,
+
+  Pencil,
 } from "lucide-react";
 import {
   Tooltip,
@@ -195,7 +197,6 @@ export default function FunnelEditor() {
   // Mobile detection and responsive sidebar states
   const [isMobile, setIsMobile] = useState(false);
   const [showLeftSidebar, setShowLeftSidebar] = useState(true);
-  const [showRightSidebar, setShowRightSidebar] = useState(true);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -205,7 +206,6 @@ export default function FunnelEditor() {
       // Auto-hide sidebars on mobile
       if (mobile) {
         setShowLeftSidebar(false);
-        setShowRightSidebar(false);
       }
     };
 
@@ -215,7 +215,7 @@ export default function FunnelEditor() {
   }, []);
 
   // Perspective-style editor states
-  const [leftSidebarTab, setLeftSidebarTab] = useState<"pages" | "design">("pages");
+  const [leftSidebarTab, setLeftSidebarTab] = useState<"pages" | "design" | "edit">("pages");
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
 
   // Global clipboard for copy/paste functionality
@@ -810,7 +810,7 @@ export default function FunnelEditor() {
   if (isLoading) {
     return (
       <div className="h-screen flex">
-        <div className="w-72 border-r border-border p-4 space-y-4">
+        <div className="w-80 border-r border-border p-4 space-y-4">
           <Skeleton className="h-10 w-full" />
           <div className="space-y-2">
             {[1, 2, 3, 4].map((i) => (
@@ -1029,12 +1029,11 @@ export default function FunnelEditor() {
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* Mobile sidebar backdrop */}
-        {isMobile && (showLeftSidebar || showRightSidebar) && (
+        {isMobile && (showLeftSidebar) && (
           <div
             className="fixed inset-0 bg-black/50 z-40 md:hidden"
             onClick={() => {
               setShowLeftSidebar(false);
-              setShowRightSidebar(false);
             }}
           />
         )}
@@ -1042,10 +1041,10 @@ export default function FunnelEditor() {
         {/* Left sidebar - Seiten/Design tabs */}
         <div className={`
           ${isMobile ? "fixed left-0 top-14 bottom-0 z-50" : "relative"}
-          ${showLeftSidebar ? "w-72" : "w-0"}
+          ${showLeftSidebar ? "w-80" : "w-0"}
           border-r border-border bg-card overflow-hidden transition-all duration-300
         `}>
-          <div className="w-72 h-full flex flex-col">
+          <div className="w-80 h-full flex flex-col">
             {/* Tabs header */}
             <div className="border-b border-border">
               <div className="flex">
@@ -1070,6 +1069,17 @@ export default function FunnelEditor() {
                 >
                   <Settings className="h-4 w-4 inline-block mr-2" />
                   Design
+                </button>
+                <button
+                  className={`flex-1 py-3 px-4 text-sm font-medium transition-colors border-b-2 ${
+                    leftSidebarTab === "edit"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                  onClick={() => setLeftSidebarTab("edit")}
+                >
+                  <Pencil className="h-4 w-4 inline-block mr-2" />
+                  Bearbeiten
                 </button>
               </div>
             </div>
@@ -1116,7 +1126,7 @@ export default function FunnelEditor() {
                   </DndContext>
                 </div>
               </>
-            ) : (
+            ) : leftSidebarTab === "design" ? (
               <div className="flex-1 overflow-y-auto funnel-scrollbar">
                 {selectedElement ? (
                   <ElementPropertiesPanel
@@ -1148,6 +1158,38 @@ export default function FunnelEditor() {
                       </div>
                     ))}
                   </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {selectedPage && (
+                  <>
+                    <PageEditor
+                      page={selectedPage}
+                      allPages={localFunnel.pages}
+                      onUpdate={handlePageUpdate}
+                      onUndo={undo}
+                      onRedo={redo}
+                      canUndo={canUndo}
+                      canRedo={canRedo}
+                      copiedElement={copiedElement}
+                      pasteElement={pasteElement}
+                      insertVariable={insertVariable}
+                      primaryColor={localFunnel.settings?.primaryColor}
+                    />
+                    {localFunnel.abTests && localFunnel.abTests.length > 0 && (
+                      <ABTestEditor
+                        page={selectedPage}
+                        abTests={localFunnel.abTests || []}
+                        onCreateTest={handleCreateABTest}
+                        onUpdateTest={handleUpdateABTest}
+                        onDeleteTest={handleDeleteABTest}
+                        onStartTest={handleStartABTest}
+                        onPauseTest={handlePauseABTest}
+                        onCompleteTest={handleCompleteABTest}
+                      />
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -1255,64 +1297,7 @@ export default function FunnelEditor() {
           )}
         </div>
 
-        {/* Toggle Right Sidebar */}
-        <Button
-          size="icon"
-          variant="ghost"
-          className={`absolute top-1/2 -translate-y-1/2 z-[60] rounded-l-md rounded-r-none bg-card border border-r-0 shadow-md
-            ${isMobile ? "h-10 w-8" : "h-6 w-6"}
-          `}
-          onClick={() => setShowRightSidebar(!showRightSidebar)}
-          style={{ right: showRightSidebar && !isMobile ? "318px" : showRightSidebar && isMobile ? "320px" : "0" }}
-        >
-          {showRightSidebar ? <ChevronRight className={isMobile ? "h-5 w-5" : "h-3 w-3"} /> : <ChevronLeft className={isMobile ? "h-5 w-5" : "h-3 w-3"} />}
-        </Button>
-
-        {/* Right sidebar - Page editor */}
-        <div className={`
-          ${isMobile ? "fixed right-0 top-14 bottom-0 z-50" : "relative"}
-          ${showRightSidebar ? "w-80" : "w-0"}
-          border-l border-border bg-card overflow-hidden transition-all duration-300
-        `}>
-          <div className="w-80 h-full flex flex-col">
-            <div className="p-4 border-b border-border">
-              <h3 className="font-semibold">Seite bearbeiten</h3>
-              <p className="text-sm text-muted-foreground">
-                {pageTypeLabels[selectedPage?.type || "welcome"]}
-              </p>
-            </div>
-            <div className="flex-1 overflow-y-auto funnel-scrollbar p-4">
-              {selectedPage && (
-                <>
-                  <PageEditor
-                    page={selectedPage}
-                    allPages={localFunnel.pages}
-                    primaryColor={localFunnel.theme.primaryColor}
-                    onUpdate={(updates) => updatePage(selectedPageIndex, updates)}
-                    onUndo={undo}
-                    onRedo={redo}
-                    canUndo={canUndo}
-                    canRedo={canRedo}
-                  />
-
-                  {/* A/B Testing Section */}
-                  <div className="mt-6 pt-6 border-t">
-                    <ABTestEditor
-                      page={selectedPage}
-                      abTests={localFunnel.abTests || []}
-                      onCreateTest={createABTest}
-                      onUpdateTest={updateABTest}
-                      onDeleteTest={deleteABTest}
-                      onStartTest={startABTest}
-                      onPauseTest={pauseABTest}
-                      onCompleteTest={completeABTest}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+</div>
       </div>
 
       <AddPageDialog
@@ -1483,7 +1468,6 @@ export default function FunnelEditor() {
               onClick={() => {
                 setLeftSidebarTab("pages");
                 setShowLeftSidebar(!showLeftSidebar || leftSidebarTab !== "pages");
-                setShowRightSidebar(false);
               }}
             >
               <Layers className="h-5 w-5" />
@@ -1496,7 +1480,6 @@ export default function FunnelEditor() {
               onClick={() => {
                 setLeftSidebarTab("design");
                 setShowLeftSidebar(!showLeftSidebar || leftSidebarTab !== "design");
-                setShowRightSidebar(false);
               }}
             >
               <Plus className="h-5 w-5" />
@@ -1504,11 +1487,11 @@ export default function FunnelEditor() {
             </button>
             <button
               className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
-                showRightSidebar ? "text-primary bg-primary/10" : "text-muted-foreground"
+                leftSidebarTab === "edit" && showLeftSidebar ? "text-primary bg-primary/10" : "text-muted-foreground"
               }`}
               onClick={() => {
-                setShowRightSidebar(!showRightSidebar);
-                setShowLeftSidebar(false);
+                setLeftSidebarTab("edit");
+                setShowLeftSidebar(true);
               }}
             >
               <Settings className="h-5 w-5" />
