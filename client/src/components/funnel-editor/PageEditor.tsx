@@ -67,8 +67,8 @@ interface PageEditorProps {
 }
 
 /**
- * Haupteditor für eine einzelne Funnel-Seite.
- * Ermöglicht das Bearbeiten von Inhalt, Logik und Design einer Seite.
+ * Haupteditor fÃ¼r eine einzelne Funnel-Seite.
+ * ErmÃ¶glicht das Bearbeiten von Inhalt, Logik und Design einer Seite.
  */
 export function PageEditor({
   page,
@@ -150,15 +150,20 @@ export function PageEditor({
         type === "radio" ? ["Option 1", "Option 2", "Option 3"] :
         type === "select" ? ["Option 1", "Option 2", "Option 3"] : undefined,
       label:
+        type === "input" ? "Eingabefeld" :
+        type === "textarea" ? "Nachricht" :
         type === "fileUpload" ? "Datei hochladen" :
         type === "video" ? "Video" :
         type === "date" ? "Datum" :
         type === "heading" ? "Überschrift" :
         type === "text" ? "Dein Text hier..." :
-        type === "select" ? "Auswahl" : undefined,
+        type === "select" ? "Auswahl" :
+        type === "checkbox" ? "Ich stimme zu" :
+        type === "radio" ? "Auswahl treffen" : undefined,
       content:
         type === "heading" ? "Deine Überschrift" :
-        type === "text" ? "Füge hier deinen Text ein. Beschreibe dein Angebot oder gib wichtige Informationen." : undefined,
+        type === "text" ? "Füge hier deinen Text ein. Beschreibe dein Angebot oder gib wichtige Informationen." :
+        type === "button" ? "Button" : undefined,
       acceptedFileTypes: type === "fileUpload" ? [".pdf", ".jpg", ".jpeg", ".png"] : undefined,
       maxFileSize: type === "fileUpload" ? 10 : undefined,
       maxFiles: type === "fileUpload" ? 1 : undefined,
@@ -184,6 +189,7 @@ export function PageEditor({
       listStyle: type === "list" ? "check" : undefined,
       spacerHeight: type === "spacer" ? 32 : undefined,
       dividerStyle: type === "divider" ? "solid" : undefined,
+      dividerColor: type === "divider" ? "#e5e7eb" : undefined,
       timerEndDate: type === "timer" ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
       timerStyle: type === "timer" ? "countdown" : undefined,
       timerShowDays: type === "timer" ? true : undefined,
@@ -197,6 +203,14 @@ export function PageEditor({
       progressShowLabel: type === "progressBar" ? true : undefined,
       iconName: type === "icon" ? "star" : undefined,
       iconSize: type === "icon" ? "md" : undefined,
+      teamMembers: type === "team" ? [
+        { id: "tm1", name: "Anna Müller", role: "Geschäftsführerin", image: "" },
+        { id: "tm2", name: "Tom Schmidt", role: "Entwickler", image: "" },
+        { id: "tm3", name: "Lisa Weber", role: "Designerin", image: "" },
+        { id: "tm4", name: "Max Fischer", role: "Marketing", image: "" },
+      ] : undefined,
+      countdownStyle: type === "countdown" ? "default" : undefined,
+      countdownShowLabels: type === "countdown" ? true : undefined,
     };
     onUpdate({ elements: [...page.elements, newElement] });
   };
@@ -267,7 +281,7 @@ export function PageEditor({
                 <Undo2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Rückgängig (Ctrl+Z)</TooltipContent>
+            <TooltipContent>RÃ¼ckgÃ¤ngig (Ctrl+Z)</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -291,10 +305,10 @@ export function PageEditor({
               <TooltipTrigger asChild>
                 <Button size="sm" variant="outline" onClick={pasteElement}>
                   <Clipboard className="h-3.5 w-3.5 mr-1" />
-                  Einfügen
+                  EinfÃ¼gen
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Element einfügen</TooltipContent>
+              <TooltipContent>Element einfÃ¼gen</TooltipContent>
             </Tooltip>
           )}
         </div>
@@ -345,7 +359,7 @@ export function PageEditor({
           {/* Element Palette */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-base">Elemente hinzufügen</Label>
+              <Label className="text-base">Elemente hinzufÃ¼gen</Label>
             </div>
             <ElementPalette onAddElement={addElement} />
           </div>
@@ -383,7 +397,7 @@ export function PageEditor({
                                  el.type === "select" ? "Dropdown" :
                                  el.type === "testimonial" ? "Bewertung" :
                                  el.type === "slider" ? "Slider" :
-                                 el.type === "heading" ? "Überschrift" :
+                                 el.type === "heading" ? "Ãberschrift" :
                                  el.type === "text" ? "Text" :
                                  el.type === "faq" ? "FAQ" :
                                  el.type === "list" ? "Liste" :
@@ -413,7 +427,7 @@ export function PageEditor({
                               <div className="space-y-2">
                                 {el.type === "heading" ? (
                                   <Input
-                                    placeholder="Überschrift"
+                                    placeholder="Ãberschrift"
                                     value={el.content || ""}
                                     onChange={(e) => updateElement(el.id, { content: e.target.value })}
                                   />
@@ -626,7 +640,7 @@ export function PageEditor({
                                   }}
                                 >
                                   <Plus className="h-4 w-4 mr-1" />
-                                  Slide hinzufügen
+                                  Slide hinzufÃ¼gen
                                 </Button>
                               </div>
                             )}
@@ -671,7 +685,7 @@ export function PageEditor({
                                   }}
                                 >
                                   <Plus className="h-4 w-4 mr-1" />
-                                  FAQ hinzufügen
+                                  FAQ hinzufÃ¼gen
                                 </Button>
                               </div>
                             )}
@@ -686,7 +700,7 @@ export function PageEditor({
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="check">Häkchen</SelectItem>
+                                    <SelectItem value="check">HÃ¤kchen</SelectItem>
                                     <SelectItem value="bullet">Punkte</SelectItem>
                                     <SelectItem value="number">Nummern</SelectItem>
                                   </SelectContent>
@@ -724,14 +738,14 @@ export function PageEditor({
                                   }}
                                 >
                                   <Plus className="h-4 w-4 mr-1" />
-                                  Punkt hinzufügen
+                                  Punkt hinzufÃ¼gen
                                 </Button>
                               </div>
                             )}
 
                             {el.type === "spacer" && (
                               <div className="space-y-2">
-                                <Label className="text-xs">Höhe: {el.spacerHeight || 32}px</Label>
+                                <Label className="text-xs">HÃ¶he: {el.spacerHeight || 32}px</Label>
                                 <Slider
                                   value={[el.spacerHeight || 32]}
                                   onValueChange={([v]) => updateElement(el.id, { spacerHeight: v })}
@@ -885,7 +899,7 @@ export function PageEditor({
                                   }}
                                 >
                                   <Plus className="h-4 w-4 mr-1" />
-                                  Element hinzufügen
+                                  Element hinzufÃ¼gen
                                 </Button>
                               </div>
                             )}
@@ -943,7 +957,7 @@ export function PageEditor({
                                   <SelectContent>
                                     <SelectItem value="star">Stern</SelectItem>
                                     <SelectItem value="heart">Herz</SelectItem>
-                                    <SelectItem value="check">Häkchen</SelectItem>
+                                    <SelectItem value="check">HÃ¤kchen</SelectItem>
                                     <SelectItem value="award">Auszeichnung</SelectItem>
                                     <SelectItem value="shield">Schild</SelectItem>
                                     <SelectItem value="trophy">Pokal</SelectItem>
@@ -951,7 +965,7 @@ export function PageEditor({
                                     <SelectItem value="lightning">Blitz</SelectItem>
                                   </SelectContent>
                                 </Select>
-                                <Label className="text-xs">Größe</Label>
+                                <Label className="text-xs">GrÃ¶Ãe</Label>
                                 <Select
                                   value={el.iconSize || "md"}
                                   onValueChange={(v) => updateElement(el.id, { iconSize: v as "sm" | "md" | "lg" | "xl" })}
@@ -962,8 +976,8 @@ export function PageEditor({
                                   <SelectContent>
                                     <SelectItem value="sm">Klein</SelectItem>
                                     <SelectItem value="md">Mittel</SelectItem>
-                                    <SelectItem value="lg">Groß</SelectItem>
-                                    <SelectItem value="xl">Sehr groß</SelectItem>
+                                    <SelectItem value="lg">GroÃ</SelectItem>
+                                    <SelectItem value="xl">Sehr groÃ</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -1016,10 +1030,10 @@ export function PageEditor({
               onValueChange={(value) => onUpdate({ nextPageId: value === "auto" ? undefined : value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Automatisch (nächste Seite)" />
+                <SelectValue placeholder="Automatisch (nÃ¤chste Seite)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="auto">Automatisch (nächste Seite)</SelectItem>
+                <SelectItem value="auto">Automatisch (nÃ¤chste Seite)</SelectItem>
                 {allPages.map((p, idx) => (
                   <SelectItem key={p.id} value={p.id}>
                     {idx + 1}. {p.title}
@@ -1111,3 +1125,4 @@ export function PageEditor({
     </div>
   );
 }
+teamMembers
