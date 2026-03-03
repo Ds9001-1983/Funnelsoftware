@@ -13,7 +13,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+} from "@dnd-kit/sortable"
 import {
   Plus,
   X,
@@ -1125,4 +1125,3 @@ export function PageEditor({
     </div>
   );
 }
-teamMembers
