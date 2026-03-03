@@ -32,7 +32,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   devicePreview: "mobile",
   isDragging: false,
   leftPanelOpen: true,
-  rightPanelOpen: true,
+  leftPanelView: "elements",
   settingsTab: "inhalt",
   history: [],
   historyIndex: -1,
@@ -151,7 +151,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     );
     const label = definition?.label || type;
     pushHistory(`${label} hinzugefügt`, pages, state.currentPageId);
-    set({ pages, selectedElementId: newElement.id, settingsTab: "inhalt", saveStatus: "unsaved" });
+    set({ pages, selectedElementId: newElement.id, settingsTab: "inhalt", leftPanelView: "settings", saveStatus: "unsaved" });
   },
 
   deleteElement: (elementId) => {
@@ -222,7 +222,11 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   // --- Selection & hover ---
   selectElement: (elementId) => {
-    set({ selectedElementId: elementId, settingsTab: "inhalt" });
+    if (elementId) {
+      set({ selectedElementId: elementId, settingsTab: "inhalt", leftPanelView: "settings", leftPanelOpen: true });
+    } else {
+      set({ selectedElementId: null, settingsTab: "inhalt" });
+    }
   },
 
   hoverElement: (elementId) => {
@@ -233,7 +237,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setDevicePreview: (device) => set({ devicePreview: device }),
   setIsDragging: (dragging) => set({ isDragging: dragging }),
   toggleLeftPanel: () => set((s) => ({ leftPanelOpen: !s.leftPanelOpen })),
-  toggleRightPanel: () => set((s) => ({ rightPanelOpen: !s.rightPanelOpen })),
+  setLeftPanelView: (view) => set({ leftPanelView: view, leftPanelOpen: true }),
   setSettingsTab: (tab) => set({ settingsTab: tab }),
 
   // --- History ---

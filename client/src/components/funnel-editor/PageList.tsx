@@ -34,10 +34,14 @@ const PAGE_TYPE_COLORS: Record<string, string> = {
   thankyou: "bg-pink-500",
 };
 
+interface PageListProps {
+  fullHeight?: boolean;
+}
+
 /**
  * Kompakte Seitenliste in der linken Sidebar.
  */
-export function PageList() {
+export function PageList({ fullHeight }: PageListProps) {
   const pages = useEditorStore((s) => s.pages);
   const currentPageId = useEditorStore((s) => s.currentPageId);
   const setCurrentPage = useEditorStore((s) => s.setCurrentPage);
@@ -50,8 +54,8 @@ export function PageList() {
   }, [addPage, currentPageId]);
 
   return (
-    <div className="border-b border-border bg-card">
-      <div className="p-3 flex items-center justify-between">
+    <div className={fullHeight ? "bg-card h-full flex flex-col" : "border-b border-border bg-card"}>
+      <div className="p-3 flex items-center justify-between shrink-0">
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Seiten ({pages.length})
         </h4>
@@ -70,7 +74,7 @@ export function PageList() {
         </Select>
       </div>
 
-      <div className="px-2 pb-2 space-y-0.5 max-h-[200px] overflow-y-auto">
+      <div className={`px-2 pb-2 space-y-0.5 ${fullHeight ? "flex-1 overflow-y-auto" : "max-h-[200px] overflow-y-auto"}`}>
         {pages.map((page, index) => (
           <PageItem
             key={page.id}

@@ -44,7 +44,7 @@ export function ElementPanel() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-card border-r border-border">
+    <div className="h-full flex flex-col bg-card">
       <div className="p-4 border-b border-border">
         <h3 className="text-sm font-semibold mb-3">Elemente</h3>
         <div className="relative">

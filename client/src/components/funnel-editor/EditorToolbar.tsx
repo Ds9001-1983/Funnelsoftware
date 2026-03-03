@@ -9,8 +9,6 @@ import {
   Globe,
   PanelLeftClose,
   PanelLeftOpen,
-  PanelRightClose,
-  PanelRightOpen,
   Check,
   Loader2,
   AlertCircle,
@@ -45,9 +43,7 @@ export function EditorToolbar({ onSave, onPublish, onPreview }: EditorToolbarPro
   const devicePreview = useEditorStore((s) => s.devicePreview);
   const setDevicePreview = useEditorStore((s) => s.setDevicePreview);
   const leftPanelOpen = useEditorStore((s) => s.leftPanelOpen);
-  const rightPanelOpen = useEditorStore((s) => s.rightPanelOpen);
   const toggleLeftPanel = useEditorStore((s) => s.toggleLeftPanel);
-  const toggleRightPanel = useEditorStore((s) => s.toggleRightPanel);
   const saveStatus = useEditorStore((s) => s.saveStatus);
 
   return (
@@ -140,7 +136,7 @@ export function EditorToolbar({ onSave, onPublish, onPreview }: EditorToolbarPro
         />
       </div>
 
-      {/* Right: Panel toggles + Actions */}
+      {/* Right: Panel toggle + Actions */}
       <div className="flex items-center gap-2">
         <Tooltip>
           <TooltipTrigger asChild>
@@ -157,25 +153,7 @@ export function EditorToolbar({ onSave, onPublish, onPreview }: EditorToolbarPro
               )}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{leftPanelOpen ? "Linke Leiste ausblenden" : "Linke Leiste einblenden"}</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={toggleRightPanel}
-            >
-              {rightPanelOpen ? (
-                <PanelRightClose className="h-4 w-4" />
-              ) : (
-                <PanelRightOpen className="h-4 w-4" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{rightPanelOpen ? "Rechte Leiste ausblenden" : "Rechte Leiste einblenden"}</TooltipContent>
+          <TooltipContent>{leftPanelOpen ? "Seitenleiste ausblenden" : "Seitenleiste einblenden"}</TooltipContent>
         </Tooltip>
 
         <div className="mx-1 h-6 w-px bg-border" />

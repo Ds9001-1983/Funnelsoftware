@@ -20,10 +20,8 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Funnel } from "@shared/schema";
 import { useEditorStore } from "./store/editor-store";
 import { EditorToolbar } from "./EditorToolbar";
-import { ElementPanel } from "./ElementPanel";
 import { EditorCanvas } from "./EditorCanvas";
-import { SettingsPanel } from "./SettingsPanel";
-import { PageList } from "./PageList";
+import { LeftSidebar } from "./LeftSidebar";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useEditorAutoSave } from "./hooks/useEditorAutoSave";
 import { registry } from "./registry/element-registry";
@@ -34,7 +32,7 @@ import "./registry/register-all";
 
 /**
  * Hauptkomponente des Editor V2.
- * 3-Panel-Layout: ElementPanel | Canvas | SettingsPanel
+ * 2-Panel-Layout: LeftSidebar (Seiten/Elemente/Settings) | Canvas
  */
 export default function EditorShell() {
   const [, params] = useRoute("/funnels/:id");
@@ -58,7 +56,6 @@ export default function EditorShell() {
   const funnelName = useEditorStore((s) => s.funnelName);
   const status = useEditorStore((s) => s.status);
   const leftPanelOpen = useEditorStore((s) => s.leftPanelOpen);
-  const rightPanelOpen = useEditorStore((s) => s.rightPanelOpen);
   const addElement = useEditorStore((s) => s.addElement);
   const moveElement = useEditorStore((s) => s.moveElement);
   const setIsDragging = useEditorStore((s) => s.setIsDragging);
@@ -249,35 +246,19 @@ export default function EditorShell() {
 
           {/* Main content area */}
           <div className="flex-1 flex overflow-hidden relative">
-            {/* Left: Page list + Element panel */}
+            {/* Left: Sidebar with tabs (Seiten/Elemente/Settings) */}
             <div
-              className={`flex shrink-0 transition-all duration-300 ${
-                leftPanelOpen ? "w-[280px]" : "w-0"
+              className={`shrink-0 transition-all duration-300 ${
+                leftPanelOpen ? "w-[320px]" : "w-0"
               } overflow-hidden`}
             >
-              <div className="w-[280px] flex flex-col h-full">
-                {/* Page list (compact) */}
-                <PageList />
-                {/* Element palette */}
-                <div className="flex-1 overflow-hidden">
-                  <ElementPanel />
-                </div>
+              <div className="w-[320px] h-full">
+                <LeftSidebar />
               </div>
             </div>
 
             {/* Center: Canvas */}
             <EditorCanvas />
-
-            {/* Right: Settings panel */}
-            <div
-              className={`shrink-0 transition-all duration-300 ${
-                rightPanelOpen ? "w-[320px]" : "w-0"
-              } overflow-hidden`}
-            >
-              <div className="w-[320px] h-full">
-                <SettingsPanel />
-              </div>
-            </div>
           </div>
         </div>
 

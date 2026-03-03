@@ -27,6 +27,9 @@ export interface HistoryEntry {
 // Save status indicator
 export type SaveStatus = "saved" | "saving" | "error" | "unsaved";
 
+// Left panel view mode
+export type LeftPanelView = "pages" | "elements" | "settings";
+
 // Editor state
 export interface EditorState {
   // Funnel data
@@ -44,7 +47,7 @@ export interface EditorState {
   devicePreview: DeviceType;
   isDragging: boolean;
   leftPanelOpen: boolean;
-  rightPanelOpen: boolean;
+  leftPanelView: LeftPanelView;
   settingsTab: "inhalt" | "style" | "erweitert";
 
   // History
@@ -91,7 +94,7 @@ export interface EditorActions {
   setDevicePreview: (device: DeviceType) => void;
   setIsDragging: (dragging: boolean) => void;
   toggleLeftPanel: () => void;
-  toggleRightPanel: () => void;
+  setLeftPanelView: (view: LeftPanelView) => void;
   setSettingsTab: (tab: EditorState["settingsTab"]) => void;
 
   // History

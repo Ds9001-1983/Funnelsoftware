@@ -31,7 +31,7 @@ import { ConditionalLogicEditor } from "./ConditionalLogicEditor";
 import { SectionTemplatesPicker } from "./SectionTemplatesPicker";
 
 /**
- * Rechte Seitenleiste: Zeigt entweder Element-Settings oder Seiten-Settings.
+ * Settings-Bereich: Zeigt entweder Element-Settings oder Seiten-Settings.
  */
 export function SettingsPanel() {
   const selectedElementId = useEditorStore((s) => s.selectedElementId);
@@ -41,7 +41,7 @@ export function SettingsPanel() {
   if (!currentPage) return null;
 
   return (
-    <div className="h-full flex flex-col bg-card border-l border-border">
+    <div className="h-full flex flex-col bg-card">
       {selectedElement ? (
         <ElementSettings element={selectedElement} />
       ) : (
