@@ -1297,7 +1297,6 @@ export default function FunnelEditor() {
           )}
         </div>
 
-</div>
       </div>
 
       <AddPageDialog
