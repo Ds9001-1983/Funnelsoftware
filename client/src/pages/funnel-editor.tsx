@@ -1172,9 +1172,9 @@ export default function FunnelEditor() {
                       onRedo={redo}
                       canUndo={canUndo}
                       canRedo={canRedo}
-                      copiedElement={copiedElement}
-                      pasteElement={pasteElement}
-                      insertVariable={insertVariable}
+                      copiedElement={null}
+                      pasteElement={() => {}}
+                      insertVariable={() => {}}
                       primaryColor={localFunnel.settings?.primaryColor}
                     />
                     {localFunnel.abTests && localFunnel.abTests.length > 0 && (
