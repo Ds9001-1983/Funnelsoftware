@@ -13,7 +13,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-} from "@dnd-kit/sortable"
+} from "@dnd-kit/sortable";
 import {
   Plus,
   X,
@@ -67,8 +67,8 @@ interface PageEditorProps {
 }
 
 /**
- * Haupteditor fÃ¼r eine einzelne Funnel-Seite.
- * ErmÃ¶glicht das Bearbeiten von Inhalt, Logik und Design einer Seite.
+ * Haupteditor für eine einzelne Funnel-Seite.
+ * Ermöglicht das Bearbeiten von Inhalt, Logik und Design einer Seite.
  */
 export function PageEditor({
   page,
@@ -281,7 +281,7 @@ export function PageEditor({
                 <Undo2 className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>RÃ¼ckgÃ¤ngig (Ctrl+Z)</TooltipContent>
+            <TooltipContent>Rückgängig (Ctrl+Z)</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -305,10 +305,10 @@ export function PageEditor({
               <TooltipTrigger asChild>
                 <Button size="sm" variant="outline" onClick={pasteElement}>
                   <Clipboard className="h-3.5 w-3.5 mr-1" />
-                  EinfÃ¼gen
+                  Einfügen
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Element einfÃ¼gen</TooltipContent>
+              <TooltipContent>Element einfügen</TooltipContent>
             </Tooltip>
           )}
         </div>
@@ -359,7 +359,7 @@ export function PageEditor({
           {/* Element Palette */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-base">Elemente hinzufÃ¼gen</Label>
+              <Label className="text-base">Elemente hinzufügen</Label>
             </div>
             <ElementPalette onAddElement={addElement} />
           </div>
@@ -397,7 +397,7 @@ export function PageEditor({
                                  el.type === "select" ? "Dropdown" :
                                  el.type === "testimonial" ? "Bewertung" :
                                  el.type === "slider" ? "Slider" :
-                                 el.type === "heading" ? "Ãberschrift" :
+                                 el.type === "heading" ? "Überschrift" :
                                  el.type === "text" ? "Text" :
                                  el.type === "faq" ? "FAQ" :
                                  el.type === "list" ? "Liste" :
@@ -427,7 +427,7 @@ export function PageEditor({
                               <div className="space-y-2">
                                 {el.type === "heading" ? (
                                   <Input
-                                    placeholder="Ãberschrift"
+                                    placeholder="Überschrift"
                                     value={el.content || ""}
                                     onChange={(e) => updateElement(el.id, { content: e.target.value })}
                                   />
@@ -640,7 +640,7 @@ export function PageEditor({
                                   }}
                                 >
                                   <Plus className="h-4 w-4 mr-1" />
-                                  Slide hinzufÃ¼gen
+                                  Slide hinzufügen
                                 </Button>
                               </div>
                             )}
@@ -685,7 +685,7 @@ export function PageEditor({
                                   }}
                                 >
                                   <Plus className="h-4 w-4 mr-1" />
-                                  FAQ hinzufÃ¼gen
+                                  FAQ hinzufügen
                                 </Button>
                               </div>
                             )}
@@ -700,7 +700,7 @@ export function PageEditor({
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="check">HÃ¤kchen</SelectItem>
+                                    <SelectItem value="check">Häkchen</SelectItem>
                                     <SelectItem value="bullet">Punkte</SelectItem>
                                     <SelectItem value="number">Nummern</SelectItem>
                                   </SelectContent>
@@ -738,14 +738,14 @@ export function PageEditor({
                                   }}
                                 >
                                   <Plus className="h-4 w-4 mr-1" />
-                                  Punkt hinzufÃ¼gen
+                                  Punkt hinzufügen
                                 </Button>
                               </div>
                             )}
 
                             {el.type === "spacer" && (
                               <div className="space-y-2">
-                                <Label className="text-xs">HÃ¶he: {el.spacerHeight || 32}px</Label>
+                                <Label className="text-xs">Höhe: {el.spacerHeight || 32}px</Label>
                                 <Slider
                                   value={[el.spacerHeight || 32]}
                                   onValueChange={([v]) => updateElement(el.id, { spacerHeight: v })}
@@ -899,7 +899,7 @@ export function PageEditor({
                                   }}
                                 >
                                   <Plus className="h-4 w-4 mr-1" />
-                                  Element hinzufÃ¼gen
+                                  Element hinzufügen
                                 </Button>
                               </div>
                             )}
@@ -957,7 +957,7 @@ export function PageEditor({
                                   <SelectContent>
                                     <SelectItem value="star">Stern</SelectItem>
                                     <SelectItem value="heart">Herz</SelectItem>
-                                    <SelectItem value="check">HÃ¤kchen</SelectItem>
+                                    <SelectItem value="check">Häkchen</SelectItem>
                                     <SelectItem value="award">Auszeichnung</SelectItem>
                                     <SelectItem value="shield">Schild</SelectItem>
                                     <SelectItem value="trophy">Pokal</SelectItem>
@@ -965,7 +965,7 @@ export function PageEditor({
                                     <SelectItem value="lightning">Blitz</SelectItem>
                                   </SelectContent>
                                 </Select>
-                                <Label className="text-xs">GrÃ¶Ãe</Label>
+                                <Label className="text-xs">Größe</Label>
                                 <Select
                                   value={el.iconSize || "md"}
                                   onValueChange={(v) => updateElement(el.id, { iconSize: v as "sm" | "md" | "lg" | "xl" })}
@@ -976,8 +976,8 @@ export function PageEditor({
                                   <SelectContent>
                                     <SelectItem value="sm">Klein</SelectItem>
                                     <SelectItem value="md">Mittel</SelectItem>
-                                    <SelectItem value="lg">GroÃ</SelectItem>
-                                    <SelectItem value="xl">Sehr groÃ</SelectItem>
+                                    <SelectItem value="lg">Groß</SelectItem>
+                                    <SelectItem value="xl">Sehr groß</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -1030,10 +1030,10 @@ export function PageEditor({
               onValueChange={(value) => onUpdate({ nextPageId: value === "auto" ? undefined : value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Automatisch (nÃ¤chste Seite)" />
+                <SelectValue placeholder="Automatisch (nächste Seite)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="auto">Automatisch (nÃ¤chste Seite)</SelectItem>
+                <SelectItem value="auto">Automatisch (nächste Seite)</SelectItem>
                 {allPages.map((p, idx) => (
                   <SelectItem key={p.id} value={p.id}>
                     {idx + 1}. {p.title}
