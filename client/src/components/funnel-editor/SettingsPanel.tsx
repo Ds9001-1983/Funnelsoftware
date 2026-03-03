@@ -27,6 +27,8 @@ import { ColorPicker } from "./settings-controls/ColorPicker";
 import { SpacingControl } from "./settings-controls/SpacingControl";
 import { TypographyControl } from "./settings-controls/TypographyControl";
 import * as Icons from "lucide-react";
+import { ConditionalLogicEditor } from "./ConditionalLogicEditor";
+import { SectionTemplatesPicker } from "./SectionTemplatesPicker";
 
 /**
  * Rechte Seitenleiste: Zeigt entweder Element-Settings oder Seiten-Settings.
@@ -318,6 +320,18 @@ function PageSettings({ page }: { page: FunnelPage }) {
             />
           </div>
         )}
+
+        {/* Conditional Logic */}
+        <div className="space-y-2">
+          <Label className="text-xs">Conditional Logic</Label>
+          <ConditionalLogicEditor pageId={page.id} />
+        </div>
+
+        {/* Section Templates */}
+        <div className="space-y-2">
+          <Label className="text-xs">Vorlagen</Label>
+          <SectionTemplatesPicker />
+        </div>
       </div>
     </>
   );

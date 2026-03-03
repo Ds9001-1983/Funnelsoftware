@@ -132,6 +132,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     if (!page) return;
 
     const definition = registry.get(type);
+    if (!definition) return;
     const newElement: PageElement = {
       id: generateId(),
       type,
@@ -189,6 +190,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const elements = [...page.elements];
     const oldIndex = elements.findIndex((el) => el.id === elementId);
     if (oldIndex === -1) return;
+    if (newPosition < 0 || newPosition >= elements.length) return;
     const [moved] = elements.splice(oldIndex, 1);
     elements.splice(newPosition, 0, moved);
     const pages = state.pages.map((p) =>
@@ -220,7 +222,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   // --- Selection & hover ---
   selectElement: (elementId) => {
-    set({ selectedElementId: elementId, settingsTab: elementId ? "inhalt" : "inhalt" });
+    set({ selectedElementId: elementId, settingsTab: "inhalt" });
   },
 
   hoverElement: (elementId) => {

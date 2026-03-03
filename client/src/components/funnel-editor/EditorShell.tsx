@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -26,6 +26,8 @@ import { SettingsPanel } from "./SettingsPanel";
 import { PageList } from "./PageList";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useEditorAutoSave } from "./hooks/useEditorAutoSave";
+import { registry } from "./registry/element-registry";
+import * as Icons from "lucide-react";
 
 // Initialize all element registrations
 import "./registry/register-all";
@@ -109,13 +111,27 @@ export default function EditorShell() {
     })
   );
 
+  // DnD state for overlay
+  const [activeDragData, setActiveDragData] = useState<{
+    isNew: boolean;
+    type?: string;
+    elementId?: string;
+  } | null>(null);
+
   // DnD handlers
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setIsDragging(true);
+    const data = event.active.data.current;
+    if (data?.isNew) {
+      setActiveDragData({ isNew: true, type: data.type });
+    } else if (data?.type === "canvas-element") {
+      setActiveDragData({ isNew: false, elementId: event.active.id as string });
+    }
   }, [setIsDragging]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     setIsDragging(false);
+    setActiveDragData(null);
     const { active, over } = event;
 
     if (!over) return;
@@ -155,6 +171,7 @@ export default function EditorShell() {
 
   const handleDragCancel = useCallback(() => {
     setIsDragging(false);
+    setActiveDragData(null);
   }, [setIsDragging]);
 
   // Preview
@@ -263,7 +280,47 @@ export default function EditorShell() {
             </div>
           </div>
         </div>
+
+        {/* Drag overlay - visual feedback while dragging */}
+        <DragOverlay>
+          {activeDragData && (
+            <DragOverlayContent data={activeDragData} />
+          )}
+        </DragOverlay>
       </DndContext>
     </TooltipProvider>
   );
+}
+
+function DragOverlayContent({ data }: { data: { isNew: boolean; type?: string; elementId?: string } }) {
+  if (data.isNew && data.type) {
+    const definition = registry.get(data.type);
+    const IconComponent = definition?.icon
+      ? (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[definition.icon]
+      : null;
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card border border-primary/30 shadow-lg opacity-90">
+        {IconComponent && <IconComponent className="h-4 w-4 text-primary" />}
+        <span className="text-sm font-medium">{definition?.label || data.type}</span>
+      </div>
+    );
+  }
+
+  if (!data.isNew && data.elementId) {
+    const page = useEditorStore.getState().getCurrentPage();
+    const element = page?.elements.find((el) => el.id === data.elementId);
+    if (element) {
+      const definition = registry.get(element.type);
+      const RenderComponent = definition?.renderComponent;
+      if (RenderComponent) {
+        return (
+          <div className="opacity-70 shadow-lg rounded-lg p-2 bg-card border max-w-[300px]">
+            <RenderComponent element={element} textColor="#1a1a1a" primaryColor="#7C3AED" />
+          </div>
+        );
+      }
+    }
+  }
+
+  return null;
 }
