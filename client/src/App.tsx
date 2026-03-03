@@ -101,6 +101,7 @@ function Router() {
         <Admin />
       </Suspense>
     );
+  }
   // Legal pages (no sidebar, no auth required)
   if (location === "/impressum") {
     return <Impressum />;
