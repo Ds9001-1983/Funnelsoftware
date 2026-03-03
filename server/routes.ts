@@ -630,13 +630,20 @@ export async function registerRoutes(
       // Check if request contains correct credentials
       const { username, password, email } = req.body;
 
-      if (username !== "Superheld" || password !== "LKW_Peter123!") {
+      const adminUser = process.env.ADMIN_USERNAME || "admin";
+      const adminPass = process.env.ADMIN_PASSWORD;
+
+      if (!adminPass) {
+        return res.status(500).json({ error: "ADMIN_PASSWORD Umgebungsvariable nicht gesetzt" });
+      }
+
+      if (username !== adminUser || password !== adminPass) {
         return res.status(403).json({ error: "Ungültige Initialisierungsdaten" });
       }
 
       await storage.ensureAdminUser(
-        "Superheld",
-        "LKW_Peter123!",
+        adminUser,
+        adminPass,
         email || "admin@superbrand.marketing"
       );
 
