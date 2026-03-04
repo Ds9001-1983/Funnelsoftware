@@ -64,8 +64,6 @@ import {
   Users,
   Zap,
   MousePointer2,
-  Undo2,
-  Redo2,
   Monitor,
   Tablet,
   Menu,
@@ -181,6 +179,7 @@ import {
 } from "@/components/funnel-editor";
 import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
 import { ClipboardIndicator } from "@/components/funnel-editor/ClipboardIndicator";
+import { HistoryIndicator } from "@/components/funnel-editor/HistoryIndicator";
 
 type PageType = FunnelPage["type"];
 
@@ -235,6 +234,7 @@ export default function FunnelEditor() {
     reset: resetHistory,
     canUndo,
     canRedo,
+    historyLength,
   } = useHistory<Funnel | null>(null);
 
   const [hasChanges, setHasChanges] = useState(false);
@@ -922,37 +922,14 @@ export default function FunnelEditor() {
 
         {/* Right - Actions */}
         <div className="flex items-center gap-2">
-          {/* Undo/Redo buttons in header */}
-          <div className="flex items-center gap-0.5 mr-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => { undo(); setHasChanges(true); }}
-                  disabled={!canUndo}
-                >
-                  <Undo2 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Rückgängig (Ctrl+Z)</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => { redo(); setHasChanges(true); }}
-                  disabled={!canRedo}
-                >
-                  <Redo2 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Wiederholen (Ctrl+Y)</TooltipContent>
-            </Tooltip>
-          </div>
+          {/* History indicator with undo/redo */}
+          <HistoryIndicator
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={undo}
+            onRedo={redo}
+            historyLength={historyLength}
+          />
 
           {/* Clipboard indicator */}
           {clipboard && (
