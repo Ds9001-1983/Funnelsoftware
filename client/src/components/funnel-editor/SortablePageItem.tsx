@@ -1,6 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Copy, Trash2 } from "lucide-react";
+import { PageActionsMenu } from "./PageActionsMenu";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -18,6 +19,9 @@ interface SortablePageItemProps {
   onDelete: () => void;
   onDuplicate: () => void;
   totalPages: number;
+  onRename?: () => void;
+  onToggleVisibility?: () => void;
+  isHidden?: boolean;
 }
 
 /**
@@ -32,6 +36,9 @@ export function SortablePageItem({
   onDelete,
   onDuplicate,
   totalPages,
+  onRename,
+  onToggleVisibility,
+  isHidden,
 }: SortablePageItemProps) {
   const {
     attributes,
@@ -116,6 +123,16 @@ export function SortablePageItem({
           </TooltipTrigger>
           <TooltipContent>Löschen</TooltipContent>
         </Tooltip>
+        {onRename && onToggleVisibility && (
+          <PageActionsMenu
+            pageTitle={page.title}
+            isHidden={isHidden}
+            onRename={onRename}
+            onDuplicate={onDuplicate}
+            onToggleVisibility={onToggleVisibility}
+            onDelete={onDelete}
+          />
+        )}
       </div>
     </div>
   );
