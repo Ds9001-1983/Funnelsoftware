@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
@@ -166,7 +166,6 @@ import {
   SectionTemplatesPicker,
   LayoutSelector,
   SectionEditor,
-  PageEditor,
   DraggableElement,
   FunnelProgress,
   FormFieldWithValidation,
@@ -181,6 +180,8 @@ import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
 import { ClipboardIndicator } from "@/components/funnel-editor/ClipboardIndicator";
 import { HistoryIndicator } from "@/components/funnel-editor/HistoryIndicator";
 import { ThemePresetPicker } from "@/components/funnel-editor/ThemePresetPicker";
+
+const PageEditor = lazy(() => import("@/components/funnel-editor/PageEditor").then(m => ({ default: m.PageEditor })));
 
 type PageType = FunnelPage["type"];
 
@@ -1179,6 +1180,7 @@ export default function FunnelEditor() {
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {selectedPage && (
                   <>
+                    <Suspense fallback={<div className="p-8 space-y-4"><Skeleton className="h-8 w-full" /><Skeleton className="h-32 w-full" /><Skeleton className="h-8 w-3/4" /></div>}>
                     <PageEditor
                       page={selectedPage}
                       allPages={localFunnel.pages}
@@ -1202,6 +1204,7 @@ export default function FunnelEditor() {
                       insertVariable={() => {}}
                       primaryColor={localFunnel.settings?.primaryColor}
                     />
+                    </Suspense>
                     {localFunnel.abTests && localFunnel.abTests.length > 0 && (
                       <ABTestEditor
                         page={selectedPage}
