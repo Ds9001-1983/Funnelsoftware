@@ -83,6 +83,7 @@ export function PageEditor({
   const [copiedElement, setCopiedElement] = useState<PageElement | null>(null);
   const [activeTab, setActiveTab] = useState("content");
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   // Section management handlers
@@ -377,7 +378,7 @@ export function PageEditor({
                   items={page.elements.map((el) => el.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  <div className="space-y-2">
+                  <div className="space-y-2" onClick={() => setSelectedElementId(null)}>
                     {page.elements.map((el) => (
                       <SortableElementItem
                         key={el.id}
@@ -385,7 +386,7 @@ export function PageEditor({
                         onDelete={() => removeElement(el.id)}
                         onDuplicate={() => duplicateElement(el)}
                       >
-                        <Card>
+                    <Card className={selectedElementId === el.id ? "ring-2 ring-primary cursor-pointer transition-shadow" : "cursor-pointer transition-shadow hover:shadow-md"} onClick={(e) => { e.stopPropagation(); setSelectedElementId(el.id); }}>
                           <CardContent className="p-3 space-y-2">
                             <div className="flex items-center justify-between gap-2">
                               <Badge variant="secondary" className="capitalize">
