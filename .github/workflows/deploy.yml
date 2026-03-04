@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - claude/funnel-drag-drop-builder-201GU
   workflow_dispatch:
 
 jobs:
@@ -29,16 +28,38 @@ jobs:
             # Install dependencies
             npm ci
 
-            # Build the application
-            npm run build
+            # Build the application (GATE: abort deploy on failure)
+            if ! npm run build; then
+              echo "BUILD FAILED - aborting deployment!"
+              exit 1
+            fi
+
+            # Verify build output exists
+            if [ ! -d "dist/public" ]; then
+              echo "Build output missing - aborting deployment!"
+              exit 1
+            fi
+
             # Run database migrations (without --force to preserve data)
             # Only run if schema changed, skip errors for existing tables
             npx drizzle-kit push 2>/dev/null || echo "Schema already up to date"
 
-            # Restart PM2
+            # Restart PM2 (only after successful build)
             pm2 restart funnelflow || pm2 start dist/index.cjs --name funnelflow
 
             # Save PM2 config
             pm2 save
 
-            echo "Deployment completed successfully!"
+            # Health check: wait for server to respond
+            echo "Running health check..."
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost:5000 > /dev/null 2>&1; then
+                echo "Health check passed! Deployment successful."
+                exit 0
+              fi
+              echo "Waiting for server... (attempt $i/30)"
+              sleep 2
+            done
+
+            echo "WARNING: Health check timed out after 60s"
+            echo "Server may still be starting up - check manually"
