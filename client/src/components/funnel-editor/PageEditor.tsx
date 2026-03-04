@@ -48,6 +48,7 @@ import { Slider } from "@/components/ui/slider";
 import type { FunnelPage, PageElement, PageAnimation, Section } from "@shared/schema";
 
 import { SortableElementItem } from "./SortableElementItem";
+import { elementTypeLabels } from "./ElementWrapper";
 import { ElementPalette } from "./ElementPalette";
 import { ConditionalLogicEditor } from "./ConditionalLogicEditor";
 import { PersonalizationInserter } from "./PersonalizationInserter";
@@ -255,7 +256,11 @@ export function PageEditor({
   };
 
   const elementSensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -401,27 +406,9 @@ export function PageEditor({
                           <CardContent className="p-3 space-y-2">
                             <div className="flex items-center justify-between gap-2">
                               <Badge variant="secondary" className="capitalize">
-                                {el.type === "input" ? "Textfeld" :
-                                 el.type === "textarea" ? "Textbereich" :
-                                 el.type === "fileUpload" ? "Datei-Upload" :
-                                 el.type === "video" ? "Video" :
-                                 el.type === "date" ? "Datum" :
-                                 el.type === "select" ? "Dropdown" :
-                                 el.type === "testimonial" ? "Bewertung" :
-                                 el.type === "slider" ? "Slider" :
-                                 el.type === "heading" ? "Überschrift" :
-                                 el.type === "text" ? "Text" :
-                                 el.type === "faq" ? "FAQ" :
-                                 el.type === "list" ? "Liste" :
-                                 el.type === "timer" ? "Timer" :
-                                 el.type === "divider" ? "Trennlinie" :
-                                 el.type === "spacer" ? "Abstand" :
-                                 el.type === "image" ? "Bild" :
-                                 el.type === "socialProof" ? "Social Proof" :
-                                 el.type === "progressBar" ? "Fortschritt" :
-                                 el.type === "icon" ? "Icon" : "Auswahl"}
+                                {elementTypeLabels[el.type] || el.type}
                               </Badge>
-                              {(el.type === "input" || el.type === "textarea" || el.type === "fileUpload" || el.type === "date" || el.type === "select") && (
+                              {(el.type === "input" || el.type === "textarea" || el.type === "fileUpload" || el.type === "date" || el.type === "select" || el.type === "radio" || el.type === "checkbox") && (
                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                   <span>Pflicht</span>
                                   <Switch

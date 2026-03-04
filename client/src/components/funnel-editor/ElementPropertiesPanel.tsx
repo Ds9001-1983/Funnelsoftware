@@ -11,7 +11,7 @@ import {
   Upload,
   Music,
   ShoppingBag,
-  Info,
+  X,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -81,6 +81,8 @@ export function ElementPropertiesPanel({
       icon: "Icon",
       progressBar: "Fortschritt",
       socialProof: "Social Proof",
+      fileUpload: "Datei-Upload",
+      date: "Datum",
     };
     return labels[element.type] || element.type;
   };
@@ -91,7 +93,7 @@ export function ElementPropertiesPanel({
       <div className="flex items-center justify-between">
         <h4 className="font-semibold">{getElementTypeLabel()}</h4>
         <button className="p-1 rounded hover:bg-muted" onClick={onClose}>
-          <Info className="h-4 w-4 text-muted-foreground" />
+          <X className="h-4 w-4 text-muted-foreground" />
         </button>
       </div>
 
@@ -1017,6 +1019,91 @@ export function ElementPropertiesPanel({
                 className="flex-1 h-8 text-sm"
               />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* FileUpload properties */}
+      {element.type === "fileUpload" && (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-xs">Label</Label>
+            <Input
+              value={element.label || ""}
+              onChange={(e) => onUpdate({ label: e.target.value })}
+              placeholder="z.B. Lebenslauf hochladen"
+              className="text-sm h-8"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Erlaubte Dateitypen</Label>
+            <Select
+              value={element.acceptedFileTypes?.join(",") || "all"}
+              onValueChange={(v) =>
+                onUpdate({
+                  acceptedFileTypes: v === "all" ? undefined : v.split(","),
+                })
+              }
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alle Dateien</SelectItem>
+                <SelectItem value=".pdf">Nur PDF</SelectItem>
+                <SelectItem value=".jpg,.jpeg,.png,.gif">Nur Bilder</SelectItem>
+                <SelectItem value=".pdf,.doc,.docx">Dokumente</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Max. Dateigröße (MB)</Label>
+            <Slider
+              value={[element.maxFileSize || 10]}
+              onValueChange={([v]) => onUpdate({ maxFileSize: v })}
+              min={1}
+              max={50}
+              step={1}
+            />
+            <div className="text-xs text-muted-foreground text-center">
+              {element.maxFileSize || 10} MB
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">Pflichtfeld</Label>
+            <Switch
+              checked={element.required || false}
+              onCheckedChange={(checked) => onUpdate({ required: checked })}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Date properties */}
+      {element.type === "date" && (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-xs">Label</Label>
+            <Input
+              value={element.label || ""}
+              onChange={(e) => onUpdate({ label: e.target.value })}
+              placeholder="z.B. Geburtsdatum"
+              className="text-sm h-8"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">Uhrzeit einbeziehen</Label>
+            <Switch
+              checked={element.includeTime || false}
+              onCheckedChange={(checked) => onUpdate({ includeTime: checked })}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">Pflichtfeld</Label>
+            <Switch
+              checked={element.required || false}
+              onCheckedChange={(checked) => onUpdate({ required: checked })}
+            />
           </div>
         </div>
       )}
