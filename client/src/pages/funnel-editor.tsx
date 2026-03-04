@@ -767,6 +767,25 @@ export default function FunnelEditor() {
     }
   };
 
+  const renamePage = (index: number, newTitle: string) => {
+    setLocalFunnel((prev) => {
+      const updated = { ...prev };
+      updated.pages = [...updated.pages];
+      updated.pages[index] = { ...updated.pages[index], title: newTitle };
+      return updated;
+    });
+  };
+
+  const togglePageVisibility = (index: number) => {
+    setLocalFunnel((prev) => {
+      const updated = { ...prev };
+      updated.pages = [...updated.pages];
+      const page = updated.pages[index];
+      updated.pages[index] = { ...page, hidden: !page.hidden };
+      return updated;
+    });
+  };
+
   const handleSave = () => {
     if (localFunnel) {
       saveMutation.mutate({
@@ -1107,6 +1126,12 @@ export default function FunnelEditor() {
                             onDelete={() => deletePage(index)}
                             onDuplicate={() => duplicatePage(index)}
                             totalPages={localFunnel.pages.length}
+                            onRename={() => {
+                              const newTitle = prompt('Neuer Seitenname:', page.title);
+                              if (newTitle && newTitle.trim()) renamePage(index, newTitle.trim());
+                            }}
+                            onToggleVisibility={() => togglePageVisibility(index)}
+                            isHidden={page.hidden}
                           />
                         ))}
                       </div>
