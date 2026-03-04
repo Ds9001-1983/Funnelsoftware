@@ -179,6 +179,7 @@ import {
   PhonePreview,
   ElementPropertiesPanel,
 } from "@/components/funnel-editor";
+import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
 
 type PageType = FunnelPage["type"];
 
@@ -845,6 +846,7 @@ export default function FunnelEditor() {
   const selectedPage = localFunnel.pages[selectedPageIndex];
 
   return (
+    <ErrorBoundary>
     <div className={`h-screen flex flex-col bg-background ${isMobile ? "pb-16" : ""}`}>
       {/* Header */}
       <div className="h-14 border-b border-border bg-card flex items-center justify-between px-2 md:px-4 shrink-0">
@@ -1507,5 +1509,6 @@ export default function FunnelEditor() {
         </div>
       )}
     </div>
+  </ErrorBoundary>
   );
 }
