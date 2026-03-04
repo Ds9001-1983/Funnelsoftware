@@ -7,6 +7,7 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -54,6 +55,8 @@ import { SectionTemplatesPicker } from "./SectionTemplatesPicker";
 import { SectionEditor } from "./SectionEditor";
 import { ElementStyleEditor } from "./ElementStyleEditor";
 import { FormValidationEditor } from "./FormValidationEditor";
+import { ElementDragOverlay } from "./DragOverlay";
+import { DropZone } from "./DropZone";
 
 interface PageEditorProps {
   page: FunnelPage;
@@ -257,6 +260,13 @@ export function PageEditor({
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+  const [activeElement, setActiveElement] = useState<PageElement | null>(null);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const el = page.elements.find((e) => e.id === event.active.id);
+    setActiveElement(el || null);
+  };
+
 
   const handleElementDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -373,6 +383,7 @@ export function PageEditor({
                 sensors={elementSensors}
                 collisionDetection={closestCenter}
                 onDragEnd={handleElementDragEnd}
+                onDragStart={handleDragStart}
               >
                 <SortableContext
                   items={page.elements.map((el) => el.id)}
@@ -1001,6 +1012,7 @@ export function PageEditor({
                     ))}
                   </div>
                 </SortableContext>
+                <ElementDragOverlay activeElement={activeElement} />
               </DndContext>
             </div>
           )}
