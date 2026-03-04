@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   Play,
   ChevronDown,
@@ -39,7 +40,7 @@ interface ElementPreviewRendererProps {
 /**
  * Renders a single element in the preview based on its type.
  */
-export function ElementPreviewRenderer({
+function ElementPreviewRendererBase({
   element: el,
   textColor,
   primaryColor,
@@ -727,6 +728,25 @@ export function ElementPreviewRenderer({
       return null;
   }
 }
+
+function arePropsEqual(
+  prev: ElementPreviewRendererProps,
+  next: ElementPreviewRendererProps
+): boolean {
+  return (
+    prev.element.id === next.element.id &&
+    prev.element.type === next.element.type &&
+    prev.element.content === next.element.content &&
+    JSON.stringify(prev.element.style) === JSON.stringify(next.element.style) &&
+    prev.textColor === next.textColor &&
+    prev.primaryColor === next.primaryColor &&
+    prev.selectedElementId === next.selectedElementId &&
+    prev.formValues === next.formValues
+  );
+}
+
+const MemoizedElementPreviewRenderer = memo(ElementPreviewRendererBase, arePropsEqual);
+export { MemoizedElementPreviewRenderer as ElementPreviewRenderer };
 
 interface SectionPreviewProps {
   section: Section;
