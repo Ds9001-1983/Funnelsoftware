@@ -6,6 +6,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { CanvasControls } from "@/components/funnel-editor/CanvasControls";
 
 export type DeviceType = "desktop" | "tablet" | "mobile";
 
@@ -63,6 +64,8 @@ interface DeviceFrameProps {
   device: DeviceType;
   children: React.ReactNode;
   className?: string;
+  zoom?: number;
+  onZoomChange?: (zoom: number) => void;
 }
 
 /**
@@ -70,23 +73,39 @@ interface DeviceFrameProps {
  * Zeigt den Inhalt in einem responsiven Container ohne störende Frames an.
  * Die Breite passt sich dem ausgewählten Gerät an.
  */
-export function DeviceFrame({ device, children, className = "" }: DeviceFrameProps) {
+export function DeviceFrame({ device, children, className = "", zoom = 100, onZoomChange }: DeviceFrameProps) {
   const config = devices.find((d) => d.type === device) || devices[0];
+  const [localZoom, setLocalZoom] = useState(zoom);
+  const effectiveZoom = onZoomChange ? zoom : localZoom;
+  const handleZoomChange = onZoomChange || setLocalZoom;
 
   return (
     <div
-      className={`mx-auto bg-white rounded-lg shadow-lg overflow-hidden transition-all duration-300 ${className}`}
+      className={`mx-auto bg-white rounded-lg shadow-sm border ${className}`}
       style={{
         maxWidth: config.maxWidth,
         width: "100%",
       }}
     >
-      {/* Simpler Geräte-Indikator am oberen Rand */}
-      <div className="h-1 bg-gradient-to-r from-primary/30 via-primary to-primary/30" />
+      {/* Simpler GeräteIndikator am oberen Rand */}
+      <div className="h-1 bg-gradient-to-r from-primary/20 to-primary/5 rounded-t-lg" />
 
-      {/* Inhalt */}
-      <div className="w-full h-full overflow-auto">
-        {children}
+      {/* Canvas Controls */}
+      <div className="flex justify-center py-1.5 border-b bg-muted/30">
+        <CanvasControls zoom={effectiveZoom} onZoomChange={handleZoomChange} />
+      </div>
+
+      {/* Inhalt mit Zoom */}
+      <div className="w-full overflow-auto" style={{ maxHeight: "70vh" }}>
+        <div
+          style={{
+            transform: `scale(${effectiveZoom / 100})`,
+            transformOrigin: "top center",
+            width: `${10000 / effectiveZoom}%`,
+          }}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
