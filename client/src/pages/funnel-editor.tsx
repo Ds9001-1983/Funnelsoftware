@@ -180,6 +180,7 @@ import {
   ElementPropertiesPanel,
 } from "@/components/funnel-editor";
 import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
+import { ClipboardIndicator } from "@/components/funnel-editor/ClipboardIndicator";
 
 type PageType = FunnelPage["type"];
 
@@ -953,6 +954,14 @@ export default function FunnelEditor() {
             </Tooltip>
           </div>
 
+          {/* Clipboard indicator */}
+          {clipboard && (
+            <ClipboardIndicator
+              copiedElement={{ type: clipboard.type, content: clipboard.data && "content" in clipboard.data ? String((clipboard.data as { content?: string }).content || "") : undefined }}
+              onClear={() => setClipboard(null)}
+            />
+          )}
+
           <div className="h-6 w-px bg-border mx-1" />
 
           {/* Auto-save indicator */}
@@ -1174,8 +1183,18 @@ export default function FunnelEditor() {
                       onRedo={redo}
                       canUndo={canUndo}
                       canRedo={canRedo}
-                      copiedElement={null}
-                      pasteElement={() => {}}
+                      copiedElement={clipboard ? { type: clipboard.type, content: clipboard.data && "content" in clipboard.data ? String((clipboard.data as { content?: string }).content || "") : undefined } : null}
+                      pasteElement={() => {
+                        if (clipboard && clipboard.type === "element" && selectedPageIndex !== null) {
+                          const updatedFunnel = structuredClone(localFunnel);
+                          const page = updatedFunnel.pages[selectedPageIndex];
+                          if (page && page.sections && page.sections.length > 0) {
+                            const lastSection = page.sections[page.sections.length - 1];
+                            lastSection.elements.push(structuredClone(clipboard.data) as PageElement);
+                            updateState(updatedFunnel);
+                          }
+                        }
+                      }}
                       insertVariable={() => {}}
                       primaryColor={localFunnel.settings?.primaryColor}
                     />
