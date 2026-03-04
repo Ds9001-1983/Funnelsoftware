@@ -180,6 +180,7 @@ import {
 import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
 import { ClipboardIndicator } from "@/components/funnel-editor/ClipboardIndicator";
 import { HistoryIndicator } from "@/components/funnel-editor/HistoryIndicator";
+import { ThemePresetPicker } from "@/components/funnel-editor/ThemePresetPicker";
 
 type PageType = FunnelPage["type"];
 
@@ -218,6 +219,7 @@ export default function FunnelEditor() {
   // Perspective-style editor states
   const [leftSidebarTab, setLeftSidebarTab] = useState<"pages" | "design" | "edit">("pages");
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const [selectedThemeId, setSelectedThemeId] = useState("default");
 
   // Global clipboard for copy/paste functionality
   const [clipboard, setClipboard] = useState<{
@@ -1357,6 +1359,10 @@ export default function FunnelEditor() {
             <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
               <h4 className="font-medium">Design-System</h4>
 
+              <ThemePresetPicker
+                selectedThemeId={selectedThemeId}
+                onSelectTheme={setSelectedThemeId}
+              />
               <div className="space-y-2">
                 <Label>Primärfarbe</Label>
                 <div className="flex gap-2">
