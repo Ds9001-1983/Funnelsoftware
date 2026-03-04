@@ -83,27 +83,6 @@ export function PhonePreview({
   const bgColor = page.backgroundColor || (isWelcome || isThankyou ? primaryColor : "#ffffff");
   const textColor = isWelcome || isThankyou ? "#ffffff" : "#1a1a1a";
 
-  // Filter elements by type for different rendering groups
-  const contactElements = page.type === "contact" ? page.elements : [];
-  const basicElements = page.elements.filter((el) =>
-    ["heading", "text", "image", "icon", "progressBar"].includes(el.type)
-  );
-  const videoElements = page.elements.filter((el) => el.type === "video");
-  const testimonialElements = page.elements.filter((el) => el.type === "testimonial");
-  const sliderElements = page.elements.filter((el) => el.type === "slider");
-  const socialProofElements = page.elements.filter((el) => el.type === "socialProof");
-  const audioElements = page.elements.filter((el) => el.type === "audio");
-  const buttonElements = page.elements.filter((el) => el.type === "button");
-  const calendarElements = page.elements.filter((el) => el.type === "calendar");
-  const countdownElements = page.elements.filter((el) => el.type === "countdown");
-  const mapElements = page.elements.filter((el) => el.type === "map");
-  const chartElements = page.elements.filter((el) => el.type === "chart");
-  const codeElements = page.elements.filter((el) => el.type === "code");
-  const embedElements = page.elements.filter((el) => el.type === "embed");
-  const productElements = page.elements.filter((el) => el.type === "product");
-  const teamElements = page.elements.filter((el) => el.type === "team");
-  const optionElements = page.elements.filter((el) => el.options);
-
   const renderElement = (el: PageElement) => (
     <ElementPreviewRenderer
       key={el.id}
@@ -179,111 +158,39 @@ export function PhonePreview({
               </p>
             ))}
 
-          {/* Contact page elements */}
-          {page.type === "contact" && (
-            <div className="space-y-3 mt-4">{contactElements.map(renderElement)}</div>
-          )}
-
-          {/* Basic elements (heading, text, image, icon, progressBar) */}
-          {basicElements.length > 0 && page.type !== "contact" && (
-            <div className="mt-4 space-y-3">{basicElements.map(renderElement)}</div>
-          )}
-
-          {/* Video elements */}
-          {videoElements.length > 0 && page.type !== "contact" && (
-            <div className="mt-4 space-y-3">{videoElements.map(renderElement)}</div>
-          )}
-
-          {/* Testimonial elements */}
-          {testimonialElements.length > 0 && (
-            <div className="mt-4 space-y-3">{testimonialElements.map(renderElement)}</div>
-          )}
-
-          {/* Slider elements */}
-          {sliderElements.length > 0 && (
-            <div className="mt-4">{sliderElements.map(renderElement)}</div>
-          )}
-
-          {/* Multi-choice / Question page options */}
-          {(page.type === "multiChoice" || page.type === "question") &&
-            optionElements.length > 0 && (
-              <div className="space-y-2 mt-4">
-                {optionElements.map((el) => (
-                  <ElementWrapper
-                    key={el.id}
-                    elementId={el.id}
-                    elementType={el.type}
-                    selectedElementId={selectedElementId}
-                    onSelectElement={onSelectElement}
-                  >
-                    <div className="space-y-2">
-                      {el.options?.map((option, idx) => (
-                        <div
-                          key={`${el.id}-${idx}`}
-                          className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 text-sm text-left bg-white hover:border-primary/50 hover:shadow-md transition-all cursor-pointer active:scale-[0.98]"
-                        >
-                          {option}
-                        </div>
-                      ))}
-                    </div>
-                  </ElementWrapper>
-                ))}
-              </div>
-            )}
-
-          {/* Social Proof elements */}
-          {socialProofElements.length > 0 && (
-            <div className="mt-4">{socialProofElements.map(renderElement)}</div>
-          )}
-
-          {/* Audio elements */}
-          {audioElements.length > 0 && (
-            <div className="mt-4 space-y-3">{audioElements.map(renderElement)}</div>
-          )}
-
-          {/* Button elements */}
-          {buttonElements.length > 0 && (
-            <div className="mt-4 space-y-3">{buttonElements.map(renderElement)}</div>
-          )}
-
-          {/* Calendar elements */}
-          {calendarElements.length > 0 && (
-            <div className="mt-4 space-y-3">{calendarElements.map(renderElement)}</div>
-          )}
-
-          {/* Countdown elements */}
-          {countdownElements.length > 0 && (
-            <div className="mt-4 space-y-3">{countdownElements.map(renderElement)}</div>
-          )}
-
-          {/* Map elements */}
-          {mapElements.length > 0 && (
-            <div className="mt-4 space-y-3">{mapElements.map(renderElement)}</div>
-          )}
-
-          {/* Chart elements */}
-          {chartElements.length > 0 && (
-            <div className="mt-4 space-y-3">{chartElements.map(renderElement)}</div>
-          )}
-
-          {/* Code elements */}
-          {codeElements.length > 0 && (
-            <div className="mt-4 space-y-3">{codeElements.map(renderElement)}</div>
-          )}
-
-          {/* Embed elements */}
-          {embedElements.length > 0 && (
-            <div className="mt-4 space-y-3">{embedElements.map(renderElement)}</div>
-          )}
-
-          {/* Product elements */}
-          {productElements.length > 0 && (
-            <div className="mt-4 space-y-3">{productElements.map(renderElement)}</div>
-          )}
-
-          {/* Team elements */}
-          {teamElements.length > 0 && (
-            <div className="mt-4 space-y-3">{teamElements.map(renderElement)}</div>
+          {/* All elements rendered sequentially in user-defined order */}
+          {page.elements.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {page.elements.map((el) => {
+                // Multi-choice/question option elements get special treatment
+                if (
+                  (page.type === "multiChoice" || page.type === "question") &&
+                  el.options
+                ) {
+                  return (
+                    <ElementWrapper
+                      key={el.id}
+                      elementId={el.id}
+                      elementType={el.type}
+                      selectedElementId={selectedElementId}
+                      onSelectElement={onSelectElement}
+                    >
+                      <div className="space-y-2">
+                        {el.options.map((option, idx) => (
+                          <div
+                            key={`${el.id}-${idx}`}
+                            className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 text-sm text-left bg-white hover:border-primary/50 hover:shadow-md transition-all cursor-pointer active:scale-[0.98]"
+                          >
+                            {option}
+                          </div>
+                        ))}
+                      </div>
+                    </ElementWrapper>
+                  );
+                }
+                return renderElement(el);
+              })}
+            </div>
           )}
 
           {/* Sections with Columns */}
