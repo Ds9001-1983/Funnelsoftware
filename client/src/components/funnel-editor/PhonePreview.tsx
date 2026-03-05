@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { useDroppable } from "@dnd-kit/core";
+import { useState, useEffect, useCallback } from "react";
 import { Layers } from "lucide-react";
 import type { FunnelPage, PageElement } from "@shared/schema";
 import { FunnelProgress } from "./FunnelProgress";
@@ -39,9 +38,26 @@ export function PhonePreview({
   onSelectElement,
   onAddElement,
 }: PhonePreviewProps) {
-  const { setNodeRef: setDropRef, isOver: isDropOver } = useDroppable({
-    id: "phone-preview-drop-zone",
-  });
+  const [isDropOver, setIsDropOver] = useState(false);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    setIsDropOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setIsDropOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDropOver(false);
+    const elementType = e.dataTransfer.getData("elementType");
+    if (elementType && onAddElement) {
+      onAddElement(elementType as PageElement["type"]);
+    }
+  }, [onAddElement]);
 
   const [editingField, setEditingField] = useState<string | null>(null);
   const [localTitle, setLocalTitle] = useState(page?.title || "");
@@ -103,7 +119,9 @@ export function PhonePreview({
 
   return (
     <div
-      ref={setDropRef}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       className={`preview-container w-full rounded-lg shadow-lg border overflow-hidden transition-all duration-200 ${
         isDropOver
           ? "border-primary border-2 ring-2 ring-primary/20"

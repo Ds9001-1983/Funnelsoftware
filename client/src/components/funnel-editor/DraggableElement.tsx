@@ -1,4 +1,4 @@
-import { useDraggable } from "@dnd-kit/core";
+import { useCallback } from "react";
 import { Plus } from "lucide-react";
 
 export interface DraggableElementProps {
@@ -10,33 +10,22 @@ export interface DraggableElementProps {
 }
 
 /**
- * Ein draggable Element aus der Element-Palette.
- * Kann in den Canvas gezogen werden, um neue Elemente hinzuzufügen.
+ * Ein Element aus der Element-Palette.
+ * Kann per HTML5 Drag & Drop in den Canvas gezogen werden.
  * Unterstützt auch Klick zum Hinzufügen.
  */
 export function DraggableElement({ type, label, icon: Icon, description, onClick }: DraggableElementProps) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `new-element-${type}`,
-    data: { type, isNew: true },
-  });
-
-  const handleClick = (e: React.MouseEvent) => {
-    // Only trigger click if not dragging and onClick handler exists
-    if (onClick && !isDragging) {
-      e.stopPropagation();
-      onClick();
-    }
-  };
+  const handleDragStart = useCallback((e: React.DragEvent) => {
+    e.dataTransfer.setData("elementType", type);
+    e.dataTransfer.effectAllowed = "copy";
+  }, [type]);
 
   return (
     <div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      onClick={handleClick}
-      className={`group flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all hover:bg-accent ${
-        isDragging ? "opacity-50 scale-95 cursor-grabbing" : ""
-      }`}
+      draggable
+      onDragStart={handleDragStart}
+      onClick={onClick}
+      className="group flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all hover:bg-accent"
     >
       <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
         <Icon className="h-4 w-4 text-muted-foreground" />
