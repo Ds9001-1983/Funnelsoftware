@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useDroppable } from "@dnd-kit/core";
 import { Layers } from "lucide-react";
 import type { FunnelPage, PageElement } from "@shared/schema";
 import { FunnelProgress } from "./FunnelProgress";
@@ -38,6 +39,10 @@ export function PhonePreview({
   onSelectElement,
   onAddElement,
 }: PhonePreviewProps) {
+  const { setNodeRef: setDropRef, isOver: isDropOver } = useDroppable({
+    id: "phone-preview-drop-zone",
+  });
+
   const [editingField, setEditingField] = useState<string | null>(null);
   const [localTitle, setLocalTitle] = useState(page?.title || "");
   const [localSubtitle, setLocalSubtitle] = useState(page?.subtitle || "");
@@ -97,7 +102,14 @@ export function PhonePreview({
   );
 
   return (
-    <div className="preview-container w-full rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+    <div
+      ref={setDropRef}
+      className={`preview-container w-full rounded-lg shadow-lg border overflow-hidden transition-all duration-200 ${
+        isDropOver
+          ? "border-primary border-2 ring-2 ring-primary/20"
+          : "border-gray-200"
+      }`}
+    >
       <div
         className="min-h-[500px] flex flex-col overflow-hidden"
         style={{ backgroundColor: bgColor }}
