@@ -9,10 +9,6 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
-  DragStartEvent,
-  DragOverlay,
-  useDraggable,
-  useDroppable,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -1037,19 +1033,6 @@ export default function FunnelEditor() {
       </div>
 
       {/* Main content - wrapped in DndContext for palette-to-preview drag */}
-      <DndContext
-        sensors={sensors}
-        onDragEnd={(event: DragEndEvent) => {
-          const { active, over } = event;
-          // Handle drag from palette to preview drop zone
-          if (over?.id === "phone-preview-drop-zone" && active.data?.current?.isNew) {
-            const elementType = active.data.current.type as PageElement["type"];
-            if (elementType) {
-              addElementToPage(elementType);
-            }
-          }
-        }}
-      >
       <div className="flex-1 flex overflow-hidden relative">
         {/* Mobile sidebar backdrop */}
         {isMobile && (showLeftSidebar) && (
@@ -1339,7 +1322,6 @@ export default function FunnelEditor() {
         </div>
 
       </div>
-      </DndContext>
 
       <AddPageDialog
         open={showAddPage}

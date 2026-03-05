@@ -1,4 +1,4 @@
-import { useDraggable } from "@dnd-kit/core";
+import { useCallback } from "react";
 import { elementCategories } from "./constants";
 import type { PageElement } from "@shared/schema";
 
@@ -15,40 +15,30 @@ interface DraggablePaletteItemProps {
 }
 
 /**
- * Einzelnes Element in der Palette, das per Drag & Drop oder Klick hinzugefügt werden kann.
+ * Einzelnes Element in der Palette, das per HTML5 Drag & Drop oder Klick hinzugefügt werden kann.
  */
 function DraggablePaletteItem({ type, label, icon: Icon, description, onClick }: DraggablePaletteItemProps) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `palette-${type}`,
-    data: { type, isNew: true },
-  });
+  const handleDragStart = useCallback((e: React.DragEvent) => {
+    e.dataTransfer.setData("elementType", type);
+    e.dataTransfer.effectAllowed = "copy";
+  }, [type]);
 
   return (
     <div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
+      draggable
+      onDragStart={handleDragStart}
       onClick={onClick}
       className={`
         flex flex-col items-center justify-center p-3 rounded-lg cursor-grab
         bg-muted/30 hover:bg-primary/10 border border-transparent hover:border-primary/30
         transition-all duration-200 group
-        ${isDragging ? "opacity-50 scale-95 ring-2 ring-primary shadow-lg cursor-grabbing" : ""}
       `}
       title={description}
     >
-      <div className={`
-        h-10 w-10 rounded-lg flex items-center justify-center mb-2
-        bg-muted group-hover:bg-primary/20 transition-colors
-        ${isDragging ? "bg-primary/20" : ""}
-      `}>
-        <Icon className={`h-5 w-5 transition-colors ${
-          isDragging ? "text-primary" : "text-muted-foreground group-hover:text-primary"
-        }`} />
+      <div className="h-10 w-10 rounded-lg flex items-center justify-center mb-2 bg-muted group-hover:bg-primary/20 transition-colors">
+        <Icon className="h-5 w-5 transition-colors text-muted-foreground group-hover:text-primary" />
       </div>
-      <span className={`text-xs font-medium text-center truncate w-full transition-colors ${
-        isDragging ? "text-primary" : "group-hover:text-primary"
-      }`}>
+      <span className="text-xs font-medium text-center truncate w-full transition-colors group-hover:text-primary">
         {label}
       </span>
     </div>
@@ -61,7 +51,6 @@ function DraggablePaletteItem({ type, label, icon: Icon, description, onClick }:
  * Elemente können durch Klick oder Drag & Drop zur Seite hinzugefügt werden.
  */
 export function ElementPalette({ onAddElement }: ElementPaletteProps) {
-  // Alle Elemente in einem flachen Array sammeln
   const allElements = elementCategories.flatMap(category =>
     category.elements.map(element => ({
       ...element,
@@ -71,12 +60,9 @@ export function ElementPalette({ onAddElement }: ElementPaletteProps) {
 
   return (
     <div className="space-y-3">
-      {/* Hinweis */}
       <p className="text-xs text-muted-foreground">
         Klicken oder ziehen zum Hinzufügen
       </p>
-
-      {/* Grid mit allen Elementen */}
       <div className="grid grid-cols-3 gap-2">
         {allElements.map((element) => (
           <DraggablePaletteItem
@@ -95,10 +81,8 @@ export function ElementPalette({ onAddElement }: ElementPaletteProps) {
 
 /**
  * Kompakte Version der Element-Palette für die Sidebar.
- * Zeigt nur die häufigsten Elemente an.
  */
 export function ElementPaletteCompact({ onAddElement }: ElementPaletteProps) {
-  // Nur die wichtigsten Elemente
   const quickElements = [
     ...elementCategories.find(c => c.name === "Inhalt")?.elements.slice(0, 4) || [],
     ...elementCategories.find(c => c.name === "Formular")?.elements.slice(0, 4) || [],
