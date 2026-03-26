@@ -118,16 +118,60 @@ export default function PublicFunnelView() {
     return Object.keys(errors).length === 0;
   }, [funnel, currentPageIndex, formValues]);
 
+  const resolveNextPageIndex = useCallback((): number | null => {
+    if (!funnel) return null;
+    const page = funnel.pages[currentPageIndex];
+
+    // 1. Check conditional routing (option → pageId)
+    if (page.conditionalRouting) {
+      for (const el of page.elements) {
+        const value = formValues[el.id];
+        if (value && page.conditionalRouting[value]) {
+          const targetIdx = funnel.pages.findIndex(p => p.id === page.conditionalRouting![value]);
+          if (targetIdx >= 0) return targetIdx;
+        }
+      }
+    }
+
+    // 2. Check advanced conditions
+    if (page.conditions && page.conditions.length > 0) {
+      for (const cond of page.conditions) {
+        const value = formValues[cond.elementId] || "";
+        let match = false;
+        switch (cond.operator) {
+          case "equals": match = value === cond.value; break;
+          case "notEquals": match = value !== cond.value; break;
+          case "contains": match = value.includes(cond.value || ""); break;
+          case "isEmpty": match = !value.trim(); break;
+        }
+        if (match) {
+          const targetIdx = funnel.pages.findIndex(p => p.id === cond.targetPageId);
+          if (targetIdx >= 0) return targetIdx;
+        }
+      }
+    }
+
+    // 3. Check fixed nextPageId
+    if (page.nextPageId) {
+      const targetIdx = funnel.pages.findIndex(p => p.id === page.nextPageId);
+      if (targetIdx >= 0) return targetIdx;
+    }
+
+    // 4. Default: next sequential page
+    const nextIndex = currentPageIndex + 1;
+    return nextIndex < funnel.pages.length ? nextIndex : null;
+  }, [funnel, currentPageIndex, formValues]);
+
   const handleNextPage = useCallback(() => {
     if (!funnel) return;
     if (!validateCurrentPage()) return;
-    const nextIndex = currentPageIndex + 1;
-    if (nextIndex < funnel.pages.length) {
+    const nextIndex = resolveNextPageIndex();
+    if (nextIndex !== null) {
       setCurrentPageIndex(nextIndex);
       trackPageView(funnel.pages[nextIndex].id);
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
-  }, [funnel, currentPageIndex, trackPageView, validateCurrentPage]);
+  }, [funnel, validateCurrentPage, resolveNextPageIndex, trackPageView]);
 
   const handlePrevPage = useCallback(() => {
     if (currentPageIndex > 0) {

@@ -91,7 +91,7 @@ export class DatabaseStorage implements IStorage {
 
   async getFunnels(userId: number): Promise<Funnel[]> {
     const result = await db.select().from(funnels)
-      .where(eq(funnels.userId, userId))
+      .where(and(eq(funnels.userId, userId), sql`${funnels.deletedAt} IS NULL`))
       .orderBy(desc(funnels.updatedAt));
 
     return result.map(f => this.mapFunnelToResponse(f));
@@ -99,13 +99,14 @@ export class DatabaseStorage implements IStorage {
 
   async getFunnel(id: number, userId: number): Promise<Funnel | undefined> {
     const [funnel] = await db.select().from(funnels)
-      .where(and(eq(funnels.id, id), eq(funnels.userId, userId)));
+      .where(and(eq(funnels.id, id), eq(funnels.userId, userId), sql`${funnels.deletedAt} IS NULL`));
 
     return funnel ? this.mapFunnelToResponse(funnel) : undefined;
   }
 
   async getFunnelByUuid(uuid: string): Promise<Funnel | undefined> {
-    const [funnel] = await db.select().from(funnels).where(eq(funnels.uuid, uuid));
+    const [funnel] = await db.select().from(funnels)
+      .where(and(eq(funnels.uuid, uuid), sql`${funnels.deletedAt} IS NULL`));
     return funnel ? this.mapFunnelToResponse(funnel) : undefined;
   }
 
@@ -149,8 +150,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteFunnel(id: number, userId: number): Promise<boolean> {
-    const result = await db.delete(funnels)
-      .where(and(eq(funnels.id, id), eq(funnels.userId, userId)))
+    // Soft-Delete: setze deletedAt statt physischem Löschen
+    const result = await db.update(funnels)
+      .set({ deletedAt: new Date() })
+      .where(and(eq(funnels.id, id), eq(funnels.userId, userId), sql`${funnels.deletedAt} IS NULL`))
       .returning({ id: funnels.id });
 
     return result.length > 0;
@@ -356,6 +359,28 @@ export class DatabaseStorage implements IStorage {
       theme: template.theme as Theme,
       createdAt: template.createdAt.toISOString(),
     };
+  }
+
+  // Email Verification
+  async verifyEmail(token: string): Promise<User | undefined> {
+    const [user] = await db.select()
+      .from(users)
+      .where(and(
+        eq(users.emailVerificationToken, token),
+        sql`${users.emailVerifiedAt} IS NULL`
+      ));
+
+    if (!user) return undefined;
+
+    await db.update(users)
+      .set({
+        emailVerifiedAt: new Date(),
+        emailVerificationToken: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, user.id));
+
+    return user;
   }
 
   // Password Reset Tokens

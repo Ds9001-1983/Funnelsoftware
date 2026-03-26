@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage, hashPassword } from "./storage";
+import { randomBytes } from "crypto";
 import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan } from "./auth";
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema,
@@ -45,6 +46,9 @@ export async function registerRoutes(
       const trialEndsAt = new Date();
       trialEndsAt.setDate(trialEndsAt.getDate() + 14);
 
+      // Generate email verification token
+      const emailVerificationToken = randomBytes(32).toString("hex");
+
       const user = await storage.createUser({
         username,
         email,
@@ -52,7 +56,15 @@ export async function registerRoutes(
         displayName,
         trialEndsAt,
         isPro: false,
-      });
+        emailVerificationToken,
+      } as any);
+
+      // Log verification link in development
+      if (process.env.NODE_ENV !== "production") {
+        console.log(`[Email Verify] Token für ${email}: ${emailVerificationToken}`);
+        console.log(`[Email Verify] Link: /verify-email?token=${emailVerificationToken}`);
+      }
+      // TODO: E-Mail mit Verifizierungslink senden
 
       // Log user in automatically
       req.login({ ...user, password: undefined } as any, (err) => {
@@ -117,6 +129,26 @@ export async function registerRoutes(
       res.json({ user: req.user });
     } else {
       res.json({ user: null });
+    }
+  });
+
+  // Verify email
+  app.get("/api/auth/verify-email", async (req, res) => {
+    try {
+      const token = req.query.token as string;
+      if (!token) {
+        return res.status(400).json({ error: "Token erforderlich" });
+      }
+
+      const user = await storage.verifyEmail(token);
+      if (!user) {
+        return res.status(400).json({ error: "Token ungültig oder bereits verwendet" });
+      }
+
+      res.json({ message: "E-Mail erfolgreich verifiziert" });
+    } catch (error) {
+      console.error("Verify email error:", error);
+      res.status(500).json({ error: "Verifizierung fehlgeschlagen" });
     }
   });
 

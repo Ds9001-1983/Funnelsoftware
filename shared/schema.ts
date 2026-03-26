@@ -19,8 +19,11 @@ export const users = pgTable("users", {
   subscriptionPlan: text("subscription_plan"), // basic, pro, enterprise
   subscriptionStartedAt: timestamp("subscription_started_at"),
   lastLoginAt: timestamp("last_login_at"),
+  emailVerifiedAt: timestamp("email_verified_at"),
+  emailVerificationToken: text("email_verification_token"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at"),
 });
 
 // Funnels table
@@ -37,6 +40,7 @@ export const funnels = pgTable("funnels", {
   leads: integer("leads_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at"),
 }, (table) => [
   index("funnels_user_id_idx").on(table.userId),
 ]);
