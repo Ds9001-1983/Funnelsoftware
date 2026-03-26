@@ -222,6 +222,7 @@ export const pageElementSchema = z.object({
   })).optional(),
   // Divider properties
   dividerStyle: z.enum(["solid", "dashed", "dotted", "gradient"]).optional(),
+  dividerColor: z.string().optional(),
   // Spacer properties
   spacerHeight: z.number().optional(),
   // ProgressBar properties
@@ -414,6 +415,8 @@ export const funnelPageSchema = z.object({
   nextPageId: z.string().optional(),
   // Show confetti on this page
   showConfetti: z.boolean().optional(),
+  // Page visibility (hidden pages are skipped in public view)
+  hidden: z.boolean().optional(),
   // Page-level styles (OpenFunnels)
   pageStyles: z.object({
     maxWidth: z.string().optional(),

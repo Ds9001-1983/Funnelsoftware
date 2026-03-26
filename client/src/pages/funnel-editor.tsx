@@ -173,7 +173,7 @@ import {
   ElementPropertiesPanel,
 } from "@/components/funnel-editor";
 import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
-import { ClipboardIndicator } from "@/components/funnel-editor/ClipboardIndicator";
+
 import { HistoryIndicator } from "@/components/funnel-editor/HistoryIndicator";
 import { ThemePresetPicker } from "@/components/funnel-editor/ThemePresetPicker";
 
@@ -214,7 +214,7 @@ export default function FunnelEditor() {
   }, []);
 
   // Perspective-style editor states
-  const [leftSidebarTab, setLeftSidebarTab] = useState<"pages" | "design" | "edit">("pages");
+  const [showRightPanel, setShowRightPanel] = useState(false);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [selectedThemeId, setSelectedThemeId] = useState("default");
 
@@ -768,20 +768,19 @@ export default function FunnelEditor() {
 
   const renamePage = (index: number, newTitle: string) => {
     setLocalFunnel((prev) => {
-      const updated = { ...prev };
-      updated.pages = [...updated.pages];
-      updated.pages[index] = { ...updated.pages[index], title: newTitle };
-      return updated;
+      if (!prev) return prev;
+      const pages = [...prev.pages];
+      pages[index] = { ...pages[index], title: newTitle };
+      return { ...prev, pages };
     });
   };
 
   const togglePageVisibility = (index: number) => {
     setLocalFunnel((prev) => {
-      const updated = { ...prev };
-      updated.pages = [...updated.pages];
-      const page = updated.pages[index];
-      updated.pages[index] = { ...page, hidden: !page.hidden };
-      return updated;
+      if (!prev) return prev;
+      const pages = [...prev.pages];
+      pages[index] = { ...pages[index], hidden: !pages[index].hidden };
+      return { ...prev, pages };
     });
   };
 
@@ -867,130 +866,51 @@ export default function FunnelEditor() {
   return (
     <ErrorBoundary>
     <div className={`h-screen flex flex-col bg-background ${isMobile ? "pb-16" : ""}`}>
-      {/* Header */}
-      <div className="h-14 border-b border-border bg-card flex items-center justify-between px-2 md:px-4 shrink-0">
-        <div className="flex items-center gap-3">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => navigate("/funnels")}
-            data-testid="button-back"
-          >
+      {/* Header - Clean & Minimal */}
+      <div className="h-12 border-b border-border bg-card flex items-center justify-between px-3 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => navigate("/funnels")} data-testid="button-back">
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold">{localFunnel.name}</span>
-              <Badge variant={localFunnel.status === "published" ? "default" : "secondary"}>
-                {localFunnel.status === "published" ? "Live" : "Entwurf"}
-              </Badge>
-              {hasChanges && (
-                <Badge variant="outline" className="text-yellow-600 border-yellow-600">
-                  Ungespeichert
-                </Badge>
-              )}
-            </div>
-          </div>
+          {isMobile && (
+            <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 md:hidden" onClick={() => setShowLeftSidebar(!showLeftSidebar)}>
+              <Layers className="h-4 w-4" />
+            </Button>
+          )}
+          <span className="font-medium text-sm truncate">{localFunnel.name}</span>
+          <Badge variant={localFunnel.status === "published" ? "default" : "secondary"} className="shrink-0 text-[10px]">
+            {localFunnel.status === "published" ? "Live" : "Entwurf"}
+          </Badge>
+          {hasChanges && <div className="h-2 w-2 rounded-full bg-yellow-500 shrink-0" title="Ungespeicherte Änderungen" />}
         </div>
 
-        {/* Center - Preview Controls */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center bg-muted rounded-lg p-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  variant={previewMode === "phone" ? "secondary" : "ghost"}
-                  className="h-7 w-7"
-                  onClick={() => setPreviewMode("phone")}
-                >
-                  <Smartphone className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Handy</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  variant={previewMode === "tablet" ? "secondary" : "ghost"}
-                  className="h-7 w-7"
-                  onClick={() => setPreviewMode("tablet")}
-                >
-                  <Tablet className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Tablet</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  variant={previewMode === "desktop" ? "secondary" : "ghost"}
-                  className="h-7 w-7"
-                  onClick={() => setPreviewMode("desktop")}
-                >
-                  <Monitor className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Desktop</TooltipContent>
-            </Tooltip>
-          </div>
+        {/* Center - Device Toggle */}
+        <div className="flex items-center bg-muted rounded-lg p-0.5">
+          <Button size="icon" variant={previewMode === "phone" ? "secondary" : "ghost"} className="h-7 w-7" onClick={() => setPreviewMode("phone")}>
+            <Smartphone className="h-3.5 w-3.5" />
+          </Button>
+          <Button size="icon" variant={previewMode === "tablet" ? "secondary" : "ghost"} className="h-7 w-7" onClick={() => setPreviewMode("tablet")}>
+            <Tablet className="h-3.5 w-3.5" />
+          </Button>
+          <Button size="icon" variant={previewMode === "desktop" ? "secondary" : "ghost"} className="h-7 w-7" onClick={() => setPreviewMode("desktop")}>
+            <Monitor className="h-3.5 w-3.5" />
+          </Button>
         </div>
 
         {/* Right - Actions */}
-        <div className="flex items-center gap-2">
-          {/* History indicator with undo/redo */}
-          <HistoryIndicator
-            canUndo={canUndo}
-            canRedo={canRedo}
-            onUndo={undo}
-            onRedo={redo}
-            historyLength={historyLength}
-          />
-
-          {/* Clipboard indicator */}
-          {clipboard && (
-            <ClipboardIndicator
-              copiedElement={{ type: clipboard.type, content: clipboard.data && "content" in clipboard.data ? String((clipboard.data as { content?: string }).content || "") : undefined }}
-              onClear={() => setClipboard(null)}
-            />
-          )}
-
-          <div className="h-6 w-px bg-border mx-1" />
-
-          {/* Auto-save indicator */}
+        <div className="flex items-center gap-1">
+          <HistoryIndicator canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} historyLength={historyLength} />
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}
-              >
-                {autoSaveEnabled ? (
-                  <Cloud className="h-4 w-4 text-green-500" />
-                ) : (
-                  <CloudOff className="h-4 w-4 text-muted-foreground" />
-                )}
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}>
+                {autoSaveEnabled ? <Cloud className="h-4 w-4 text-green-500" /> : <CloudOff className="h-4 w-4 text-muted-foreground" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>
-              {autoSaveEnabled
-                ? `Auto-Save aktiv${lastAutoSave ? ` (zuletzt: ${lastAutoSave.toLocaleTimeString()})` : ""}`
-                : "Auto-Save deaktiviert - klicken zum aktivieren"
-              }
-            </TooltipContent>
+            <TooltipContent>{autoSaveEnabled ? `Auto-Save aktiv${lastAutoSave ? ` (${lastAutoSave.toLocaleTimeString()})` : ""}` : "Auto-Save deaktiviert"}</TooltipContent>
           </Tooltip>
-
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowSettings(true)}
-                data-testid="button-settings"
-              >
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowSettings(true)} data-testid="button-settings">
                 <Settings className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -998,254 +918,130 @@ export default function FunnelEditor() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => window.open(`/preview/${params?.id}`, '_blank')}
-              >
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(`/f/${localFunnel?.uuid}`, '_blank')}>
                 <Eye className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Vorschau öffnen</TooltipContent>
+            <TooltipContent>Vorschau</TooltipContent>
           </Tooltip>
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={handleSave}
-            disabled={!hasChanges || saveMutation.isPending}
-            data-testid="button-save"
-          >
-            <Save className="h-4 w-4" />
+          <div className="h-5 w-px bg-border mx-1 hidden sm:block" />
+          <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={handleSave} disabled={!hasChanges || saveMutation.isPending} data-testid="button-save">
+            <Save className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Speichern</span>
           </Button>
           {localFunnel.status !== "published" && (
-            <Button
-              className="gap-2"
-              onClick={() => publishMutation.mutate()}
-              disabled={publishMutation.isPending}
-              data-testid="button-publish"
-            >
-              <Globe className="h-4 w-4" />
+            <Button size="sm" className="gap-1.5 h-8" onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending} data-testid="button-publish">
+              <Globe className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Veröffentlichen</span>
             </Button>
           )}
         </div>
       </div>
 
-      {/* Main content - wrapped in DndContext for palette-to-preview drag */}
-      <div className="flex-1 flex overflow-hidden relative">
+      {/* Main content - 3-Panel Layout */}
+      <div className="flex-1 flex overflow-hidden">
         {/* Mobile sidebar backdrop */}
-        {isMobile && (showLeftSidebar) && (
+        {isMobile && showLeftSidebar && (
           <div
             className="fixed inset-0 bg-black/50 z-40 md:hidden"
-            onClick={() => {
-              setShowLeftSidebar(false);
-            }}
+            onClick={() => setShowLeftSidebar(false)}
           />
         )}
 
-        {/* Left sidebar - Seiten/Design tabs */}
+        {/* LEFT PANEL - Seiten + Element-Palette */}
         <div className={`
-          ${isMobile ? "fixed left-0 top-14 bottom-0 z-50" : "relative"}
-          ${showLeftSidebar ? "w-80" : "w-0"}
-          border-r border-border bg-card overflow-hidden transition-all duration-300
+          ${isMobile ? "fixed left-0 top-12 bottom-0 z-50" : "relative"}
+          ${showLeftSidebar ? "w-64" : "w-0"}
+          border-r border-border bg-card overflow-hidden transition-all duration-200 shrink-0
         `}>
-          <div className="w-80 h-full flex flex-col">
-            {/* Tabs header */}
+          <div className="w-64 h-full flex flex-col">
+            {/* Pages */}
             <div className="border-b border-border">
-              <div className="flex">
-                <button
-                  className={`flex-1 py-3 px-4 text-sm font-medium transition-colors border-b-2 ${
-                    leftSidebarTab === "pages"
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  }`}
-                  onClick={() => setLeftSidebarTab("pages")}
-                >
-                  <Layers className="h-4 w-4 inline-block mr-2" />
-                  Seiten
-                </button>
-                <button
-                  className={`flex-1 py-3 px-4 text-sm font-medium transition-colors border-b-2 ${
-                    leftSidebarTab === "design"
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  }`}
-                  onClick={() => setLeftSidebarTab("design")}
-                >
-                  <Settings className="h-4 w-4 inline-block mr-2" />
-                  Design
-                </button>
-                <button
-                  className={`flex-1 py-3 px-4 text-sm font-medium transition-colors border-b-2 ${
-                    leftSidebarTab === "edit"
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  }`}
-                  onClick={() => setLeftSidebarTab("edit")}
-                >
-                  <Pencil className="h-4 w-4 inline-block mr-2" />
-                  Bearbeiten
-                </button>
+              <div className="flex items-center justify-between px-3 py-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Seiten</span>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setShowAddPage(true)} data-testid="button-add-page">
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
               </div>
             </div>
-
-            {/* Tab content */}
-            {leftSidebarTab === "pages" ? (
-              <>
-                <div className="p-4 border-b border-border">
-                  <Button
-                    className="w-full gap-2"
-                    variant="outline"
-                    onClick={() => setShowAddPage(true)}
-                    data-testid="button-add-page"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Seite hinzufügen
-                  </Button>
-                </div>
-                <div className="flex-1 overflow-y-auto funnel-scrollbar p-2">
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <SortableContext
-                      items={localFunnel.pages.map((p) => p.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      <div className="space-y-1">
-                        {localFunnel.pages.map((page, index) => (
-                          <SortablePageItem
-                            key={page.id}
-                            page={page}
-                            index={index}
-                            selected={index === selectedPageIndex}
-                            onSelect={() => setSelectedPageIndex(index)}
-                            onDelete={() => deletePage(index)}
-                            onDuplicate={() => duplicatePage(index)}
-                            totalPages={localFunnel.pages.length}
-                            onRename={() => {
-                              const newTitle = prompt('Neuer Seitenname:', page.title);
-                              if (newTitle && newTitle.trim()) renamePage(index, newTitle.trim());
-                            }}
-                            onToggleVisibility={() => togglePageVisibility(index)}
-                            isHidden={page.hidden}
-                          />
-                        ))}
-                      </div>
-                    </SortableContext>
-                  </DndContext>
-                </div>
-              </>
-            ) : leftSidebarTab === "design" ? (
-              <div className="flex-1 overflow-y-auto funnel-scrollbar">
-                {selectedElement ? (
-                  <ElementPropertiesPanel
-                    element={selectedElement}
-                    onUpdate={updateSelectedElement}
-                    onClose={() => setSelectedElementId(null)}
-                  />
-                ) : (
-                  /* Element palette when no element selected */
-                  <div className="p-4 space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                      Klicke auf ein Element um es hinzuzufügen:
-                    </p>
-                    {elementCategories.map((category) => (
-                      <div key={category.name}>
-                        <h5 className="text-xs font-medium text-muted-foreground mb-2">{category.name}</h5>
-                        <div className="space-y-1">
-                          {category.elements.map((el) => (
-                            <DraggableElement
-                              key={el.type}
-                              type={el.type}
-                              label={el.label}
-                              icon={el.icon}
-                              description={el.description}
-                              onClick={() => addElementToPage(el.type as PageElement["type"])}
-                            />
-                          ))}
-                        </div>
-                      </div>
+            <div className="overflow-y-auto funnel-scrollbar p-1.5" style={{ maxHeight: "40%" }}>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={localFunnel.pages.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-0.5">
+                    {localFunnel.pages.map((page, index) => (
+                      <SortablePageItem
+                        key={page.id}
+                        page={page}
+                        index={index}
+                        selected={index === selectedPageIndex}
+                        onSelect={() => setSelectedPageIndex(index)}
+                        onDelete={() => deletePage(index)}
+                        onDuplicate={() => duplicatePage(index)}
+                        totalPages={localFunnel.pages.length}
+                        onRename={() => {
+                          const newTitle = prompt('Neuer Seitenname:', page.title);
+                          if (newTitle && newTitle.trim()) renamePage(index, newTitle.trim());
+                        }}
+                        onToggleVisibility={() => togglePageVisibility(index)}
+                        isHidden={page.hidden}
+                      />
                     ))}
                   </div>
-                )}
+                </SortableContext>
+              </DndContext>
+            </div>
+
+            {/* Element Palette */}
+            <div className="border-t border-border flex-1 overflow-hidden flex flex-col">
+              <div className="px-3 py-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Elemente</span>
               </div>
-            ) : (
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {selectedPage && (
-                  <>
-                    <Suspense fallback={<div className="p-8 space-y-4"><Skeleton className="h-8 w-full" /><Skeleton className="h-32 w-full" /><Skeleton className="h-8 w-3/4" /></div>}>
-                    <PageEditor
-                      page={selectedPage}
-                      allPages={localFunnel.pages}
-                      onUpdate={(updates) => updatePage(selectedPageIndex, updates)}
-                      onUndo={undo}
-                      onRedo={redo}
-                      canUndo={canUndo}
-                      canRedo={canRedo}
-                      copiedElement={clipboard ? { type: clipboard.type, content: clipboard.data && "content" in clipboard.data ? String((clipboard.data as { content?: string }).content || "") : undefined } : null}
-                      pasteElement={() => {
-                        if (clipboard && clipboard.type === "element" && selectedPageIndex !== null) {
-                          const updatedFunnel = structuredClone(localFunnel);
-                          const page = updatedFunnel.pages[selectedPageIndex];
-                          if (page && page.sections && page.sections.length > 0) {
-                            const lastSection = page.sections[page.sections.length - 1];
-                            lastSection.elements.push(structuredClone(clipboard.data) as PageElement);
-                            updateState(updatedFunnel);
-                          }
-                        }
-                      }}
-                      insertVariable={() => {}}
-                      primaryColor={localFunnel.settings?.primaryColor}
-                    />
-                    </Suspense>
-                    {localFunnel.abTests && localFunnel.abTests.length > 0 && (
-                      <ABTestEditor
-                        page={selectedPage}
-                        abTests={localFunnel.abTests || []}
-                        onCreateTest={handleCreateABTest}
-                        onUpdateTest={handleUpdateABTest}
-                        onDeleteTest={handleDeleteABTest}
-                        onStartTest={handleStartABTest}
-                        onPauseTest={handlePauseABTest}
-                        onCompleteTest={handleCompleteABTest}
-                      />
-                    )}
-                  </>
-                )}
+              <div className="flex-1 overflow-y-auto funnel-scrollbar px-2 pb-2">
+                {elementCategories.map((category) => (
+                  <div key={category.name} className="mb-3">
+                    <h5 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-1">{category.name}</h5>
+                    <div className="grid grid-cols-2 gap-1">
+                      {category.elements.map((el) => (
+                        <DraggableElement
+                          key={el.type}
+                          type={el.type}
+                          label={el.label}
+                          icon={el.icon}
+                          description={el.description}
+                          onClick={() => addElementToPage(el.type as PageElement["type"])}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
           </div>
         </div>
 
         {/* Toggle Left Sidebar */}
-        <Button
-          size="icon"
-          variant="ghost"
-          className={`absolute top-1/2 -translate-y-1/2 z-[60] rounded-r-md rounded-l-none bg-card border border-l-0 shadow-md
-            ${isMobile ? "h-10 w-8" : "h-6 w-6"}
-          `}
-          onClick={() => setShowLeftSidebar(!showLeftSidebar)}
-          style={{ left: showLeftSidebar && !isMobile ? "286px" : showLeftSidebar && isMobile ? "288px" : "0" }}
-        >
-          {showLeftSidebar ? <ChevronLeft className={isMobile ? "h-5 w-5" : "h-3 w-3"} /> : <ChevronRight className={isMobile ? "h-5 w-5" : "h-3 w-3"} />}
-        </Button>
+        {!isMobile && (
+          <button
+            className="relative z-10 -ml-3 mt-4 h-6 w-6 flex items-center justify-center rounded-full bg-card border shadow-sm hover:bg-muted transition-colors"
+            onClick={() => setShowLeftSidebar(!showLeftSidebar)}
+          >
+            {showLeftSidebar ? <ChevronLeft className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          </button>
+        )}
 
-        {/* Center - Preview */}
+        {/* CENTER - Preview */}
         <div
-          className="flex-1 bg-muted/30 overflow-y-auto flex items-center justify-center p-2 md:p-8 relative"
+          className="flex-1 bg-muted/30 overflow-y-auto flex items-start justify-center p-4 md:p-8"
           onClick={() => {
-            // Deselect element when clicking outside
             if (selectedElementId) {
               setSelectedElementId(null);
+              setShowRightPanel(false);
             }
           }}
         >
           <div
             style={{
-              maxWidth: previewMode === "phone" ? "320px" : previewMode === "tablet" ? "768px" : "1024px",
+              maxWidth: previewMode === "phone" ? "375px" : previewMode === "tablet" ? "768px" : "1024px",
               width: "100%"
             }}
             onClick={(e) => e.stopPropagation()}
@@ -1259,68 +1055,33 @@ export default function FunnelEditor() {
               selectedElementId={selectedElementId}
               onSelectElement={(elementId) => {
                 setSelectedElementId(elementId);
-                if (elementId) {
-                  setLeftSidebarTab("design");
-                }
+                setShowRightPanel(!!elementId);
               }}
               onAddElement={addElementToPage}
               onDeleteElement={deleteSelectedElement}
               onDuplicateElement={duplicateSelectedElement}
               onMoveElementUp={moveElementUp}
               onMoveElementDown={moveElementDown}
-              onShowElementPicker={() => {
-                setSelectedElementId(null);
-                setLeftSidebarTab("design");
-              }}
+              onShowElementPicker={() => setSelectedElementId(null)}
             />
           </div>
-
-          {/* Floating Toolbar - außerhalb der Preview, rechts daneben */}
-          {selectedElementId && selectedElement && (
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 z-50">
-              <div className="flex flex-col gap-1 bg-white rounded-lg shadow-xl border p-1.5">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 w-8 p-0"
-                  onClick={moveElementUp}
-                  title="Nach oben"
-                >
-                  <ChevronUp className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 w-8 p-0"
-                  onClick={moveElementDown}
-                  title="Nach unten"
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-                <div className="h-px bg-border my-0.5" />
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 w-8 p-0"
-                  onClick={duplicateSelectedElement}
-                  title="Duplizieren"
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={deleteSelectedElement}
-                  title="Löschen"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
 
+        {/* RIGHT PANEL - Element Properties */}
+        <div className={`
+          ${showRightPanel && selectedElement ? "w-80" : "w-0"}
+          border-l border-border bg-card overflow-hidden transition-all duration-200 shrink-0
+        `}>
+          <div className="w-80 h-full overflow-y-auto funnel-scrollbar">
+            {selectedElement && (
+              <ElementPropertiesPanel
+                element={selectedElement}
+                onUpdate={updateSelectedElement}
+                onClose={() => { setSelectedElementId(null); setShowRightPanel(false); }}
+              />
+            )}
+          </div>
+        </div>
       </div>
 
       <AddPageDialog
@@ -1490,43 +1251,25 @@ export default function FunnelEditor() {
           <div className="flex items-center justify-around py-2 px-4">
             <button
               className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
-                showLeftSidebar && leftSidebarTab === "pages" ? "text-primary bg-primary/10" : "text-muted-foreground"
+                showLeftSidebar ? "text-primary bg-primary/10" : "text-muted-foreground"
               }`}
-              onClick={() => {
-                setLeftSidebarTab("pages");
-                setShowLeftSidebar(!showLeftSidebar || leftSidebarTab !== "pages");
-              }}
+              onClick={() => setShowLeftSidebar(!showLeftSidebar)}
             >
               <Layers className="h-5 w-5" />
               <span className="text-xs">Seiten</span>
             </button>
             <button
               className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
-                showLeftSidebar && leftSidebarTab === "design" ? "text-primary bg-primary/10" : "text-muted-foreground"
+                showRightPanel && selectedElement ? "text-primary bg-primary/10" : "text-muted-foreground"
               }`}
-              onClick={() => {
-                setLeftSidebarTab("design");
-                setShowLeftSidebar(!showLeftSidebar || leftSidebarTab !== "design");
-              }}
-            >
-              <Plus className="h-5 w-5" />
-              <span className="text-xs">Elemente</span>
-            </button>
-            <button
-              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
-                leftSidebarTab === "edit" && showLeftSidebar ? "text-primary bg-primary/10" : "text-muted-foreground"
-              }`}
-              onClick={() => {
-                setLeftSidebarTab("edit");
-                setShowLeftSidebar(true);
-              }}
+              onClick={() => { if (selectedElement) setShowRightPanel(!showRightPanel); }}
             >
               <Settings className="h-5 w-5" />
-              <span className="text-xs">Bearbeiten</span>
+              <span className="text-xs">Eigenschaften</span>
             </button>
             <button
               className="flex flex-col items-center gap-1 p-2 rounded-lg text-muted-foreground"
-              onClick={() => window.open(`/preview/${params?.id}`, '_blank')}
+              onClick={() => window.open(`/f/${localFunnel?.uuid}`, '_blank')}
             >
               <Eye className="h-5 w-5" />
               <span className="text-xs">Vorschau</span>
