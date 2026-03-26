@@ -19,7 +19,8 @@ declare module "http" {
 // Security Headers
 app.use(
   helmet({
-    contentSecurityPolicy: process.env.NODE_ENV === "production" ? undefined : false,
+    contentSecurityPolicy: false, // CSP deaktiviert - SPA mit Inline-Scripts nicht kompatibel mit Standard-CSP
+    crossOriginEmbedderPolicy: false, // Erlaubt Einbettung von externen Ressourcen (Bilder, Videos)
   }),
 );
 
