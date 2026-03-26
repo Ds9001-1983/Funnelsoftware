@@ -2,6 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage, hashPassword } from "./storage";
 import { randomBytes } from "crypto";
+import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail } from "./email";
 import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan } from "./auth";
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema,
@@ -59,12 +60,9 @@ export async function registerRoutes(
         emailVerificationToken,
       } as any);
 
-      // Log verification link in development
-      if (process.env.NODE_ENV !== "production") {
-        console.log(`[Email Verify] Token für ${email}: ${emailVerificationToken}`);
-        console.log(`[Email Verify] Link: /verify-email?token=${emailVerificationToken}`);
-      }
-      // TODO: E-Mail mit Verifizierungslink senden
+      // E-Mails asynchron senden (nicht blockierend)
+      sendVerificationEmail(email, emailVerificationToken).catch(() => {});
+      sendWelcomeEmail(email, displayName).catch(() => {});
 
       // Log user in automatically
       req.login({ ...user, password: undefined } as any, (err) => {
@@ -163,12 +161,7 @@ export async function registerRoutes(
       const user = await storage.getUserByEmail(email);
       if (user) {
         const token = await storage.createPasswordResetToken(user.id);
-        // In Production: E-Mail senden. Für MVP: Token in Response (nur Development)
-        if (process.env.NODE_ENV !== "production") {
-          console.log(`[Password Reset] Token für ${email}: ${token}`);
-          console.log(`[Password Reset] Link: /reset-password?token=${token}`);
-        }
-        // TODO: E-Mail-Versand implementieren (z.B. mit nodemailer)
+        await sendPasswordResetEmail(email, token);
       }
 
       // Immer Erfolg melden (verhindert User-Enumeration)

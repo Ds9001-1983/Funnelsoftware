@@ -18,6 +18,7 @@ import Login from "@/pages/login";
 import Register from "@/pages/register";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
+import VerifyEmail from "@/pages/verify-email";
 import Impressum from "@/pages/impressum";
 import Datenschutz from "@/pages/datenschutz";
 import { CookieConsent } from "@/components/cookie-consent";
@@ -111,6 +112,9 @@ function Router() {
   }
   if (location.startsWith("/reset-password")) {
     return <ResetPassword />;
+  }
+  if (location.startsWith("/verify-email")) {
+    return <VerifyEmail />;
   }
 
   // Admin page (protected)
