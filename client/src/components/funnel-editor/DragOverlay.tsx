@@ -1,6 +1,11 @@
 import { DragOverlay as DndDragOverlay } from "@dnd-kit/core";
 import { Card, CardContent } from "@/components/ui/card";
-import { GripVertical, Type, Image, Video, MousePointer, FormInput, LayoutGrid } from "lucide-react";
+import {
+  GripVertical, Type, Image, Video, MousePointer, FormInput, LayoutGrid,
+  Minus, ArrowUpDown, Timer, Star, Award, AlignLeft, CheckSquare, Radio,
+  Calendar, FileUp, Music, MapPin, Code, ShoppingBag, Users, BarChart3,
+  MessageSquare, HelpCircle, DollarSign, Smile,
+} from "lucide-react";
 import type { PageElement } from "@shared/schema";
 
 interface ElementDragOverlayProps {
@@ -9,12 +14,39 @@ interface ElementDragOverlayProps {
 
 const elementTypeIcons: Record<string, React.ReactNode> = {
   heading: <Type className="h-4 w-4" />,
-  text: <Type className="h-4 w-4" />,
+  text: <AlignLeft className="h-4 w-4" />,
   image: <Image className="h-4 w-4" />,
   video: <Video className="h-4 w-4" />,
   button: <MousePointer className="h-4 w-4" />,
+  input: <FormInput className="h-4 w-4" />,
+  textarea: <AlignLeft className="h-4 w-4" />,
   form: <FormInput className="h-4 w-4" />,
   section: <LayoutGrid className="h-4 w-4" />,
+  divider: <Minus className="h-4 w-4" />,
+  spacer: <ArrowUpDown className="h-4 w-4" />,
+  countdown: <Timer className="h-4 w-4" />,
+  quiz: <Award className="h-4 w-4" />,
+  icon: <Smile className="h-4 w-4" />,
+  select: <CheckSquare className="h-4 w-4" />,
+  radio: <Radio className="h-4 w-4" />,
+  checkbox: <CheckSquare className="h-4 w-4" />,
+  calendar: <Calendar className="h-4 w-4" />,
+  fileUpload: <FileUp className="h-4 w-4" />,
+  audio: <Music className="h-4 w-4" />,
+  map: <MapPin className="h-4 w-4" />,
+  code: <Code className="h-4 w-4" />,
+  embed: <Code className="h-4 w-4" />,
+  product: <ShoppingBag className="h-4 w-4" />,
+  team: <Users className="h-4 w-4" />,
+  chart: <BarChart3 className="h-4 w-4" />,
+  testimonial: <MessageSquare className="h-4 w-4" />,
+  faq: <HelpCircle className="h-4 w-4" />,
+  pricing: <DollarSign className="h-4 w-4" />,
+  socialProof: <Star className="h-4 w-4" />,
+  progressBar: <BarChart3 className="h-4 w-4" />,
+  slider: <ArrowUpDown className="h-4 w-4" />,
+  list: <AlignLeft className="h-4 w-4" />,
+  date: <Calendar className="h-4 w-4" />,
 };
 
 const elementTypeLabels: Record<string, string> = {
@@ -23,15 +55,35 @@ const elementTypeLabels: Record<string, string> = {
   image: "Bild",
   video: "Video",
   button: "Button",
+  input: "Eingabefeld",
+  textarea: "Textbereich",
   form: "Formular",
   section: "Abschnitt",
   divider: "Trennlinie",
   spacer: "Abstand",
-  html: "HTML",
   countdown: "Countdown",
+  quiz: "Quiz",
+  icon: "Icon",
+  select: "Auswahl",
+  radio: "Radio-Button",
+  checkbox: "Checkbox",
+  calendar: "Kalender",
+  fileUpload: "Datei-Upload",
+  audio: "Audio",
+  map: "Karte",
+  code: "Code",
+  embed: "Einbettung",
+  product: "Produkt",
+  team: "Team",
+  chart: "Diagramm",
   testimonial: "Testimonial",
   faq: "FAQ",
   pricing: "Preistabelle",
+  socialProof: "Social Proof",
+  progressBar: "Fortschrittsbalken",
+  slider: "Slider",
+  list: "Liste",
+  date: "Datum",
 };
 
 export function ElementDragOverlay({ activeElement }: ElementDragOverlayProps) {
@@ -49,10 +101,10 @@ export function ElementDragOverlay({ activeElement }: ElementDragOverlayProps) {
                 <p className="text-sm font-medium truncate">
                   {elementTypeLabels[activeElement.type] || activeElement.type}
                 </p>
-                {activeElement.content?.text && (
+                {activeElement.content && (
                   <p className="text-xs text-muted-foreground truncate">
-                    {activeElement.content.text.substring(0, 30)}
-                    {activeElement.content.text.length > 30 ? "..." : ""}
+                    {String(activeElement.content).substring(0, 30)}
+                    {String(activeElement.content).length > 30 ? "..." : ""}
                   </p>
                 )}
               </div>

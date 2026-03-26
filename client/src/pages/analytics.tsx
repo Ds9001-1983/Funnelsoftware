@@ -586,24 +586,18 @@ export default function Analytics() {
         <StatCard
           title="Gesamte Views"
           value={totalViews.toLocaleString("de-DE")}
-          change="+18.2%"
-          changeType="positive"
           icon={Eye}
           loading={isLoading}
         />
         <StatCard
           title="Gesammelte Leads"
           value={totalLeads}
-          change="+12.5%"
-          changeType="positive"
           icon={Users}
           loading={isLoading}
         />
         <StatCard
           title="Ø Conversion-Rate"
           value={`${avgConversion}%`}
-          change="+2.3%"
-          changeType="positive"
           icon={TrendingUp}
           loading={isLoading}
         />
@@ -742,7 +736,7 @@ export default function Analytics() {
                     Conversion Funnel
                   </CardTitle>
                   <CardDescription>
-                    Analysiere den Besucherfluss durch deinen Funnel
+                    Geschätzter Besucherfluss basierend auf Views und Leads
                   </CardDescription>
                 </div>
                 <Select

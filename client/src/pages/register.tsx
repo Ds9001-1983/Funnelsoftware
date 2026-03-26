@@ -45,9 +45,17 @@ export default function Register() {
       return;
     }
 
-    // Validate password length
-    if (formData.password.length < 6) {
-      setError("Das Passwort muss mindestens 6 Zeichen haben");
+    // Validate password strength
+    if (formData.password.length < 8) {
+      setError("Das Passwort muss mindestens 8 Zeichen haben");
+      return;
+    }
+    if (!/[A-Z]/.test(formData.password)) {
+      setError("Das Passwort muss mindestens einen Großbuchstaben enthalten");
+      return;
+    }
+    if (!/[0-9]/.test(formData.password)) {
+      setError("Das Passwort muss mindestens eine Zahl enthalten");
       return;
     }
 
@@ -188,9 +196,42 @@ export default function Register() {
                   required
                   autoComplete="new-password"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Mindestens 6 Zeichen
-                </p>
+                {formData.password.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4].map((level) => {
+                        const strength =
+                          (formData.password.length >= 8 ? 1 : 0) +
+                          (/[A-Z]/.test(formData.password) ? 1 : 0) +
+                          (/[0-9]/.test(formData.password) ? 1 : 0) +
+                          (/[^A-Za-z0-9]/.test(formData.password) ? 1 : 0);
+                        const color =
+                          strength <= 1 ? "bg-red-500" :
+                          strength === 2 ? "bg-amber-500" :
+                          strength === 3 ? "bg-yellow-500" : "bg-emerald-500";
+                        return (
+                          <div
+                            key={level}
+                            className={`h-1 flex-1 rounded-full ${
+                              level <= strength ? color : "bg-muted"
+                            }`}
+                          />
+                        );
+                      })}
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                      <span className={`text-xs ${formData.password.length >= 8 ? "text-emerald-600" : "text-muted-foreground"}`}>
+                        {formData.password.length >= 8 ? "\u2713" : "\u2717"} Min. 8 Zeichen
+                      </span>
+                      <span className={`text-xs ${/[A-Z]/.test(formData.password) ? "text-emerald-600" : "text-muted-foreground"}`}>
+                        {/[A-Z]/.test(formData.password) ? "\u2713" : "\u2717"} Großbuchstabe
+                      </span>
+                      <span className={`text-xs ${/[0-9]/.test(formData.password) ? "text-emerald-600" : "text-muted-foreground"}`}>
+                        {/[0-9]/.test(formData.password) ? "\u2713" : "\u2717"} Zahl
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">

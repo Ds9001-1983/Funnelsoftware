@@ -281,7 +281,7 @@ export default function FunnelEditor() {
   const { scheduleAutoSave } = useAutoSave(
     localFunnel,
     performAutoSave,
-    30000, // 30 seconds
+    5000, // 5 Sekunden nach letzter Änderung
     autoSaveEnabled && hasChanges
   );
 

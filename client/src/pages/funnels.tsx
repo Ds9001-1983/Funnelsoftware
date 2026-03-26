@@ -34,6 +34,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -43,7 +53,7 @@ import type { Funnel } from "@shared/schema";
 type ViewMode = "grid" | "list";
 type StatusFilter = "all" | "published" | "draft" | "archived";
 
-function FunnelGridCard({ funnel, onDelete }: { funnel: Funnel; onDelete: () => void }) {
+function FunnelGridCard({ funnel, onDelete, onClone }: { funnel: Funnel; onDelete: () => void; onClone: () => void }) {
   const conversionRate = funnel.views > 0 
     ? ((funnel.leads / funnel.views) * 100).toFixed(1) 
     : "0.0";
@@ -86,16 +96,20 @@ function FunnelGridCard({ funnel, onDelete }: { funnel: Funnel; onDelete: () => 
                   Bearbeiten
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={onClone}>
                 <Copy className="h-4 w-4 mr-2" />
                 Duplizieren
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Vorschau
-              </DropdownMenuItem>
+              {funnel.uuid && (
+                <DropdownMenuItem asChild>
+                  <a href={`/funnels/${funnel.id}`} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Vorschau
+                  </a>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
                 onClick={onDelete}
               >
@@ -133,7 +147,7 @@ function FunnelGridCard({ funnel, onDelete }: { funnel: Funnel; onDelete: () => 
   );
 }
 
-function FunnelListRow({ funnel, onDelete }: { funnel: Funnel; onDelete: () => void }) {
+function FunnelListRow({ funnel, onDelete, onClone }: { funnel: Funnel; onDelete: () => void; onClone: () => void }) {
   const conversionRate = funnel.views > 0 
     ? ((funnel.leads / funnel.views) * 100).toFixed(1) 
     : "0.0";
@@ -203,16 +217,20 @@ function FunnelListRow({ funnel, onDelete }: { funnel: Funnel; onDelete: () => v
                 Bearbeiten
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={onClone}>
               <Copy className="h-4 w-4 mr-2" />
               Duplizieren
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Vorschau
-            </DropdownMenuItem>
+            {funnel.uuid && (
+              <DropdownMenuItem asChild>
+                <a href={`/funnels/${funnel.id}`} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Vorschau
+                </a>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
+            <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={onDelete}
             >
@@ -229,9 +247,16 @@ function FunnelListRow({ funnel, onDelete }: { funnel: Funnel; onDelete: () => v
 export default function Funnels() {
   useDocumentTitle("Funnels");
 
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    () => (localStorage.getItem("funnels-view-mode") as ViewMode) || "grid"
+  );
+  const handleViewMode = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem("funnels-view-mode", mode);
+  };
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Funnel | null>(null);
   const { toast } = useToast();
 
   const { data: funnels, isLoading } = useQuery<Funnel[]>({
@@ -244,6 +269,7 @@ export default function Funnels() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
+      setDeleteTarget(null);
       toast({
         title: "Funnel gelöscht",
         description: "Der Funnel wurde erfolgreich gelöscht.",
@@ -253,6 +279,27 @@ export default function Funnels() {
       toast({
         title: "Fehler",
         description: "Der Funnel konnte nicht gelöscht werden.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const cloneMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("POST", `/api/funnels/${id}/clone`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
+      toast({
+        title: "Funnel dupliziert",
+        description: "Eine Kopie des Funnels wurde erstellt.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Fehler",
+        description: "Der Funnel konnte nicht dupliziert werden.",
         variant: "destructive",
       });
     },
@@ -308,7 +355,7 @@ export default function Funnels() {
             variant={viewMode === "grid" ? "secondary" : "ghost"}
             size="icon"
             className="rounded-none"
-            onClick={() => setViewMode("grid")}
+            onClick={() => handleViewMode("grid")}
             data-testid="button-view-grid"
           >
             <LayoutGrid className="h-4 w-4" />
@@ -317,7 +364,7 @@ export default function Funnels() {
             variant={viewMode === "list" ? "secondary" : "ghost"}
             size="icon"
             className="rounded-none"
-            onClick={() => setViewMode("list")}
+            onClick={() => handleViewMode("list")}
             data-testid="button-view-list"
           >
             <List className="h-4 w-4" />
@@ -356,10 +403,11 @@ export default function Funnels() {
         viewMode === "grid" ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredFunnels.map((funnel) => (
-              <FunnelGridCard 
-                key={funnel.id} 
-                funnel={funnel} 
-                onDelete={() => deleteMutation.mutate(funnel.id)}
+              <FunnelGridCard
+                key={funnel.id}
+                funnel={funnel}
+                onDelete={() => setDeleteTarget(funnel)}
+                onClone={() => cloneMutation.mutate(funnel.id)}
               />
             ))}
           </div>
@@ -377,10 +425,11 @@ export default function Funnels() {
               <div className="w-20 shrink-0" />
             </div>
             {filteredFunnels.map((funnel) => (
-              <FunnelListRow 
-                key={funnel.id} 
+              <FunnelListRow
+                key={funnel.id}
                 funnel={funnel}
-                onDelete={() => deleteMutation.mutate(funnel.id)}
+                onDelete={() => setDeleteTarget(funnel)}
+                onClone={() => cloneMutation.mutate(funnel.id)}
               />
             ))}
           </Card>
@@ -426,6 +475,28 @@ export default function Funnels() {
           </div>
         </Card>
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Funnel löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchtest du den Funnel &quot;{deleteTarget?.name}&quot; wirklich löschen?
+              Diese Aktion kann nicht rückgängig gemacht werden. Alle zugehörigen Daten
+              (Leads, Analytics) gehen ebenfalls verloren.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+            >
+              Endgültig löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -268,18 +268,32 @@ export function useToolbarPosition(
       return;
     }
 
-    const element = document.querySelector(`[data-element-id="${selectedElementId}"]`);
+    const updatePosition = () => {
+      const element = document.querySelector(`[data-element-id="${selectedElementId}"]`);
+      const container = containerRef.current;
+
+      if (element && container) {
+        const elementRect = element.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+
+        setPosition({
+          top: elementRect.top - containerRect.top + container.scrollTop,
+          right: window.innerWidth - containerRect.right + 16,
+        });
+      }
+    };
+
+    updatePosition();
+
+    // Position bei Scroll neu berechnen
     const container = containerRef.current;
+    container.addEventListener("scroll", updatePosition, { passive: true });
+    window.addEventListener("resize", updatePosition, { passive: true });
 
-    if (element && container) {
-      const elementRect = element.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
-
-      setPosition({
-        top: elementRect.top + window.scrollY,
-        right: window.innerWidth - containerRect.right + 16,
-      });
-    }
+    return () => {
+      container.removeEventListener("scroll", updatePosition);
+      window.removeEventListener("resize", updatePosition);
+    };
   }, [selectedElementId, containerRef]);
 
   return position;

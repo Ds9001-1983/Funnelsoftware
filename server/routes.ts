@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { passport, isAuthenticated, isAdmin, getUserId } from "./auth";
+import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan } from "./auth";
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema,
   loginSchema, registerSchema
@@ -120,6 +120,44 @@ export async function registerRoutes(
     }
   });
 
+  // Update user profile
+  app.patch("/api/auth/profile", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const updateSchema = z.object({
+        displayName: z.string().max(100).optional(),
+        email: z.string().email("Ungültige E-Mail-Adresse").optional(),
+        company: z.string().max(200).optional(),
+      });
+
+      const result = updateSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: "Ungültige Daten", details: result.error.errors });
+      }
+
+      // Check if email is already taken by another user
+      if (result.data.email) {
+        const existing = await storage.getUserByEmail(result.data.email);
+        if (existing && existing.id !== userId) {
+          return res.status(400).json({ error: "Diese E-Mail wird bereits verwendet" });
+        }
+      }
+
+      const user = await storage.updateUserProfile(userId, result.data);
+      if (!user) {
+        return res.status(404).json({ error: "Benutzer nicht gefunden" });
+      }
+
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({ user: userWithoutPassword });
+    } catch (error) {
+      console.error("Profile update error:", error);
+      res.status(500).json({ error: "Profil-Update fehlgeschlagen" });
+    }
+  });
+
   // ============ FUNNELS (Protected) ============
 
   // Get all funnels for current user
@@ -159,7 +197,7 @@ export async function registerRoutes(
   });
 
   // Create funnel
-  app.post("/api/funnels", isAuthenticated, async (req, res) => {
+  app.post("/api/funnels", isAuthenticated, requireActivePlan, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
@@ -178,7 +216,7 @@ export async function registerRoutes(
   });
 
   // Update funnel
-  app.patch("/api/funnels/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/funnels/:id", isAuthenticated, requireActivePlan, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
@@ -226,7 +264,67 @@ export async function registerRoutes(
     }
   });
 
+  // Clone funnel
+  app.post("/api/funnels/:id/clone", isAuthenticated, requireActivePlan, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const funnelId = parseInt(String(req.params.id));
+      if (isNaN(funnelId)) {
+        return res.status(400).json({ error: "Ungültige Funnel-ID" });
+      }
+
+      const original = await storage.getFunnel(funnelId, userId);
+      if (!original) {
+        return res.status(404).json({ error: "Funnel nicht gefunden" });
+      }
+
+      const cloned = await storage.createFunnel({
+        name: `${original.name} (Kopie)`,
+        description: original.description ?? undefined,
+        pages: original.pages,
+        theme: original.theme,
+        status: "draft",
+      }, userId);
+
+      res.status(201).json(cloned);
+    } catch (error) {
+      console.error("Clone funnel error:", error);
+      res.status(500).json({ error: "Funnel konnte nicht dupliziert werden" });
+    }
+  });
+
   // ============ PUBLIC FUNNEL VIEW ============
+
+  // Preview funnel (authenticated, shows drafts too)
+  app.get("/api/funnels/:id/preview", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const funnelId = parseInt(String(req.params.id));
+      if (isNaN(funnelId)) {
+        return res.status(400).json({ error: "Ungültige Funnel-ID" });
+      }
+
+      const funnel = await storage.getFunnel(funnelId, userId);
+      if (!funnel) {
+        return res.status(404).json({ error: "Funnel nicht gefunden" });
+      }
+
+      res.json({
+        uuid: funnel.uuid,
+        name: funnel.name,
+        pages: funnel.pages,
+        theme: funnel.theme,
+        status: funnel.status,
+      });
+    } catch (error) {
+      console.error("Preview funnel error:", error);
+      res.status(500).json({ error: "Vorschau konnte nicht geladen werden" });
+    }
+  });
 
   // Get published funnel by UUID (public, for viewing)
   app.get("/api/public/funnels/:uuid", async (req, res) => {

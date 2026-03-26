@@ -724,6 +724,50 @@ function ElementPreviewRendererBase({
         </ElementWrapper>
       );
 
+    case "quiz": {
+      const config = el.quizConfig;
+      const questionCount = config?.questions?.length ?? 0;
+      const firstQuestion = config?.questions?.[0];
+      return (
+        <ElementWrapper {...wrapperProps}>
+          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-4 border border-purple-200">
+            <div className="flex items-center gap-2 mb-3">
+              <Award className="h-5 w-5 text-purple-600" />
+              <span className="font-semibold text-purple-900 text-sm">
+                Quiz ({questionCount} {questionCount === 1 ? "Frage" : "Fragen"})
+              </span>
+            </div>
+            {firstQuestion ? (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-800">
+                  {firstQuestion.question}
+                </p>
+                <div className="space-y-1.5">
+                  {firstQuestion.answers.slice(0, 4).map((answer) => (
+                    <div
+                      key={answer.id}
+                      className="bg-white rounded-lg px-3 py-2 text-xs text-gray-700 border border-gray-200 hover:border-purple-300 transition-colors"
+                    >
+                      {answer.text}
+                    </div>
+                  ))}
+                </div>
+                {questionCount > 1 && (
+                  <p className="text-xs text-purple-500 mt-2">
+                    + {questionCount - 1} weitere {questionCount - 1 === 1 ? "Frage" : "Fragen"}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500">
+                Klicke um Quiz-Fragen hinzuzufügen
+              </p>
+            )}
+          </div>
+        </ElementWrapper>
+      );
+    }
+
     default:
       return null;
   }
@@ -737,11 +781,11 @@ function arePropsEqual(
     prev.element.id === next.element.id &&
     prev.element.type === next.element.type &&
     prev.element.content === next.element.content &&
-    JSON.stringify(prev.element.style) === JSON.stringify(next.element.style) &&
+    JSON.stringify(prev.element.styles) === JSON.stringify(next.element.styles) &&
     prev.textColor === next.textColor &&
     prev.primaryColor === next.primaryColor &&
     prev.selectedElementId === next.selectedElementId &&
-    prev.formValues === next.formValues
+    JSON.stringify(prev.formValues) === JSON.stringify(next.formValues)
   );
 }
 
