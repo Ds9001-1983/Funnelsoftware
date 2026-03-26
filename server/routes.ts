@@ -1,6 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, hashPassword } from "./storage";
 import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan } from "./auth";
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema,
@@ -117,6 +117,61 @@ export async function registerRoutes(
       res.json({ user: req.user });
     } else {
       res.json({ user: null });
+    }
+  });
+
+  // Request password reset
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: "E-Mail ist erforderlich" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      if (user) {
+        const token = await storage.createPasswordResetToken(user.id);
+        // In Production: E-Mail senden. Für MVP: Token in Response (nur Development)
+        if (process.env.NODE_ENV !== "production") {
+          console.log(`[Password Reset] Token für ${email}: ${token}`);
+          console.log(`[Password Reset] Link: /reset-password?token=${token}`);
+        }
+        // TODO: E-Mail-Versand implementieren (z.B. mit nodemailer)
+      }
+
+      // Immer Erfolg melden (verhindert User-Enumeration)
+      res.json({ message: "Falls ein Account mit dieser E-Mail existiert, wurde eine Anleitung zum Zurücksetzen gesendet." });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ error: "Anfrage fehlgeschlagen" });
+    }
+  });
+
+  // Reset password with token
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      if (!token || !password) {
+        return res.status(400).json({ error: "Token und Passwort sind erforderlich" });
+      }
+
+      if (password.length < 8) {
+        return res.status(400).json({ error: "Passwort muss mindestens 8 Zeichen haben" });
+      }
+
+      const userId = await storage.validatePasswordResetToken(token);
+      if (!userId) {
+        return res.status(400).json({ error: "Token ungültig oder abgelaufen" });
+      }
+
+      const hashedPassword = await hashPassword(password);
+      await storage.updateUserPassword(userId, hashedPassword);
+      await storage.markTokenUsed(token);
+
+      res.json({ message: "Passwort wurde erfolgreich zurückgesetzt" });
+    } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ error: "Passwort konnte nicht zurückgesetzt werden" });
     }
   });
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "wouter";
+import confetti from "canvas-confetti";
 import { Loader2, AlertCircle, ChevronRight, ChevronLeft } from "lucide-react";
 import { ElementPreviewRenderer } from "@/components/funnel-editor/ElementPreviewRenderer";
 import { FunnelProgress } from "@/components/funnel-editor/FunnelProgress";
@@ -39,6 +40,8 @@ export default function PublicFunnelView() {
           return;
         }
         const data = await res.json();
+        // Versteckte Seiten herausfiltern
+        data.pages = data.pages.filter((p: FunnelPage) => !p.hidden);
         setFunnel(data);
       } catch {
         setError("Verbindungsfehler. Bitte versuche es später erneut.");
@@ -48,6 +51,14 @@ export default function PublicFunnelView() {
     }
     if (params.uuid) loadFunnel();
   }, [params.uuid]);
+
+  // Set page title for SEO
+  useEffect(() => {
+    if (funnel) {
+      document.title = funnel.name;
+    }
+    return () => { document.title = "Trichterwerk"; };
+  }, [funnel]);
 
   // Track view on first load
   useEffect(() => {
@@ -194,6 +205,10 @@ export default function PublicFunnelView() {
         if (thankyouIndex >= 0) {
           setCurrentPageIndex(thankyouIndex);
         }
+        // Konfetti-Animation
+        setTimeout(() => {
+          confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        }, 300);
       } else {
         setSubmitError("Absenden fehlgeschlagen. Bitte versuche es erneut.");
       }

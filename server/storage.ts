@@ -1,7 +1,7 @@
 import { eq, desc, and, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
-  users, funnels, leads, templates, analyticsEvents,
+  users, funnels, leads, templates, analyticsEvents, passwordResetTokens,
   type User, type InsertUser, type Funnel, type InsertFunnel,
   type Lead, type InsertLead, type AnalyticsEvent, type Template,
   type FunnelPage, type Theme
@@ -356,6 +356,44 @@ export class DatabaseStorage implements IStorage {
       theme: template.theme as Theme,
       createdAt: template.createdAt.toISOString(),
     };
+  }
+
+  // Password Reset Tokens
+  async createPasswordResetToken(userId: number): Promise<string> {
+    const token = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 Stunde
+
+    await db.insert(passwordResetTokens).values({
+      userId,
+      token,
+      expiresAt,
+    });
+
+    return token;
+  }
+
+  async validatePasswordResetToken(token: string): Promise<number | null> {
+    const [result] = await db.select()
+      .from(passwordResetTokens)
+      .where(and(
+        eq(passwordResetTokens.token, token),
+        sql`${passwordResetTokens.expiresAt} > NOW()`,
+        sql`${passwordResetTokens.usedAt} IS NULL`
+      ));
+
+    return result ? result.userId : null;
+  }
+
+  async markTokenUsed(token: string): Promise<void> {
+    await db.update(passwordResetTokens)
+      .set({ usedAt: new Date() })
+      .where(eq(passwordResetTokens.token, token));
+  }
+
+  async updateUserPassword(userId: number, hashedPassword: string): Promise<void> {
+    await db.update(users)
+      .set({ password: hashedPassword, updatedAt: new Date() })
+      .where(eq(users.id, userId));
   }
 
   // Seed templates if they don't exist

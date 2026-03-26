@@ -16,6 +16,8 @@ import Dashboard from "@/pages/dashboard";
 import Funnels from "@/pages/funnels";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
+import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 import Impressum from "@/pages/impressum";
 import Datenschutz from "@/pages/datenschutz";
 import { CookieConsent } from "@/components/cookie-consent";
@@ -103,6 +105,12 @@ function Router() {
   }
   if (location === "/register") {
     return <Register />;
+  }
+  if (location === "/forgot-password") {
+    return <ForgotPassword />;
+  }
+  if (location.startsWith("/reset-password")) {
+    return <ResetPassword />;
   }
 
   // Admin page (protected)

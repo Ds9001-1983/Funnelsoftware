@@ -86,6 +86,16 @@ export const analyticsEvents = pgTable("analytics_events", {
   index("analytics_events_funnel_id_idx").on(table.funnelId),
 ]);
 
+// Password reset tokens
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Sessions table for express-session with connect-pg-simple
 export const sessions = pgTable("session", {
   sid: varchar("sid").primaryKey(),

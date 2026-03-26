@@ -25,18 +25,13 @@ export function DraggableElement({ type, label, icon: Icon, description, onClick
       draggable
       onDragStart={handleDragStart}
       onClick={onClick}
-      className="group flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all hover:bg-accent"
+      className="group flex flex-col items-center gap-1 p-2 rounded-lg cursor-pointer transition-all hover:bg-accent border border-transparent hover:border-border text-center"
+      title={description}
     >
-      <div className="h-8 w-8 rounded bg-muted flex items-center justify-center shrink-0">
-        <Icon className="h-4 w-4 text-muted-foreground" />
+      <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+        <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
       </div>
-      <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium truncate">{label}</div>
-        <div className="text-xs text-muted-foreground truncate">{description}</div>
-      </div>
-      {onClick && (
-        <Plus className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-      )}
+      <span className="text-[11px] font-medium leading-tight truncate w-full">{label}</span>
     </div>
   );
 }
