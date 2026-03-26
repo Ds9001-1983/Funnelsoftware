@@ -22,6 +22,8 @@ export default function PublicFunnelView() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [viewTracked, setViewTracked] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Fetch funnel data
   useEffect(() => {
@@ -83,15 +85,38 @@ export default function PublicFunnelView() {
     setFormValues((prev) => ({ ...prev, [elementId]: value }));
   }, []);
 
+  const validateCurrentPage = useCallback((): boolean => {
+    if (!funnel) return false;
+    const page = funnel.pages[currentPageIndex];
+    const errors: Record<string, string> = {};
+
+    for (const el of page.elements) {
+      if (el.required && !formValues[el.id]?.trim()) {
+        errors[el.id] = "Dieses Feld ist erforderlich";
+      }
+      // Email-Format prüfen
+      const label = (el.label || el.placeholder || "").toLowerCase();
+      if (el.type === "input" && (label.includes("email") || label.includes("e-mail")) && formValues[el.id]) {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formValues[el.id])) {
+          errors[el.id] = "Bitte gib eine gültige E-Mail-Adresse ein";
+        }
+      }
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [funnel, currentPageIndex, formValues]);
+
   const handleNextPage = useCallback(() => {
     if (!funnel) return;
+    if (!validateCurrentPage()) return;
     const nextIndex = currentPageIndex + 1;
     if (nextIndex < funnel.pages.length) {
       setCurrentPageIndex(nextIndex);
       trackPageView(funnel.pages[nextIndex].id);
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
-  }, [funnel, currentPageIndex, trackPageView]);
+  }, [funnel, currentPageIndex, trackPageView, validateCurrentPage]);
 
   const handlePrevPage = useCallback(() => {
     if (currentPageIndex > 0) {
@@ -102,7 +127,12 @@ export default function PublicFunnelView() {
 
   const handleSubmit = useCallback(async () => {
     if (!funnel || isSubmitting) return;
+
+    // Validierung
+    if (!validateCurrentPage()) return;
+
     setIsSubmitting(true);
+    setSubmitError(null);
 
     try {
       // Collect form data from all pages
@@ -113,21 +143,22 @@ export default function PublicFunnelView() {
       let company = "";
       let message = "";
 
-      // Map form values to lead fields based on element labels/types
+      // Map form values to lead fields based on element type + label
       for (const page of funnel.pages) {
         for (const el of page.elements) {
           const value = formValues[el.id];
           if (!value) continue;
 
-          const label = (el.label || el.placeholder || "").toLowerCase();
+          // Map fields based on label/placeholder text
           if (el.type === "input") {
-            if (label.includes("name") || label.includes("vorname")) name = value;
-            else if (label.includes("email") || label.includes("e-mail")) email = value;
-            else if (label.includes("telefon") || label.includes("phone")) phone = value;
+            const label = (el.label || el.placeholder || "").toLowerCase();
+            if (label.includes("email") || label.includes("e-mail")) email = value;
+            else if (label.includes("telefon") || label.includes("phone") || label.includes("handy")) phone = value;
+            else if (label.includes("name") || label.includes("vorname")) name = value;
             else if (label.includes("firma") || label.includes("unternehmen") || label.includes("company")) company = value;
           }
           if (el.type === "textarea") {
-            if (label.includes("nachricht") || label.includes("message")) message = value;
+            message = value;
           }
           formData[el.label || el.id] = value;
         }
@@ -150,7 +181,6 @@ export default function PublicFunnelView() {
 
       if (res.ok) {
         setSubmitted(true);
-        // Track submission
         fetch("/api/public/analytics", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -160,20 +190,19 @@ export default function PublicFunnelView() {
           }),
         }).catch(() => {});
 
-        // Navigate to thank you page if exists
-        const thankyouIndex = funnel.pages.findIndex(
-          (p) => p.type === "thankyou"
-        );
+        const thankyouIndex = funnel.pages.findIndex((p) => p.type === "thankyou");
         if (thankyouIndex >= 0) {
           setCurrentPageIndex(thankyouIndex);
         }
+      } else {
+        setSubmitError("Absenden fehlgeschlagen. Bitte versuche es erneut.");
       }
     } catch {
-      // Silently fail
+      setSubmitError("Verbindungsfehler. Bitte prüfe deine Internetverbindung.");
     } finally {
       setIsSubmitting(false);
     }
-  }, [funnel, formValues, isSubmitting]);
+  }, [funnel, formValues, isSubmitting, validateCurrentPage]);
 
   // Loading state
   if (isLoading) {
@@ -249,16 +278,36 @@ export default function PublicFunnelView() {
           {/* Elements */}
           <div className="space-y-4">
             {currentPage.elements.map((element: PageElement) => (
-              <ElementPreviewRenderer
-                key={element.id}
-                element={element}
-                textColor={theme.textColor}
-                primaryColor={theme.primaryColor}
-                formValues={formValues}
-                updateFormValue={updateFormValue}
-              />
+              <div key={element.id}>
+                <ElementPreviewRenderer
+                  element={element}
+                  textColor={theme.textColor}
+                  primaryColor={theme.primaryColor}
+                  formValues={formValues}
+                  updateFormValue={(id, value) => {
+                    updateFormValue(id, value);
+                    if (validationErrors[id]) {
+                      setValidationErrors((prev) => {
+                        const next = { ...prev };
+                        delete next[id];
+                        return next;
+                      });
+                    }
+                  }}
+                />
+                {validationErrors[element.id] && (
+                  <p className="text-red-500 text-xs mt-1 px-1">{validationErrors[element.id]}</p>
+                )}
+              </div>
             ))}
           </div>
+
+          {/* Submit error */}
+          {submitError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+              {submitError}
+            </div>
+          )}
 
           {/* Navigation buttons */}
           {!isThankyouPage && (

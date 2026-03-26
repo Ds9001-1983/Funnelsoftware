@@ -768,20 +768,19 @@ export default function FunnelEditor() {
 
   const renamePage = (index: number, newTitle: string) => {
     setLocalFunnel((prev) => {
-      const updated = { ...prev };
-      updated.pages = [...updated.pages];
-      updated.pages[index] = { ...updated.pages[index], title: newTitle };
-      return updated;
+      if (!prev) return prev;
+      const pages = [...prev.pages];
+      pages[index] = { ...pages[index], title: newTitle };
+      return { ...prev, pages };
     });
   };
 
   const togglePageVisibility = (index: number) => {
     setLocalFunnel((prev) => {
-      const updated = { ...prev };
-      updated.pages = [...updated.pages];
-      const page = updated.pages[index];
-      updated.pages[index] = { ...page, hidden: !page.hidden };
-      return updated;
+      if (!prev) return prev;
+      const pages = [...prev.pages];
+      pages[index] = { ...pages[index], hidden: !pages[index].hidden };
+      return { ...prev, pages };
     });
   };
 

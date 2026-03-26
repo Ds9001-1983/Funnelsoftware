@@ -214,7 +214,7 @@ export function PageEditor({
         { id: "tm3", name: "Lisa Weber", role: "Designerin", image: "" },
         { id: "tm4", name: "Max Fischer", role: "Marketing", image: "" },
       ] : undefined,
-      countdownStyle: type === "countdown" ? "default" : undefined,
+      countdownStyle: type === "countdown" ? "flip" : undefined,
       countdownShowLabels: type === "countdown" ? true : undefined,
     };
     onUpdate({ elements: [...page.elements, newElement] });
