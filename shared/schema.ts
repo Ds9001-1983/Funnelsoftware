@@ -19,8 +19,11 @@ export const users = pgTable("users", {
   subscriptionPlan: text("subscription_plan"), // basic, pro, enterprise
   subscriptionStartedAt: timestamp("subscription_started_at"),
   lastLoginAt: timestamp("last_login_at"),
+  emailVerifiedAt: timestamp("email_verified_at"),
+  emailVerificationToken: text("email_verification_token"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at"),
 });
 
 // Funnels table
@@ -37,6 +40,7 @@ export const funnels = pgTable("funnels", {
   leads: integer("leads_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at"),
 }, (table) => [
   index("funnels_user_id_idx").on(table.userId),
 ]);
@@ -85,6 +89,16 @@ export const analyticsEvents = pgTable("analytics_events", {
 }, (table) => [
   index("analytics_events_funnel_id_idx").on(table.funnelId),
 ]);
+
+// Password reset tokens
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 // Sessions table for express-session with connect-pg-simple
 export const sessions = pgTable("session", {

@@ -1,7 +1,7 @@
 import { eq, desc, and, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
-  users, funnels, leads, templates, analyticsEvents,
+  users, funnels, leads, templates, analyticsEvents, passwordResetTokens,
   type User, type InsertUser, type Funnel, type InsertFunnel,
   type Lead, type InsertLead, type AnalyticsEvent, type Template,
   type FunnelPage, type Theme
@@ -91,7 +91,7 @@ export class DatabaseStorage implements IStorage {
 
   async getFunnels(userId: number): Promise<Funnel[]> {
     const result = await db.select().from(funnels)
-      .where(eq(funnels.userId, userId))
+      .where(and(eq(funnels.userId, userId), sql`${funnels.deletedAt} IS NULL`))
       .orderBy(desc(funnels.updatedAt));
 
     return result.map(f => this.mapFunnelToResponse(f));
@@ -99,13 +99,14 @@ export class DatabaseStorage implements IStorage {
 
   async getFunnel(id: number, userId: number): Promise<Funnel | undefined> {
     const [funnel] = await db.select().from(funnels)
-      .where(and(eq(funnels.id, id), eq(funnels.userId, userId)));
+      .where(and(eq(funnels.id, id), eq(funnels.userId, userId), sql`${funnels.deletedAt} IS NULL`));
 
     return funnel ? this.mapFunnelToResponse(funnel) : undefined;
   }
 
   async getFunnelByUuid(uuid: string): Promise<Funnel | undefined> {
-    const [funnel] = await db.select().from(funnels).where(eq(funnels.uuid, uuid));
+    const [funnel] = await db.select().from(funnels)
+      .where(and(eq(funnels.uuid, uuid), sql`${funnels.deletedAt} IS NULL`));
     return funnel ? this.mapFunnelToResponse(funnel) : undefined;
   }
 
@@ -149,8 +150,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteFunnel(id: number, userId: number): Promise<boolean> {
-    const result = await db.delete(funnels)
-      .where(and(eq(funnels.id, id), eq(funnels.userId, userId)))
+    // Soft-Delete: setze deletedAt statt physischem Löschen
+    const result = await db.update(funnels)
+      .set({ deletedAt: new Date() })
+      .where(and(eq(funnels.id, id), eq(funnels.userId, userId), sql`${funnels.deletedAt} IS NULL`))
       .returning({ id: funnels.id });
 
     return result.length > 0;
@@ -356,6 +359,66 @@ export class DatabaseStorage implements IStorage {
       theme: template.theme as Theme,
       createdAt: template.createdAt.toISOString(),
     };
+  }
+
+  // Email Verification
+  async verifyEmail(token: string): Promise<User | undefined> {
+    const [user] = await db.select()
+      .from(users)
+      .where(and(
+        eq(users.emailVerificationToken, token),
+        sql`${users.emailVerifiedAt} IS NULL`
+      ));
+
+    if (!user) return undefined;
+
+    await db.update(users)
+      .set({
+        emailVerifiedAt: new Date(),
+        emailVerificationToken: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, user.id));
+
+    return user;
+  }
+
+  // Password Reset Tokens
+  async createPasswordResetToken(userId: number): Promise<string> {
+    const token = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 Stunde
+
+    await db.insert(passwordResetTokens).values({
+      userId,
+      token,
+      expiresAt,
+    });
+
+    return token;
+  }
+
+  async validatePasswordResetToken(token: string): Promise<number | null> {
+    const [result] = await db.select()
+      .from(passwordResetTokens)
+      .where(and(
+        eq(passwordResetTokens.token, token),
+        sql`${passwordResetTokens.expiresAt} > NOW()`,
+        sql`${passwordResetTokens.usedAt} IS NULL`
+      ));
+
+    return result ? result.userId : null;
+  }
+
+  async markTokenUsed(token: string): Promise<void> {
+    await db.update(passwordResetTokens)
+      .set({ usedAt: new Date() })
+      .where(eq(passwordResetTokens.token, token));
+  }
+
+  async updateUserPassword(userId: number, hashedPassword: string): Promise<void> {
+    await db.update(users)
+      .set({ password: hashedPassword, updatedAt: new Date() })
+      .where(eq(users.id, userId));
   }
 
   // Seed templates if they don't exist
