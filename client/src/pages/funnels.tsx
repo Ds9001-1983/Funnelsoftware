@@ -102,7 +102,7 @@ function FunnelGridCard({ funnel, onDelete, onClone }: { funnel: Funnel; onDelet
               </DropdownMenuItem>
               {funnel.uuid && (
                 <DropdownMenuItem asChild>
-                  <a href={`/funnels/${funnel.id}`} target="_blank" rel="noopener noreferrer">
+                  <a href={`/f/${funnel.uuid}`} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Vorschau
                   </a>
@@ -223,7 +223,7 @@ function FunnelListRow({ funnel, onDelete, onClone }: { funnel: Funnel; onDelete
             </DropdownMenuItem>
             {funnel.uuid && (
               <DropdownMenuItem asChild>
-                <a href={`/funnels/${funnel.id}`} target="_blank" rel="noopener noreferrer">
+                <a href={`/f/${funnel.uuid}`} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-4 w-4 mr-2" />
                   Vorschau
                 </a>

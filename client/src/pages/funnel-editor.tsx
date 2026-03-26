@@ -1001,7 +1001,7 @@ export default function FunnelEditor() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => window.open(`/preview/${params?.id}`, '_blank')}
+                onClick={() => window.open(`/f/${localFunnel?.uuid}`, '_blank')}
               >
                 <Eye className="h-4 w-4" />
               </Button>
@@ -1526,7 +1526,7 @@ export default function FunnelEditor() {
             </button>
             <button
               className="flex flex-col items-center gap-1 p-2 rounded-lg text-muted-foreground"
-              onClick={() => window.open(`/preview/${params?.id}`, '_blank')}
+              onClick={() => window.open(`/f/${localFunnel?.uuid}`, '_blank')}
             >
               <Eye className="h-5 w-5" />
               <span className="text-xs">Vorschau</span>
