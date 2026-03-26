@@ -8,6 +8,7 @@ import {
   Shield,
   HelpCircle,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,18 +27,62 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useTheme } from "@/components/theme-provider";
+import { useAuth } from "@/hooks/use-auth";
 
 function ProfileSettings() {
-  const [name, setName] = useState("John Doe");
-  const [email, setEmail] = useState("john@example.com");
-  const [company, setCompany] = useState("Meine Firma GmbH");
+  const { user, refetchUser } = useAuth();
+  const [name, setName] = useState(user?.displayName || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [company, setCompany] = useState(user?.company || "");
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
-  const handleSave = () => {
-    toast({
-      title: "Profil aktualisiert",
-      description: "Deine Profiländerungen wurden gespeichert.",
-    });
+  const initials = (user?.displayName || user?.username || "?")
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          displayName: name,
+          email,
+          company,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast({
+          title: "Fehler",
+          description: data.error || "Profil konnte nicht gespeichert werden.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await refetchUser();
+      toast({
+        title: "Profil aktualisiert",
+        description: "Deine Profiländerungen wurden gespeichert.",
+      });
+    } catch (error) {
+      toast({
+        title: "Fehler",
+        description: "Netzwerkfehler beim Speichern.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -52,22 +97,18 @@ function ProfileSettings() {
             <Avatar className="h-20 w-20">
               <AvatarImage src="" />
               <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-primary/60 text-primary-foreground">
-                JD
+                {initials}
               </AvatarFallback>
             </Avatar>
             <div>
-              <Button variant="outline" size="sm">
-                Bild ändern
-              </Button>
-              <p className="text-sm text-muted-foreground mt-1">
-                JPG, PNG oder GIF. Max 2MB
-              </p>
+              <p className="font-medium">{user?.displayName || user?.username}</p>
+              <p className="text-sm text-muted-foreground">@{user?.username}</p>
             </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">Anzeigename</Label>
               <Input
                 id="name"
                 value={name}
@@ -91,13 +132,15 @@ function ProfileSettings() {
                 id="company"
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
+                placeholder="Name deines Unternehmens"
                 data-testid="input-settings-company"
               />
             </div>
           </div>
 
           <div className="flex justify-end">
-            <Button onClick={handleSave} data-testid="button-save-profile">
+            <Button onClick={handleSave} disabled={isSaving} data-testid="button-save-profile">
+              {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Änderungen speichern
             </Button>
           </div>

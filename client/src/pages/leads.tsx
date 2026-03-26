@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Search,
@@ -10,6 +10,7 @@ import {
   Filter,
   Download,
   Trash2,
+  X,
   Eye,
   Users,
   FileSpreadsheet,
@@ -652,9 +653,17 @@ export default function Leads() {
             placeholder="Leads suchen..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className="pl-9 pr-8"
             data-testid="input-search-leads"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
         <Select value={funnelFilter} onValueChange={setFunnelFilter}>
           <SelectTrigger className="w-[180px]" data-testid="select-funnel-filter">

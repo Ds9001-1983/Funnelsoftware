@@ -85,7 +85,13 @@ export function setupAuth(app: Express) {
       tableName: "session",
       createTableIfMissing: true,
     }),
-    secret: process.env.SESSION_SECRET || "funnel-software-secret-change-in-production",
+    secret: (() => {
+      const secret = process.env.SESSION_SECRET;
+      if (!secret && process.env.NODE_ENV === "production") {
+        throw new Error("SESSION_SECRET muss in Production gesetzt sein!");
+      }
+      return secret || "dev-only-secret-not-for-production";
+    })(),
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -129,6 +135,40 @@ export function isAdmin(
     return next();
   }
   res.status(403).json({ error: "Zugriff verweigert. Admin-Berechtigung erforderlich." });
+}
+
+// Trial-Enforcement: Blockiert schreibende Aktionen wenn Trial abgelaufen
+export function requireActivePlan(
+  req: import("express").Request,
+  res: import("express").Response,
+  next: import("express").NextFunction
+) {
+  if (!req.isAuthenticated() || !req.user) {
+    return res.status(401).json({ error: "Nicht autorisiert." });
+  }
+
+  // Admins sind immer freigeschaltet
+  if (req.user.isAdmin) {
+    return next();
+  }
+
+  // Pro-User sind freigeschaltet
+  if (req.user.isPro) {
+    return next();
+  }
+
+  // Trial prüfen
+  if (req.user.trialEndsAt) {
+    const trialEnd = new Date(req.user.trialEndsAt);
+    if (trialEnd > new Date()) {
+      return next();
+    }
+  }
+
+  return res.status(403).json({
+    error: "Dein Testzeitraum ist abgelaufen. Bitte upgrade auf einen kostenpflichtigen Plan.",
+    code: "TRIAL_EXPIRED",
+  });
 }
 
 // Get current user ID from request

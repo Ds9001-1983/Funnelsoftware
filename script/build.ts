@@ -15,6 +15,7 @@ const allowlist = [
   "express",
   "express-rate-limit",
   "express-session",
+  "helmet",
   "jsonwebtoken",
   "memorystore",
   "multer",
@@ -56,7 +57,7 @@ async function buildAll() {
       "process.env.NODE_ENV": '"production"',
     },
     minify: true,
-    external: externals,
+    external: [...externals, "pg-cloudflare"],
     logLevel: "info",
   });
 }

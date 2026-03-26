@@ -1,4 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -14,15 +16,45 @@ declare module "http" {
   }
 }
 
+// Security Headers
+app.use(
+  helmet({
+    contentSecurityPolicy: process.env.NODE_ENV === "production" ? undefined : false,
+  }),
+);
+
+// Rate Limiting - Auth Endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 Minuten
+  max: 20, // Max 20 Versuche pro Fenster
+  message: { error: "Zu viele Anfragen. Bitte versuche es in 15 Minuten erneut." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/register", authLimiter);
+
+// Rate Limiting - Public Endpoints (Leads, Analytics)
+const publicLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 Minute
+  max: 60, // Max 60 Anfragen pro Minute
+  message: { error: "Zu viele Anfragen. Bitte versuche es später erneut." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api/public", publicLimiter);
+
+// Request Size Limit
 app.use(
   express.json({
+    limit: "1mb",
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
 
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false, limit: "1mb" }));
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -53,7 +85,8 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
+      // Keine Response-Bodies für sensitive Pfade loggen
+      if (capturedJsonResponse && !path.startsWith("/api/auth")) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 
@@ -78,13 +111,19 @@ app.use((req, res, next) => {
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
 
+    // Stack Traces nur intern loggen, nie an Client senden
     console.error("Internal Server Error:", err);
 
     if (res.headersSent) {
       return next(err);
     }
+
+    // In Production nur generische Fehlermeldungen an Client
+    const message =
+      process.env.NODE_ENV === "production" && status >= 500
+        ? "Ein interner Fehler ist aufgetreten."
+        : err.message || "Internal Server Error";
 
     return res.status(status).json({ message });
   });

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, timestamp, jsonb, serial } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, timestamp, jsonb, serial, index } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -37,7 +37,9 @@ export const funnels = pgTable("funnels", {
   leads: integer("leads_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("funnels_user_id_idx").on(table.userId),
+]);
 
 // Leads table
 export const leads = pgTable("leads", {
@@ -54,7 +56,10 @@ export const leads = pgTable("leads", {
   status: text("status").notNull().default("new"), // new, contacted, qualified, converted, lost
   source: text("source"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("leads_user_id_idx").on(table.userId),
+  index("leads_funnel_id_idx").on(table.funnelId),
+]);
 
 // Templates table (global, not user-specific)
 export const templates = pgTable("templates", {
@@ -77,7 +82,9 @@ export const analyticsEvents = pgTable("analytics_events", {
   pageId: text("page_id"),
   metadata: jsonb("metadata").default({}),
   timestamp: timestamp("timestamp").defaultNow().notNull(),
-});
+}, (table) => [
+  index("analytics_events_funnel_id_idx").on(table.funnelId),
+]);
 
 // Sessions table for express-session with connect-pg-simple
 export const sessions = pgTable("session", {
@@ -273,9 +280,9 @@ export const pageElementSchema = z.object({
     })),
   }).optional(),
   // Code/Embed properties
-  codeContent: z.string().optional(),
+  codeContent: z.string().max(50000).optional(),
   codeLanguage: z.string().optional(),
-  embedCode: z.string().optional(),
+  embedCode: z.string().max(50000).optional(),
   embedUrl: z.string().optional(),
   // Countdown properties
   countdownDate: z.string().optional(),
@@ -594,7 +601,11 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export const registerSchema = z.object({
   username: z.string().min(3, "Benutzername muss mindestens 3 Zeichen haben"),
   email: z.string().email("Ungültige E-Mail-Adresse"),
-  password: z.string().min(6, "Passwort muss mindestens 6 Zeichen haben"),
+  password: z
+    .string()
+    .min(8, "Passwort muss mindestens 8 Zeichen haben")
+    .regex(/[A-Z]/, "Passwort muss mindestens einen Großbuchstaben enthalten")
+    .regex(/[0-9]/, "Passwort muss mindestens eine Zahl enthalten"),
   displayName: z.string().optional(),
 });
 

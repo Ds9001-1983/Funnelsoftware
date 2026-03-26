@@ -6,6 +6,11 @@ interface User {
   username: string;
   email: string;
   displayName: string | null;
+  company: string | null;
+  isPro: boolean;
+  subscriptionStatus: string;
+  subscriptionPlan: string | null;
+  trialEndsAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

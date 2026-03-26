@@ -359,9 +359,9 @@ export function NavigatorPanel({
           </div>
         )}
 
-        {/* Elements */}
+        {/* Elements - DnD nur ohne aktiven Filter */}
         <DndContext
-          sensors={sensors}
+          sensors={searchQuery ? [] : sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
         >

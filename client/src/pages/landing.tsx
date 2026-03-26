@@ -582,11 +582,11 @@ export default function Landing() {
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Unternehmen</h4>
+              <h4 className="font-semibold mb-4">Produkt</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-foreground">Über uns</a></li>
-                <li><a href="#" className="hover:text-foreground">Blog</a></li>
-                <li><a href="#" className="hover:text-foreground">Karriere</a></li>
+                <li><a href="#features" className="hover:text-foreground">Features</a></li>
+                <li><a href="#pricing" className="hover:text-foreground">Preise</a></li>
+                <li><Link href="/register" className="hover:text-foreground">Kostenlos testen</Link></li>
               </ul>
             </div>
             <div>

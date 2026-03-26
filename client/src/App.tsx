@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AuthProvider, RequireAuth, useAuth } from "@/hooks/use-auth";
+import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
@@ -94,12 +95,14 @@ function Router() {
     return <Register />;
   }
 
-  // Admin page (has its own auth)
+  // Admin page (protected)
   if (location === "/admin") {
     return (
-      <Suspense fallback={<PageLoader />}>
-        <Admin />
-      </Suspense>
+      <RequireAuth>
+        <Suspense fallback={<PageLoader />}>
+          <Admin />
+        </Suspense>
+      </RequireAuth>
     );
   }
   // Legal pages (no sidebar, no auth required)
@@ -154,9 +157,11 @@ function App() {
       <ThemeProvider defaultTheme="light" storageKey="trichterwerk-theme">
         <TooltipProvider>
           <AuthProvider>
-            <Toaster />
-            <Router />
-            <CookieConsent />
+            <ErrorBoundary fallbackTitle="Ein unerwarteter Fehler ist aufgetreten">
+              <Toaster />
+              <Router />
+              <CookieConsent />
+            </ErrorBoundary>
           </AuthProvider>
         </TooltipProvider>
       </ThemeProvider>

@@ -217,22 +217,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createLead(insertLead: InsertLead, userId: number): Promise<Lead> {
-    const [lead] = await db.insert(leads).values({
-      ...insertLead,
-      userId,
-    }).returning();
+    // Transaction: Lead erstellen + Counter erhöhen atomar
+    return await db.transaction(async (tx) => {
+      const [lead] = await tx.insert(leads).values({
+        ...insertLead,
+        userId,
+      }).returning();
 
-    // Increment leads count on funnel
-    await db.update(funnels)
-      .set({ leads: sql`${funnels.leads} + 1` })
-      .where(eq(funnels.id, insertLead.funnelId));
+      // Increment leads count on funnel
+      await tx.update(funnels)
+        .set({ leads: sql`${funnels.leads} + 1` })
+        .where(eq(funnels.id, insertLead.funnelId));
 
-    // Get funnel name
-    const [funnel] = await db.select({ name: funnels.name })
-      .from(funnels)
-      .where(eq(funnels.id, insertLead.funnelId));
+      // Get funnel name
+      const [funnel] = await tx.select({ name: funnels.name })
+        .from(funnels)
+        .where(eq(funnels.id, insertLead.funnelId));
 
-    return this.mapLeadToResponse(lead, funnel?.name);
+      return this.mapLeadToResponse(lead, funnel?.name);
+    });
   }
 
   async updateLead(id: number, userId: number, updates: Partial<Lead>): Promise<Lead | undefined> {
@@ -461,8 +464,12 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .where(search ? sql`${users.username} ILIKE ${`%${search}%`} OR ${users.email} ILIKE ${`%${search}%`}` : undefined);
 
-    // Get users with funnel and lead counts
-    const usersResult = await db.select({
+    // Get users with funnel and lead counts in a single query (no N+1)
+    const searchCondition = search
+      ? sql`${users.username} ILIKE ${`%${search}%`} OR ${users.email} ILIKE ${`%${search}%`}`
+      : undefined;
+
+    const usersWithCounts = await db.select({
       id: users.id,
       username: users.username,
       email: users.email,
@@ -476,32 +483,21 @@ export class DatabaseStorage implements IStorage {
       lastLoginAt: users.lastLoginAt,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
+      funnelCount: sql<number>`(SELECT count(*) FROM ${funnels} WHERE ${funnels.userId} = ${users.id})`,
+      leadCount: sql<number>`(SELECT count(*) FROM ${leads} WHERE ${leads.userId} = ${users.id})`,
     })
       .from(users)
-      .where(search ? sql`${users.username} ILIKE ${`%${search}%`} OR ${users.email} ILIKE ${`%${search}%`}` : undefined)
+      .where(searchCondition)
       .orderBy(desc(users.createdAt))
       .limit(limit)
       .offset(offset);
 
-    // Get funnel and lead counts for each user
-    const usersWithCounts = await Promise.all(usersResult.map(async (user) => {
-      const [funnelCount] = await db.select({ count: sql<number>`count(*)` })
-        .from(funnels)
-        .where(eq(funnels.userId, user.id));
-
-      const [leadCount] = await db.select({ count: sql<number>`count(*)` })
-        .from(leads)
-        .where(eq(leads.userId, user.id));
-
-      return {
-        ...user,
-        funnelCount: Number(funnelCount?.count || 0),
-        leadCount: Number(leadCount?.count || 0),
-      };
-    }));
-
     return {
-      users: usersWithCounts,
+      users: usersWithCounts.map(u => ({
+        ...u,
+        funnelCount: Number(u.funnelCount || 0),
+        leadCount: Number(u.leadCount || 0),
+      })),
       total: Number(countResult?.count || 0),
     };
   }
@@ -514,6 +510,23 @@ export class DatabaseStorage implements IStorage {
     subscriptionPlan?: string;
     trialEndsAt?: Date | null;
     subscriptionStartedAt?: Date | null;
+  }): Promise<User | undefined> {
+    const [user] = await db.update(users)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+
+    return user;
+  }
+
+  // Update user profile (self-service)
+  async updateUserProfile(userId: number, updates: {
+    displayName?: string;
+    email?: string;
+    company?: string;
   }): Promise<User | undefined> {
     const [user] = await db.update(users)
       .set({
@@ -552,37 +565,25 @@ export class DatabaseStorage implements IStorage {
     newUsersToday: number;
     newUsersThisWeek: number;
   }> {
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-    const [totalUsers] = await db.select({ count: sql<number>`count(*)` }).from(users);
-    const [activeTrials] = await db.select({ count: sql<number>`count(*)` })
-      .from(users)
-      .where(and(
-        eq(users.subscriptionStatus, "trial"),
-        sql`${users.trialEndsAt} > NOW()`
-      ));
-    const [proUsers] = await db.select({ count: sql<number>`count(*)` })
-      .from(users)
-      .where(eq(users.isPro, true));
-    const [totalFunnels] = await db.select({ count: sql<number>`count(*)` }).from(funnels);
-    const [totalLeads] = await db.select({ count: sql<number>`count(*)` }).from(leads);
-    const [newUsersToday] = await db.select({ count: sql<number>`count(*)` })
-      .from(users)
-      .where(sql`${users.createdAt} >= ${startOfDay}`);
-    const [newUsersThisWeek] = await db.select({ count: sql<number>`count(*)` })
-      .from(users)
-      .where(sql`${users.createdAt} >= ${startOfWeek}`);
+    // Single query instead of 7 separate queries
+    const [stats] = await db.select({
+      totalUsers: sql<number>`(SELECT count(*) FROM ${users})`,
+      activeTrials: sql<number>`(SELECT count(*) FROM ${users} WHERE ${users.subscriptionStatus} = 'trial' AND ${users.trialEndsAt} > NOW())`,
+      proUsers: sql<number>`(SELECT count(*) FROM ${users} WHERE ${users.isPro} = true)`,
+      totalFunnels: sql<number>`(SELECT count(*) FROM ${funnels})`,
+      totalLeads: sql<number>`(SELECT count(*) FROM ${leads})`,
+      newUsersToday: sql<number>`(SELECT count(*) FROM ${users} WHERE ${users.createdAt} >= CURRENT_DATE)`,
+      newUsersThisWeek: sql<number>`(SELECT count(*) FROM ${users} WHERE ${users.createdAt} >= NOW() - INTERVAL '7 days')`,
+    }).from(sql`(SELECT 1) AS _dummy`);
 
     return {
-      totalUsers: Number(totalUsers?.count || 0),
-      activeTrials: Number(activeTrials?.count || 0),
-      proUsers: Number(proUsers?.count || 0),
-      totalFunnels: Number(totalFunnels?.count || 0),
-      totalLeads: Number(totalLeads?.count || 0),
-      newUsersToday: Number(newUsersToday?.count || 0),
-      newUsersThisWeek: Number(newUsersThisWeek?.count || 0),
+      totalUsers: Number(stats?.totalUsers || 0),
+      activeTrials: Number(stats?.activeTrials || 0),
+      proUsers: Number(stats?.proUsers || 0),
+      totalFunnels: Number(stats?.totalFunnels || 0),
+      totalLeads: Number(stats?.totalLeads || 0),
+      newUsersToday: Number(stats?.newUsersToday || 0),
+      newUsersThisWeek: Number(stats?.newUsersThisWeek || 0),
     };
   }
 
