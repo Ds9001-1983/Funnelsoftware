@@ -269,9 +269,17 @@ export default function Funnels() {
       await apiRequest("DELETE", `/api/funnels/${id}`);
       return id;
     },
-    onSuccess: (_data, deletedId) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
+    onMutate: async (deletedId) => {
+      // Optimistic Update: Funnel sofort aus der Liste entfernen
+      await queryClient.cancelQueries({ queryKey: ["/api/funnels"] });
+      const previous = queryClient.getQueryData<Funnel[]>(["/api/funnels"]);
+      queryClient.setQueryData<Funnel[]>(["/api/funnels"], (old) =>
+        old ? old.filter((f) => f.id !== deletedId) : []
+      );
       setDeleteTarget(null);
+      return { previous };
+    },
+    onSuccess: (_data, deletedId) => {
       toast({
         title: "Funnel gelöscht",
         description: "Der Funnel wurde gelöscht.",
@@ -292,12 +300,19 @@ export default function Funnels() {
         ),
       });
     },
-    onError: () => {
+    onError: (_err, _id, context) => {
+      // Rollback bei Fehler
+      if (context?.previous) {
+        queryClient.setQueryData(["/api/funnels"], context.previous);
+      }
       toast({
         title: "Fehler",
         description: "Der Funnel konnte nicht gelöscht werden.",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
     },
   });
 
