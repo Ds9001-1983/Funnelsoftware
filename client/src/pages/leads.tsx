@@ -253,9 +253,11 @@ function ExportDialog({
 
     const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
+    link.href = url;
     link.download = `leads-export-${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
+    URL.revokeObjectURL(url);
     onOpenChange(false);
   };
 
@@ -301,9 +303,11 @@ function ExportDialog({
 
     const blob = new Blob([tableHtml], { type: "application/vnd.ms-excel;charset=utf-8;" });
     const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
+    link.href = url;
     link.download = `leads-export-${new Date().toISOString().split("T")[0]}.xls`;
     link.click();
+    URL.revokeObjectURL(url);
     onOpenChange(false);
   };
 

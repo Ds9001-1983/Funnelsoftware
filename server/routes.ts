@@ -323,11 +323,19 @@ export async function registerRoutes(
         }
       }
 
-      const funnel = await storage.updateFunnel(funnelId, userId, result.data);
-      if (!funnel) {
-        return res.status(404).json({ error: "Funnel nicht gefunden" });
+      try {
+        const funnel = await storage.updateFunnel(funnelId, userId, result.data);
+        if (!funnel) {
+          return res.status(404).json({ error: "Funnel nicht gefunden" });
+        }
+        res.json(funnel);
+      } catch (dbError: any) {
+        // Handle unique constraint violation (slug already taken - race condition)
+        if (dbError?.code === "23505" && dbError?.constraint?.includes("slug")) {
+          return res.status(409).json({ error: "Dieser Slug ist bereits vergeben" });
+        }
+        throw dbError;
       }
-      res.json(funnel);
     } catch (error) {
       console.error("Update funnel error:", error);
       res.status(500).json({ error: "Funnel konnte nicht aktualisiert werden" });
@@ -758,8 +766,8 @@ export async function registerRoutes(
   // Get all users (admin only)
   app.get("/api/admin/users", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const limit = parseInt(String(req.query.limit)) || 50;
-      const offset = parseInt(String(req.query.offset)) || 0;
+      const limit = Math.min(parseInt(String(req.query.limit)) || 50, 100);
+      const offset = Math.max(parseInt(String(req.query.offset)) || 0, 0);
       const search = req.query.search as string | undefined;
 
       const result = await storage.getAllUsers(limit, offset, search);

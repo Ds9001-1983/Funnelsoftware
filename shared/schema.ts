@@ -615,7 +615,7 @@ export const templateSchema = z.object({
   uuid: z.string(),
   name: z.string(),
   description: z.string(),
-  category: z.enum(["leads", "sales", "recruiting", "webinar", "quiz"]),
+  category: z.enum(["leads", "sales", "recruiting", "webinar", "quiz", "survey"]),
   thumbnail: z.string().optional().nullable(),
   pages: z.array(funnelPageSchema),
   theme: themeSchema,

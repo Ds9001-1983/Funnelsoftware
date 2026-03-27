@@ -301,11 +301,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteLead(id: number, userId: number): Promise<boolean> {
-    const result = await db.delete(leads)
-      .where(and(eq(leads.id, id), eq(leads.userId, userId)))
-      .returning({ id: leads.id });
+    return await db.transaction(async (tx) => {
+      const result = await tx.delete(leads)
+        .where(and(eq(leads.id, id), eq(leads.userId, userId)))
+        .returning({ id: leads.id, funnelId: leads.funnelId });
 
-    return result.length > 0;
+      if (result.length === 0) return false;
+
+      // Decrement leads count on funnel
+      await tx.update(funnels)
+        .set({ leads: sql`GREATEST(${funnels.leads} - 1, 0)` })
+        .where(eq(funnels.id, result[0].funnelId));
+
+      return true;
+    });
   }
 
   private mapLeadToResponse(lead: typeof leads.$inferSelect, funnelName?: string | null): Lead {

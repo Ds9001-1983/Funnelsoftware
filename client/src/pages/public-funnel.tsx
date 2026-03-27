@@ -71,7 +71,7 @@ export default function PublicFunnelView() {
           funnelUuid: funnel.uuid,
           eventType: "view",
         }),
-      }).catch(() => {}); // Fire and forget
+      }).catch((e) => console.warn("Analytics tracking failed:", e));
     }
   }, [funnel, viewTracked]);
 
@@ -87,7 +87,7 @@ export default function PublicFunnelView() {
           eventType: "pageView",
           pageId,
         }),
-      }).catch(() => {});
+      }).catch((e) => console.warn("Analytics tracking failed:", e));
     },
     [funnel]
   );
@@ -243,7 +243,17 @@ export default function PublicFunnelView() {
             funnelUuid: funnel.uuid,
             eventType: "submit",
           }),
-        }).catch(() => {});
+        }).catch((e) => console.warn("Analytics tracking failed:", e));
+
+        // Track completion
+        fetch("/api/public/analytics", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            funnelUuid: funnel.uuid,
+            eventType: "complete",
+          }),
+        }).catch((e) => console.warn("Analytics tracking failed:", e));
 
         const thankyouIndex = funnel.pages.findIndex((p) => p.type === "thankyou");
         if (thankyouIndex >= 0) {
