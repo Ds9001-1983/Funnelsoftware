@@ -8,9 +8,12 @@ interface User {
   displayName: string | null;
   company: string | null;
   isPro: boolean;
+  isAdmin: boolean;
   subscriptionStatus: string;
   subscriptionPlan: string | null;
   trialEndsAt: string | null;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
   createdAt: string;
   updatedAt: string;
 }

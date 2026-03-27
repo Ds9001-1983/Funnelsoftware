@@ -3,6 +3,13 @@ import { createServer, type Server } from "http";
 import { storage, hashPassword } from "./storage";
 import { randomBytes } from "crypto";
 import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail } from "./email";
+import {
+  isStripeConfigured,
+  getOrCreateStripeCustomer,
+  createCheckoutSession,
+  createPortalSession,
+  constructWebhookEvent,
+} from "./stripe";
 import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan } from "./auth";
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema,
@@ -660,6 +667,163 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Get template error:", error);
       res.status(500).json({ error: "Template konnte nicht geladen werden" });
+    }
+  });
+
+  // ============ BILLING (Stripe) ============
+
+  // Create Stripe Checkout Session for subscription upgrade
+  app.post("/api/billing/create-checkout", isAuthenticated, async (req, res) => {
+    try {
+      if (!isStripeConfigured()) {
+        return res.status(503).json({ error: "Zahlungssystem nicht konfiguriert" });
+      }
+
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: "Benutzer nicht gefunden" });
+
+      if (user.isPro) {
+        return res.status(400).json({ error: "Du hast bereits ein aktives Abo" });
+      }
+
+      const priceId = process.env.STRIPE_PRICE_ID;
+      if (!priceId) return res.status(500).json({ error: "Preis nicht konfiguriert" });
+
+      // Get or create Stripe customer
+      const customerId = await getOrCreateStripeCustomer(user);
+      if (!user.stripeCustomerId) {
+        await storage.updateStripeCustomerId(userId, customerId);
+      }
+
+      const appUrl = `${req.protocol}://${req.get("host")}`;
+      const session = await createCheckoutSession(
+        customerId,
+        priceId,
+        `${appUrl}/settings?tab=billing&upgraded=true`,
+        `${appUrl}/settings?tab=billing&cancelled=true`
+      );
+
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("Create checkout error:", error);
+      res.status(500).json({ error: "Checkout konnte nicht erstellt werden" });
+    }
+  });
+
+  // Create Stripe Customer Portal session
+  app.post("/api/billing/portal", isAuthenticated, async (req, res) => {
+    try {
+      if (!isStripeConfigured()) {
+        return res.status(503).json({ error: "Zahlungssystem nicht konfiguriert" });
+      }
+
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const user = await storage.getUser(userId);
+      if (!user?.stripeCustomerId) {
+        return res.status(400).json({ error: "Kein Stripe-Konto vorhanden" });
+      }
+
+      const appUrl = `${req.protocol}://${req.get("host")}`;
+      const session = await createPortalSession(
+        user.stripeCustomerId,
+        `${appUrl}/settings?tab=billing`
+      );
+
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("Create portal error:", error);
+      res.status(500).json({ error: "Portal konnte nicht geöffnet werden" });
+    }
+  });
+
+  // Stripe Webhook (no auth - called by Stripe)
+  app.post("/api/webhooks/stripe", async (req, res) => {
+    try {
+      const signature = req.headers["stripe-signature"] as string;
+      if (!signature || !req.rawBody) {
+        return res.status(400).json({ error: "Ungültige Webhook-Anfrage" });
+      }
+
+      const event = constructWebhookEvent(req.rawBody as Buffer, signature);
+
+      switch (event.type) {
+        case "checkout.session.completed": {
+          const session = event.data.object as any;
+          const customerId = session.customer as string;
+          const subscriptionId = session.subscription as string;
+
+          const user = await storage.getUserByStripeCustomerId(customerId);
+          if (user) {
+            await storage.updateSubscriptionFromStripe(user.id, {
+              isPro: true,
+              subscriptionStatus: "active",
+              subscriptionPlan: "pro",
+              stripeSubscriptionId: subscriptionId,
+              subscriptionStartedAt: new Date(),
+            });
+          }
+          break;
+        }
+
+        case "customer.subscription.updated": {
+          const subscription = event.data.object as any;
+          const customerId = subscription.customer as string;
+
+          const user = await storage.getUserByStripeCustomerId(customerId);
+          if (user) {
+            const status = subscription.status as string;
+            const mappedStatus =
+              status === "active" ? "active" :
+              status === "past_due" ? "past_due" :
+              status === "canceled" ? "cancelled" :
+              status === "unpaid" ? "expired" : "active";
+
+            await storage.updateSubscriptionFromStripe(user.id, {
+              isPro: status === "active" || status === "past_due",
+              subscriptionStatus: mappedStatus,
+            });
+          }
+          break;
+        }
+
+        case "customer.subscription.deleted": {
+          const subscription = event.data.object as any;
+          const customerId = subscription.customer as string;
+
+          const user = await storage.getUserByStripeCustomerId(customerId);
+          if (user) {
+            await storage.updateSubscriptionFromStripe(user.id, {
+              isPro: false,
+              subscriptionStatus: "cancelled",
+              stripeSubscriptionId: null,
+            });
+          }
+          break;
+        }
+
+        case "invoice.payment_failed": {
+          const invoice = event.data.object as any;
+          const customerId = invoice.customer as string;
+
+          const user = await storage.getUserByStripeCustomerId(customerId);
+          if (user) {
+            await storage.updateSubscriptionFromStripe(user.id, {
+              subscriptionStatus: "past_due",
+            });
+          }
+          break;
+        }
+      }
+
+      res.json({ received: true });
+    } catch (error) {
+      console.error("Stripe webhook error:", error);
+      res.status(400).json({ error: "Webhook-Verarbeitung fehlgeschlagen" });
     }
   });
 

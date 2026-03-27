@@ -31,7 +31,16 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateStripeCustomerId(userId: number, stripeCustomerId: string): Promise<void>;
+  updateSubscriptionFromStripe(userId: number, updates: {
+    isPro?: boolean;
+    subscriptionStatus?: string;
+    subscriptionPlan?: string;
+    stripeSubscriptionId?: string | null;
+    subscriptionStartedAt?: Date | null;
+  }): Promise<void>;
 
   // Funnels
   getFunnels(userId: number): Promise<Funnel[]>;
@@ -81,6 +90,11 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.stripeCustomerId, stripeCustomerId));
+    return user;
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const hashedPassword = await hashPassword(insertUser.password);
     const [user] = await db.insert(users).values({
@@ -88,6 +102,24 @@ export class DatabaseStorage implements IStorage {
       password: hashedPassword,
     }).returning();
     return user;
+  }
+
+  async updateStripeCustomerId(userId: number, stripeCustomerId: string): Promise<void> {
+    await db.update(users)
+      .set({ stripeCustomerId, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+  }
+
+  async updateSubscriptionFromStripe(userId: number, updates: {
+    isPro?: boolean;
+    subscriptionStatus?: string;
+    subscriptionPlan?: string;
+    stripeSubscriptionId?: string | null;
+    subscriptionStartedAt?: Date | null;
+  }): Promise<void> {
+    await db.update(users)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(users.id, userId));
   }
 
   // ============ FUNNELS ============
