@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { useAuth } from "@/hooks/use-auth";
+import { WelcomeModal } from "@/components/welcome-modal";
 import type { Funnel, Lead } from "@shared/schema";
 
 function StatCard({
@@ -180,6 +182,7 @@ function LeadRow({ lead }: { lead: Lead }) {
 
 export default function Dashboard() {
   useDocumentTitle("Dashboard");
+  const { user } = useAuth();
 
   const { data: funnels, isLoading: funnelsLoading } = useQuery<Funnel[]>({
     queryKey: ["/api/funnels"],
@@ -198,9 +201,13 @@ export default function Dashboard() {
 
   const recentLeads = leads?.slice(0, 5) || [];
   const topFunnels = funnels?.slice(0, 3) || [];
+  const hasFunnels = (funnels?.length || 0) > 0;
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      {/* Welcome Modal für neue User */}
+      <WelcomeModal hasFunnels={hasFunnels} userName={user?.displayName} />
+
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>
@@ -214,38 +221,58 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Gesamte Views"
-          value={totalViews.toLocaleString("de-DE")}
-          change="+12.5%"
-          changeType="positive"
-          icon={Eye}
-          loading={funnelsLoading}
-        />
-        <StatCard
-          title="Neue Leads"
-          value={totalLeads}
-          change="+8.2%"
-          changeType="positive"
-          icon={Users}
-          loading={leadsLoading}
-        />
-        <StatCard
-          title="Aktive Funnels"
-          value={activeFunnels}
-          icon={Layers}
-          loading={funnelsLoading}
-        />
-        <StatCard
-          title="Ø Conversion-Rate"
-          value={`${avgConversion}%`}
-          change="+2.1%"
-          changeType="positive"
-          icon={TrendingUp}
-          loading={funnelsLoading}
-        />
-      </div>
+      {/* Hero-Section für neue User ohne Funnels */}
+      {!funnelsLoading && !hasFunnels ? (
+        <Card className="overflow-hidden">
+          <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-8 md:p-12 text-center">
+            <div className="max-w-lg mx-auto">
+              <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
+                <Layers className="h-8 w-8 text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold mb-3">Erstelle deinen ersten Funnel</h2>
+              <p className="text-muted-foreground mb-6">
+                Wähle ein professionelles Template und passe es in wenigen Minuten
+                an dein Business an. Sammle Leads und steigere deine Conversion.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link href="/funnels/new">
+                  <Button size="lg" className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Mit Template starten
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            title="Gesamte Views"
+            value={totalViews.toLocaleString("de-DE")}
+            icon={Eye}
+            loading={funnelsLoading}
+          />
+          <StatCard
+            title="Neue Leads"
+            value={totalLeads}
+            icon={Users}
+            loading={leadsLoading}
+          />
+          <StatCard
+            title="Aktive Funnels"
+            value={activeFunnels}
+            icon={Layers}
+            loading={funnelsLoading}
+          />
+          <StatCard
+            title="Ø Conversion-Rate"
+            value={`${avgConversion}%`}
+            icon={TrendingUp}
+            loading={funnelsLoading}
+          />
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

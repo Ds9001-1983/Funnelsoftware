@@ -344,6 +344,29 @@ export async function registerRoutes(
     }
   });
 
+  // Restore soft-deleted funnel
+  app.patch("/api/funnels/:id/restore", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const funnelId = parseInt(String(req.params.id));
+      if (isNaN(funnelId)) {
+        return res.status(400).json({ error: "Ungültige Funnel-ID" });
+      }
+
+      const restored = await storage.restoreFunnel(funnelId, userId);
+      if (!restored) {
+        return res.status(404).json({ error: "Funnel nicht gefunden" });
+      }
+
+      res.json({ message: "Funnel wiederhergestellt" });
+    } catch (error) {
+      console.error("Restore funnel error:", error);
+      res.status(500).json({ error: "Funnel konnte nicht wiederhergestellt werden" });
+    }
+  });
+
   // Clone funnel
   app.post("/api/funnels/:id/clone", isAuthenticated, requireActivePlan, async (req, res) => {
     try {
