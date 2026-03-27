@@ -6,7 +6,7 @@ import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail } from 
 import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan } from "./auth";
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema,
-  loginSchema, registerSchema
+  loginSchema, registerSchema, slugSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -311,6 +311,18 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Ungültige Update-Daten", details: result.error.errors });
       }
 
+      // Validate slug if provided
+      if (result.data.slug !== undefined && result.data.slug !== null) {
+        const slugResult = slugSchema.safeParse(result.data.slug);
+        if (!slugResult.success) {
+          return res.status(400).json({ error: "Ungültiger Slug", details: slugResult.error.errors });
+        }
+        const available = await storage.isSlugAvailable(result.data.slug, funnelId);
+        if (!available) {
+          return res.status(409).json({ error: "Dieser Slug ist bereits vergeben" });
+        }
+      }
+
       const funnel = await storage.updateFunnel(funnelId, userId, result.data);
       if (!funnel) {
         return res.status(404).json({ error: "Funnel nicht gefunden" });
@@ -398,6 +410,29 @@ export async function registerRoutes(
     }
   });
 
+  // Check slug availability
+  app.get("/api/funnels/check-slug", isAuthenticated, async (req, res) => {
+    try {
+      const slug = req.query.slug as string;
+      const funnelId = req.query.funnelId ? parseInt(String(req.query.funnelId)) : undefined;
+
+      if (!slug) {
+        return res.status(400).json({ error: "Slug erforderlich" });
+      }
+
+      const slugResult = slugSchema.safeParse(slug);
+      if (!slugResult.success) {
+        return res.json({ available: false, error: "Ungültiges Format" });
+      }
+
+      const available = await storage.isSlugAvailable(slug, funnelId);
+      res.json({ available });
+    } catch (error) {
+      console.error("Check slug error:", error);
+      res.status(500).json({ error: "Slug-Prüfung fehlgeschlagen" });
+    }
+  });
+
   // ============ PUBLIC FUNNEL VIEW ============
 
   // Preview funnel (authenticated, shows drafts too)
@@ -429,10 +464,10 @@ export async function registerRoutes(
     }
   });
 
-  // Get published funnel by UUID (public, for viewing)
-  app.get("/api/public/funnels/:uuid", async (req, res) => {
+  // Get published funnel by UUID or slug (public, for viewing)
+  app.get("/api/public/funnels/:identifier", async (req, res) => {
     try {
-      const funnel = await storage.getFunnelByUuid(req.params.uuid);
+      const funnel = await storage.getFunnelBySlugOrUuid(req.params.identifier);
       if (!funnel || funnel.status !== "published") {
         return res.status(404).json({ error: "Funnel nicht gefunden oder nicht veröffentlicht" });
       }
@@ -440,6 +475,7 @@ export async function registerRoutes(
       // Return only necessary public data
       res.json({
         uuid: funnel.uuid,
+        slug: funnel.slug,
         name: funnel.name,
         pages: funnel.pages,
         theme: funnel.theme,
@@ -516,7 +552,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Funnel-ID erforderlich" });
       }
 
-      const funnel = await storage.getFunnelByUuid(funnelId.toString());
+      const funnel = await storage.getFunnelBySlugOrUuid(funnelId.toString());
       if (!funnel || funnel.status !== "published") {
         return res.status(404).json({ error: "Funnel nicht gefunden" });
       }
@@ -630,7 +666,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Funnel-UUID und Event-Typ erforderlich" });
       }
 
-      const funnel = await storage.getFunnelByUuid(funnelUuid);
+      const funnel = await storage.getFunnelBySlugOrUuid(funnelUuid);
       if (!funnel) {
         return res.status(404).json({ error: "Funnel nicht gefunden" });
       }

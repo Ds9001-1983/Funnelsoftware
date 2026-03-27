@@ -30,6 +30,7 @@ export const users = pgTable("users", {
 export const funnels = pgTable("funnels", {
   id: serial("id").primaryKey(),
   uuid: text("uuid").notNull().unique().default(sql`gen_random_uuid()`),
+  slug: text("slug").unique(),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
@@ -43,6 +44,7 @@ export const funnels = pgTable("funnels", {
   deletedAt: timestamp("deleted_at"),
 }, (table) => [
   index("funnels_user_id_idx").on(table.userId),
+  index("funnels_slug_idx").on(table.slug),
 ]);
 
 // Leads table
@@ -168,7 +170,7 @@ export const pageElementSchema = z.object({
     // Interactive
     "slider", "testimonial", "faq", "list", "timer", "calendar", "countdown",
     // Advanced
-    "code", "map", "chart",
+    "code", "chart",
     // Layout
     "socialProof", "divider", "spacer", "progressBar", "icon",
     // Special
@@ -278,12 +280,6 @@ export const pageElementSchema = z.object({
   // Calendar/Booking properties
   calendarProvider: z.enum(["calendly", "cal", "custom"]).optional(),
   calendarUrl: z.string().optional(),
-  // Map properties
-  mapAddress: z.string().optional(),
-  mapLat: z.number().optional(),
-  mapLng: z.number().optional(),
-  mapZoom: z.number().optional(),
-  mapStyle: z.enum(["roadmap", "satellite", "terrain"]).optional(),
   // Chart properties
   chartType: z.enum(["bar", "line", "pie", "doughnut"]).optional(),
   chartData: z.object({
@@ -498,10 +494,30 @@ export const themeSchema = z.object({
 
 export type Theme = z.infer<typeof themeSchema>;
 
+// Slug validation schema
+export const slugSchema = z.string()
+  .min(3, "Slug muss mindestens 3 Zeichen lang sein")
+  .max(60, "Slug darf maximal 60 Zeichen lang sein")
+  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Nur Kleinbuchstaben, Zahlen und Bindestriche erlaubt");
+
+// Generate URL-safe slug from funnel name (handles German umlauts)
+export function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[äÄ]/g, "ae")
+    .replace(/[öÖ]/g, "oe")
+    .replace(/[üÜ]/g, "ue")
+    .replace(/[ß]/g, "ss")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
 // Funnel schema (for API responses)
 export const funnelSchema = z.object({
   id: z.number(),
   uuid: z.string(),
+  slug: z.string().nullable().optional(),
   userId: z.number(),
   name: z.string(),
   description: z.string().optional().nullable(),
@@ -522,6 +538,7 @@ export type Funnel = z.infer<typeof funnelSchema>;
 export const insertFunnelSchema = z.object({
   name: z.string().min(1, "Name ist erforderlich"),
   description: z.string().optional(),
+  slug: slugSchema.optional(),
   status: z.enum(["draft", "published", "archived"]).default("draft"),
   pages: z.array(funnelPageSchema).default([]),
   theme: themeSchema.default({

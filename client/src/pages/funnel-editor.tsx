@@ -81,7 +81,6 @@ import {
   Search,
   // New icons for OpenFunnels-style elements
   Music,
-  MapPin,
   Code,
   BarChart2,
   ShoppingBag,
@@ -176,6 +175,7 @@ import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
 
 import { HistoryIndicator } from "@/components/funnel-editor/HistoryIndicator";
 import { ThemePresetPicker } from "@/components/funnel-editor/ThemePresetPicker";
+import { PublishDialog } from "@/components/funnel-editor/PublishDialog";
 
 const PageEditor = lazy(() => import("@/components/funnel-editor/PageEditor").then(m => ({ default: m.PageEditor })));
 
@@ -212,6 +212,9 @@ export default function FunnelEditor() {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  // Publish dialog
+  const [showPublishDialog, setShowPublishDialog] = useState(false);
 
   // Perspective-style editor states
   const [showRightPanel, setShowRightPanel] = useState(false);
@@ -320,17 +323,19 @@ export default function FunnelEditor() {
   });
 
   const publishMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (slug: string) => {
       const response = await apiRequest("PATCH", `/api/funnels/${params?.id}`, {
         status: "published",
+        slug,
       });
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
       if (localFunnel) {
-        setLocalFunnel({ ...localFunnel, status: "published" });
+        setLocalFunnel({ ...localFunnel, status: "published", slug: data.slug });
       }
+      setShowPublishDialog(false);
       toast({
         title: "Veröffentlicht",
         description: "Dein Funnel ist jetzt live!",
@@ -340,6 +345,21 @@ export default function FunnelEditor() {
         spread: 70,
         origin: { y: 0.6 }
       });
+    },
+  });
+
+  const updateSlugMutation = useMutation({
+    mutationFn: async (slug: string) => {
+      const response = await apiRequest("PATCH", `/api/funnels/${params?.id}`, { slug });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
+      if (localFunnel) {
+        setLocalFunnel({ ...localFunnel, slug: data.slug });
+      }
+      setShowPublishDialog(false);
+      toast({ title: "Slug aktualisiert", description: "Die URL wurde geändert." });
     },
   });
 
@@ -661,10 +681,6 @@ export default function FunnelEditor() {
       countdownDate: type === "countdown" ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
       countdownStyle: type === "countdown" ? "flip" : undefined,
       countdownShowLabels: type === "countdown" ? true : undefined,
-      // Map (new)
-      mapAddress: type === "map" ? "Berlin, Germany" : undefined,
-      mapZoom: type === "map" ? 14 : undefined,
-      mapStyle: type === "map" ? "roadmap" : undefined,
       // Chart (new)
       chartType: type === "chart" ? "bar" : undefined,
       chartData: type === "chart" ? {
@@ -951,7 +967,7 @@ export default function FunnelEditor() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(`/f/${localFunnel?.uuid}`, '_blank')}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(`/f/${localFunnel?.slug || localFunnel?.uuid}`, '_blank')}>
                 <Eye className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -962,12 +978,10 @@ export default function FunnelEditor() {
             <Save className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Speichern</span>
           </Button>
-          {localFunnel.status !== "published" && (
-            <Button size="sm" className="gap-1.5 h-8" onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending} data-testid="button-publish">
-              <Globe className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Veröffentlichen</span>
-            </Button>
-          )}
+          <Button size="sm" className="gap-1.5 h-8" onClick={() => setShowPublishDialog(true)} disabled={publishMutation.isPending} data-testid="button-publish">
+            <Globe className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{localFunnel.status === "published" ? "URL verwalten" : "Veröffentlichen"}</span>
+          </Button>
         </div>
       </div>
 
@@ -1323,13 +1337,24 @@ export default function FunnelEditor() {
             </button>
             <button
               className="flex flex-col items-center gap-1 p-2 rounded-lg text-muted-foreground"
-              onClick={() => window.open(`/f/${localFunnel?.uuid}`, '_blank')}
+              onClick={() => window.open(`/f/${localFunnel?.slug || localFunnel?.uuid}`, '_blank')}
             >
               <Eye className="h-5 w-5" />
               <span className="text-xs">Vorschau</span>
             </button>
           </div>
         </div>
+      )}
+
+      {/* Publish Dialog */}
+      {localFunnel && (
+        <PublishDialog
+          open={showPublishDialog}
+          onOpenChange={setShowPublishDialog}
+          funnel={localFunnel}
+          onPublish={async (slug) => { await publishMutation.mutateAsync(slug); }}
+          onUpdateSlug={async (slug) => { await updateSlugMutation.mutateAsync(slug); }}
+        />
       )}
     </div>
   </ErrorBoundary>
