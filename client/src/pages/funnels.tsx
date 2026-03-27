@@ -464,7 +464,13 @@ export default function Funnels() {
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+              onClick={() => {
+                if (deleteTarget) {
+                  const id = deleteTarget.id;
+                  setDeleteTarget(null);
+                  setTimeout(() => deleteMutation.mutate(id), 0);
+                }
+              }}
             >
               Endgültig löschen
             </AlertDialogAction>
