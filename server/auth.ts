@@ -20,6 +20,8 @@ declare global {
       isPro: boolean;
       subscriptionStatus: string;
       subscriptionPlan: string | null;
+      stripeCustomerId: string | null;
+      stripeSubscriptionId: string | null;
       createdAt: Date;
       updatedAt: Date;
     }
