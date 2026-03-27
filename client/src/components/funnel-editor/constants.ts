@@ -22,7 +22,6 @@ import {
   PanelLeft,
   PanelRight,
   Music,
-  MapPin,
   Code,
   BarChart2,
   ShoppingBag,
@@ -245,7 +244,6 @@ export const elementCategories: ElementCategory[] = [
   {
     name: "Erweitert",
     elements: [
-      { type: "map", label: "Karte", icon: MapPin, description: "Google Maps" },
       { type: "chart", label: "Diagramm", icon: BarChart2, description: "Daten-Visualisierung" },
       { type: "code", label: "Code", icon: Code, description: "Code-Snippet" },
       { type: "embed", label: "Einbetten", icon: Link, description: "Externe Inhalte" },

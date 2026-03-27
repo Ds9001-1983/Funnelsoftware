@@ -10,7 +10,6 @@ import {
   FileUp,
   Image,
   Plus,
-  MapPin,
   Code,
   ShoppingBag,
   Users,
@@ -585,23 +584,6 @@ function ElementPreviewRendererBase({
             <p className="text-xs text-gray-500 text-center">
               {el.calendarProvider === "calendly" ? "Powered by Calendly" : "Terminauswahl"}
             </p>
-          </div>
-        </ElementWrapper>
-      );
-
-    case "map":
-      return (
-        <ElementWrapper {...wrapperProps}>
-          <div className="aspect-video bg-gray-200 rounded-xl overflow-hidden relative">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <MapPin className="h-8 w-8 text-primary mx-auto mb-2" />
-                <p className="text-sm text-gray-600">{el.mapAddress || "Karte"}</p>
-              </div>
-            </div>
-            <div className="absolute bottom-2 right-2 bg-white rounded px-2 py-1 text-xs shadow">
-              Google Maps
-            </div>
           </div>
         </ElementWrapper>
       );

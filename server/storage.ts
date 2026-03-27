@@ -37,6 +37,9 @@ export interface IStorage {
   getFunnels(userId: number): Promise<Funnel[]>;
   getFunnel(id: number, userId: number): Promise<Funnel | undefined>;
   getFunnelByUuid(uuid: string): Promise<Funnel | undefined>;
+  getFunnelBySlug(slug: string): Promise<Funnel | undefined>;
+  getFunnelBySlugOrUuid(identifier: string): Promise<Funnel | undefined>;
+  isSlugAvailable(slug: string, excludeFunnelId?: number): Promise<boolean>;
   createFunnel(funnel: InsertFunnel, userId: number): Promise<Funnel>;
   updateFunnel(id: number, userId: number, funnel: Partial<Funnel>): Promise<Funnel | undefined>;
   deleteFunnel(id: number, userId: number): Promise<boolean>;
@@ -110,6 +113,35 @@ export class DatabaseStorage implements IStorage {
     return funnel ? this.mapFunnelToResponse(funnel) : undefined;
   }
 
+  async getFunnelBySlug(slug: string): Promise<Funnel | undefined> {
+    const [funnel] = await db.select().from(funnels)
+      .where(and(eq(funnels.slug, slug), sql`${funnels.deletedAt} IS NULL`));
+    return funnel ? this.mapFunnelToResponse(funnel) : undefined;
+  }
+
+  async getFunnelBySlugOrUuid(identifier: string): Promise<Funnel | undefined> {
+    // UUID pattern: 8-4-4-4-12 hex chars
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
+    if (isUuid) {
+      return this.getFunnelByUuid(identifier);
+    }
+    // Try slug first, fall back to UUID (in case of non-standard UUID format)
+    const bySlug = await this.getFunnelBySlug(identifier);
+    if (bySlug) return bySlug;
+    return this.getFunnelByUuid(identifier);
+  }
+
+  async isSlugAvailable(slug: string, excludeFunnelId?: number): Promise<boolean> {
+    const conditions = [eq(funnels.slug, slug), sql`${funnels.deletedAt} IS NULL`];
+    if (excludeFunnelId) {
+      conditions.push(sql`${funnels.id} != ${excludeFunnelId}`);
+    }
+    const [result] = await db.select({ count: sql<number>`count(*)` })
+      .from(funnels)
+      .where(and(...conditions));
+    return Number(result?.count || 0) === 0;
+  }
+
   async createFunnel(insertFunnel: InsertFunnel, userId: number): Promise<Funnel> {
     const [funnel] = await db.insert(funnels).values({
       userId,
@@ -133,6 +165,7 @@ export class DatabaseStorage implements IStorage {
     const updateData: Record<string, any> = {};
     if (updates.name !== undefined) updateData.name = updates.name;
     if (updates.description !== undefined) updateData.description = updates.description;
+    if (updates.slug !== undefined) updateData.slug = updates.slug;
     if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.pages !== undefined) updateData.pages = updates.pages;
     if (updates.theme !== undefined) updateData.theme = updates.theme;
@@ -163,6 +196,7 @@ export class DatabaseStorage implements IStorage {
     return {
       id: funnel.id,
       uuid: funnel.uuid,
+      slug: funnel.slug,
       userId: funnel.userId,
       name: funnel.name,
       description: funnel.description,

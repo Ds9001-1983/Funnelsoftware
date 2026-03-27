@@ -71,7 +71,6 @@ export function ElementPropertiesPanel({
       audio: "Audio",
       calendar: "Kalender",
       countdown: "Countdown",
-      map: "Karte",
       chart: "Diagramm",
       code: "Code",
       embed: "Embed",
@@ -581,53 +580,6 @@ export function ElementPropertiesPanel({
               checked={element.countdownShowLabels !== false}
               onCheckedChange={(checked) => onUpdate({ countdownShowLabels: checked })}
             />
-          </div>
-        </div>
-      )}
-
-      {/* Map properties */}
-      {element.type === "map" && (
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label className="text-xs">Adresse</Label>
-            <Textarea
-              value={element.mapAddress || ""}
-              onChange={(e) => onUpdate({ mapAddress: e.target.value })}
-              placeholder="Musterstraße 1, 12345 Berlin"
-              rows={2}
-              className="text-sm"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-xs">Zoom-Stufe</Label>
-            <Slider
-              value={[element.mapZoom || 15]}
-              onValueChange={([v]) => onUpdate({ mapZoom: v })}
-              min={1}
-              max={20}
-              step={1}
-            />
-            <div className="text-xs text-muted-foreground text-center">
-              Zoom: {element.mapZoom || 15}
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label className="text-xs">Karten-Stil</Label>
-            <Select
-              value={element.mapStyle || "roadmap"}
-              onValueChange={(v) =>
-                onUpdate({ mapStyle: v as "roadmap" | "satellite" | "terrain" })
-              }
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="roadmap">Straßenkarte</SelectItem>
-                <SelectItem value="satellite">Satellit</SelectItem>
-                <SelectItem value="terrain">Gelände</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </div>
       )}
