@@ -325,6 +325,8 @@ export const pageElementSchema = z.object({
   buttonUrl: z.string().optional(),
   buttonTarget: z.enum(["_self", "_blank"]).optional(),
   buttonVariant: z.enum(["primary", "secondary", "outline", "ghost"]).optional(),
+  buttonAction: z.enum(["next", "page", "url"]).optional(), // next=sequential, page=specific page, url=external
+  buttonNextPageId: z.string().optional(), // Target page ID when buttonAction="page"
   // General styles (extended)
   styles: z.object({
     fontSize: z.string().optional(),

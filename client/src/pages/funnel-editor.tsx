@@ -1146,6 +1146,7 @@ export default function FunnelEditor() {
                 element={selectedElement}
                 onUpdate={updateSelectedElement}
                 onClose={() => { setSelectedElementId(null); setShowRightPanel(false); }}
+                pages={localFunnel?.pages?.map(p => ({ id: p.id, title: p.title })) || []}
               />
             )}
           </div>

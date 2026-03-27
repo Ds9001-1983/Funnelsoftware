@@ -37,6 +37,7 @@ interface ElementPropertiesPanelProps {
   element: PageElement;
   onUpdate: (updates: Partial<PageElement>) => void;
   onClose: () => void;
+  pages?: Array<{ id: string; title: string }>;
 }
 
 /**
@@ -47,6 +48,7 @@ export function ElementPropertiesPanel({
   element,
   onUpdate,
   onClose,
+  pages = [],
 }: ElementPropertiesPanelProps) {
   // Get element type label for header
   const getElementTypeLabel = (): string => {
@@ -447,23 +449,65 @@ export function ElementPropertiesPanel({
             </div>
           </div>
           <div className="space-y-2">
-            <Label className="text-xs">Link-URL</Label>
-            <Input
-              value={element.buttonUrl || ""}
-              onChange={(e) => onUpdate({ buttonUrl: e.target.value })}
-              placeholder="https://..."
-              className="text-sm h-8"
-            />
+            <Label className="text-xs">Aktion</Label>
+            <Select
+              value={element.buttonAction || "next"}
+              onValueChange={(v) => onUpdate({ buttonAction: v as "next" | "page" | "url" })}
+            >
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="next">Nächste Seite</SelectItem>
+                <SelectItem value="page">Zu bestimmter Seite...</SelectItem>
+                <SelectItem value="url">Externe URL</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div className="flex items-center justify-between">
-            <Label className="text-xs">In neuem Tab öffnen</Label>
-            <Switch
-              checked={element.buttonTarget === "_blank"}
-              onCheckedChange={(checked) =>
-                onUpdate({ buttonTarget: checked ? "_blank" : "_self" })
-              }
-            />
-          </div>
+          {/* Page selector when action = "page" */}
+          {(element.buttonAction === "page") && pages.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-xs">Ziel-Seite</Label>
+              <Select
+                value={element.buttonNextPageId || ""}
+                onValueChange={(v) => onUpdate({ buttonNextPageId: v })}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Seite wählen..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {pages.map((page, idx) => (
+                    <SelectItem key={page.id} value={page.id}>
+                      {idx + 1}. {page.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {/* URL input when action = "url" */}
+          {(element.buttonAction === "url" || (!element.buttonAction && element.buttonUrl)) && (
+            <>
+              <div className="space-y-2">
+                <Label className="text-xs">Link-URL</Label>
+                <Input
+                  value={element.buttonUrl || ""}
+                  onChange={(e) => onUpdate({ buttonUrl: e.target.value })}
+                  placeholder="https://..."
+                  className="text-sm h-8"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">In neuem Tab öffnen</Label>
+                <Switch
+                  checked={element.buttonTarget === "_blank"}
+                  onCheckedChange={(checked) =>
+                    onUpdate({ buttonTarget: checked ? "_blank" : "_self" })
+                  }
+                />
+              </div>
+            </>
+          )}
         </div>
       )}
 
