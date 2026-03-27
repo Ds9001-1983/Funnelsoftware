@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage, hashPassword } from "./storage";
 import { randomBytes } from "crypto";
-import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail } from "./email";
+import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail, sendLeadNotificationEmail } from "./email";
 import {
   stripe,
   isStripeConfigured,
@@ -11,6 +11,7 @@ import {
   createPortalSession,
   constructWebhookEvent,
 } from "./stripe";
+import { sendWebhook, buildWebhookPayload } from "./webhooks";
 import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan } from "./auth";
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema,
@@ -517,6 +518,7 @@ export async function registerRoutes(
         name: funnel.name,
         pages: funnel.pages,
         theme: funnel.theme,
+        gtmId: funnel.gtmId || null,
       });
     } catch (error) {
       console.error("Get public funnel error:", error);
@@ -606,6 +608,18 @@ export async function registerRoutes(
 
       const lead = await storage.createLead(result.data, funnel.userId);
       res.status(201).json({ success: true, id: lead.uuid });
+
+      // Async: Webhook + E-Mail Benachrichtigung (non-blocking)
+      if (funnel.webhookEnabled && funnel.webhookUrl) {
+        const payload = buildWebhookPayload(funnel, lead);
+        sendWebhook(funnel.webhookUrl, payload).catch(() => {});
+      }
+
+      // E-Mail an Funnel-Owner
+      const owner = await storage.getUser(funnel.userId);
+      if (owner?.email) {
+        sendLeadNotificationEmail(owner.email, lead, funnel.name).catch(() => {});
+      }
     } catch (error) {
       console.error("Create public lead error:", error);
       res.status(500).json({ error: "Lead konnte nicht erstellt werden" });

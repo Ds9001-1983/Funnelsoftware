@@ -201,6 +201,9 @@ export class DatabaseStorage implements IStorage {
     if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.pages !== undefined) updateData.pages = updates.pages;
     if (updates.theme !== undefined) updateData.theme = updates.theme;
+    if (updates.webhookUrl !== undefined) updateData.webhookUrl = updates.webhookUrl;
+    if (updates.webhookEnabled !== undefined) updateData.webhookEnabled = updates.webhookEnabled;
+    if (updates.gtmId !== undefined) updateData.gtmId = updates.gtmId;
     if (updates.views !== undefined) updateData.views = updates.views;
     if (updates.leads !== undefined) updateData.leads = updates.leads;
 
@@ -235,6 +238,9 @@ export class DatabaseStorage implements IStorage {
       status: funnel.status as "draft" | "published" | "archived",
       pages: funnel.pages as FunnelPage[],
       theme: funnel.theme as Theme,
+      webhookUrl: funnel.webhookUrl,
+      webhookEnabled: funnel.webhookEnabled,
+      gtmId: funnel.gtmId,
       views: funnel.views,
       leads: funnel.leads,
       createdAt: funnel.createdAt.toISOString(),

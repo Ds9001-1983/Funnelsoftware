@@ -147,3 +147,44 @@ export async function sendWelcomeEmail(email: string, displayName?: string): Pro
 
   return sendEmail(email, "Willkommen bei Trichterwerk! 🚀", html);
 }
+
+export async function sendLeadNotificationEmail(
+  ownerEmail: string,
+  leadData: {
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    company?: string | null;
+    message?: string | null;
+    answers?: Record<string, any> | null;
+  },
+  funnelName: string
+): Promise<boolean> {
+  const leadName = leadData.name || "Unbekannt";
+  const leadsLink = `${APP_URL}/leads`;
+
+  const fieldsHtml = [
+    leadData.name && `<tr><td style="padding:8px 12px;color:#52525b;font-size:14px;border-bottom:1px solid #f4f4f5;"><strong>Name:</strong></td><td style="padding:8px 12px;color:#18181b;font-size:14px;border-bottom:1px solid #f4f4f5;">${leadData.name}</td></tr>`,
+    leadData.email && `<tr><td style="padding:8px 12px;color:#52525b;font-size:14px;border-bottom:1px solid #f4f4f5;"><strong>E-Mail:</strong></td><td style="padding:8px 12px;color:#18181b;font-size:14px;border-bottom:1px solid #f4f4f5;"><a href="mailto:${leadData.email}">${leadData.email}</a></td></tr>`,
+    leadData.phone && `<tr><td style="padding:8px 12px;color:#52525b;font-size:14px;border-bottom:1px solid #f4f4f5;"><strong>Telefon:</strong></td><td style="padding:8px 12px;color:#18181b;font-size:14px;border-bottom:1px solid #f4f4f5;"><a href="tel:${leadData.phone}">${leadData.phone}</a></td></tr>`,
+    leadData.company && `<tr><td style="padding:8px 12px;color:#52525b;font-size:14px;border-bottom:1px solid #f4f4f5;"><strong>Firma:</strong></td><td style="padding:8px 12px;color:#18181b;font-size:14px;border-bottom:1px solid #f4f4f5;">${leadData.company}</td></tr>`,
+    leadData.message && `<tr><td style="padding:8px 12px;color:#52525b;font-size:14px;border-bottom:1px solid #f4f4f5;"><strong>Nachricht:</strong></td><td style="padding:8px 12px;color:#18181b;font-size:14px;border-bottom:1px solid #f4f4f5;">${leadData.message}</td></tr>`,
+  ].filter(Boolean).join("");
+
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 16px;color:#18181b;font-size:20px;">Neuer Lead eingegangen!</h2>
+    <p style="margin:0 0 24px;color:#52525b;font-size:15px;line-height:1.6;">
+      Über deinen Funnel <strong>"${funnelName}"</strong> ist ein neuer Lead eingegangen.
+    </p>
+    <table style="width:100%;border-collapse:collapse;background:#f9fafb;border-radius:8px;overflow:hidden;margin:0 0 24px;">
+      ${fieldsHtml}
+    </table>
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${leadsLink}" style="display:inline-block;background:#6366f1;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;">
+        Alle Leads ansehen
+      </a>
+    </div>
+  `);
+
+  return sendEmail(ownerEmail, `Neuer Lead: ${leadName} via ${funnelName}`, html);
+}
