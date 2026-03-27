@@ -16,6 +16,9 @@ import {
   Calendar,
   Layers,
   Target,
+  Euro,
+  UserMinus,
+  AlertTriangle,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -81,10 +84,14 @@ interface AdminStats {
   totalUsers: number;
   activeTrials: number;
   proUsers: number;
+  cancelledUsers: number;
+  expiredTrials: number;
   totalFunnels: number;
   totalLeads: number;
   newUsersToday: number;
   newUsersThisWeek: number;
+  newUsersThisMonth: number;
+  plansBreakdown: { plan: string; count: number }[];
 }
 
 export default function AdminDashboard() {
@@ -313,33 +320,83 @@ export default function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
+        {/* Revenue Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Zahlende Kunden</p>
+                  <p className="text-3xl font-bold mt-1">{stats?.proUsers || 0}</p>
+                </div>
+                <div className="h-12 w-12 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <Crown className="h-6 w-6 text-green-600" />
+                </div>
+              </div>
+              {stats?.plansBreakdown && stats.plansBreakdown.length > 0 && (
+                <div className="mt-3 flex gap-2 flex-wrap">
+                  {stats.plansBreakdown.map((p) => (
+                    <Badge key={p.plan} variant="secondary" className="text-xs">
+                      {p.plan === "pro" ? "Pro" : p.plan === "basic" ? "Basic" : p.plan === "enterprise" ? "Enterprise" : p.plan}: {p.count}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-orange-500/20">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Aktive Trials</p>
+                  <p className="text-3xl font-bold mt-1">{stats?.activeTrials || 0}</p>
+                </div>
+                <div className="h-12 w-12 rounded-full bg-orange-500/20 flex items-center justify-center">
+                  <Clock className="h-6 w-6 text-orange-600" />
+                </div>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <Badge variant="outline" className="text-xs">
+                  Abgelaufen: {stats?.expiredTrials || 0}
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  Gekündigt: {stats?.cancelledUsers || 0}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Neue User (Monat)</p>
+                  <p className="text-3xl font-bold mt-1">+{stats?.newUsersThisMonth || 0}</p>
+                </div>
+                <div className="h-12 w-12 rounded-full bg-blue-500/20 flex items-center justify-center">
+                  <TrendingUp className="h-6 w-6 text-blue-600" />
+                </div>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <Badge variant="outline" className="text-xs">
+                  Heute: +{stats?.newUsersToday || 0}
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  Woche: +{stats?.newUsersThisWeek || 0}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Gesamt</span>
+                <span className="text-sm text-muted-foreground">Gesamt User</span>
               </div>
               <p className="text-2xl font-bold mt-1">{stats?.totalUsers || 0}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-orange-500" />
-                <span className="text-sm text-muted-foreground">Trials</span>
-              </div>
-              <p className="text-2xl font-bold mt-1">{stats?.activeTrials || 0}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <Crown className="h-4 w-4 text-yellow-500" />
-                <span className="text-sm text-muted-foreground">Pro</span>
-              </div>
-              <p className="text-2xl font-bold mt-1">{stats?.proUsers || 0}</p>
             </CardContent>
           </Card>
           <Card>
@@ -363,19 +420,12 @@ export default function AdminDashboard() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-blue-500" />
-                <span className="text-sm text-muted-foreground">Heute</span>
+                <Euro className="h-4 w-4 text-green-600" />
+                <span className="text-sm text-muted-foreground">MRR (geschätzt)</span>
               </div>
-              <p className="text-2xl font-bold mt-1">+{stats?.newUsersToday || 0}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-purple-500" />
-                <span className="text-sm text-muted-foreground">Woche</span>
-              </div>
-              <p className="text-2xl font-bold mt-1">+{stats?.newUsersThisWeek || 0}</p>
+              <p className="text-2xl font-bold mt-1">
+                {((stats?.proUsers || 0) * 49).toLocaleString("de-DE")}€
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -413,6 +463,7 @@ export default function AdminDashboard() {
                     <TableRow>
                       <TableHead>Benutzer</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Plan</TableHead>
                       <TableHead>Funnels</TableHead>
                       <TableHead>Leads</TableHead>
                       <TableHead>Registriert</TableHead>
@@ -437,6 +488,13 @@ export default function AdminDashboard() {
                           </div>
                         </TableCell>
                         <TableCell>{getStatusBadge(user)}</TableCell>
+                        <TableCell>
+                          {user.subscriptionPlan ? (
+                            <Badge variant="outline" className="capitalize">{user.subscriptionPlan}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )}
+                        </TableCell>
                         <TableCell>{user.funnelCount}</TableCell>
                         <TableCell>{user.leadCount}</TableCell>
                         <TableCell>
