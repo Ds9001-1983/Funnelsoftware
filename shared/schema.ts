@@ -39,6 +39,9 @@ export const funnels = pgTable("funnels", {
   status: text("status").notNull().default("draft"), // draft, published, archived
   pages: jsonb("pages").notNull().default([]),
   theme: jsonb("theme").notNull().default({}),
+  webhookUrl: text("webhook_url"),
+  webhookEnabled: boolean("webhook_enabled").notNull().default(false),
+  gtmId: text("gtm_id"),
   views: integer("views").notNull().default(0),
   leads: integer("leads_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -530,6 +533,10 @@ export const funnelSchema = z.object({
   theme: themeSchema,
   // A/B Tests
   abTests: z.array(abTestSchema).optional(),
+  // Integrations
+  webhookUrl: z.string().nullable().optional(),
+  webhookEnabled: z.boolean().optional(),
+  gtmId: z.string().nullable().optional(),
   views: z.number(),
   leads: z.number(),
   createdAt: z.string().or(z.date()),

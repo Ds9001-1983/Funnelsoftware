@@ -11,6 +11,7 @@ interface PublicFunnel {
   name: string;
   pages: FunnelPage[];
   theme: Theme;
+  gtmId?: string | null;
 }
 
 export default function PublicFunnelView() {
@@ -60,6 +61,29 @@ export default function PublicFunnelView() {
     return () => { document.title = "Trichterwerk"; };
   }, [funnel]);
 
+  // Load GTM script if configured
+  useEffect(() => {
+    if (!funnel?.gtmId) return;
+    const gtmId = funnel.gtmId;
+
+    // Initialize dataLayer
+    (window as any).dataLayer = (window as any).dataLayer || [];
+
+    // Inject GTM script
+    const script = document.createElement("script");
+    script.innerHTML = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${gtmId}');`;
+    document.head.appendChild(script);
+
+    return () => { script.remove(); };
+  }, [funnel?.gtmId]);
+
+  // Push GTM dataLayer event helper
+  const pushDataLayer = useCallback((eventData: Record<string, any>) => {
+    if ((window as any).dataLayer) {
+      (window as any).dataLayer.push(eventData);
+    }
+  }, []);
+
   // Track view on first load
   useEffect(() => {
     if (funnel && !viewTracked) {
@@ -72,8 +96,10 @@ export default function PublicFunnelView() {
           eventType: "view",
         }),
       }).catch((e) => console.warn("Analytics tracking failed:", e));
+
+      pushDataLayer({ event: "funnel_view", funnel_name: funnel.name, funnel_id: funnel.uuid });
     }
-  }, [funnel, viewTracked]);
+  }, [funnel, viewTracked, pushDataLayer]);
 
   // Track page navigation
   const trackPageView = useCallback(
@@ -88,8 +114,20 @@ export default function PublicFunnelView() {
           pageId,
         }),
       }).catch((e) => console.warn("Analytics tracking failed:", e));
+
+      const pageIdx = funnel.pages.findIndex(p => p.id === pageId);
+      const page = funnel.pages[pageIdx];
+      if (page) {
+        pushDataLayer({
+          event: "funnel_step",
+          funnel_name: funnel.name,
+          funnel_id: funnel.uuid,
+          step_number: pageIdx + 1,
+          step_title: page.title,
+        });
+      }
     },
-    [funnel]
+    [funnel, pushDataLayer]
   );
 
   const updateFormValue = useCallback((elementId: string, value: string) => {
@@ -253,6 +291,8 @@ export default function PublicFunnelView() {
           }),
         }).catch((e) => console.warn("Analytics tracking failed:", e));
 
+        pushDataLayer({ event: "funnel_submit", funnel_name: funnel.name, funnel_id: funnel.uuid });
+
         // Track completion
         fetch("/api/public/analytics", {
           method: "POST",
@@ -262,6 +302,8 @@ export default function PublicFunnelView() {
             eventType: "complete",
           }),
         }).catch((e) => console.warn("Analytics tracking failed:", e));
+
+        pushDataLayer({ event: "funnel_complete", funnel_name: funnel.name, funnel_id: funnel.uuid });
 
         const thankyouIndex = funnel.pages.findIndex((p) => p.type === "thankyou");
         if (thankyouIndex >= 0) {

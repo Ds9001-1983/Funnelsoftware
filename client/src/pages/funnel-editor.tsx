@@ -1312,6 +1312,47 @@ export default function FunnelEditor() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Integrationen */}
+            <div className="pt-4 border-t">
+              <h3 className="font-medium text-sm mb-3">Integrationen</h3>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Webhook</Label>
+                    <Switch
+                      checked={localFunnel.webhookEnabled || false}
+                      onCheckedChange={(checked) => updateLocalFunnel({ webhookEnabled: checked })}
+                    />
+                  </div>
+                  {localFunnel.webhookEnabled && (
+                    <Input
+                      value={localFunnel.webhookUrl || ""}
+                      onChange={(e) => updateLocalFunnel({ webhookUrl: e.target.value })}
+                      placeholder="https://hooks.zapier.com/..."
+                      className="text-sm"
+                    />
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Sendet Lead-Daten als JSON an eine URL (Zapier, Make, etc.)
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm">Google Tag Manager</Label>
+                  <Input
+                    value={localFunnel.gtmId || ""}
+                    onChange={(e) => updateLocalFunnel({ gtmId: e.target.value || null })}
+                    placeholder="GTM-XXXXXXX"
+                    className="text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Container-ID für Tracking (Google Ads, Meta Pixel, etc.)
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </SheetContent>
       </Sheet>
