@@ -2,6 +2,17 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams } from "wouter";
 import confetti from "canvas-confetti";
 import { Loader2, AlertCircle, ChevronRight, ChevronLeft } from "lucide-react";
+
+// Inject slide animation keyframes
+const slideStyles = document.createElement("style");
+slideStyles.textContent = `
+  @keyframes slideInFromRight { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes slideInFromLeft { from { transform: translateX(-30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+`;
+if (!document.getElementById("funnel-slide-styles")) {
+  slideStyles.id = "funnel-slide-styles";
+  document.head.appendChild(slideStyles);
+}
 import { ElementPreviewRenderer } from "@/components/funnel-editor/ElementPreviewRenderer";
 import { FunnelProgress } from "@/components/funnel-editor/FunnelProgress";
 import type { FunnelPage, Theme, PageElement } from "@shared/schema";
@@ -18,6 +29,8 @@ export default function PublicFunnelView() {
   const params = useParams<{ uuid: string }>();
   const [funnel, setFunnel] = useState<PublicFunnel | null>(null);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [slideDirection, setSlideDirection] = useState<"left" | "right">("left");
+  const [isAnimating, setIsAnimating] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -208,23 +221,32 @@ export default function PublicFunnelView() {
     return nextIndex < funnel.pages.length ? nextIndex : null;
   }, [funnel, currentPageIndex, formValues]);
 
+  const navigateToPage = useCallback((targetIndex: number, direction: "left" | "right") => {
+    if (isAnimating) return;
+    setIsAnimating(true);
+    setSlideDirection(direction);
+    setTimeout(() => {
+      setCurrentPageIndex(targetIndex);
+      setIsAnimating(false);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 50);
+  }, [isAnimating]);
+
   const handleNextPage = useCallback(() => {
     if (!funnel) return;
     if (!validateCurrentPage()) return;
     const nextIndex = resolveNextPageIndex();
     if (nextIndex !== null) {
-      setCurrentPageIndex(nextIndex);
+      navigateToPage(nextIndex, "left");
       trackPageView(funnel.pages[nextIndex].id);
-      window.scrollTo({ top: 0, behavior: "smooth" });
     }
-  }, [funnel, validateCurrentPage, resolveNextPageIndex, trackPageView]);
+  }, [funnel, validateCurrentPage, resolveNextPageIndex, trackPageView, navigateToPage]);
 
   const handlePrevPage = useCallback(() => {
     if (currentPageIndex > 0) {
-      setCurrentPageIndex(currentPageIndex - 1);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      navigateToPage(currentPageIndex - 1, "right");
     }
-  }, [currentPageIndex]);
+  }, [currentPageIndex, navigateToPage]);
 
   const handleSubmit = useCallback(async () => {
     if (!funnel || isSubmitting) return;
@@ -374,9 +396,15 @@ export default function PublicFunnelView() {
         />
       )}
 
-      {/* Page content */}
-      <div className="flex-1 flex flex-col items-center justify-start px-4 py-8">
-        <div className="w-full max-w-lg mx-auto space-y-6">
+      {/* Page content with slide animation */}
+      <div className="flex-1 flex flex-col items-center justify-start px-4 py-8 overflow-hidden">
+        <div
+          key={currentPageIndex}
+          className="w-full max-w-lg mx-auto space-y-6"
+          style={{
+            animation: `${slideDirection === "left" ? "slideInFromRight" : "slideInFromLeft"} 0.35s ease-out`,
+          }}
+        >
           {/* Page title */}
           {currentPage.title && (
             <h1
@@ -417,7 +445,7 @@ export default function PublicFunnelView() {
                     if (el.buttonAction === "page" && el.buttonNextPageId && funnel) {
                       const targetIdx = funnel.pages.findIndex(p => p.id === el.buttonNextPageId);
                       if (targetIdx >= 0) {
-                        setCurrentPageIndex(targetIdx);
+                        navigateToPage(targetIdx, targetIdx > currentPageIndex ? "left" : "right");
                         trackPageView(funnel.pages[targetIdx].id);
                       }
                     } else if (el.buttonAction !== "url") {

@@ -55,13 +55,9 @@ type ViewMode = "grid" | "list";
 type StatusFilter = "all" | "published" | "draft" | "archived";
 
 function FunnelGridCard({ funnel, onDelete, onClone }: { funnel: Funnel; onDelete: () => void; onClone: () => void }) {
-  const conversionRate = funnel.views > 0 
-    ? ((funnel.leads / funnel.views) * 100).toFixed(1) 
-    : "0.0";
-
   const formatDate = (dateStr: string | Date) => {
     const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
-    return date.toLocaleDateString("de-DE", {
+    return "Zuletzt bearbeitet am " + date.toLocaleDateString("de-DE", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -69,24 +65,41 @@ function FunnelGridCard({ funnel, onDelete, onClone }: { funnel: Funnel; onDelet
   };
 
   return (
-    <Card className="group overflow-hidden">
-      <div 
-        className="h-32 relative"
-        style={{ backgroundColor: funnel.theme.primaryColor }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-        <div className="absolute bottom-3 left-3 right-3">
-          <Badge 
-            variant={funnel.status === "published" ? "default" : "secondary"}
-            className="bg-white/90 text-foreground hover:bg-white"
-          >
-            {funnel.status === "published" ? "Live" : funnel.status === "draft" ? "Entwurf" : "Archiviert"}
-          </Badge>
+    <Card className="group overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
+      <Link href={`/funnels/${funnel.id}`}>
+        <div
+          className="h-44 relative overflow-hidden"
+          style={{ backgroundColor: funnel.theme.backgroundColor || "#f8f9fa" }}
+        >
+          {/* Funnel preview with theme colors */}
+          <div className="absolute inset-4 rounded-lg border border-border/20 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center gap-2 p-4">
+            <div
+              className="w-full h-3 rounded-full opacity-30"
+              style={{ backgroundColor: funnel.theme.primaryColor }}
+            />
+            <div className="w-3/4 h-2 rounded-full bg-muted-foreground/10" />
+            <div className="w-2/3 h-2 rounded-full bg-muted-foreground/10" />
+            <div
+              className="mt-2 px-6 py-2 rounded-lg text-xs font-medium text-white"
+              style={{ backgroundColor: funnel.theme.primaryColor }}
+            >
+              {funnel.pages?.[0]?.buttonText || "Weiter"}
+            </div>
+          </div>
         </div>
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+      </Link>
+
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold truncate">{funnel.name}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {formatDate(funnel.updatedAt)}
+            </p>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-8 w-8 bg-white/90 hover:bg-white">
+              <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 -mr-2">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -103,7 +116,7 @@ function FunnelGridCard({ funnel, onDelete, onClone }: { funnel: Funnel; onDelet
               </DropdownMenuItem>
               {funnel.uuid && (
                 <DropdownMenuItem asChild>
-                  <a href={`/f/${funnel.uuid}`} target="_blank" rel="noopener noreferrer">
+                  <a href={`/f/${(funnel as any).slug || funnel.uuid}`} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Vorschau
                   </a>
@@ -120,28 +133,30 @@ function FunnelGridCard({ funnel, onDelete, onClone }: { funnel: Funnel; onDelet
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </div>
-      <CardContent className="p-4">
-        <h3 className="font-semibold truncate mb-1">{funnel.name}</h3>
-        <p className="text-sm text-muted-foreground truncate mb-3">
-          {funnel.description || "Keine Beschreibung"}
-        </p>
-        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-          <div className="flex items-center gap-1">
-            <Eye className="h-3.5 w-3.5" />
-            <span>{funnel.views.toLocaleString("de-DE")}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Users className="h-3.5 w-3.5" />
-            <span>{funnel.leads}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <TrendingUp className="h-3.5 w-3.5" />
-            <span>{conversionRate}%</span>
-          </div>
-        </div>
-        <div className="text-xs text-muted-foreground">
-          Aktualisiert: {formatDate(funnel.updatedAt)}
+
+        <div className="flex items-center gap-2 mt-3">
+          {funnel.status === "published" && (
+            <>
+              <a
+                href={`/f/${(funnel as any).slug || funnel.uuid}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ExternalLink className="h-3 w-3" />
+              </a>
+              <Badge variant="default" className="text-xs px-2 py-0">Live</Badge>
+            </>
+          )}
+          {funnel.status === "draft" && (
+            <Badge variant="secondary" className="text-xs px-2 py-0">Entwurf</Badge>
+          )}
+          {funnel.leads > 0 && (
+            <Badge variant="outline" className="text-xs px-2 py-0">
+              {funnel.leads} {funnel.leads === 1 ? "Kontakt" : "Kontakte"}
+            </Badge>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -346,126 +361,53 @@ export default function Funnels() {
   }) || [];
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold">Funnels</h1>
-          <p className="text-muted-foreground">Verwalte und erstelle deine Marketing-Funnels</p>
-        </div>
-        <Link href="/funnels/new">
-          <Button className="gap-2" data-testid="button-new-funnel">
-            <Plus className="h-4 w-4" />
-            Neuer Funnel
-          </Button>
-        </Link>
-      </div>
-
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Funnels suchen..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-            data-testid="input-search-funnels"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-          <SelectTrigger className="w-[140px]" data-testid="select-status-filter">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Alle Status</SelectItem>
-            <SelectItem value="published">Live</SelectItem>
-            <SelectItem value="draft">Entwurf</SelectItem>
-            <SelectItem value="archived">Archiviert</SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="flex items-center border rounded-md overflow-hidden">
-          <Button
-            variant={viewMode === "grid" ? "secondary" : "ghost"}
-            size="icon"
-            className="rounded-none"
-            onClick={() => handleViewMode("grid")}
-            data-testid="button-view-grid"
-          >
-            <LayoutGrid className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={viewMode === "list" ? "secondary" : "ghost"}
-            size="icon"
-            className="rounded-none"
-            onClick={() => handleViewMode("list")}
-            data-testid="button-view-list"
-          >
-            <List className="h-4 w-4" />
-          </Button>
+    <div className="p-6 space-y-6 max-w-6xl mx-auto">
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold">Alle Funnels</h1>
+        <div className="flex items-center gap-2">
+          <div className="relative hidden sm:block">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Suchen..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 w-48 h-9"
+              data-testid="input-search-funnels"
+            />
+          </div>
+          <Link href="/funnels/new">
+            <Button className="gap-2" data-testid="button-new-funnel">
+              <Plus className="h-4 w-4" />
+              Neuer Funnel
+            </Button>
+          </Link>
         </div>
       </div>
 
       {isLoading ? (
-        viewMode === "grid" ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Card key={i}>
-                <Skeleton className="h-32 w-full rounded-t-md rounded-b-none" />
-                <CardContent className="p-4 space-y-2">
-                  <Skeleton className="h-5 w-3/4" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-2/3" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <Card>
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex items-center gap-4 p-4 border-b border-border">
-                <Skeleton className="h-12 w-12 rounded-md" />
-                <div className="flex-1">
-                  <Skeleton className="h-5 w-48 mb-2" />
-                  <Skeleton className="h-4 w-72" />
-                </div>
-              </div>
-            ))}
-          </Card>
-        )
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Card key={i}>
+              <Skeleton className="h-44 w-full rounded-t-md rounded-b-none" />
+              <CardContent className="p-4 space-y-2">
+                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+                <Skeleton className="h-5 w-1/3 mt-2" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : filteredFunnels.length > 0 ? (
-        viewMode === "grid" ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredFunnels.map((funnel) => (
-              <FunnelGridCard
-                key={funnel.id}
-                funnel={funnel}
-                onDelete={() => setDeleteTarget(funnel)}
-                onClone={() => cloneMutation.mutate(funnel.id)}
-              />
-            ))}
-          </div>
-        ) : (
-          <Card className="overflow-hidden">
-            <div className="hidden md:flex items-center gap-4 px-4 py-3 border-b border-border bg-muted/30 text-sm font-medium text-muted-foreground">
-              <div className="h-12 w-12 shrink-0" />
-              <div className="flex-1">Name</div>
-              <div className="flex items-center gap-6 shrink-0">
-                <div className="w-20">Views</div>
-                <div className="w-16">Leads</div>
-                <div className="w-16">Conv.</div>
-                <div className="w-24 text-right">Aktualisiert</div>
-              </div>
-              <div className="w-20 shrink-0" />
-            </div>
-            {filteredFunnels.map((funnel) => (
-              <FunnelListRow
-                key={funnel.id}
-                funnel={funnel}
-                onDelete={() => setDeleteTarget(funnel)}
-                onClone={() => cloneMutation.mutate(funnel.id)}
-              />
-            ))}
-          </Card>
-        )
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredFunnels.map((funnel) => (
+            <FunnelGridCard
+              key={funnel.id}
+              funnel={funnel}
+              onDelete={() => setDeleteTarget(funnel)}
+              onClone={() => cloneMutation.mutate(funnel.id)}
+            />
+          ))}
+        </div>
       ) : (
         <Card className="p-12">
           <div className="text-center max-w-md mx-auto">

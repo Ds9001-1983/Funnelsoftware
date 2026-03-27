@@ -5,14 +5,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
+import { TopNavigation } from "@/components/top-navigation";
 import { AuthProvider, RequireAuth, useAuth } from "@/hooks/use-auth";
 import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
-import Dashboard from "@/pages/dashboard";
 import Funnels from "@/pages/funnels";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
@@ -26,6 +23,7 @@ import { CookieConsent } from "@/components/cookie-consent";
 // Lazy-loaded pages for code-splitting
 const NewFunnel = lazy(() => import("@/pages/new-funnel"));
 const FunnelEditor = lazy(() => import("@/pages/funnel-editor"));
+const FunnelMetrics = lazy(() => import("@/pages/funnel-metrics"));
 const Leads = lazy(() => import("@/pages/leads"));
 const Analytics = lazy(() => import("@/pages/analytics"));
 const Settings = lazy(() => import("@/pages/settings"));
@@ -42,26 +40,13 @@ function PageLoader() {
 }
 
 function MainLayout({ children }: { children: React.ReactNode }) {
-  const style = {
-    "--sidebar-width": "16rem",
-    "--sidebar-width-icon": "3rem",
-  };
-
   return (
-    <SidebarProvider style={style as React.CSSProperties}>
-      <div className="flex h-screen w-full">
-        <AppSidebar />
-        <div className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex items-center justify-between gap-2 p-2 border-b border-border bg-background shrink-0">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <ThemeToggle />
-          </header>
-          <main className="flex-1 overflow-auto">
-            {children}
-          </main>
-        </div>
-      </div>
-    </SidebarProvider>
+    <div className="flex flex-col h-screen w-full">
+      <TopNavigation />
+      <main className="flex-1 overflow-auto">
+        {children}
+      </main>
+    </div>
   );
 }
 
@@ -137,7 +122,17 @@ function Router() {
 
   // Full-screen pages without sidebar (but protected)
   if (location.startsWith("/funnels/new") || (location.startsWith("/funnels/") && location !== "/funnels")) {
-    const isEditor = location.startsWith("/funnels/") && !location.includes("/new");
+    // Metrics page for a specific funnel
+    if (location.match(/^\/funnels\/\d+\/metrics/)) {
+      return (
+        <RequireAuth>
+          <Suspense fallback={<PageLoader />}>
+            <FunnelMetrics />
+          </Suspense>
+        </RequireAuth>
+      );
+    }
+    const isEditor = location.startsWith("/funnels/") && !location.includes("/new") && !location.includes("/metrics");
     if (isEditor) {
       return (
         <RequireAuth>
@@ -160,9 +155,9 @@ function Router() {
     <ProtectedMainLayout>
       <Suspense fallback={<PageLoader />}>
         <Switch>
-          <Route path="/" component={Dashboard} />
-          <Route path="/dashboard" component={Dashboard} />
+          <Route path="/" component={Funnels} />
           <Route path="/funnels" component={Funnels} />
+          <Route path="/dashboard" component={Funnels} />
           <Route path="/leads" component={Leads} />
           <Route path="/analytics" component={Analytics} />
           <Route path="/settings" component={Settings} />

@@ -472,6 +472,105 @@ export async function registerRoutes(
     }
   });
 
+  // Get funnel metrics (analytics aggregation)
+  app.get("/api/funnels/:id/metrics", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const funnelId = parseInt(String(req.params.id));
+      if (isNaN(funnelId)) return res.status(400).json({ error: "Ungültige Funnel-ID" });
+
+      const funnel = await storage.getFunnel(funnelId, userId);
+      if (!funnel) return res.status(404).json({ error: "Funnel nicht gefunden" });
+
+      const analytics = await storage.getAnalytics(funnelId);
+      const leads = await storage.getLeadsByFunnel(funnelId, userId);
+
+      // Aggregate metrics
+      const totalViews = analytics.filter(e => e.eventType === "view").length;
+      const totalLeads = leads.length;
+      const conversionRate = totalViews > 0 ? ((totalLeads / totalViews) * 100).toFixed(1) : "0.0";
+
+      // Page-by-page conversion (step funnel)
+      const pageViews: Record<string, number> = {};
+      analytics.filter(e => e.eventType === "pageView" && e.pageId).forEach(e => {
+        pageViews[e.pageId!] = (pageViews[e.pageId!] || 0) + 1;
+      });
+
+      const stepConversion = funnel.pages.map((page, idx) => ({
+        pageId: page.id,
+        title: page.title,
+        stepNumber: idx + 1,
+        visitors: pageViews[page.id] || (idx === 0 ? totalViews : 0),
+      }));
+
+      // Answer distribution per question page
+      const answerDistribution: Array<{
+        pageId: string;
+        title: string;
+        totalResponses: number;
+        answers: Array<{ text: string; count: number; percentage: number }>;
+      }> = [];
+
+      for (const page of funnel.pages) {
+        const questionElements = page.elements.filter(
+          (el: any) => el.type === "radio" || el.type === "select" || el.type === "checkbox"
+        );
+        for (const el of questionElements) {
+          const answerCounts: Record<string, number> = {};
+          let total = 0;
+          for (const lead of leads) {
+            const answer = (lead.answers as Record<string, any>)?.[el.id];
+            if (answer) {
+              const answerText = String(answer);
+              answerCounts[answerText] = (answerCounts[answerText] || 0) + 1;
+              total++;
+            }
+          }
+          if (total > 0) {
+            answerDistribution.push({
+              pageId: page.id,
+              title: page.title,
+              totalResponses: total,
+              answers: Object.entries(answerCounts)
+                .map(([text, count]) => ({ text, count, percentage: Math.round((count / total) * 100) }))
+                .sort((a, b) => b.count - a.count),
+            });
+          }
+        }
+      }
+
+      // Views over time (last 14 days)
+      const now = new Date();
+      const viewsOverTime: Array<{ date: string; views: number; leads: number }> = [];
+      for (let i = 13; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split("T")[0];
+        const dayViews = analytics.filter(e =>
+          e.eventType === "view" && e.timestamp.toString().startsWith(dateStr)
+        ).length;
+        const dayLeads = leads.filter(l =>
+          l.createdAt.toString().startsWith(dateStr)
+        ).length;
+        viewsOverTime.push({ date: dateStr, views: dayViews, leads: dayLeads });
+      }
+
+      res.json({
+        totalViews,
+        totalLeads,
+        conversionRate: parseFloat(conversionRate),
+        stepConversion,
+        answerDistribution,
+        viewsOverTime,
+      });
+    } catch (error) {
+      console.error("Get funnel metrics error:", error);
+      res.status(500).json({ error: "Metriken konnten nicht geladen werden" });
+    }
+  });
+
   // ============ PUBLIC FUNNEL VIEW ============
 
   // Preview funnel (authenticated, shows drafts too)
