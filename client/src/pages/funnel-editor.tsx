@@ -215,6 +215,11 @@ export default function FunnelEditor() {
 
   // Perspective-style editor states
   const [showRightPanel, setShowRightPanel] = useState(false);
+  const [leftPanelWidth, setLeftPanelWidth] = useState(() => {
+    const saved = localStorage.getItem("editor-left-panel-width");
+    return saved ? parseInt(saved) : 256;
+  });
+  const isResizingRef = useRef(false);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [selectedThemeId, setSelectedThemeId] = useState("default");
 
@@ -784,6 +789,34 @@ export default function FunnelEditor() {
     });
   };
 
+  // Resize-Handler für linke Sidebar
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizingRef.current = true;
+    const startX = e.clientX;
+    const startWidth = leftPanelWidth;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingRef.current) return;
+      const newWidth = Math.min(Math.max(startWidth + (e.clientX - startX), 180), 400);
+      setLeftPanelWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      isResizingRef.current = false;
+      localStorage.setItem("editor-left-panel-width", String(leftPanelWidth));
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, [leftPanelWidth]);
+
   const handleSave = () => {
     if (localFunnel) {
       saveMutation.mutate({
@@ -948,13 +981,16 @@ export default function FunnelEditor() {
           />
         )}
 
-        {/* LEFT PANEL - Seiten + Element-Palette */}
-        <div className={`
-          ${isMobile ? "fixed left-0 top-12 bottom-0 z-50" : "relative"}
-          ${showLeftSidebar ? "w-64" : "w-0"}
-          border-r border-border bg-card overflow-hidden transition-all duration-200 shrink-0
-        `}>
-          <div className="w-64 h-full flex flex-col">
+        {/* LEFT PANEL - Seiten + Element-Palette (Resizable) */}
+        <div
+          className={`
+            ${isMobile ? "fixed left-0 top-12 bottom-0 z-50" : "relative"}
+            ${showLeftSidebar ? "" : "!w-0"}
+            border-r border-border bg-card overflow-hidden shrink-0
+          `}
+          style={{ width: showLeftSidebar ? `${leftPanelWidth}px` : 0, transition: isResizingRef.current ? "none" : "width 200ms" }}
+        >
+          <div className="h-full flex flex-col" style={{ width: `${leftPanelWidth}px` }}>
             {/* Pages */}
             <div className="border-b border-border">
               <div className="flex items-center justify-between px-3 py-2">
@@ -1019,13 +1055,23 @@ export default function FunnelEditor() {
           </div>
         </div>
 
-        {/* Toggle Left Sidebar */}
-        {!isMobile && (
-          <button
-            className="relative z-10 -ml-3 mt-4 h-6 w-6 flex items-center justify-center rounded-full bg-card border shadow-sm hover:bg-muted transition-colors"
-            onClick={() => setShowLeftSidebar(!showLeftSidebar)}
+        {/* Resize Handle + Toggle */}
+        {!isMobile && showLeftSidebar && (
+          <div
+            className="w-1 hover:w-1.5 bg-transparent hover:bg-primary/20 cursor-col-resize transition-all shrink-0 relative group"
+            onMouseDown={handleResizeStart}
+            onDoubleClick={() => setShowLeftSidebar(false)}
+            title="Ziehen zum Ändern der Breite, Doppelklick zum Schließen"
           >
-            {showLeftSidebar ? <ChevronLeft className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            <div className="absolute inset-y-0 -left-1 -right-1" />
+          </div>
+        )}
+        {!isMobile && !showLeftSidebar && (
+          <button
+            className="relative z-10 mt-4 ml-1 h-6 w-6 flex items-center justify-center rounded-full bg-card border shadow-sm hover:bg-muted transition-colors shrink-0"
+            onClick={() => setShowLeftSidebar(true)}
+          >
+            <ChevronRight className="h-3 w-3" />
           </button>
         )}
 
