@@ -90,79 +90,102 @@ function LeadDetailDialog({
     });
   };
 
+  const answers = lead.answers as Record<string, any> | null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Lead Details</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
+      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-hidden flex flex-col p-0">
+        {/* Header */}
+        <div className="p-6 pb-4 border-b">
           <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary font-semibold text-xl">
-              {lead.name?.charAt(0).toUpperCase() || "?"}
+            <div className="h-14 w-14 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground font-bold text-xl shrink-0">
+              {(lead.name || lead.email || "?")[0].toUpperCase()}
             </div>
-            <div>
-              <h3 className="text-lg font-semibold">{lead.name || "Unbekannt"}</h3>
-              <div className="flex items-center gap-2">
-                <div className={`h-2 w-2 rounded-full ${statusColors[lead.status]}`} />
-                <span className="text-sm text-muted-foreground">
-                  {statusLabels[lead.status]}
-                </span>
-              </div>
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold truncate">{lead.name || "Unbekannt"}</h2>
+              <Badge className={`${statusColors[lead.status]} text-white text-[10px]`}>
+                {statusLabels[lead.status]}
+              </Badge>
             </div>
           </div>
-
-          <div className="grid gap-3">
+          {/* Quick Actions */}
+          <div className="flex items-center gap-2 mt-4">
             {lead.email && (
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-md">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <div className="text-xs text-muted-foreground">E-Mail</div>
-                  <div className="font-medium">{lead.email}</div>
-                </div>
-              </div>
+              <a href={`mailto:${lead.email}`} className="flex items-center gap-1.5 px-3 py-1.5 bg-muted rounded-lg text-xs hover:bg-muted/80 transition-colors">
+                <Mail className="h-3.5 w-3.5" />
+                E-Mail
+              </a>
             )}
             {lead.phone && (
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-md">
-                <Phone className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <div className="text-xs text-muted-foreground">Telefon</div>
-                  <div className="font-medium">{lead.phone}</div>
-                </div>
-              </div>
+              <a href={`tel:${lead.phone}`} className="flex items-center gap-1.5 px-3 py-1.5 bg-muted rounded-lg text-xs hover:bg-muted/80 transition-colors">
+                <Phone className="h-3.5 w-3.5" />
+                Anrufen
+              </a>
             )}
-            {lead.company && (
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-md">
-                <Building className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <div className="text-xs text-muted-foreground">Unternehmen</div>
-                  <div className="font-medium">{lead.company}</div>
+          </div>
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-6 pt-4 space-y-5">
+          {/* Kontaktdaten */}
+          <div>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Kontaktdaten</h4>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="text-muted-foreground">Erstellt am</span>
+                <span className="ml-auto font-medium">{formatDate(lead.createdAt)}</span>
+              </div>
+              {lead.email && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="truncate">{lead.email}</span>
                 </div>
-              </div>
-            )}
-            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-md">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <div className="text-xs text-muted-foreground">Erstellt am</div>
-                <div className="font-medium">{formatDate(lead.createdAt)}</div>
-              </div>
+              )}
+              {lead.phone && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span>{lead.phone}</span>
+                </div>
+              )}
+              {lead.company && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Building className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span>{lead.company}</span>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="pt-2">
-            <div className="text-sm text-muted-foreground mb-2">Funnel</div>
-            <Badge variant="secondary">{lead.funnelName}</Badge>
-            {lead.source && (
-              <Badge variant="outline" className="ml-2">
-                {lead.source}
-              </Badge>
-            )}
+          {/* Funnel + Quelle */}
+          <div>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Funnel</h4>
+            <div className="flex gap-2 flex-wrap">
+              <Badge variant="secondary">{lead.funnelName || "Unbekannt"}</Badge>
+              {lead.source && <Badge variant="outline">{lead.source}</Badge>}
+            </div>
           </div>
 
+          {/* Funnel-Antworten */}
+          {answers && Object.keys(answers).length > 0 && (
+            <div>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Funnel-Antworten</h4>
+              <div className="space-y-2">
+                {Object.entries(answers).map(([key, value]) => (
+                  <div key={key} className="p-3 bg-muted/50 rounded-lg">
+                    <p className="text-[11px] text-muted-foreground mb-0.5">{key}</p>
+                    <p className="text-sm font-medium">{String(value)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Nachricht */}
           {lead.message && (
-            <div className="pt-2">
-              <div className="text-sm text-muted-foreground mb-2">Nachricht</div>
-              <p className="text-sm bg-muted/50 p-3 rounded-md">{lead.message}</p>
+            <div>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Nachricht</h4>
+              <p className="text-sm bg-muted/50 p-3 rounded-lg">{lead.message}</p>
             </div>
           )}
         </div>
