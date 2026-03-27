@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useAuth } from "@/hooks/use-auth";
 import { WelcomeModal } from "@/components/welcome-modal";
+import { UpgradeBanner } from "@/components/upgrade-banner";
 import type { Funnel, Lead } from "@shared/schema";
 
 function StatCard({
@@ -208,6 +209,10 @@ export default function Dashboard() {
       {/* Welcome Modal für neue User */}
       <WelcomeModal hasFunnels={hasFunnels} userName={user?.displayName} />
 
+      {/* Trial-Ablauf Warnung */}
+      <UpgradeBanner variant="warning" />
+      {/* Blocking Modal wenn Trial abgelaufen */}
+      <UpgradeBanner variant="expired" />
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>

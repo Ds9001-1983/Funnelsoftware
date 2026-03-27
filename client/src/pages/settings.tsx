@@ -291,6 +291,58 @@ function AppearanceSettings() {
 }
 
 function BillingSettings() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const status = user?.subscriptionStatus || "trial";
+  const isPro = user?.isPro || false;
+  const isAdmin = user?.isAdmin || false;
+  const trialEndsAt = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
+  const daysLeft = trialEndsAt
+    ? Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : 0;
+
+  const handleUpgrade = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/billing/create-checkout", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        toast({ title: "Fehler", description: data.error || "Checkout konnte nicht erstellt werden", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Fehler", description: "Verbindungsfehler", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/billing/portal", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        toast({ title: "Fehler", description: data.error || "Portal konnte nicht geöffnet werden", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Fehler", description: "Verbindungsfehler", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -299,55 +351,89 @@ function BillingSettings() {
           <CardDescription>Verwalte dein Abonnement</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg">
-            <div>
-              <div className="text-lg font-semibold">Pro Plan</div>
-              <div className="text-sm text-muted-foreground">
-                49€/Monat · Nächste Zahlung am 15. Feb 2026
-              </div>
-            </div>
-            <Button variant="outline">Plan ändern</Button>
-          </div>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-3">
-            <div className="p-4 border rounded-lg">
-              <div className="text-2xl font-bold">12</div>
-              <div className="text-sm text-muted-foreground">Aktive Funnels</div>
-              <div className="text-xs text-muted-foreground mt-1">von unbegrenzt</div>
-            </div>
-            <div className="p-4 border rounded-lg">
-              <div className="text-2xl font-bold">1.247</div>
-              <div className="text-sm text-muted-foreground">Leads diesen Monat</div>
-              <div className="text-xs text-muted-foreground mt-1">von unbegrenzt</div>
-            </div>
-            <div className="p-4 border rounded-lg">
-              <div className="text-2xl font-bold">45.2k</div>
-              <div className="text-sm text-muted-foreground">Views diesen Monat</div>
-              <div className="text-xs text-muted-foreground mt-1">von unbegrenzt</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Zahlungsmethode</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-14 bg-gradient-to-r from-blue-600 to-blue-800 rounded flex items-center justify-center text-white text-xs font-bold">
-                VISA
-              </div>
+          {/* Active Pro */}
+          {(isPro || isAdmin) && status === "active" && (
+            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-500/10 to-green-500/5 rounded-lg border border-green-500/20">
               <div>
-                <div className="font-medium">•••• •••• •••• 4242</div>
-                <div className="text-sm text-muted-foreground">Gültig bis 12/27</div>
+                <div className="text-lg font-semibold flex items-center gap-2">
+                  Pro Plan
+                  <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full">Aktiv</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Alle Features freigeschaltet
+                </div>
+              </div>
+              <Button variant="outline" onClick={handleManageSubscription} disabled={isLoading}>
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Abo verwalten"}
+              </Button>
+            </div>
+          )}
+
+          {/* Trial */}
+          {status === "trial" && !isPro && !isAdmin && (
+            <div className={`flex items-center justify-between p-4 rounded-lg border ${
+              daysLeft <= 3
+                ? "bg-orange-500/10 border-orange-500/20"
+                : "bg-primary/10 border-primary/20"
+            }`}>
+              <div>
+                <div className="text-lg font-semibold">Testphase</div>
+                <div className="text-sm text-muted-foreground">
+                  {daysLeft > 0
+                    ? `Noch ${daysLeft} ${daysLeft === 1 ? "Tag" : "Tage"} verbleibend`
+                    : "Testphase abgelaufen"}
+                </div>
+              </div>
+              <Button onClick={handleUpgrade} disabled={isLoading}>
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Jetzt upgraden
+              </Button>
+            </div>
+          )}
+
+          {/* Cancelled / Expired */}
+          {(status === "cancelled" || status === "expired") && !isAdmin && (
+            <div className="flex items-center justify-between p-4 bg-red-500/10 rounded-lg border border-red-500/20">
+              <div>
+                <div className="text-lg font-semibold">Kein aktives Abo</div>
+                <div className="text-sm text-muted-foreground">
+                  Dein Abonnement wurde beendet. Upgrade um weiterzumachen.
+                </div>
+              </div>
+              <Button onClick={handleUpgrade} disabled={isLoading}>
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Erneut abonnieren
+              </Button>
+            </div>
+          )}
+
+          {/* Past Due */}
+          {status === "past_due" && (
+            <div className="flex items-center justify-between p-4 bg-orange-500/10 rounded-lg border border-orange-500/20">
+              <div>
+                <div className="text-lg font-semibold">Zahlung ausstehend</div>
+                <div className="text-sm text-muted-foreground">
+                  Deine letzte Zahlung konnte nicht verarbeitet werden.
+                </div>
+              </div>
+              <Button variant="destructive" onClick={handleManageSubscription} disabled={isLoading}>
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Zahlung aktualisieren
+              </Button>
+            </div>
+          )}
+
+          {/* Admin override */}
+          {isAdmin && status !== "active" && (
+            <div className="flex items-center justify-between p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+              <div>
+                <div className="text-lg font-semibold">Admin-Account</div>
+                <div className="text-sm text-muted-foreground">
+                  Alle Features freigeschaltet (Admin-Berechtigung)
+                </div>
               </div>
             </div>
-            <Button variant="ghost" size="sm">
-              Ändern
-            </Button>
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>

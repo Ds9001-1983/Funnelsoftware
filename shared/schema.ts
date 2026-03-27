@@ -18,6 +18,8 @@ export const users = pgTable("users", {
   subscriptionStatus: text("subscription_status").notNull().default("trial"), // trial, active, cancelled, expired
   subscriptionPlan: text("subscription_plan"), // basic, pro, enterprise
   subscriptionStartedAt: timestamp("subscription_started_at"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
   lastLoginAt: timestamp("last_login_at"),
   emailVerifiedAt: timestamp("email_verified_at"),
   emailVerificationToken: text("email_verification_token"),
@@ -615,7 +617,7 @@ export const templateSchema = z.object({
   uuid: z.string(),
   name: z.string(),
   description: z.string(),
-  category: z.enum(["leads", "sales", "recruiting", "webinar", "quiz"]),
+  category: z.enum(["leads", "sales", "recruiting", "webinar", "quiz", "survey"]),
   thumbnail: z.string().optional().nullable(),
   pages: z.array(funnelPageSchema),
   theme: themeSchema,

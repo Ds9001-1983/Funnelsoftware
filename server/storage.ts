@@ -31,7 +31,16 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateStripeCustomerId(userId: number, stripeCustomerId: string): Promise<void>;
+  updateSubscriptionFromStripe(userId: number, updates: {
+    isPro?: boolean;
+    subscriptionStatus?: string;
+    subscriptionPlan?: string;
+    stripeSubscriptionId?: string | null;
+    subscriptionStartedAt?: Date | null;
+  }): Promise<void>;
 
   // Funnels
   getFunnels(userId: number): Promise<Funnel[]>;
@@ -81,6 +90,11 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.stripeCustomerId, stripeCustomerId));
+    return user;
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const hashedPassword = await hashPassword(insertUser.password);
     const [user] = await db.insert(users).values({
@@ -88,6 +102,24 @@ export class DatabaseStorage implements IStorage {
       password: hashedPassword,
     }).returning();
     return user;
+  }
+
+  async updateStripeCustomerId(userId: number, stripeCustomerId: string): Promise<void> {
+    await db.update(users)
+      .set({ stripeCustomerId, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+  }
+
+  async updateSubscriptionFromStripe(userId: number, updates: {
+    isPro?: boolean;
+    subscriptionStatus?: string;
+    subscriptionPlan?: string;
+    stripeSubscriptionId?: string | null;
+    subscriptionStartedAt?: Date | null;
+  }): Promise<void> {
+    await db.update(users)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(users.id, userId));
   }
 
   // ============ FUNNELS ============
@@ -301,11 +333,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteLead(id: number, userId: number): Promise<boolean> {
-    const result = await db.delete(leads)
-      .where(and(eq(leads.id, id), eq(leads.userId, userId)))
-      .returning({ id: leads.id });
+    return await db.transaction(async (tx) => {
+      const result = await tx.delete(leads)
+        .where(and(eq(leads.id, id), eq(leads.userId, userId)))
+        .returning({ id: leads.id, funnelId: leads.funnelId });
 
-    return result.length > 0;
+      if (result.length === 0) return false;
+
+      // Decrement leads count on funnel
+      await tx.update(funnels)
+        .set({ leads: sql`GREATEST(${funnels.leads} - 1, 0)` })
+        .where(eq(funnels.id, result[0].funnelId));
+
+      return true;
+    });
   }
 
   private mapLeadToResponse(lead: typeof leads.$inferSelect, funnelName?: string | null): Lead {
