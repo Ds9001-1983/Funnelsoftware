@@ -23,6 +23,7 @@ import { CookieConsent } from "@/components/cookie-consent";
 // Lazy-loaded pages for code-splitting
 const NewFunnel = lazy(() => import("@/pages/new-funnel"));
 const FunnelEditor = lazy(() => import("@/pages/funnel-editor"));
+const FunnelMetrics = lazy(() => import("@/pages/funnel-metrics"));
 const Leads = lazy(() => import("@/pages/leads"));
 const Analytics = lazy(() => import("@/pages/analytics"));
 const Settings = lazy(() => import("@/pages/settings"));
@@ -121,7 +122,17 @@ function Router() {
 
   // Full-screen pages without sidebar (but protected)
   if (location.startsWith("/funnels/new") || (location.startsWith("/funnels/") && location !== "/funnels")) {
-    const isEditor = location.startsWith("/funnels/") && !location.includes("/new");
+    // Metrics page for a specific funnel
+    if (location.match(/^\/funnels\/\d+\/metrics/)) {
+      return (
+        <RequireAuth>
+          <Suspense fallback={<PageLoader />}>
+            <FunnelMetrics />
+          </Suspense>
+        </RequireAuth>
+      );
+    }
+    const isEditor = location.startsWith("/funnels/") && !location.includes("/new") && !location.includes("/metrics");
     if (isEditor) {
       return (
         <RequireAuth>

@@ -626,28 +626,73 @@ export default function Leads() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-5">
-        {Object.entries(statusLabels).map(([status, label]) => (
-          <Card
-            key={status}
-            className={`cursor-pointer transition-all hover-elevate ${
-              statusFilter === status ? "ring-2 ring-primary ring-offset-2" : ""
-            }`}
-            onClick={() => setStatusFilter(statusFilter === status ? "all" : status as StatusFilter)}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <div className={`h-3 w-3 rounded-full ${statusColors[status as Lead["status"]]}`} />
-                  <span className="text-sm font-medium">{label}</span>
-                </div>
-                <span className="text-2xl font-bold">
-                  {statusCounts[status] || 0}
-                </span>
+      {/* Kanban Board */}
+      <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2">
+        {(Object.entries(statusLabels) as [Lead["status"], string][]).map(([status, label]) => {
+          const columnLeads = filteredLeads.filter(l => l.status === status);
+          return (
+            <div key={status} className="flex-shrink-0 w-64">
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <div className={`h-2.5 w-2.5 rounded-full ${statusColors[status]}`} />
+                <span className="text-sm font-medium">{label}</span>
+                <span className="text-xs text-muted-foreground ml-auto">{columnLeads.length}</span>
               </div>
-            </CardContent>
-          </Card>
-        ))}
+              <div className="space-y-2 min-h-[200px]">
+                {columnLeads.map((lead) => (
+                  <Card
+                    key={lead.id}
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => setSelectedLead(lead)}
+                  >
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground text-xs font-bold shrink-0">
+                          {(lead.name || lead.email || "?")[0].toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{lead.name || lead.email || "Unbekannt"}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(lead.createdAt as string).toLocaleDateString("de-DE", { day: "2-digit", month: "short" })}
+                          </p>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={(e) => e.stopPropagation()}>
+                              <MoreHorizontal className="h-3 w-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {(Object.entries(statusLabels) as [Lead["status"], string][])
+                              .filter(([s]) => s !== lead.status)
+                              .map(([s, l]) => (
+                                <DropdownMenuItem key={s} onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: lead.id, status: s }); }}>
+                                  <div className={`h-2 w-2 rounded-full ${statusColors[s]} mr-2`} />
+                                  {l}
+                                </DropdownMenuItem>
+                              ))}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(lead.id); }}
+                            >
+                              <Trash2 className="h-3 w-3 mr-2" />
+                              Löschen
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {columnLeads.length === 0 && (
+                  <div className="text-center py-8 text-xs text-muted-foreground">
+                    Keine Kontakte
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
