@@ -96,6 +96,7 @@ function TemplateCard({
 export default function NewFunnel() {
   const [, navigate] = useLocation();
   const [step, setStep] = useState<Step>("template");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [selectedTemplate, setSelectedTemplate] = useState<ClientTemplate | null>(null);
   const [useBlank, setUseBlank] = useState(false);
   const [name, setName] = useState("");
@@ -188,8 +189,36 @@ export default function NewFunnel() {
                 <Sparkles className="h-5 w-5 text-primary" />
                 <h2 className="text-lg font-medium">Vorlagen</h2>
               </div>
+
+              {/* Kategorie-Filter */}
+              <div className="flex flex-wrap gap-2 mb-5">
+                {[
+                  { key: "all", label: "Alle" },
+                  { key: "leads", label: "Leads" },
+                  { key: "sales", label: "Sales" },
+                  { key: "recruiting", label: "Recruiting" },
+                  { key: "webinar", label: "Webinar" },
+                  { key: "quiz", label: "Quiz" },
+                  { key: "survey", label: "Umfrage" },
+                ].map((cat) => (
+                  <button
+                    key={cat.key}
+                    onClick={() => setCategoryFilter(cat.key)}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                      categoryFilter === cat.key
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {defaultTemplates.map((template) => (
+                {defaultTemplates
+                  .filter((t) => categoryFilter === "all" || t.category === categoryFilter)
+                  .map((template) => (
                   <TemplateCard
                     key={template.id}
                     template={template}

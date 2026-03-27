@@ -1,10 +1,120 @@
 import { useState, useEffect, useCallback } from "react";
-import { Layers } from "lucide-react";
+import { GripVertical, Layers } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { FunnelPage, PageElement } from "@shared/schema";
 import { FunnelProgress } from "./FunnelProgress";
 import { InlineElementPicker } from "./FloatingToolbar";
 import { ElementPreviewRenderer, SectionPreviewRenderer } from "./ElementPreviewRenderer";
 import { ElementWrapper } from "./ElementWrapper";
+
+interface SortablePreviewElementProps {
+  element: PageElement;
+  textColor: string;
+  primaryColor: string;
+  selectedElementId?: string | null;
+  onSelectElement?: (elementId: string | null) => void;
+  formValues: Record<string, string>;
+  updateFormValue: (elementId: string, value: string) => void;
+  pageType: string;
+}
+
+function SortablePreviewElement({
+  element,
+  textColor,
+  primaryColor,
+  selectedElementId,
+  onSelectElement,
+  formValues,
+  updateFormValue,
+  pageType,
+}: SortablePreviewElementProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: element.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    position: "relative" as const,
+  };
+
+  // Multi-choice options get special treatment
+  if (
+    (pageType === "multiChoice" || pageType === "question") &&
+    element.options
+  ) {
+    return (
+      <div ref={setNodeRef} style={style} className="group">
+        <div
+          {...attributes}
+          {...listeners}
+          className="absolute -left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-10 bg-white rounded-md shadow-sm border p-0.5"
+        >
+          <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+        </div>
+        <ElementWrapper
+          elementId={element.id}
+          elementType={element.type}
+          selectedElementId={selectedElementId}
+          onSelectElement={onSelectElement}
+        >
+          <div className="space-y-2">
+            {element.options.map((option, idx) => (
+              <div
+                key={`${element.id}-${idx}`}
+                className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 text-sm text-left bg-white hover:border-primary/50 hover:shadow-md transition-all cursor-pointer active:scale-[0.98]"
+              >
+                {option}
+              </div>
+            ))}
+          </div>
+        </ElementWrapper>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="group">
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute -left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-10 bg-white rounded-md shadow-sm border p-0.5"
+      >
+        <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+      </div>
+      <ElementPreviewRenderer
+        element={element}
+        textColor={textColor}
+        primaryColor={primaryColor}
+        selectedElementId={selectedElementId}
+        onSelectElement={onSelectElement}
+        formValues={formValues}
+        updateFormValue={updateFormValue}
+      />
+    </div>
+  );
+}
 
 interface PhonePreviewProps {
   page: FunnelPage | null;
@@ -22,6 +132,7 @@ interface PhonePreviewProps {
   onMoveElementUp?: () => void;
   onMoveElementDown?: () => void;
   onShowElementPicker?: () => void;
+  onReorderElements?: (oldIndex: number, newIndex: number) => void;
 }
 
 /**
@@ -37,8 +148,27 @@ export function PhonePreview({
   selectedElementId,
   onSelectElement,
   onAddElement,
+  onReorderElements,
 }: PhonePreviewProps) {
   const [isDropOver, setIsDropOver] = useState(false);
+
+  // DnD Sensors - 8px Distanz um Klick vs Drag zu unterscheiden
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleSortDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !page) return;
+
+    const oldIndex = page.elements.findIndex((el) => el.id === active.id);
+    const newIndex = page.elements.findIndex((el) => el.id === over.id);
+
+    if (oldIndex !== -1 && newIndex !== -1 && onReorderElements) {
+      onReorderElements(oldIndex, newIndex);
+    }
+  }, [page, onReorderElements]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -103,19 +233,6 @@ export function PhonePreview({
   const isThankyou = page.type === "thankyou";
   const bgColor = page.backgroundColor || (isWelcome || isThankyou ? primaryColor : "#ffffff");
   const textColor = isWelcome || isThankyou ? "#ffffff" : "#1a1a1a";
-
-  const renderElement = (el: PageElement) => (
-    <ElementPreviewRenderer
-      key={el.id}
-      element={el}
-      textColor={textColor}
-      primaryColor={primaryColor}
-      selectedElementId={selectedElementId}
-      onSelectElement={onSelectElement}
-      formValues={formValues}
-      updateFormValue={updateFormValue}
-    />
-  );
 
   return (
     <div
@@ -188,39 +305,34 @@ export function PhonePreview({
               </p>
             ))}
 
-          {/* All elements rendered sequentially in user-defined order */}
+          {/* All elements with Drag & Drop reordering */}
           {page.elements.length > 0 && (
-            <div className="mt-4 space-y-3">
-              {page.elements.map((el) => {
-                // Multi-choice/question option elements get special treatment
-                if (
-                  (page.type === "multiChoice" || page.type === "question") &&
-                  el.options
-                ) {
-                  return (
-                    <ElementWrapper
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleSortDragEnd}
+            >
+              <SortableContext
+                items={page.elements.map((el) => el.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="mt-4 space-y-3">
+                  {page.elements.map((el) => (
+                    <SortablePreviewElement
                       key={el.id}
-                      elementId={el.id}
-                      elementType={el.type}
+                      element={el}
+                      textColor={textColor}
+                      primaryColor={primaryColor}
                       selectedElementId={selectedElementId}
                       onSelectElement={onSelectElement}
-                    >
-                      <div className="space-y-2">
-                        {el.options.map((option, idx) => (
-                          <div
-                            key={`${el.id}-${idx}`}
-                            className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 text-sm text-left bg-white hover:border-primary/50 hover:shadow-md transition-all cursor-pointer active:scale-[0.98]"
-                          >
-                            {option}
-                          </div>
-                        ))}
-                      </div>
-                    </ElementWrapper>
-                  );
-                }
-                return renderElement(el);
-              })}
-            </div>
+                      formValues={formValues}
+                      updateFormValue={updateFormValue}
+                      pageType={page.type}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
 
           {/* Sections with Columns */}

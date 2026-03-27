@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Funnel } from "@shared/schema";
@@ -266,13 +267,29 @@ export default function Funnels() {
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/funnels/${id}`);
+      return id;
     },
-    onSuccess: () => {
+    onSuccess: (_data, deletedId) => {
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
       setDeleteTarget(null);
       toast({
         title: "Funnel gelöscht",
-        description: "Der Funnel wurde erfolgreich gelöscht.",
+        description: "Der Funnel wurde gelöscht.",
+        action: (
+          <ToastAction
+            altText="Rückgängig machen"
+            onClick={async () => {
+              try {
+                await apiRequest("PATCH", `/api/funnels/${deletedId}/restore`);
+                queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
+              } catch {
+                toast({ title: "Fehler", description: "Funnel konnte nicht wiederhergestellt werden.", variant: "destructive" });
+              }
+            }}
+          >
+            Rückgängig
+          </ToastAction>
+        ),
       });
     },
     onError: () => {

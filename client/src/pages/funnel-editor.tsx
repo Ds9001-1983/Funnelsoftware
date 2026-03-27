@@ -1063,6 +1063,14 @@ export default function FunnelEditor() {
               onMoveElementUp={moveElementUp}
               onMoveElementDown={moveElementDown}
               onShowElementPicker={() => setSelectedElementId(null)}
+              onReorderElements={(oldIndex, newIndex) => {
+                if (!localFunnel) return;
+                const page = localFunnel.pages[selectedPageIndex];
+                const newElements = [...page.elements];
+                const [moved] = newElements.splice(oldIndex, 1);
+                newElements.splice(newIndex, 0, moved);
+                updatePage(selectedPageIndex, { elements: newElements });
+              }}
             />
           </div>
         </div>

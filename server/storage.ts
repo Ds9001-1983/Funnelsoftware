@@ -361,6 +361,16 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  // Restore soft-deleted funnel
+  async restoreFunnel(id: number, userId: number): Promise<boolean> {
+    const result = await db.update(funnels)
+      .set({ deletedAt: null })
+      .where(and(eq(funnels.id, id), eq(funnels.userId, userId), sql`${funnels.deletedAt} IS NOT NULL`))
+      .returning({ id: funnels.id });
+
+    return result.length > 0;
+  }
+
   // Email Verification
   async verifyEmail(token: string): Promise<User | undefined> {
     const [user] = await db.select()
