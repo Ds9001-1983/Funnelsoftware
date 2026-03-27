@@ -444,10 +444,13 @@ function ElementPreviewRendererBase({
                 : "bg-primary text-white"
             }`}
             style={el.buttonVariant === "primary" || !el.buttonVariant ? { backgroundColor: primaryColor } : undefined}
-            onClick={() => {
+            onClick={(e) => {
+              // Only handle clicks in public view (when onButtonClick is provided)
+              if (!onButtonClick) return;
+              e.stopPropagation();
               if (el.buttonAction === "url" && el.buttonUrl) {
                 window.open(el.buttonUrl, el.buttonTarget || "_self");
-              } else if (onButtonClick) {
+              } else {
                 onButtonClick(el);
               }
             }}
@@ -768,16 +771,13 @@ function arePropsEqual(
   prev: ElementPreviewRendererProps,
   next: ElementPreviewRendererProps
 ): boolean {
-  return (
-    prev.element.id === next.element.id &&
-    prev.element.type === next.element.type &&
-    prev.element.content === next.element.content &&
-    JSON.stringify(prev.element.styles) === JSON.stringify(next.element.styles) &&
-    prev.textColor === next.textColor &&
-    prev.primaryColor === next.primaryColor &&
-    prev.selectedElementId === next.selectedElementId &&
-    JSON.stringify(prev.formValues) === JSON.stringify(next.formValues)
-  );
+  if (prev.textColor !== next.textColor) return false;
+  if (prev.primaryColor !== next.primaryColor) return false;
+  if (prev.selectedElementId !== next.selectedElementId) return false;
+  // Deep compare element (covers all properties: slides, faqItems, listItems, options, etc.)
+  if (prev.element !== next.element && JSON.stringify(prev.element) !== JSON.stringify(next.element)) return false;
+  if (JSON.stringify(prev.formValues) !== JSON.stringify(next.formValues)) return false;
+  return true;
 }
 
 const MemoizedElementPreviewRenderer = memo(ElementPreviewRendererBase, arePropsEqual);
