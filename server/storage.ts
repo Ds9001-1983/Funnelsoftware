@@ -708,30 +708,51 @@ export class DatabaseStorage implements IStorage {
     totalUsers: number;
     activeTrials: number;
     proUsers: number;
+    cancelledUsers: number;
+    expiredTrials: number;
     totalFunnels: number;
     totalLeads: number;
     newUsersToday: number;
     newUsersThisWeek: number;
+    newUsersThisMonth: number;
+    // Subscription plan breakdown
+    plansBreakdown: { plan: string; count: number }[];
   }> {
-    // Single query instead of 7 separate queries
+    // Single query for scalar stats
     const [stats] = await db.select({
       totalUsers: sql<number>`(SELECT count(*) FROM ${users})`,
       activeTrials: sql<number>`(SELECT count(*) FROM ${users} WHERE ${users.subscriptionStatus} = 'trial' AND ${users.trialEndsAt} > NOW())`,
       proUsers: sql<number>`(SELECT count(*) FROM ${users} WHERE ${users.isPro} = true)`,
+      cancelledUsers: sql<number>`(SELECT count(*) FROM ${users} WHERE ${users.subscriptionStatus} = 'cancelled')`,
+      expiredTrials: sql<number>`(SELECT count(*) FROM ${users} WHERE ${users.subscriptionStatus} = 'trial' AND (${users.trialEndsAt} IS NULL OR ${users.trialEndsAt} <= NOW()))`,
       totalFunnels: sql<number>`(SELECT count(*) FROM ${funnels})`,
       totalLeads: sql<number>`(SELECT count(*) FROM ${leads})`,
       newUsersToday: sql<number>`(SELECT count(*) FROM ${users} WHERE ${users.createdAt} >= CURRENT_DATE)`,
       newUsersThisWeek: sql<number>`(SELECT count(*) FROM ${users} WHERE ${users.createdAt} >= NOW() - INTERVAL '7 days')`,
+      newUsersThisMonth: sql<number>`(SELECT count(*) FROM ${users} WHERE ${users.createdAt} >= date_trunc('month', NOW()))`,
     }).from(sql`(SELECT 1) AS _dummy`);
+
+    // Plan breakdown
+    const planRows = await db.select({
+      plan: sql<string>`COALESCE(${users.subscriptionPlan}, 'none')`,
+      count: sql<number>`count(*)`,
+    })
+      .from(users)
+      .where(sql`${users.isPro} = true`)
+      .groupBy(sql`COALESCE(${users.subscriptionPlan}, 'none')`);
 
     return {
       totalUsers: Number(stats?.totalUsers || 0),
       activeTrials: Number(stats?.activeTrials || 0),
       proUsers: Number(stats?.proUsers || 0),
+      cancelledUsers: Number(stats?.cancelledUsers || 0),
+      expiredTrials: Number(stats?.expiredTrials || 0),
       totalFunnels: Number(stats?.totalFunnels || 0),
       totalLeads: Number(stats?.totalLeads || 0),
       newUsersToday: Number(stats?.newUsersToday || 0),
       newUsersThisWeek: Number(stats?.newUsersThisWeek || 0),
+      newUsersThisMonth: Number(stats?.newUsersThisMonth || 0),
+      plansBreakdown: planRows.map(r => ({ plan: String(r.plan), count: Number(r.count) })),
     };
   }
 
