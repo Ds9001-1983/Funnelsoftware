@@ -369,7 +369,27 @@ function BillingSettings() {
             </div>
           )}
 
-          {/* Trial */}
+          {/* Trial with Stripe (payment info already provided) */}
+          {status === "trial" && isPro && !isAdmin && (
+            <div className="flex items-center justify-between p-4 bg-primary/10 rounded-lg border border-primary/20">
+              <div>
+                <div className="text-lg font-semibold flex items-center gap-2">
+                  Pro Plan
+                  <span className="text-xs bg-primary text-white px-2 py-0.5 rounded-full">Testphase</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {daysLeft > 0
+                    ? `Noch ${daysLeft} ${daysLeft === 1 ? "Tag" : "Tage"} kostenlos. Dein Abo startet automatisch danach.`
+                    : "Deine Testphase ist abgelaufen. Dein Abo wird jetzt aktiv."}
+                </div>
+              </div>
+              <Button variant="outline" onClick={handleManageSubscription} disabled={isLoading}>
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Abo verwalten"}
+              </Button>
+            </div>
+          )}
+
+          {/* Trial without Stripe (no payment info yet) */}
           {status === "trial" && !isPro && !isAdmin && (
             <div className={`flex items-center justify-between p-4 rounded-lg border ${
               daysLeft <= 3
@@ -380,13 +400,13 @@ function BillingSettings() {
                 <div className="text-lg font-semibold">Testphase</div>
                 <div className="text-sm text-muted-foreground">
                   {daysLeft > 0
-                    ? `Noch ${daysLeft} ${daysLeft === 1 ? "Tag" : "Tage"} verbleibend`
+                    ? `Noch ${daysLeft} ${daysLeft === 1 ? "Tag" : "Tage"} verbleibend. Hinterlege Zahlungsdaten für nahtlosen Übergang.`
                     : "Testphase abgelaufen"}
                 </div>
               </div>
               <Button onClick={handleUpgrade} disabled={isLoading}>
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Jetzt upgraden
+                Zahlungsdaten hinterlegen
               </Button>
             </div>
           )}

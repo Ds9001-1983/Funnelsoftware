@@ -4,6 +4,7 @@ import { storage, hashPassword } from "./storage";
 import { randomBytes } from "crypto";
 import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail } from "./email";
 import {
+  stripe,
   isStripeConfigured,
   getOrCreateStripeCustomer,
   createCheckoutSession,
@@ -72,13 +73,35 @@ export async function registerRoutes(
       sendWelcomeEmail(email, displayName).catch(() => {});
 
       // Log user in automatically
-      req.login({ ...user, password: undefined } as any, (err) => {
+      req.login({ ...user, password: undefined } as any, async (err) => {
         if (err) {
           return res.status(500).json({ error: "Registrierung erfolgreich, aber Login fehlgeschlagen" });
         }
 
         const { password: _, ...userWithoutPassword } = user;
-        res.status(201).json({ user: userWithoutPassword });
+
+        // Create Stripe Checkout Session with 14-day trial
+        let checkoutUrl: string | null = null;
+        if (isStripeConfigured() && process.env.STRIPE_PRICE_ID) {
+          try {
+            const customerId = await getOrCreateStripeCustomer(user);
+            await storage.updateStripeCustomerId(user.id, customerId);
+            const appUrl = `${req.protocol}://${req.get("host")}`;
+            const session = await createCheckoutSession(
+              customerId,
+              process.env.STRIPE_PRICE_ID,
+              `${appUrl}/?registered=true`,
+              `${appUrl}/?registered=true`,
+              14
+            );
+            checkoutUrl = session.url;
+          } catch (stripeErr) {
+            console.error("Stripe checkout creation during registration failed:", stripeErr);
+            // Registration still succeeds, user just won't be redirected to Stripe
+          }
+        }
+
+        res.status(201).json({ user: userWithoutPassword, checkoutUrl });
       });
     } catch (error) {
       console.error("Registration error:", error);
@@ -759,9 +782,19 @@ export async function registerRoutes(
 
           const user = await storage.getUserByStripeCustomerId(customerId);
           if (user) {
+            // Check if subscription has a trial (registration flow)
+            const isTrial = session.subscription
+              ? (await (async () => {
+                  try {
+                    const sub = await stripe!.subscriptions.retrieve(subscriptionId);
+                    return sub.status === "trialing";
+                  } catch { return false; }
+                })())
+              : false;
+
             await storage.updateSubscriptionFromStripe(user.id, {
               isPro: true,
-              subscriptionStatus: "active",
+              subscriptionStatus: isTrial ? "trial" : "active",
               subscriptionPlan: "pro",
               stripeSubscriptionId: subscriptionId,
               subscriptionStartedAt: new Date(),
@@ -779,12 +812,13 @@ export async function registerRoutes(
             const status = subscription.status as string;
             const mappedStatus =
               status === "active" ? "active" :
+              status === "trialing" ? "trial" :
               status === "past_due" ? "past_due" :
               status === "canceled" ? "cancelled" :
               status === "unpaid" ? "expired" : "active";
 
             await storage.updateSubscriptionFromStripe(user.id, {
-              isPro: status === "active" || status === "past_due",
+              isPro: status === "active" || status === "past_due" || status === "trialing",
               subscriptionStatus: mappedStatus,
             });
           }

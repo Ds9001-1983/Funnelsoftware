@@ -23,7 +23,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (data: RegisterData) => Promise<{ success: boolean; error?: string }>;
+  register: (data: RegisterData) => Promise<{ success: boolean; error?: string; checkoutUrl?: string | null }>;
   logout: () => Promise<void>;
   refetchUser: () => Promise<void>;
 }
@@ -103,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(result.user);
-      return { success: true };
+      return { success: true, checkoutUrl: result.checkoutUrl || null };
     } catch (error) {
       console.error("Register error:", error);
       return { success: false, error: "Netzwerkfehler bei der Registrierung" };

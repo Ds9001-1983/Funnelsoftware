@@ -76,7 +76,12 @@ export default function Register() {
     });
 
     if (result.success) {
-      setLocation("/");
+      // Redirect to Stripe Checkout if available, otherwise dashboard
+      if (result.checkoutUrl) {
+        window.location.href = result.checkoutUrl;
+      } else {
+        setLocation("/");
+      }
     } else {
       setError(result.error || "Registrierung fehlgeschlagen");
     }
