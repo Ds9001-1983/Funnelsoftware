@@ -34,6 +34,7 @@ interface ElementPreviewRendererProps {
   onSelectElement?: (elementId: string | null) => void;
   formValues?: Record<string, string>;
   updateFormValue?: (elementId: string, value: string) => void;
+  onButtonClick?: (element: PageElement) => void;
 }
 
 /**
@@ -47,6 +48,7 @@ function ElementPreviewRendererBase({
   onSelectElement,
   formValues = {},
   updateFormValue,
+  onButtonClick,
 }: ElementPreviewRendererProps) {
   const wrapperProps = {
     elementId: el.id,
@@ -441,7 +443,14 @@ function ElementPreviewRendererBase({
                 ? "bg-transparent text-primary hover:bg-primary/10"
                 : "bg-primary text-white"
             }`}
-            style={el.buttonVariant === "primary" ? { backgroundColor: primaryColor } : undefined}
+            style={el.buttonVariant === "primary" || !el.buttonVariant ? { backgroundColor: primaryColor } : undefined}
+            onClick={() => {
+              if (el.buttonAction === "url" && el.buttonUrl) {
+                window.open(el.buttonUrl, el.buttonTarget || "_self");
+              } else if (onButtonClick) {
+                onButtonClick(el);
+              }
+            }}
           >
             {el.content || "Button"}
           </button>

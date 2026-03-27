@@ -122,6 +122,14 @@ export default function PublicFunnelView() {
     if (!funnel) return null;
     const page = funnel.pages[currentPageIndex];
 
+    // 0. Check button elements with specific page targets
+    for (const el of page.elements) {
+      if (el.type === "button" && el.buttonAction === "page" && el.buttonNextPageId) {
+        const targetIdx = funnel.pages.findIndex(p => p.id === el.buttonNextPageId);
+        if (targetIdx >= 0) return targetIdx;
+      }
+    }
+
     // 1. Check conditional routing (option → pageId)
     if (page.conditionalRouting) {
       for (const el of page.elements) {
@@ -361,6 +369,17 @@ export default function PublicFunnelView() {
                         delete next[id];
                         return next;
                       });
+                    }
+                  }}
+                  onButtonClick={(el) => {
+                    if (el.buttonAction === "page" && el.buttonNextPageId && funnel) {
+                      const targetIdx = funnel.pages.findIndex(p => p.id === el.buttonNextPageId);
+                      if (targetIdx >= 0) {
+                        setCurrentPageIndex(targetIdx);
+                        trackPageView(funnel.pages[targetIdx].id);
+                      }
+                    } else if (el.buttonAction !== "url") {
+                      handleNextPage();
                     }
                   }}
                 />

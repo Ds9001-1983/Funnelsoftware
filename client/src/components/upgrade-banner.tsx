@@ -12,7 +12,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
 interface UpgradeBannerProps {
-  variant: "warning" | "expired" | "inline";
+  variant: "warning" | "expired" | "inline" | "payment-required";
 }
 
 export function UpgradeBanner({ variant }: UpgradeBannerProps) {
@@ -117,6 +117,44 @@ export function UpgradeBanner({ variant }: UpgradeBannerProps) {
             <Button className="w-full gap-2" size="lg" onClick={handleUpgrade} disabled={isLoading}>
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               Jetzt upgraden
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Payment required blocking modal (user cancelled Stripe Checkout after registration)
+  if (variant === "payment-required") {
+    const needsPayment = user.stripeCustomerId && !user.stripeSubscriptionId && !user.isPro;
+    if (!needsPayment) return null;
+
+    return (
+      <Dialog open={true}>
+        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Registrierung abschließen
+            </DialogTitle>
+            <DialogDescription>
+              Bitte hinterlege deine Zahlungsdaten, um Trichterwerk nutzen zu können.
+              Du wirst 14 Tage lang nicht belastet und kannst jederzeit kündigen.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="bg-muted rounded-lg p-4">
+              <h4 className="font-medium mb-2">14 Tage kostenlos testen:</h4>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>Keine Kosten während der Testphase</li>
+                <li>Jederzeit kündbar</li>
+                <li>Alle Pro-Features sofort verfügbar</li>
+                <li>Nahtloser Übergang nach der Testphase</li>
+              </ul>
+            </div>
+            <Button className="w-full gap-2" size="lg" onClick={handleUpgrade} disabled={isLoading}>
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              Zahlungsdaten hinterlegen
             </Button>
           </div>
         </DialogContent>

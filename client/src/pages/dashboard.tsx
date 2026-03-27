@@ -209,6 +209,8 @@ export default function Dashboard() {
       {/* Welcome Modal für neue User */}
       <WelcomeModal hasFunnels={hasFunnels} userName={user?.displayName} />
 
+      {/* Blocking Modal wenn Stripe Checkout abgebrochen */}
+      <UpgradeBanner variant="payment-required" />
       {/* Trial-Ablauf Warnung */}
       <UpgradeBanner variant="warning" />
       {/* Blocking Modal wenn Trial abgelaufen */}

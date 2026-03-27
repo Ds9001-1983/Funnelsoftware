@@ -212,14 +212,29 @@ export default function AdminDashboard() {
       if (!res.ok) throw new Error("Delete failed");
       return res.json();
     },
+    onMutate: async (deletedId) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/admin/users"] });
+      const previous = queryClient.getQueryData<{ users: AdminUser[]; total: number }>(["/api/admin/users", currentPage, searchQuery]);
+      queryClient.setQueryData<{ users: AdminUser[]; total: number }>(
+        ["/api/admin/users", currentPage, searchQuery],
+        (old) => old ? { users: old.users.filter((u) => u.id !== deletedId), total: old.total - 1 } : { users: [], total: 0 }
+      );
+      setShowDeleteDialog(false);
+      setSelectedUser(null);
+      return { previous };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       toast({ title: "Benutzer gelöscht" });
-      setShowDeleteDialog(false);
     },
-    onError: () => {
+    onError: (_err, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["/api/admin/users", currentPage, searchQuery], context.previous);
+      }
       toast({ title: "Fehler beim Löschen", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
     },
   });
 
