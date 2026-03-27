@@ -189,6 +189,7 @@ export default function FunnelEditor() {
   const [selectedPageIndex, setSelectedPageIndex] = useState(0);
   const [showAddPage, setShowAddPage] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [editorTab, setEditorTab] = useState<"overview" | "design">("overview");
   const [previewMode, setPreviewMode] = useState<"phone" | "tablet" | "desktop">("phone");
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
@@ -1007,6 +1008,32 @@ export default function FunnelEditor() {
           style={{ width: showLeftSidebar ? `${leftPanelWidth}px` : 0, transition: isResizingRef.current ? "none" : "width 200ms" }}
         >
           <div className="h-full flex flex-col" style={{ width: `${leftPanelWidth}px` }}>
+            {/* Tab Switcher: Übersicht / Design */}
+            <div className="flex border-b border-border shrink-0">
+              <button
+                className={`flex-1 py-2.5 text-xs font-medium text-center transition-colors ${
+                  editorTab === "overview"
+                    ? "text-foreground border-b-2 border-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setEditorTab("overview")}
+              >
+                Übersicht
+              </button>
+              <button
+                className={`flex-1 py-2.5 text-xs font-medium text-center transition-colors ${
+                  editorTab === "design"
+                    ? "text-foreground border-b-2 border-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setEditorTab("design")}
+              >
+                Design
+              </button>
+            </div>
+
+            {editorTab === "overview" ? (
+            <>
             {/* Pages */}
             <div className="border-b border-border">
               <div className="flex items-center justify-between px-3 py-2">
@@ -1043,31 +1070,92 @@ export default function FunnelEditor() {
               </DndContext>
             </div>
 
-            {/* Element Palette */}
+            {/* Element Palette with Sections */}
             <div className="border-t border-border flex-1 overflow-hidden flex flex-col">
-              <div className="px-3 py-2">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Elemente</span>
-              </div>
-              <div className="flex-1 overflow-y-auto funnel-scrollbar px-2 pb-2">
-                {elementCategories.map((category) => (
-                  <div key={category.name} className="mb-3">
-                    <h5 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-1">{category.name}</h5>
-                    <div className="grid grid-cols-2 gap-1">
-                      {category.elements.map((el) => (
-                        <DraggableElement
-                          key={el.type}
-                          type={el.type}
-                          label={el.label}
-                          icon={el.icon}
-                          description={el.description}
-                          onClick={() => addElementToPage(el.type as PageElement["type"])}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
+              <div className="flex-1 overflow-y-auto funnel-scrollbar px-2 pb-2 pt-2">
+                <ElementPalette
+                  onAddElement={(type) => addElementToPage(type)}
+                  onAddSection={(elements) => {
+                    if (!localFunnel) return;
+                    const page = localFunnel.pages[selectedPageIndex];
+                    if (!page) return;
+                    const newElements = elements.map((el) => ({
+                      ...el,
+                      id: `el-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                    })) as PageElement[];
+                    updatePage(selectedPageIndex, {
+                      elements: [...page.elements, ...newElements],
+                    });
+                  }}
+                />
               </div>
             </div>
+            </>
+            ) : (
+            /* Design Tab - Theme Picker + Styling */
+            <div className="flex-1 overflow-y-auto funnel-scrollbar p-3 space-y-4">
+              <ThemePresetPicker
+                selectedThemeId={selectedThemeId}
+                onSelectTheme={(themeId) => {
+                  setSelectedThemeId(themeId);
+                }}
+              />
+
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Eigene Farben</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="color"
+                      value={localFunnel.theme.primaryColor}
+                      onChange={(e) => updateLocalFunnel({ theme: { ...localFunnel.theme, primaryColor: e.target.value } })}
+                      className="w-10 h-8 p-0.5 cursor-pointer"
+                    />
+                    <span className="text-xs text-muted-foreground flex-1">Primärfarbe</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="color"
+                      value={localFunnel.theme.backgroundColor}
+                      onChange={(e) => updateLocalFunnel({ theme: { ...localFunnel.theme, backgroundColor: e.target.value } })}
+                      className="w-10 h-8 p-0.5 cursor-pointer"
+                    />
+                    <span className="text-xs text-muted-foreground flex-1">Hintergrund</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="color"
+                      value={localFunnel.theme.textColor}
+                      onChange={(e) => updateLocalFunnel({ theme: { ...localFunnel.theme, textColor: e.target.value } })}
+                      className="w-10 h-8 p-0.5 cursor-pointer"
+                    />
+                    <span className="text-xs text-muted-foreground flex-1">Textfarbe</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Schriftart</h4>
+                <Select
+                  value={localFunnel.theme.fontFamily}
+                  onValueChange={(v) => updateLocalFunnel({ theme: { ...localFunnel.theme, fontFamily: v } })}
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Inter">Inter</SelectItem>
+                    <SelectItem value="system-ui">System</SelectItem>
+                    <SelectItem value="Georgia">Georgia</SelectItem>
+                    <SelectItem value="Montserrat">Montserrat</SelectItem>
+                    <SelectItem value="Poppins">Poppins</SelectItem>
+                    <SelectItem value="Roboto">Roboto</SelectItem>
+                    <SelectItem value="Open Sans">Open Sans</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            )}
           </div>
         </div>
 
