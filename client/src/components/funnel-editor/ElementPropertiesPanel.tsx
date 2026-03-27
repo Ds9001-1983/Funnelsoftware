@@ -1103,6 +1103,407 @@ export function ElementPropertiesPanel({
           </div>
         </div>
       )}
+
+      {/* Icon properties */}
+      {element.type === "icon" && (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-xs">Icon</Label>
+            <Select
+              value={element.iconName || "star"}
+              onValueChange={(v) => onUpdate({ iconName: v })}
+            >
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {["star", "heart", "check", "arrow-right", "mail", "phone", "home", "user", "settings", "shield", "zap", "award"].map((icon) => (
+                  <SelectItem key={icon} value={icon}>{icon}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Größe</Label>
+            <div className="flex gap-1">
+              {(["sm", "md", "lg", "xl"] as const).map((size) => (
+                <Button
+                  key={size}
+                  variant={(element.iconSize || "md") === size ? "default" : "outline"}
+                  size="sm"
+                  className="flex-1 text-xs uppercase"
+                  onClick={() => onUpdate({ iconSize: size })}
+                >
+                  {size}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ProgressBar properties */}
+      {element.type === "progressBar" && (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-xs">Fortschritt ({element.progressValue || 60}%)</Label>
+            <Slider
+              value={[element.progressValue || 60]}
+              onValueChange={([v]) => onUpdate({ progressValue: v })}
+              min={0}
+              max={100}
+              step={1}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">Label anzeigen</Label>
+            <Switch
+              checked={element.progressShowLabel !== false}
+              onCheckedChange={(checked) => onUpdate({ progressShowLabel: checked })}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Timer properties */}
+      {element.type === "timer" && (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-xs">End-Datum</Label>
+            <Input
+              type="datetime-local"
+              value={element.timerEndDate ? element.timerEndDate.slice(0, 16) : ""}
+              onChange={(e) => onUpdate({ timerEndDate: new Date(e.target.value).toISOString() })}
+              className="text-sm h-8"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Stil</Label>
+            <Select
+              value={element.timerStyle || "countdown"}
+              onValueChange={(v) => onUpdate({ timerStyle: v as "countdown" | "stopwatch" })}
+            >
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="countdown">Countdown</SelectItem>
+                <SelectItem value="stopwatch">Stoppuhr</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">Tage anzeigen</Label>
+            <Switch
+              checked={element.timerShowDays !== false}
+              onCheckedChange={(checked) => onUpdate({ timerShowDays: checked })}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Testimonial properties */}
+      {element.type === "testimonial" && (
+        <div className="space-y-4">
+          <Label className="text-xs font-medium">Bewertungen</Label>
+          {(element.slides || []).map((slide, idx) => (
+            <div key={slide.id} className="p-3 border rounded-lg space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium">#{idx + 1}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-destructive"
+                  onClick={() => {
+                    const slides = [...(element.slides || [])];
+                    slides.splice(idx, 1);
+                    onUpdate({ slides });
+                  }}
+                >×</Button>
+              </div>
+              <Input
+                value={slide.text || ""}
+                onChange={(e) => {
+                  const slides = [...(element.slides || [])];
+                  slides[idx] = { ...slides[idx], text: e.target.value };
+                  onUpdate({ slides });
+                }}
+                placeholder="Bewertungstext..."
+                className="text-sm h-8"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  value={slide.author || ""}
+                  onChange={(e) => {
+                    const slides = [...(element.slides || [])];
+                    slides[idx] = { ...slides[idx], author: e.target.value };
+                    onUpdate({ slides });
+                  }}
+                  placeholder="Name"
+                  className="text-sm h-8"
+                />
+                <Input
+                  value={slide.role || ""}
+                  onChange={(e) => {
+                    const slides = [...(element.slides || [])];
+                    slides[idx] = { ...slides[idx], role: e.target.value };
+                    onUpdate({ slides });
+                  }}
+                  placeholder="Position"
+                  className="text-sm h-8"
+                />
+              </div>
+            </div>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => {
+              const slides = [...(element.slides || [])];
+              slides.push({ id: `slide-${Date.now()}`, text: "", author: "", role: "", rating: 5 });
+              onUpdate({ slides });
+            }}
+          >+ Bewertung hinzufügen</Button>
+        </div>
+      )}
+
+      {/* Slider properties */}
+      {element.type === "slider" && (
+        <div className="space-y-4">
+          <Label className="text-xs font-medium">Slides</Label>
+          {(element.slides || []).map((slide, idx) => (
+            <div key={slide.id} className="p-3 border rounded-lg space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium">Slide {idx + 1}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-destructive"
+                  onClick={() => {
+                    const slides = [...(element.slides || [])];
+                    slides.splice(idx, 1);
+                    onUpdate({ slides });
+                  }}
+                >×</Button>
+              </div>
+              <Input
+                value={slide.image || ""}
+                onChange={(e) => {
+                  const slides = [...(element.slides || [])];
+                  slides[idx] = { ...slides[idx], image: e.target.value };
+                  onUpdate({ slides });
+                }}
+                placeholder="Bild-URL"
+                className="text-sm h-8"
+              />
+              <Input
+                value={slide.title || ""}
+                onChange={(e) => {
+                  const slides = [...(element.slides || [])];
+                  slides[idx] = { ...slides[idx], title: e.target.value };
+                  onUpdate({ slides });
+                }}
+                placeholder="Titel"
+                className="text-sm h-8"
+              />
+            </div>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => {
+              const slides = [...(element.slides || [])];
+              slides.push({ id: `slide-${Date.now()}`, image: "", title: "" });
+              onUpdate({ slides });
+            }}
+          >+ Slide hinzufügen</Button>
+        </div>
+      )}
+
+      {/* FAQ properties */}
+      {element.type === "faq" && (
+        <div className="space-y-4">
+          <Label className="text-xs font-medium">FAQ-Einträge</Label>
+          {(element.faqItems || []).map((item, idx) => (
+            <div key={item.id} className="p-3 border rounded-lg space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium">#{idx + 1}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-destructive"
+                  onClick={() => {
+                    const items = [...(element.faqItems || [])];
+                    items.splice(idx, 1);
+                    onUpdate({ faqItems: items });
+                  }}
+                >×</Button>
+              </div>
+              <Input
+                value={item.question}
+                onChange={(e) => {
+                  const items = [...(element.faqItems || [])];
+                  items[idx] = { ...items[idx], question: e.target.value };
+                  onUpdate({ faqItems: items });
+                }}
+                placeholder="Frage"
+                className="text-sm h-8"
+              />
+              <Textarea
+                value={item.answer}
+                onChange={(e) => {
+                  const items = [...(element.faqItems || [])];
+                  items[idx] = { ...items[idx], answer: e.target.value };
+                  onUpdate({ faqItems: items });
+                }}
+                placeholder="Antwort"
+                rows={2}
+                className="text-sm"
+              />
+            </div>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => {
+              const items = [...(element.faqItems || [])];
+              items.push({ id: `faq-${Date.now()}`, question: "", answer: "" });
+              onUpdate({ faqItems: items });
+            }}
+          >+ Frage hinzufügen</Button>
+        </div>
+      )}
+
+      {/* List properties */}
+      {element.type === "list" && (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-xs">Listen-Stil</Label>
+            <div className="flex gap-1">
+              {(["bullet", "number", "check", "icon"] as const).map((style) => (
+                <Button
+                  key={style}
+                  variant={(element.listStyle || "bullet") === style ? "default" : "outline"}
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={() => onUpdate({ listStyle: style })}
+                >
+                  {style === "bullet" ? "•" : style === "number" ? "1." : style === "check" ? "✓" : "★"}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <Label className="text-xs font-medium">Einträge</Label>
+          {(element.listItems || []).map((item, idx) => (
+            <div key={item.id} className="flex gap-2">
+              <Input
+                value={item.text}
+                onChange={(e) => {
+                  const items = [...(element.listItems || [])];
+                  items[idx] = { ...items[idx], text: e.target.value };
+                  onUpdate({ listItems: items });
+                }}
+                placeholder={`Eintrag ${idx + 1}`}
+                className="text-sm h-8 flex-1"
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-destructive shrink-0"
+                onClick={() => {
+                  const items = [...(element.listItems || [])];
+                  items.splice(idx, 1);
+                  onUpdate({ listItems: items });
+                }}
+              >×</Button>
+            </div>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => {
+              const items = [...(element.listItems || [])];
+              items.push({ id: `li-${Date.now()}`, text: "" });
+              onUpdate({ listItems: items });
+            }}
+          >+ Eintrag hinzufügen</Button>
+        </div>
+      )}
+
+      {/* SocialProof properties */}
+      {element.type === "socialProof" && (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-xs">Typ</Label>
+            <Select
+              value={element.socialProofType || "badges"}
+              onValueChange={(v) => onUpdate({ socialProofType: v as "badges" | "logos" | "stats" | "reviews" })}
+            >
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="badges">Badges</SelectItem>
+                <SelectItem value="logos">Logos</SelectItem>
+                <SelectItem value="stats">Statistiken</SelectItem>
+                <SelectItem value="reviews">Bewertungen</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Label className="text-xs font-medium">Einträge</Label>
+          {(element.socialProofItems || []).map((item, idx) => (
+            <div key={item.id} className="p-3 border rounded-lg space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium">#{idx + 1}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-destructive"
+                  onClick={() => {
+                    const items = [...(element.socialProofItems || [])];
+                    items.splice(idx, 1);
+                    onUpdate({ socialProofItems: items });
+                  }}
+                >×</Button>
+              </div>
+              <Input
+                value={item.text || ""}
+                onChange={(e) => {
+                  const items = [...(element.socialProofItems || [])];
+                  items[idx] = { ...items[idx], text: e.target.value };
+                  onUpdate({ socialProofItems: items });
+                }}
+                placeholder="Text"
+                className="text-sm h-8"
+              />
+              <Input
+                value={item.value || ""}
+                onChange={(e) => {
+                  const items = [...(element.socialProofItems || [])];
+                  items[idx] = { ...items[idx], value: e.target.value };
+                  onUpdate({ socialProofItems: items });
+                }}
+                placeholder="Wert (z.B. 500+)"
+                className="text-sm h-8"
+              />
+            </div>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => {
+              const items = [...(element.socialProofItems || [])];
+              items.push({ id: `sp-${Date.now()}`, text: "", value: "" });
+              onUpdate({ socialProofItems: items });
+            }}
+          >+ Eintrag hinzufügen</Button>
+        </div>
+      )}
     </div>
   );
 }

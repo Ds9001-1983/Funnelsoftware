@@ -617,7 +617,8 @@ export default function FunnelEditor() {
         type === "date" ? "Datum auswählen..." : undefined,
       options:
         type === "radio" ? ["Option 1", "Option 2", "Option 3"] :
-        type === "select" ? ["Option 1", "Option 2", "Option 3"] : undefined,
+        type === "select" ? ["Option 1", "Option 2", "Option 3"] :
+        type === "checkbox" ? ["Option 1", "Option 2"] : undefined,
       // Labels
       label:
         type === "fileUpload" ? "Datei hochladen" :
@@ -706,6 +707,7 @@ export default function FunnelEditor() {
       buttonUrl: type === "button" ? "" : undefined,
       buttonTarget: type === "button" ? "_self" : undefined,
       buttonVariant: type === "button" ? "primary" : undefined,
+      buttonAction: type === "button" ? "next" : undefined,
     };
     const newElements = [...page.elements, newElement];
     updatePage(selectedPageIndex, { elements: newElements });
