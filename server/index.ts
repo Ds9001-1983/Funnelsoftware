@@ -1,10 +1,12 @@
 import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import { doubleCsrf } from "csrf-csrf";
+import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
-import { setupAuth } from "./auth";
+import { setupAuth, apiKeyAuth } from "./auth";
 import { storage } from "./storage";
 
 const app = express();
@@ -19,8 +21,23 @@ declare module "http" {
 // Security Headers
 app.use(
   helmet({
-    contentSecurityPolicy: false, // CSP deaktiviert - SPA mit Inline-Scripts nicht kompatibel mit Standard-CSP
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://www.googletagmanager.com", "https://js.stripe.com"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:", "https:", "blob:"],
+        connectSrc: ["'self'", "https://www.google-analytics.com", "https://api.stripe.com", "https://fonts.googleapis.com"],
+        frameSrc: ["'self'", "https://js.stripe.com", "https://www.youtube.com", "https://player.vimeo.com", "https://calendly.com"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        mediaSrc: ["'self'", "https:", "blob:"],
+      },
+    },
     crossOriginEmbedderPolicy: false, // Erlaubt Einbettung von externen Ressourcen (Bilder, Videos)
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
   }),
 );
 
@@ -68,8 +85,57 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
+// Cookie parser (needed for CSRF)
+app.use(cookieParser());
+
 // Setup authentication (session + passport)
 setupAuth(app);
+
+// API-Key Auth (Enterprise): Bearer-Token als Alternative zu Session
+app.use("/api", apiKeyAuth);
+
+// CSRF Protection (Double Submit Cookie)
+const { doubleCsrfProtection, generateCsrfToken } = doubleCsrf({
+  getSecret: () => process.env.CSRF_SECRET || process.env.SESSION_SECRET || "dev-csrf-secret",
+  getSessionIdentifier: (req: Request) => (req as any).sessionID || "",
+  cookieName: "__csrf",
+  cookieOptions: {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  },
+  getCsrfTokenFromRequest: (req: Request) => req.headers["x-csrf-token"] as string,
+});
+
+// CSRF Token Endpoint
+app.get("/api/auth/csrf-token", (req, res) => {
+  const token = generateCsrfToken(req, res);
+  res.json({ csrfToken: token });
+});
+
+// Apply CSRF protection to state-changing API requests
+// Exclude: Stripe webhook, public endpoints, GET/HEAD/OPTIONS
+app.use("/api", (req: Request, res: Response, next: NextFunction) => {
+  // Skip safe methods
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+    return next();
+  }
+  // Skip Stripe webhook (uses its own signature verification)
+  if (req.path.startsWith("/webhooks/stripe")) {
+    return next();
+  }
+  // Skip public endpoints (anonymous visitors)
+  if (req.path.startsWith("/public/")) {
+    return next();
+  }
+  // Skip API-Key authenticated requests (Bearer token replaces CSRF)
+  if (req.headers.authorization?.startsWith("Bearer tw_")) {
+    return next();
+  }
+  // Apply CSRF protection
+  return doubleCsrfProtection(req, res, next);
+});
 
 app.use((req, res, next) => {
   const start = Date.now();

@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /funnels
+Disallow: /leads
+Disallow: /analytics
+Disallow: /settings
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://trichterwerk.de/sitemap.xml

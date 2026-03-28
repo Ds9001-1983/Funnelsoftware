@@ -66,15 +66,17 @@ function TemplateCard({
         style={{ backgroundColor: template.theme.primaryColor }}
       >
         {/* Template Thumbnail Image */}
-        <img 
-          src={template.thumbnail} 
-          alt={template.name}
-          className="absolute inset-0 w-full h-full object-cover object-top"
-          onError={(e) => {
-            // Fallback to color background if image fails to load
-            e.currentTarget.style.display = 'none';
-          }}
-        />
+        <picture>
+          <source srcSet={template.thumbnail} type="image/webp" />
+          <img
+            src={template.thumbnail.replace('.webp', '.png')}
+            alt={template.name}
+            width={600}
+            height={400}
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-cover object-top"
+          />
+        </picture>
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
         <div className="absolute bottom-2 left-2">
           <div className="flex items-center gap-1.5 text-white text-xs">

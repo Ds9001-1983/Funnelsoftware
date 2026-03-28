@@ -1,3 +1,5 @@
+import crypto from "crypto";
+
 interface WebhookPayload {
   event: "lead_created";
   funnel_id: string;
@@ -16,20 +18,46 @@ interface WebhookPayload {
 }
 
 /**
- * Send webhook payload to a URL. Fire-and-forget with error logging.
+ * Generate HMAC-SHA256 signature for a payload.
  */
-export async function sendWebhook(url: string, payload: WebhookPayload): Promise<void> {
+function signPayload(payload: string, secret: string): string {
+  return crypto.createHmac("sha256", secret).update(payload).digest("hex");
+}
+
+/**
+ * Generate a random webhook secret.
+ */
+export function generateWebhookSecret(): string {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+/**
+ * Send webhook payload to a URL with optional HMAC signature.
+ * Fire-and-forget with error logging.
+ */
+export async function sendWebhook(url: string, payload: WebhookPayload, secret?: string | null): Promise<void> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    const body = JSON.stringify(payload);
+    const timestamp = new Date().toISOString();
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "User-Agent": "Trichterwerk-Webhook/1.0",
+      "X-Trichterwerk-Timestamp": timestamp,
+    };
+
+    // Add HMAC signature if secret is available
+    if (secret) {
+      const signature = signPayload(body, secret);
+      headers["X-Trichterwerk-Signature"] = `sha256=${signature}`;
+    }
 
     const response = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": "Trichterwerk-Webhook/1.0",
-      },
-      body: JSON.stringify(payload),
+      headers,
+      body,
       signal: controller.signal,
     });
 

@@ -22,6 +22,7 @@ declare global {
       subscriptionPlan: string | null;
       stripeCustomerId: string | null;
       stripeSubscriptionId: string | null;
+      emailVerifiedAt: Date | null;
       createdAt: Date;
       updatedAt: Date;
     }
@@ -99,9 +100,10 @@ export function setupAuth(app: Express) {
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
       sameSite: "lax",
     },
+    rolling: true, // Session bei Aktivität erneuern
   };
 
   // Trust proxy in production
@@ -139,6 +141,31 @@ export function isAdmin(
   res.status(403).json({ error: "Zugriff verweigert. Admin-Berechtigung erforderlich." });
 }
 
+// E-Mail-Verifikation: Blockiert Zugriff wenn E-Mail nicht verifiziert
+export function requireVerifiedEmail(
+  req: import("express").Request,
+  res: import("express").Response,
+  next: import("express").NextFunction
+) {
+  if (!req.isAuthenticated() || !req.user) {
+    return res.status(401).json({ error: "Nicht autorisiert." });
+  }
+
+  // Admins überspringen Verifikation
+  if (req.user.isAdmin) {
+    return next();
+  }
+
+  if (!req.user.emailVerifiedAt) {
+    return res.status(403).json({
+      error: "Bitte bestätige zuerst deine E-Mail-Adresse.",
+      code: "EMAIL_NOT_VERIFIED",
+    });
+  }
+
+  return next();
+}
+
 // Trial-Enforcement: Blockiert schreibende Aktionen wenn Trial abgelaufen
 export function requireActivePlan(
   req: import("express").Request,
@@ -171,6 +198,43 @@ export function requireActivePlan(
     error: "Dein Testzeitraum ist abgelaufen. Bitte upgrade auf einen kostenpflichtigen Plan.",
     code: "TRIAL_EXPIRED",
   });
+}
+
+// API-Key Authentifizierung (Alternative zu Session für Enterprise)
+export async function apiKeyAuth(
+  req: import("express").Request,
+  res: import("express").Response,
+  next: import("express").NextFunction
+) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer tw_")) {
+    return next(); // Kein API-Key → Fallback auf Session-Auth
+  }
+
+  try {
+    const rawKey = authHeader.slice(7);
+    const { createHash } = await import("crypto");
+    const keyHash = createHash("sha256").update(rawKey).digest("hex");
+
+    const apiKey = await storage.getApiKeyByHash(keyHash);
+    if (!apiKey) {
+      return res.status(401).json({ error: "Ungültiger API-Key." });
+    }
+
+    const user = await storage.getUser(apiKey.userId);
+    if (!user) {
+      return res.status(401).json({ error: "Benutzer nicht gefunden." });
+    }
+
+    // Update last used timestamp (non-blocking)
+    storage.updateApiKeyLastUsed(apiKey.id).catch(() => {});
+
+    const { password: _, ...userWithoutPassword } = user;
+    req.user = userWithoutPassword as Express.User;
+    next();
+  } catch (error) {
+    return res.status(500).json({ error: "Authentifizierung fehlgeschlagen." });
+  }
 }
 
 // Get current user ID from request

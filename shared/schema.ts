@@ -41,6 +41,7 @@ export const funnels = pgTable("funnels", {
   theme: jsonb("theme").notNull().default({}),
   webhookUrl: text("webhook_url"),
   webhookEnabled: boolean("webhook_enabled").notNull().default(false),
+  webhookSecret: text("webhook_secret"),
   gtmId: text("gtm_id"),
   views: integer("views").notNull().default(0),
   leads: integer("leads_count").notNull().default(0),
@@ -106,6 +107,41 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   usedAt: timestamp("used_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// Teams table (Enterprise feature)
+export const teams = pgTable("teams", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  ownerId: integer("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Team members table
+export const teamMembers = pgTable("team_members", {
+  id: serial("id").primaryKey(),
+  teamId: integer("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  role: text("role").notNull().default("member"), // owner, admin, member
+  invitedEmail: text("invited_email"),
+  acceptedAt: timestamp("accepted_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("team_members_team_id_idx").on(table.teamId),
+  index("team_members_user_id_idx").on(table.userId),
+]);
+
+// API Keys table (Enterprise feature)
+export const apiKeys = pgTable("api_keys", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  keyHash: text("key_hash").notNull(), // Store only the hash, show prefix to user
+  keyPrefix: text("key_prefix").notNull(), // e.g. "tw_...abc" for display
+  lastUsedAt: timestamp("last_used_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("api_keys_user_id_idx").on(table.userId),
+]);
 
 // Sessions table for express-session with connect-pg-simple
 export const sessions = pgTable("session", {
@@ -536,6 +572,7 @@ export const funnelSchema = z.object({
   // Integrations
   webhookUrl: z.string().nullable().optional(),
   webhookEnabled: z.boolean().optional(),
+  webhookSecret: z.string().nullable().optional(),
   gtmId: z.string().nullable().optional(),
   views: z.number(),
   leads: z.number(),
@@ -655,3 +692,53 @@ export const registerSchema = z.object({
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
+
+// Team schemas
+export const teamSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  ownerId: z.number(),
+  createdAt: z.string().or(z.date()),
+});
+
+export type Team = z.infer<typeof teamSchema>;
+
+export const insertTeamSchema = z.object({
+  name: z.string().min(1, "Teamname ist erforderlich").max(100),
+});
+
+export type InsertTeam = z.infer<typeof insertTeamSchema>;
+
+export const teamMemberSchema = z.object({
+  id: z.number(),
+  teamId: z.number(),
+  userId: z.number(),
+  role: z.enum(["owner", "admin", "member"]),
+  invitedEmail: z.string().nullable().optional(),
+  acceptedAt: z.string().or(z.date()).nullable().optional(),
+  createdAt: z.string().or(z.date()),
+  // Joined fields
+  username: z.string().optional(),
+  email: z.string().optional(),
+  displayName: z.string().nullable().optional(),
+});
+
+export type TeamMember = z.infer<typeof teamMemberSchema>;
+
+// API Key schemas
+export const apiKeySchema = z.object({
+  id: z.number(),
+  userId: z.number(),
+  name: z.string(),
+  keyPrefix: z.string(),
+  lastUsedAt: z.string().or(z.date()).nullable().optional(),
+  createdAt: z.string().or(z.date()),
+});
+
+export type ApiKey = z.infer<typeof apiKeySchema>;
+
+export const insertApiKeySchema = z.object({
+  name: z.string().min(1, "API-Key Name ist erforderlich").max(100),
+});
+
+export type InsertApiKey = z.infer<typeof insertApiKeySchema>;

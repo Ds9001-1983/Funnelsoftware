@@ -1,7 +1,11 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import multer from "multer";
+import sharp from "sharp";
+import path from "path";
+import fs from "fs";
 import { storage, hashPassword } from "./storage";
-import { randomBytes } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail, sendLeadNotificationEmail } from "./email";
 import {
   stripe,
@@ -11,8 +15,8 @@ import {
   createPortalSession,
   constructWebhookEvent,
 } from "./stripe";
-import { sendWebhook, buildWebhookPayload } from "./webhooks";
-import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan } from "./auth";
+import { sendWebhook, buildWebhookPayload, generateWebhookSecret } from "./webhooks";
+import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan, requireVerifiedEmail } from "./auth";
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema,
   loginSchema, registerSchema, slugSchema
@@ -181,6 +185,25 @@ export async function registerRoutes(
     }
   });
 
+  // Resend verification email
+  app.post("/api/auth/resend-verification", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      if (user.emailVerifiedAt) {
+        return res.json({ message: "E-Mail bereits verifiziert" });
+      }
+
+      const emailVerificationToken = randomBytes(32).toString("hex");
+      await storage.updateEmailVerificationToken(user.id, emailVerificationToken);
+      sendVerificationEmail(user.email, emailVerificationToken).catch(() => {});
+
+      res.json({ message: "Bestätigungs-E-Mail wurde erneut gesendet" });
+    } catch (error) {
+      console.error("Resend verification error:", error);
+      res.status(500).json({ error: "Fehler beim Senden der Bestätigungs-E-Mail" });
+    }
+  });
+
   // Request password reset
   app.post("/api/auth/forgot-password", async (req, res) => {
     try {
@@ -269,6 +292,50 @@ export async function registerRoutes(
     }
   });
 
+  // ============ FILE UPLOADS ============
+
+  const uploadsDir = path.join(process.cwd(), "uploads");
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+    fileFilter: (_req, file, cb) => {
+      const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      cb(null, allowed.includes(file.mimetype));
+    },
+  });
+
+  app.post("/api/uploads", isAuthenticated, upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "Keine Datei hochgeladen oder ungültiges Format." });
+      }
+
+      const filename = `${randomUUID()}.webp`;
+      const outputPath = path.join(uploadsDir, filename);
+
+      await sharp(req.file.buffer)
+        .resize({ width: 1200, withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toFile(outputPath);
+
+      const url = `/uploads/${filename}`;
+      res.json({ url, filename });
+    } catch (error) {
+      console.error("Upload error:", error);
+      res.status(500).json({ error: "Fehler beim Hochladen" });
+    }
+  });
+
+  // Serve uploaded files
+  app.use("/uploads", (await import("express")).default.static(uploadsDir, {
+    maxAge: "30d",
+    immutable: true,
+  }));
+
   // ============ FUNNELS (Protected) ============
 
   // Get all funnels for current user
@@ -308,7 +375,7 @@ export async function registerRoutes(
   });
 
   // Create funnel
-  app.post("/api/funnels", isAuthenticated, requireActivePlan, async (req, res) => {
+  app.post("/api/funnels", isAuthenticated, requireVerifiedEmail, requireActivePlan, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
@@ -327,7 +394,7 @@ export async function registerRoutes(
   });
 
   // Update funnel
-  app.patch("/api/funnels/:id", isAuthenticated, requireActivePlan, async (req, res) => {
+  app.patch("/api/funnels/:id", isAuthenticated, requireVerifiedEmail, requireActivePlan, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
@@ -340,6 +407,14 @@ export async function registerRoutes(
       const result = updateFunnelSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ error: "Ungültige Update-Daten", details: result.error.errors });
+      }
+
+      // Auto-generate webhook secret when enabling webhook
+      if (result.data.webhookEnabled && !result.data.webhookSecret) {
+        const existingFunnel = await storage.getFunnel(funnelId, userId);
+        if (existingFunnel && !existingFunnel.webhookSecret) {
+          result.data.webhookSecret = generateWebhookSecret();
+        }
       }
 
       // Validate slug if provided
@@ -419,7 +494,7 @@ export async function registerRoutes(
   });
 
   // Clone funnel
-  app.post("/api/funnels/:id/clone", isAuthenticated, requireActivePlan, async (req, res) => {
+  app.post("/api/funnels/:id/clone", isAuthenticated, requireVerifiedEmail, requireActivePlan, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
@@ -610,7 +685,10 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Funnel nicht gefunden oder nicht veröffentlicht" });
       }
 
-      // Return only necessary public data
+      // Return only necessary public data (including A/B tests for traffic splitting)
+      const abTests = Array.isArray(funnel.abTests) ? funnel.abTests : [];
+      const activeTests = abTests.filter((t: any) => t.status === "running");
+
       res.json({
         uuid: funnel.uuid,
         slug: funnel.slug,
@@ -618,6 +696,7 @@ export async function registerRoutes(
         pages: funnel.pages,
         theme: funnel.theme,
         gtmId: funnel.gtmId || null,
+        abTests: activeTests,
       });
     } catch (error) {
       console.error("Get public funnel error:", error);
@@ -711,7 +790,7 @@ export async function registerRoutes(
       // Async: Webhook + E-Mail Benachrichtigung (non-blocking)
       if (funnel.webhookEnabled && funnel.webhookUrl) {
         const payload = buildWebhookPayload(funnel, lead);
-        sendWebhook(funnel.webhookUrl, payload).catch(() => {});
+        sendWebhook(funnel.webhookUrl, payload, funnel.webhookSecret).catch(() => {});
       }
 
       // E-Mail an Funnel-Owner
@@ -803,6 +882,192 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Get template error:", error);
       res.status(500).json({ error: "Template konnte nicht geladen werden" });
+    }
+  });
+
+  // ============ TEAMS (Enterprise) ============
+
+  // Get user's teams
+  app.get("/api/teams", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+      const teams = await storage.getTeamsByUser(userId);
+      res.json(teams);
+    } catch (error) {
+      console.error("Get teams error:", error);
+      res.status(500).json({ error: "Teams konnten nicht geladen werden" });
+    }
+  });
+
+  // Create team
+  app.post("/api/teams", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      // Enterprise plan check
+      const user = await storage.getUser(userId);
+      if (!user?.isPro && user?.subscriptionPlan !== "enterprise") {
+        return res.status(403).json({ error: "Team-Funktion erfordert einen Enterprise-Plan." });
+      }
+
+      const { name } = req.body;
+      if (!name?.trim()) {
+        return res.status(400).json({ error: "Teamname ist erforderlich" });
+      }
+
+      const team = await storage.createTeam(name.trim(), userId);
+      res.status(201).json(team);
+    } catch (error) {
+      console.error("Create team error:", error);
+      res.status(500).json({ error: "Team konnte nicht erstellt werden" });
+    }
+  });
+
+  // Get team members
+  app.get("/api/teams/:id/members", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const teamId = parseInt(String(req.params.id));
+      if (isNaN(teamId)) return res.status(400).json({ error: "Ungültige Team-ID" });
+
+      const team = await storage.getTeam(teamId, userId);
+      if (!team) return res.status(404).json({ error: "Team nicht gefunden" });
+
+      const members = await storage.getTeamMembers(teamId);
+      res.json(members);
+    } catch (error) {
+      console.error("Get team members error:", error);
+      res.status(500).json({ error: "Mitglieder konnten nicht geladen werden" });
+    }
+  });
+
+  // Invite team member
+  app.post("/api/teams/:id/invite", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const teamId = parseInt(String(req.params.id));
+      if (isNaN(teamId)) return res.status(400).json({ error: "Ungültige Team-ID" });
+
+      const isAdmin = await storage.isTeamOwnerOrAdmin(teamId, userId);
+      if (!isAdmin) return res.status(403).json({ error: "Nur Team-Admins können Mitglieder einladen" });
+
+      const { email, role } = req.body;
+      if (!email?.trim()) return res.status(400).json({ error: "E-Mail ist erforderlich" });
+
+      const member = await storage.addTeamMember(teamId, email.trim(), role || "member");
+      res.status(201).json(member);
+    } catch (error) {
+      console.error("Invite team member error:", error);
+      res.status(500).json({ error: "Einladung fehlgeschlagen" });
+    }
+  });
+
+  // Remove team member
+  app.delete("/api/teams/:teamId/members/:memberId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const teamId = parseInt(String(req.params.teamId));
+      const memberId = parseInt(String(req.params.memberId));
+      if (isNaN(teamId) || isNaN(memberId)) return res.status(400).json({ error: "Ungültige IDs" });
+
+      const isAdmin = await storage.isTeamOwnerOrAdmin(teamId, userId);
+      if (!isAdmin) return res.status(403).json({ error: "Nur Team-Admins können Mitglieder entfernen" });
+
+      const removed = await storage.removeTeamMember(teamId, memberId);
+      if (!removed) return res.status(404).json({ error: "Mitglied nicht gefunden" });
+      res.status(204).send();
+    } catch (error) {
+      console.error("Remove team member error:", error);
+      res.status(500).json({ error: "Mitglied konnte nicht entfernt werden" });
+    }
+  });
+
+  // Delete team
+  app.delete("/api/teams/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const teamId = parseInt(String(req.params.id));
+      if (isNaN(teamId)) return res.status(400).json({ error: "Ungültige Team-ID" });
+
+      const deleted = await storage.deleteTeam(teamId, userId);
+      if (!deleted) return res.status(404).json({ error: "Team nicht gefunden oder keine Berechtigung" });
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete team error:", error);
+      res.status(500).json({ error: "Team konnte nicht gelöscht werden" });
+    }
+  });
+
+  // ============ API KEYS (Enterprise) ============
+
+  // Get user's API keys
+  app.get("/api/api-keys", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+      const keys = await storage.getApiKeys(userId);
+      res.json(keys);
+    } catch (error) {
+      console.error("Get API keys error:", error);
+      res.status(500).json({ error: "API-Keys konnten nicht geladen werden" });
+    }
+  });
+
+  // Create API key
+  app.post("/api/api-keys", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      // Enterprise plan check
+      const user = await storage.getUser(userId);
+      if (!user?.isPro && user?.subscriptionPlan !== "enterprise") {
+        return res.status(403).json({ error: "API-Zugang erfordert einen Enterprise-Plan." });
+      }
+
+      const { name } = req.body;
+      if (!name?.trim()) return res.status(400).json({ error: "Name ist erforderlich" });
+
+      // Generate API key: tw_live_<random>
+      const rawKey = `tw_live_${randomBytes(32).toString("hex")}`;
+      const keyHash = (await import("crypto")).createHash("sha256").update(rawKey).digest("hex");
+      const keyPrefix = `tw_...${rawKey.slice(-8)}`;
+
+      const apiKey = await storage.createApiKey(userId, name.trim(), keyHash, keyPrefix);
+
+      // Return the raw key ONLY on creation — user must save it
+      res.status(201).json({ ...apiKey, key: rawKey });
+    } catch (error) {
+      console.error("Create API key error:", error);
+      res.status(500).json({ error: "API-Key konnte nicht erstellt werden" });
+    }
+  });
+
+  // Delete API key
+  app.delete("/api/api-keys/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const keyId = parseInt(String(req.params.id));
+      if (isNaN(keyId)) return res.status(400).json({ error: "Ungültige Key-ID" });
+
+      const deleted = await storage.deleteApiKey(keyId, userId);
+      if (!deleted) return res.status(404).json({ error: "API-Key nicht gefunden" });
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete API key error:", error);
+      res.status(500).json({ error: "API-Key konnte nicht gelöscht werden" });
     }
   });
 

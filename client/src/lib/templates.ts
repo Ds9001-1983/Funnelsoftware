@@ -21,7 +21,7 @@ export const defaultTemplates: ClientTemplate[] = [
     name: "Termin buchen",
     description: "Präsentiere dein Angebot, filtere qualifizierte Anfragen und ermögliche direkte Terminbuchungen",
     category: "leads",
-    thumbnail: "/templates/termin.png",
+    thumbnail: "/templates/termin.webp",
     pages: [
       {
         id: "page-1",
@@ -111,7 +111,7 @@ export const defaultTemplates: ClientTemplate[] = [
     name: "VSL Demo",
     description: "Nutze überzeugende Videos um Conversions zu steigern",
     category: "sales",
-    thumbnail: "/templates/vsl.png",
+    thumbnail: "/templates/vsl.webp",
     pages: [
       {
         id: "page-1",
@@ -183,7 +183,7 @@ export const defaultTemplates: ClientTemplate[] = [
     name: "Recruiting Experience",
     description: "Präsentiere deine Unternehmenskultur und vereinfache den Bewerbungsprozess",
     category: "recruiting",
-    thumbnail: "/templates/recruiting.png",
+    thumbnail: "/templates/recruiting.webp",
     pages: [
       {
         id: "page-1",
@@ -284,7 +284,7 @@ export const defaultTemplates: ClientTemplate[] = [
     name: "Lead Magnet",
     description: "Präsentiere deinen Lead Magnet und konvertiere Besucher zu qualifizierten Leads",
     category: "leads",
-    thumbnail: "/templates/leadmagnet.png",
+    thumbnail: "/templates/leadmagnet.webp",
     pages: [
       {
         id: "page-1",
@@ -361,7 +361,7 @@ export const defaultTemplates: ClientTemplate[] = [
     name: "Live Masterclass",
     description: "Sammle Anmeldungen für dein Webinar oder deine Masterclass",
     category: "webinar",
-    thumbnail: "/templates/masterclass.png",
+    thumbnail: "/templates/masterclass.webp",
     pages: [
       {
         id: "page-1",
@@ -428,7 +428,7 @@ export const defaultTemplates: ClientTemplate[] = [
     name: "Immobilien Bewertung",
     description: "Generiere qualifizierte Immobilien-Leads mit einer kostenlosen Bewertung",
     category: "leads",
-    thumbnail: "/templates/immobilien.png",
+    thumbnail: "/templates/immobilien.webp",
     pages: [
       {
         id: "page-1",
@@ -538,7 +538,7 @@ export const defaultTemplates: ClientTemplate[] = [
     name: "Agentur Onboarding",
     description: "Beschleunige den Start mit neuen Kunden und Projekten",
     category: "leads",
-    thumbnail: "/templates/onboarding.png",
+    thumbnail: "/templates/onboarding.webp",
     pages: [
       {
         id: "page-1",
@@ -630,7 +630,7 @@ export const defaultTemplates: ClientTemplate[] = [
     name: "Interaktives Quiz",
     description: "Qualifiziere Leads mit einem unterhaltsamen Quiz",
     category: "quiz",
-    thumbnail: "/templates/quiz.png",
+    thumbnail: "/templates/quiz.webp",
     pages: [
       {
         id: "page-1",
@@ -690,7 +690,7 @@ export const defaultTemplates: ClientTemplate[] = [
     name: "Coaching Angebot",
     description: "Präsentiere dein Coaching klar und konvertiere zu Kunden",
     category: "sales",
-    thumbnail: "/templates/sales.png",
+    thumbnail: "/templates/sales.webp",
     pages: [
       {
         id: "page-1",
@@ -768,7 +768,7 @@ export const defaultTemplates: ClientTemplate[] = [
     name: "Umfrage",
     description: "Erhalte wertvolle Einblicke von deiner Zielgruppe",
     category: "survey",
-    thumbnail: "/templates/umfrage.png",
+    thumbnail: "/templates/umfrage.webp",
     pages: [
       {
         id: "page-1",

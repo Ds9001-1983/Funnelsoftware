@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TopNavigation } from "@/components/top-navigation";
+import { EmailVerificationBanner } from "@/components/email-verification-banner";
 import { AuthProvider, RequireAuth, useAuth } from "@/hooks/use-auth";
 import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
 import NotFound from "@/pages/not-found";
@@ -44,6 +45,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
     <div className="flex flex-col h-screen w-full">
       <TopNavigation />
       <main className="flex-1 overflow-auto">
+        <EmailVerificationBanner />
         {children}
       </main>
     </div>
