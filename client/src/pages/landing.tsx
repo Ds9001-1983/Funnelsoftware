@@ -30,35 +30,35 @@ const templatePreviews = [
     category: "Leads",
     color: "#7C3AED",
     description: "Qualifizierte Leads sammeln",
-    image: "/templates/lead-gen.png",
+    image: "/templates/lead-gen.webp",
   },
   {
     name: "Webinar-Anmeldung",
     category: "Webinar",
     color: "#2563EB",
     description: "Anmeldungen maximieren",
-    image: "/templates/webinar.png",
+    image: "/templates/webinar.webp",
   },
   {
     name: "Interaktives Quiz",
     category: "Quiz",
     color: "#10B981",
     description: "Leads unterhaltsam qualifizieren",
-    image: "/templates/quiz.png",
+    image: "/templates/quiz.webp",
   },
   {
     name: "Schnell-Bewerbung",
     category: "Recruiting",
     color: "#F59E0B",
     description: "Top-Talente gewinnen",
-    image: "/templates/recruiting.png",
+    image: "/templates/recruiting.webp",
   },
   {
     name: "Produkt-Verkauf",
     category: "Sales",
     color: "#DC2626",
     description: "Produkte direkt verkaufen",
-    image: "/templates/sales.png",
+    image: "/templates/sales.webp",
   },
 ];
 
@@ -67,13 +67,13 @@ const features = [
     icon: MousePointerClick,
     title: "Drag & Drop Builder",
     description: "Erstelle beeindruckende Funnels ohne eine einzige Zeile Code. Einfach Elemente ziehen und ablegen.",
-    image: "/images/feature-drag-drop.png",
+    image: "/images/feature-drag-drop.webp",
   },
   {
     icon: Smartphone,
     title: "Mobile-First Design",
     description: "Alle Funnels sind automatisch für Smartphones optimiert - dort, wo deine Kunden sind.",
-    image: "/images/feature-mobile.png",
+    image: "/images/feature-mobile.webp",
   },
   {
     icon: PenTool,
@@ -89,7 +89,7 @@ const features = [
     icon: TrendingUp,
     title: "Analytics & Insights",
     description: "Verfolge Views, Conversions und Lead-Qualität in Echtzeit.",
-    image: "/images/feature-analytics.png",
+    image: "/images/feature-analytics.webp",
   },
   {
     icon: Target,
@@ -176,7 +176,7 @@ export default function Landing() {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <img 
-              src="/images/logo-icon.png" 
+              src="/images/logo-icon.webp" 
               alt="Trichterwerk Logo" 
               className="h-9 w-9 rounded-lg"
               onError={(e) => {
@@ -269,27 +269,16 @@ export default function Landing() {
         {/* Hero Image - Dashboard Preview */}
         <div className="container mx-auto mt-16 max-w-6xl">
           <div className="relative rounded-xl border shadow-2xl overflow-hidden">
-            <img 
-              src="/images/hero-dashboard.png" 
-              alt="Trichterwerk Dashboard" 
-              className="w-full h-auto"
-              onError={(e) => {
-                // Fallback to original card layout if image fails
-                e.currentTarget.parentElement!.innerHTML = `
-                  <div class="p-8 md:p-12 bg-gradient-to-b from-muted/50 to-muted">
-                    <div class="grid md:grid-cols-3 gap-6">
-                      <div class="bg-background/80 backdrop-blur shadow-lg rounded-lg p-6">
-                        <div class="h-3 w-3 rounded-full bg-primary mb-4"></div>
-                        <div class="space-y-2">
-                          <div class="h-4 bg-muted rounded w-3/4"></div>
-                          <div class="h-3 bg-muted rounded w-1/2"></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                `;
-              }}
-            />
+            <picture>
+              <source srcSet="/images/hero-dashboard.webp" type="image/webp" />
+              <img
+                src="/images/hero-dashboard.png"
+                alt="Trichterwerk Dashboard mit Funnel Performance"
+                width={1200}
+                height={800}
+                className="w-full h-auto"
+              />
+            </picture>
             <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent pointer-events-none" />
           </div>
         </div>
@@ -338,11 +327,17 @@ export default function Landing() {
               <Card key={feature.title} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden">
                 {feature.image && (
                   <div className="h-40 overflow-hidden bg-muted">
-                    <img 
-                      src={feature.image} 
-                      alt={feature.title}
-                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
-                    />
+                    <picture>
+                      <source srcSet={feature.image} type="image/webp" />
+                      <img
+                        src={feature.image.replace('.webp', '.png')}
+                        alt={feature.title}
+                        width={800}
+                        height={533}
+                        loading="lazy"
+                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                      />
+                    </picture>
                   </div>
                 )}
                 <CardHeader>
@@ -384,14 +379,17 @@ export default function Landing() {
                   className="h-40 relative overflow-hidden"
                   style={{ backgroundColor: `${template.color}15` }}
                 >
-                  <img 
-                    src={template.image}
-                    alt={template.name}
-                    className="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
+                  <picture>
+                    <source srcSet={template.image} type="image/webp" />
+                    <img
+                      src={template.image.replace('.webp', '.png')}
+                      alt={template.name}
+                      width={600}
+                      height={400}
+                      loading="lazy"
+                      className="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </picture>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                 </div>
                 <CardContent className="p-4">
@@ -556,7 +554,7 @@ export default function Landing() {
             <div>
               <Link href="/" className="flex items-center gap-2 mb-4">
                 <img 
-                  src="/images/logo-icon.png" 
+                  src="/images/logo-icon.webp" 
                   alt="Trichterwerk Logo" 
                   className="h-8 w-8 rounded-lg"
                   onError={(e) => {

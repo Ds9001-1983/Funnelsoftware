@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
+import { loadFont, getFontFamilies } from "@/lib/font-loader";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
@@ -271,6 +272,13 @@ export default function FunnelEditor() {
       resetHistory(funnel);
     }
   }, [funnel]);
+
+  // Load selected font on funnel load
+  useEffect(() => {
+    if (localFunnel?.theme?.fontFamily) {
+      loadFont(localFunnel.theme.fontFamily);
+    }
+  }, [localFunnel?.theme?.fontFamily]);
 
   // Auto-save functionality
   const performAutoSave = useCallback(() => {
@@ -1138,19 +1146,15 @@ export default function FunnelEditor() {
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Schriftart</h4>
                 <Select
                   value={localFunnel.theme.fontFamily}
-                  onValueChange={(v) => updateLocalFunnel({ theme: { ...localFunnel.theme, fontFamily: v } })}
+                  onValueChange={(v) => { loadFont(v); updateLocalFunnel({ theme: { ...localFunnel.theme, fontFamily: v } }); }}
                 >
                   <SelectTrigger className="h-8 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Inter">Inter</SelectItem>
-                    <SelectItem value="system-ui">System</SelectItem>
-                    <SelectItem value="Georgia">Georgia</SelectItem>
-                    <SelectItem value="Montserrat">Montserrat</SelectItem>
-                    <SelectItem value="Poppins">Poppins</SelectItem>
-                    <SelectItem value="Roboto">Roboto</SelectItem>
-                    <SelectItem value="Open Sans">Open Sans</SelectItem>
+                    {getFontFamilies().map((font) => (
+                      <SelectItem key={font} value={font} style={{ fontFamily: font }}>{font}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -1311,24 +1315,20 @@ export default function FunnelEditor() {
                 <Label>Schriftart</Label>
                 <Select
                   value={localFunnel.theme.fontFamily}
-                  onValueChange={(v) =>
+                  onValueChange={(v) => {
+                    loadFont(v);
                     updateLocalFunnel({
                       theme: { ...localFunnel.theme, fontFamily: v },
-                    })
-                  }
+                    });
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Inter">Inter (Modern)</SelectItem>
-                    <SelectItem value="Roboto">Roboto (Clean)</SelectItem>
-                    <SelectItem value="Open Sans">Open Sans (Freundlich)</SelectItem>
-                    <SelectItem value="Lato">Lato (Professionell)</SelectItem>
-                    <SelectItem value="Montserrat">Montserrat (Elegant)</SelectItem>
-                    <SelectItem value="Poppins">Poppins (Rund)</SelectItem>
-                    <SelectItem value="Playfair Display">Playfair Display (Klassisch)</SelectItem>
-                    <SelectItem value="Source Sans Pro">Source Sans Pro (Technisch)</SelectItem>
+                    {getFontFamilies().map((font) => (
+                      <SelectItem key={font} value={font} style={{ fontFamily: font }}>{font}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -1415,12 +1415,33 @@ export default function FunnelEditor() {
                     />
                   </div>
                   {localFunnel.webhookEnabled && (
-                    <Input
-                      value={localFunnel.webhookUrl || ""}
-                      onChange={(e) => updateLocalFunnel({ webhookUrl: e.target.value })}
-                      placeholder="https://hooks.zapier.com/..."
-                      className="text-sm"
-                    />
+                    <>
+                      <Input
+                        value={localFunnel.webhookUrl || ""}
+                        onChange={(e) => updateLocalFunnel({ webhookUrl: e.target.value })}
+                        placeholder="https://hooks.zapier.com/..."
+                        className="text-sm"
+                      />
+                      {localFunnel.webhookSecret && (
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Webhook Secret (HMAC-SHA256)</Label>
+                          <div className="flex gap-1.5">
+                            <Input
+                              value={localFunnel.webhookSecret}
+                              readOnly
+                              className="text-xs font-mono bg-muted"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigator.clipboard.writeText(localFunnel.webhookSecret || "")}
+                            >
+                              Kopieren
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                   <p className="text-xs text-muted-foreground">
                     Sendet Lead-Daten als JSON an eine URL (Zapier, Make, etc.)

@@ -13,9 +13,10 @@ if (!document.getElementById("funnel-slide-styles")) {
   slideStyles.id = "funnel-slide-styles";
   document.head.appendChild(slideStyles);
 }
+import { loadFont } from "@/lib/font-loader";
 import { ElementPreviewRenderer } from "@/components/funnel-editor/ElementPreviewRenderer";
 import { FunnelProgress } from "@/components/funnel-editor/FunnelProgress";
-import type { FunnelPage, Theme, PageElement } from "@shared/schema";
+import type { FunnelPage, Theme, PageElement, ABTest } from "@shared/schema";
 
 interface PublicFunnel {
   uuid: string;
@@ -23,6 +24,86 @@ interface PublicFunnel {
   pages: FunnelPage[];
   theme: Theme;
   gtmId?: string | null;
+  abTests?: ABTest[];
+}
+
+/**
+ * Cookie-basiertes A/B-Test Variant-Assignment.
+ * Gibt für jeden aktiven Test die zugewiesene Variante zurück.
+ */
+function getVariantAssignments(funnelUuid: string, abTests: ABTest[]): Record<string, string> {
+  const cookieKey = `tw_ab_${funnelUuid}`;
+  const existing = document.cookie
+    .split("; ")
+    .find((c) => c.startsWith(cookieKey + "="));
+
+  let assignments: Record<string, string> = {};
+  if (existing) {
+    try {
+      assignments = JSON.parse(decodeURIComponent(existing.split("=")[1]));
+    } catch {
+      assignments = {};
+    }
+  }
+
+  let changed = false;
+  for (const test of abTests) {
+    if (test.status !== "running") continue;
+    if (assignments[test.id]) continue;
+
+    // Weighted random selection
+    const rand = Math.random() * 100;
+    let cumulative = 0;
+    for (const variant of test.variants) {
+      cumulative += variant.trafficAllocation;
+      if (rand <= cumulative) {
+        assignments[test.id] = variant.id;
+        changed = true;
+        break;
+      }
+    }
+  }
+
+  if (changed) {
+    // Cookie für 30 Tage setzen
+    const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toUTCString();
+    document.cookie = `${cookieKey}=${encodeURIComponent(JSON.stringify(assignments))}; expires=${expires}; path=/; SameSite=Lax`;
+  }
+
+  return assignments;
+}
+
+/**
+ * Wendet A/B-Test-Varianten auf Seiten an (Title, Subtitle, Elements Override).
+ */
+function applyVariantOverrides(
+  pages: FunnelPage[],
+  abTests: ABTest[],
+  assignments: Record<string, string>
+): FunnelPage[] {
+  return pages.map((page) => {
+    for (const test of abTests) {
+      if (test.pageId !== page.id || test.status !== "running") continue;
+      const variantId = assignments[test.id];
+      if (!variantId) continue;
+
+      const variant = test.variants.find((v) => v.id === variantId);
+      if (!variant) continue;
+
+      // Variante 0 (Kontrolle) = keine Änderung
+      if (test.variants[0]?.id === variantId) continue;
+
+      return {
+        ...page,
+        title: variant.title || page.title,
+        subtitle: variant.subtitle || page.subtitle,
+        elements: variant.elements || page.elements,
+        backgroundColor: variant.backgroundColor || page.backgroundColor,
+        buttonText: variant.buttonText || page.buttonText,
+      };
+    }
+    return page;
+  });
 }
 
 export default function PublicFunnelView() {
@@ -39,6 +120,7 @@ export default function PublicFunnelView() {
   const [viewTracked, setViewTracked] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [variantAssignments, setVariantAssignments] = useState<Record<string, string>>({});
 
   // Fetch funnel data
   useEffect(() => {
@@ -56,6 +138,15 @@ export default function PublicFunnelView() {
         const data = await res.json();
         // Versteckte Seiten herausfiltern
         data.pages = data.pages.filter((p: FunnelPage) => !p.hidden);
+
+        // A/B-Test Varianten anwenden
+        const activeTests: ABTest[] = data.abTests || [];
+        if (activeTests.length > 0) {
+          const assignments = getVariantAssignments(data.uuid, activeTests);
+          data.pages = applyVariantOverrides(data.pages, activeTests, assignments);
+          setVariantAssignments(assignments);
+        }
+
         setFunnel(data);
       } catch {
         setError("Verbindungsfehler. Bitte versuche es später erneut.");
@@ -66,10 +157,13 @@ export default function PublicFunnelView() {
     if (params.uuid) loadFunnel();
   }, [params.uuid]);
 
-  // Set page title for SEO
+  // Set page title for SEO + load font
   useEffect(() => {
     if (funnel) {
       document.title = funnel.name;
+      if (funnel.theme?.fontFamily) {
+        loadFont(funnel.theme.fontFamily);
+      }
     }
     return () => { document.title = "Trichterwerk"; };
   }, [funnel]);
@@ -107,12 +201,15 @@ export default function PublicFunnelView() {
         body: JSON.stringify({
           funnelUuid: funnel.uuid,
           eventType: "view",
+          metadata: Object.keys(variantAssignments).length > 0
+            ? { abVariants: variantAssignments }
+            : undefined,
         }),
       }).catch((e) => console.warn("Analytics tracking failed:", e));
 
       pushDataLayer({ event: "funnel_view", funnel_name: funnel.name, funnel_id: funnel.uuid });
     }
-  }, [funnel, viewTracked, pushDataLayer]);
+  }, [funnel, viewTracked, pushDataLayer, variantAssignments]);
 
   // Track page navigation
   const trackPageView = useCallback(

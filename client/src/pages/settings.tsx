@@ -9,6 +9,13 @@ import {
   HelpCircle,
   ChevronRight,
   Loader2,
+  Users,
+  Key,
+  Plus,
+  Trash2,
+  Copy,
+  Check,
+  AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -460,6 +467,322 @@ function BillingSettings() {
   );
 }
 
+function TeamSettings() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [teams, setTeams] = useState<any[]>([]);
+  const [members, setMembers] = useState<Record<number, any[]>>({});
+  const [newTeamName, setNewTeamName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const isEnterprise = user?.isPro || user?.subscriptionPlan === "enterprise";
+
+  const fetchTeams = async () => {
+    try {
+      const res = await fetch("/api/teams", { credentials: "include" });
+      if (res.ok) setTeams(await res.json());
+    } catch {} finally { setIsLoading(false); }
+  };
+
+  const fetchMembers = async (teamId: number) => {
+    try {
+      const res = await fetch(`/api/teams/${teamId}/members`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setMembers(prev => ({ ...prev, [teamId]: data }));
+      }
+    } catch {}
+  };
+
+  useState(() => { fetchTeams(); });
+
+  const createTeam = async () => {
+    if (!newTeamName.trim()) return;
+    try {
+      const res = await fetch("/api/teams", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name: newTeamName.trim() }),
+      });
+      if (res.ok) {
+        setNewTeamName("");
+        fetchTeams();
+        toast({ title: "Team erstellt" });
+      } else {
+        const data = await res.json();
+        toast({ title: "Fehler", description: data.error, variant: "destructive" });
+      }
+    } catch {}
+  };
+
+  const inviteMember = async (teamId: number) => {
+    if (!inviteEmail.trim()) return;
+    try {
+      const res = await fetch(`/api/teams/${teamId}/invite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: inviteEmail.trim() }),
+      });
+      if (res.ok) {
+        setInviteEmail("");
+        fetchMembers(teamId);
+        toast({ title: "Einladung gesendet" });
+      }
+    } catch {}
+  };
+
+  const removeMember = async (teamId: number, memberId: number) => {
+    try {
+      await fetch(`/api/teams/${teamId}/members/${memberId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      fetchMembers(teamId);
+    } catch {}
+  };
+
+  if (!isEnterprise) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center">
+          <Users className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+          <h3 className="font-semibold mb-1">Team-Funktion</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Team-Accounts sind im Enterprise-Plan verfügbar.
+          </p>
+          <Button onClick={() => window.location.href = "/settings#billing"}>
+            Plan upgraden
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Teams</CardTitle>
+          <CardDescription>Verwalte deine Teams und Mitglieder</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Neues Team erstellen..."
+              value={newTeamName}
+              onChange={(e) => setNewTeamName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && createTeam()}
+            />
+            <Button onClick={createTeam} disabled={!newTeamName.trim()}>
+              <Plus className="h-4 w-4 mr-1" />
+              Erstellen
+            </Button>
+          </div>
+
+          {isLoading ? (
+            <div className="text-center py-4"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></div>
+          ) : teams.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Noch keine Teams erstellt.</p>
+          ) : (
+            teams.map((team) => (
+              <Card key={team.id} className="border">
+                <CardHeader className="py-3 cursor-pointer" onClick={() => {
+                  const id = selectedTeam === team.id ? null : team.id;
+                  setSelectedTeam(id);
+                  if (id && !members[id]) fetchMembers(id);
+                }}>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">{team.name}</CardTitle>
+                    <span className="text-xs text-muted-foreground">{team.role}</span>
+                  </div>
+                </CardHeader>
+                {selectedTeam === team.id && (
+                  <CardContent className="pt-0 space-y-3">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="E-Mail einladen..."
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        type="email"
+                      />
+                      <Button size="sm" onClick={() => inviteMember(team.id)}>Einladen</Button>
+                    </div>
+                    {(members[team.id] || []).map((m: any) => (
+                      <div key={m.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                        <div>
+                          <span className="text-sm font-medium">{m.displayName || m.username || m.invitedEmail}</span>
+                          <span className="text-xs text-muted-foreground ml-2">{m.role}</span>
+                        </div>
+                        {m.role !== "owner" && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeMember(team.id, m.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </CardContent>
+                )}
+              </Card>
+            ))
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ApiKeySettings() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [keys, setKeys] = useState<any[]>([]);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyValue, setNewKeyValue] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const isEnterprise = user?.isPro || user?.subscriptionPlan === "enterprise";
+
+  const fetchKeys = async () => {
+    try {
+      const res = await fetch("/api/api-keys", { credentials: "include" });
+      if (res.ok) setKeys(await res.json());
+    } catch {} finally { setIsLoading(false); }
+  };
+
+  useState(() => { fetchKeys(); });
+
+  const createKey = async () => {
+    if (!newKeyName.trim()) return;
+    try {
+      const res = await fetch("/api/api-keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name: newKeyName.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNewKeyValue(data.key);
+        setNewKeyName("");
+        fetchKeys();
+        toast({ title: "API-Key erstellt" });
+      } else {
+        const data = await res.json();
+        toast({ title: "Fehler", description: data.error, variant: "destructive" });
+      }
+    } catch {}
+  };
+
+  const deleteKey = async (id: number) => {
+    try {
+      await fetch(`/api/api-keys/${id}`, { method: "DELETE", credentials: "include" });
+      fetchKeys();
+      toast({ title: "API-Key gelöscht" });
+    } catch {}
+  };
+
+  const copyKey = () => {
+    if (newKeyValue) {
+      navigator.clipboard.writeText(newKeyValue);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  if (!isEnterprise) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center">
+          <Key className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+          <h3 className="font-semibold mb-1">API-Zugang</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            API-Keys sind im Enterprise-Plan verfügbar.
+          </p>
+          <Button onClick={() => window.location.href = "/settings#billing"}>
+            Plan upgraden
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* New key warning */}
+      {newKeyValue && (
+        <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-medium text-sm text-amber-800 dark:text-amber-200 mb-2">
+                  Speichere diesen Key — er wird nur einmal angezeigt!
+                </p>
+                <div className="flex gap-2">
+                  <Input value={newKeyValue} readOnly className="font-mono text-xs" />
+                  <Button variant="outline" size="sm" onClick={copyKey}>
+                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>API-Keys</CardTitle>
+          <CardDescription>Erstelle API-Keys für programmatischen Zugriff auf deine Funnels</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Key-Name (z.B. CRM Integration)"
+              value={newKeyName}
+              onChange={(e) => setNewKeyName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && createKey()}
+            />
+            <Button onClick={createKey} disabled={!newKeyName.trim()}>
+              <Plus className="h-4 w-4 mr-1" />
+              Erstellen
+            </Button>
+          </div>
+
+          {isLoading ? (
+            <div className="text-center py-4"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></div>
+          ) : keys.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Noch keine API-Keys erstellt.</p>
+          ) : (
+            <div className="space-y-2">
+              {keys.map((key: any) => (
+                <div key={key.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div>
+                    <span className="text-sm font-medium">{key.name}</span>
+                    <span className="text-xs text-muted-foreground ml-2 font-mono">{key.keyPrefix}</span>
+                    {key.lastUsedAt && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        Zuletzt: {new Date(key.lastUsedAt).toLocaleDateString("de-DE")}
+                      </span>
+                    )}
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteKey(key.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function Settings() {
   useDocumentTitle("Einstellungen");
 
@@ -471,7 +794,7 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid grid-cols-4 w-full max-w-md">
+        <TabsList className="flex w-full max-w-2xl overflow-x-auto">
           <TabsTrigger value="profile" className="gap-2" data-testid="tab-profile">
             <User className="h-4 w-4" />
             <span className="hidden sm:inline">Profil</span>
@@ -488,6 +811,14 @@ export default function Settings() {
             <CreditCard className="h-4 w-4" />
             <span className="hidden sm:inline">Abrechnung</span>
           </TabsTrigger>
+          <TabsTrigger value="team" className="gap-2" data-testid="tab-team">
+            <Users className="h-4 w-4" />
+            <span className="hidden sm:inline">Team</span>
+          </TabsTrigger>
+          <TabsTrigger value="api" className="gap-2" data-testid="tab-api">
+            <Key className="h-4 w-4" />
+            <span className="hidden sm:inline">API</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
@@ -501,6 +832,12 @@ export default function Settings() {
         </TabsContent>
         <TabsContent value="billing">
           <BillingSettings />
+        </TabsContent>
+        <TabsContent value="team">
+          <TeamSettings />
+        </TabsContent>
+        <TabsContent value="api">
+          <ApiKeySettings />
         </TabsContent>
       </Tabs>
     </div>

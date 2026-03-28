@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ImageUploader } from "./ImageUploader";
 import type { PageElement } from "@shared/schema";
 
 interface ElementPropertiesPanelProps {
@@ -321,7 +322,11 @@ export function ElementPropertiesPanel({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs">Bild-URL</Label>
+            <ImageUploader
+              value={element.imageUrl || ""}
+              onChange={(url) => onUpdate({ imageUrl: url })}
+            />
+            <Label className="text-xs">oder URL eingeben</Label>
             <Input
               value={element.imageUrl || ""}
               onChange={(e) => onUpdate({ imageUrl: e.target.value })}

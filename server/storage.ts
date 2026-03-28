@@ -2,9 +2,11 @@ import { eq, desc, and, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   users, funnels, leads, templates, analyticsEvents, passwordResetTokens,
+  teams, teamMembers, apiKeys,
   type User, type InsertUser, type Funnel, type InsertFunnel,
   type Lead, type InsertLead, type AnalyticsEvent, type Template,
-  type FunnelPage, type Theme
+  type FunnelPage, type Theme,
+  type Team, type InsertTeam, type TeamMember, type ApiKey, type InsertApiKey,
 } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
@@ -203,6 +205,7 @@ export class DatabaseStorage implements IStorage {
     if (updates.theme !== undefined) updateData.theme = updates.theme;
     if (updates.webhookUrl !== undefined) updateData.webhookUrl = updates.webhookUrl;
     if (updates.webhookEnabled !== undefined) updateData.webhookEnabled = updates.webhookEnabled;
+    if (updates.webhookSecret !== undefined) updateData.webhookSecret = updates.webhookSecret;
     if (updates.gtmId !== undefined) updateData.gtmId = updates.gtmId;
     if (updates.views !== undefined) updateData.views = updates.views;
     if (updates.leads !== undefined) updateData.leads = updates.leads;
@@ -240,6 +243,7 @@ export class DatabaseStorage implements IStorage {
       theme: funnel.theme as Theme,
       webhookUrl: funnel.webhookUrl,
       webhookEnabled: funnel.webhookEnabled,
+      webhookSecret: funnel.webhookSecret,
       gtmId: funnel.gtmId,
       views: funnel.views,
       leads: funnel.leads,
@@ -472,6 +476,13 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, user.id));
 
     return user;
+  }
+
+  // Update email verification token (for resend)
+  async updateEmailVerificationToken(userId: number, token: string): Promise<void> {
+    await db.update(users)
+      .set({ emailVerificationToken: token, updatedAt: new Date() })
+      .where(eq(users.id, userId));
   }
 
   // Password Reset Tokens
@@ -788,6 +799,146 @@ export class DatabaseStorage implements IStorage {
     }).returning();
 
     return admin;
+  }
+
+  // ============ TEAMS ============
+
+  async createTeam(name: string, ownerId: number): Promise<any> {
+    const [team] = await db.insert(teams).values({ name, ownerId }).returning();
+    // Add owner as team member
+    await db.insert(teamMembers).values({
+      teamId: team.id,
+      userId: ownerId,
+      role: "owner",
+      acceptedAt: new Date(),
+    });
+    return team;
+  }
+
+  async getTeam(teamId: number, userId: number): Promise<any> {
+    // User must be a member of the team
+    const membership = await db.select()
+      .from(teamMembers)
+      .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)))
+      .limit(1);
+    if (membership.length === 0) return undefined;
+
+    const [team] = await db.select().from(teams).where(eq(teams.id, teamId));
+    return team;
+  }
+
+  async getTeamsByUser(userId: number): Promise<any[]> {
+    const memberships = await db.select({
+      team: teams,
+      role: teamMembers.role,
+    })
+      .from(teamMembers)
+      .innerJoin(teams, eq(teams.id, teamMembers.teamId))
+      .where(eq(teamMembers.userId, userId));
+
+    return memberships.map((m) => ({ ...m.team, role: m.role }));
+  }
+
+  async getTeamMembers(teamId: number): Promise<any[]> {
+    const members = await db.select({
+      id: teamMembers.id,
+      teamId: teamMembers.teamId,
+      userId: teamMembers.userId,
+      role: teamMembers.role,
+      invitedEmail: teamMembers.invitedEmail,
+      acceptedAt: teamMembers.acceptedAt,
+      createdAt: teamMembers.createdAt,
+      username: users.username,
+      email: users.email,
+      displayName: users.displayName,
+    })
+      .from(teamMembers)
+      .leftJoin(users, eq(users.id, teamMembers.userId))
+      .where(eq(teamMembers.teamId, teamId));
+
+    return members;
+  }
+
+  async addTeamMember(teamId: number, email: string, role: string = "member"): Promise<any> {
+    // Check if user exists
+    const user = await this.getUserByEmail(email);
+
+    const [member] = await db.insert(teamMembers).values({
+      teamId,
+      userId: user?.id || 0, // 0 for pending invite (user doesn't exist yet)
+      role,
+      invitedEmail: email,
+      acceptedAt: user ? new Date() : null,
+    }).returning();
+
+    return member;
+  }
+
+  async removeTeamMember(teamId: number, memberId: number): Promise<boolean> {
+    const result = await db.delete(teamMembers)
+      .where(and(eq(teamMembers.id, memberId), eq(teamMembers.teamId, teamId)));
+    return (result as any).rowCount > 0;
+  }
+
+  async isTeamOwnerOrAdmin(teamId: number, userId: number): Promise<boolean> {
+    const [membership] = await db.select()
+      .from(teamMembers)
+      .where(and(
+        eq(teamMembers.teamId, teamId),
+        eq(teamMembers.userId, userId),
+      ))
+      .limit(1);
+
+    return membership?.role === "owner" || membership?.role === "admin";
+  }
+
+  async deleteTeam(teamId: number, ownerId: number): Promise<boolean> {
+    const [team] = await db.select().from(teams).where(and(eq(teams.id, teamId), eq(teams.ownerId, ownerId)));
+    if (!team) return false;
+    await db.delete(teamMembers).where(eq(teamMembers.teamId, teamId));
+    await db.delete(teams).where(eq(teams.id, teamId));
+    return true;
+  }
+
+  // ============ API KEYS ============
+
+  async createApiKey(userId: number, name: string, keyHash: string, keyPrefix: string): Promise<any> {
+    const [key] = await db.insert(apiKeys).values({
+      userId,
+      name,
+      keyHash,
+      keyPrefix,
+    }).returning();
+    return key;
+  }
+
+  async getApiKeys(userId: number): Promise<any[]> {
+    return db.select({
+      id: apiKeys.id,
+      userId: apiKeys.userId,
+      name: apiKeys.name,
+      keyPrefix: apiKeys.keyPrefix,
+      lastUsedAt: apiKeys.lastUsedAt,
+      createdAt: apiKeys.createdAt,
+    })
+      .from(apiKeys)
+      .where(eq(apiKeys.userId, userId))
+      .orderBy(desc(apiKeys.createdAt));
+  }
+
+  async getApiKeyByHash(keyHash: string): Promise<any> {
+    const [key] = await db.select().from(apiKeys).where(eq(apiKeys.keyHash, keyHash));
+    return key;
+  }
+
+  async deleteApiKey(keyId: number, userId: number): Promise<boolean> {
+    const result = await db.delete(apiKeys)
+      .where(and(eq(apiKeys.id, keyId), eq(apiKeys.userId, userId)));
+    return (result as any).rowCount > 0;
+  }
+
+  async updateApiKeyLastUsed(keyId: number): Promise<void> {
+    await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, keyId));
   }
 }
 
