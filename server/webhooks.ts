@@ -1,5 +1,6 @@
 import crypto from "crypto";
 
+
 interface WebhookPayload {
   event: "lead_created";
   funnel_id: string;
