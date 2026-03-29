@@ -37,7 +37,7 @@ export { ABTestEditor } from "./ABTestEditor";
 export { InlineTextEditor, InlineHeadingEditor } from "./InlineTextEditor";
 export { ContextMenu, useContextMenu } from "./ContextMenu";
 export { NavigatorPanel } from "./NavigatorPanel";
-export { FloatingToolbar, InlineElementPicker, useToolbarPosition } from "./FloatingToolbar";
+export { FloatingToolbar, useToolbarPosition } from "./FloatingToolbar";
 
 // Quiz-Komponenten
 export * from "./QuizElement";

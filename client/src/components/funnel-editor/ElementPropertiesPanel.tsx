@@ -17,6 +17,7 @@ import {
   AlignRight,
   Bold,
   Italic,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -924,14 +925,53 @@ export function ElementPropertiesPanel({
             <Label className="text-xs">Optionen (eine pro Zeile)</Label>
             <Textarea
               value={(element.options || []).join("\n")}
-              onChange={(e) =>
-                onUpdate({ options: e.target.value.split("\n").filter(Boolean) })
-              }
+              onChange={(e) => {
+                const newOptions = e.target.value.split("\n").filter(Boolean);
+                const cleaned = element.optionRouting
+                  ? Object.fromEntries(Object.entries(element.optionRouting).filter(([k]) => newOptions.includes(k)))
+                  : undefined;
+                onUpdate({ options: newOptions, optionRouting: cleaned });
+              }}
               placeholder="Option 1&#10;Option 2&#10;Option 3"
               rows={4}
               className="text-sm"
             />
           </div>
+          {(element.options || []).length > 0 && pages.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-xs">Seitenweiterleitung pro Option</Label>
+              {(element.options || []).map((option) => (
+                <div key={option} className="flex items-center gap-1.5">
+                  <span className="text-xs truncate flex-1 text-muted-foreground">{option}</span>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <Select
+                    value={element.optionRouting?.[option] || "__next__"}
+                    onValueChange={(v) => {
+                      const routing = { ...(element.optionRouting || {}) };
+                      if (v === "__next__") {
+                        delete routing[option];
+                      } else {
+                        routing[option] = v;
+                      }
+                      onUpdate({ optionRouting: Object.keys(routing).length > 0 ? routing : undefined });
+                    }}
+                  >
+                    <SelectTrigger className="h-7 text-xs w-[140px] shrink-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__next__">Nächste Seite</SelectItem>
+                      {pages.map((page, pIdx) => (
+                        <SelectItem key={page.id} value={page.id}>
+                          {pIdx + 1}. {page.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <Label className="text-xs">Pflichtfeld</Label>
             <Switch
@@ -958,14 +998,53 @@ export function ElementPropertiesPanel({
             <Label className="text-xs">Optionen (eine pro Zeile)</Label>
             <Textarea
               value={(element.options || []).join("\n")}
-              onChange={(e) =>
-                onUpdate({ options: e.target.value.split("\n").filter(Boolean) })
-              }
+              onChange={(e) => {
+                const newOptions = e.target.value.split("\n").filter(Boolean);
+                const cleaned = element.optionRouting
+                  ? Object.fromEntries(Object.entries(element.optionRouting).filter(([k]) => newOptions.includes(k)))
+                  : undefined;
+                onUpdate({ options: newOptions, optionRouting: cleaned });
+              }}
               placeholder="Option A&#10;Option B&#10;Option C"
               rows={4}
               className="text-sm"
             />
           </div>
+          {(element.options || []).length > 0 && pages.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-xs">Seitenweiterleitung pro Option</Label>
+              {(element.options || []).map((option) => (
+                <div key={option} className="flex items-center gap-1.5">
+                  <span className="text-xs truncate flex-1 text-muted-foreground">{option}</span>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <Select
+                    value={element.optionRouting?.[option] || "__next__"}
+                    onValueChange={(v) => {
+                      const routing = { ...(element.optionRouting || {}) };
+                      if (v === "__next__") {
+                        delete routing[option];
+                      } else {
+                        routing[option] = v;
+                      }
+                      onUpdate({ optionRouting: Object.keys(routing).length > 0 ? routing : undefined });
+                    }}
+                  >
+                    <SelectTrigger className="h-7 text-xs w-[140px] shrink-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__next__">Nächste Seite</SelectItem>
+                      {pages.map((page, pIdx) => (
+                        <SelectItem key={page.id} value={page.id}>
+                          {pIdx + 1}. {page.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <Label className="text-xs">Pflichtfeld</Label>
             <Switch
@@ -1403,27 +1482,54 @@ export function ElementPropertiesPanel({
           </div>
           <Label className="text-xs font-medium">Einträge</Label>
           {(element.listItems || []).map((item, idx) => (
-            <div key={item.id} className="flex gap-2">
-              <Input
-                value={item.text}
-                onChange={(e) => {
-                  const items = [...(element.listItems || [])];
-                  items[idx] = { ...items[idx], text: e.target.value };
-                  onUpdate({ listItems: items });
-                }}
-                placeholder={`Eintrag ${idx + 1}`}
-                className="text-sm h-8 flex-1"
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 text-destructive shrink-0"
-                onClick={() => {
-                  const items = [...(element.listItems || [])];
-                  items.splice(idx, 1);
-                  onUpdate({ listItems: items });
-                }}
-              >×</Button>
+            <div key={item.id} className="space-y-1">
+              <div className="flex gap-2">
+                <Input
+                  value={item.text}
+                  onChange={(e) => {
+                    const items = [...(element.listItems || [])];
+                    items[idx] = { ...items[idx], text: e.target.value };
+                    onUpdate({ listItems: items });
+                  }}
+                  placeholder={`Eintrag ${idx + 1}`}
+                  className="text-sm h-8 flex-1"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-destructive shrink-0"
+                  onClick={() => {
+                    const items = [...(element.listItems || [])];
+                    items.splice(idx, 1);
+                    onUpdate({ listItems: items });
+                  }}
+                >×</Button>
+              </div>
+              {pages.length > 0 && (
+                <div className="flex items-center gap-1.5 pl-1">
+                  <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <Select
+                    value={item.targetPageId || "__none__"}
+                    onValueChange={(v) => {
+                      const items = [...(element.listItems || [])];
+                      items[idx] = { ...items[idx], targetPageId: v === "__none__" ? undefined : v };
+                      onUpdate({ listItems: items });
+                    }}
+                  >
+                    <SelectTrigger className="h-7 text-xs flex-1">
+                      <SelectValue placeholder="Keine Weiterleitung" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Keine Weiterleitung</SelectItem>
+                      {pages.map((page, pIdx) => (
+                        <SelectItem key={page.id} value={page.id}>
+                          {pIdx + 1}. {page.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           ))}
           <Button
