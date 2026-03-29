@@ -48,6 +48,18 @@ export async function apiRequest(
 
   // If CSRF token expired, refresh and retry once
   if (res.status === 403 && !["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase())) {
+    // Don't retry known application-level 403s (not CSRF errors)
+    const cloned = res.clone();
+    try {
+      const body = await cloned.json();
+      if (body.code === "TRIAL_EXPIRED" || body.code === "EMAIL_NOT_VERIFIED") {
+        await throwIfResNotOk(res);
+        return res;
+      }
+    } catch {
+      // Not JSON — continue with CSRF retry
+    }
+
     await fetchCsrfToken();
     if (csrfToken) {
       headers["X-CSRF-Token"] = csrfToken;
