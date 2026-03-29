@@ -129,6 +129,10 @@ app.use("/api", (req: Request, res: Response, next: NextFunction) => {
   if (req.path.startsWith("/public/")) {
     return next();
   }
+  // Skip auth endpoints (login, register, logout — protected by Passport/session)
+  if (req.path.startsWith("/auth/login") || req.path.startsWith("/auth/register") || req.path.startsWith("/auth/logout") || req.path.startsWith("/auth/forgot-password") || req.path.startsWith("/auth/reset-password")) {
+    return next();
+  }
   // Skip API-Key authenticated requests (Bearer token replaces CSRF)
   if (req.headers.authorization?.startsWith("Bearer tw_")) {
     return next();
