@@ -200,6 +200,7 @@ export async function registerRoutes(
       if (!sent) {
         return res.status(500).json({ error: "E-Mail konnte nicht gesendet werden. Bitte kontaktiere den Support." });
       }
+
       res.json({ message: "Bestätigungs-E-Mail wurde erneut gesendet" });
     } catch (error) {
       console.error("Resend verification error:", error);
