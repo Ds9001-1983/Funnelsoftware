@@ -74,8 +74,8 @@ export async function registerRoutes(
       } as any);
 
       // E-Mails asynchron senden (nicht blockierend)
-      sendVerificationEmail(email, emailVerificationToken).catch(() => {});
-      sendWelcomeEmail(email, displayName).catch(() => {});
+      sendVerificationEmail(email, emailVerificationToken).catch((err) => console.error("[Email] Verification send failed:", err));
+      sendWelcomeEmail(email, displayName).catch((err) => console.error("[Email] Welcome send failed:", err));
 
       // Log user in automatically
       req.login({ ...user, password: undefined } as any, async (err) => {
@@ -195,8 +195,11 @@ export async function registerRoutes(
 
       const emailVerificationToken = randomBytes(32).toString("hex");
       await storage.updateEmailVerificationToken(user.id, emailVerificationToken);
-      sendVerificationEmail(user.email, emailVerificationToken).catch(() => {});
+      const sent = await sendVerificationEmail(user.email, emailVerificationToken);
 
+      if (!sent) {
+        return res.status(500).json({ error: "E-Mail konnte nicht gesendet werden. Bitte kontaktiere den Support." });
+      }
       res.json({ message: "Bestätigungs-E-Mail wurde erneut gesendet" });
     } catch (error) {
       console.error("Resend verification error:", error);
