@@ -167,7 +167,6 @@ import {
   FormFieldWithValidation,
   validateAllFields,
   ABTestEditor,
-  InlineElementPicker,
   FloatingToolbar,
   PhonePreview,
   ElementPropertiesPanel,

@@ -231,6 +231,7 @@ export const pageElementSchema = z.object({
     errorMessage: z.string().optional(), // Custom error message
   }).optional(),
   options: z.array(z.string()).optional(),
+  optionRouting: z.record(z.string(), z.string()).optional(), // option-text → targetPageId
   label: z.string().optional(),
   acceptedFileTypes: z.array(z.string()).optional(),
   maxFileSize: z.number().optional(),
@@ -263,6 +264,7 @@ export const pageElementSchema = z.object({
     id: z.string(),
     text: z.string(),
     icon: z.string().optional(),
+    targetPageId: z.string().optional(),
   })).optional(),
   listStyle: z.enum(["bullet", "number", "check", "icon"]).optional(),
   // Timer properties

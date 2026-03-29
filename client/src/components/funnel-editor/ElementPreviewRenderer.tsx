@@ -35,6 +35,7 @@ interface ElementPreviewRendererProps {
   formValues?: Record<string, string>;
   updateFormValue?: (elementId: string, value: string) => void;
   onButtonClick?: (element: PageElement) => void;
+  onListItemClick?: (element: PageElement, itemId: string) => void;
 }
 
 /**
@@ -49,6 +50,7 @@ function ElementPreviewRendererBase({
   formValues = {},
   updateFormValue,
   onButtonClick,
+  onListItemClick,
 }: ElementPreviewRendererProps) {
   const wrapperProps = {
     elementId: el.id,
@@ -177,28 +179,39 @@ function ElementPreviewRendererBase({
       return (
         <ElementWrapper {...wrapperProps}>
           <div className="text-left space-y-2">
-            {el.listItems?.map((item, idx) => (
-              <div key={idx} className="flex items-start gap-2">
-                {el.listStyle === "number" ? (
-                  <span
-                    className="text-sm font-medium shrink-0 w-5 text-center"
-                    style={{ color: primaryColor }}
-                  >
-                    {idx + 1}.
+            {el.listItems?.map((item, idx) => {
+              const isClickable = !!item.targetPageId && !!onListItemClick;
+              const ItemTag = isClickable ? "button" : "div";
+              return (
+                <ItemTag
+                  key={idx}
+                  className={`flex items-start gap-2 w-full text-left ${isClickable ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
+                  onClick={isClickable ? () => onListItemClick(el, item.id) : undefined}
+                >
+                  {el.listStyle === "number" ? (
+                    <span
+                      className="text-sm font-medium shrink-0 w-5 text-center"
+                      style={{ color: primaryColor }}
+                    >
+                      {idx + 1}.
+                    </span>
+                  ) : el.listStyle === "bullet" ? (
+                    <Circle
+                      className="h-2 w-2 shrink-0 mt-1.5"
+                      style={{ fill: primaryColor, color: primaryColor }}
+                    />
+                  ) : (
+                    <Check className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+                  )}
+                  <span className="text-sm flex-1" style={{ color: textColor }}>
+                    {item.text}
                   </span>
-                ) : el.listStyle === "bullet" ? (
-                  <Circle
-                    className="h-2 w-2 shrink-0 mt-1.5"
-                    style={{ fill: primaryColor, color: primaryColor }}
-                  />
-                ) : (
-                  <Check className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
-                )}
-                <span className="text-sm" style={{ color: textColor }}>
-                  {item.text}
-                </span>
-              </div>
-            ))}
+                  {item.targetPageId && (
+                    <ChevronRight className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
+                  )}
+                </ItemTag>
+              );
+            })}
           </div>
         </ElementWrapper>
       );

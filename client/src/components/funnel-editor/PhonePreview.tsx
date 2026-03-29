@@ -18,7 +18,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { FunnelPage, PageElement } from "@shared/schema";
 import { FunnelProgress } from "./FunnelProgress";
-import { InlineElementPicker } from "./FloatingToolbar";
 import { ElementPreviewRenderer, SectionPreviewRenderer } from "./ElementPreviewRenderer";
 import { ElementWrapper } from "./ElementWrapper";
 
@@ -349,8 +348,6 @@ export function PhonePreview({
             </div>
           )}
 
-          {/* Inline Element Picker */}
-          {onAddElement && <InlineElementPicker onAddElement={onAddElement} />}
         </div>
 
         {/* Page button */}

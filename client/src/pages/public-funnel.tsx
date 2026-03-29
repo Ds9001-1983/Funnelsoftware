@@ -278,6 +278,17 @@ export default function PublicFunnelView() {
       }
     }
 
+    // 0.5 Check element-level optionRouting (select/radio)
+    for (const el of page.elements) {
+      if ((el.type === "select" || el.type === "radio") && el.optionRouting) {
+        const selectedValue = formValues[el.id];
+        if (selectedValue && el.optionRouting[selectedValue]) {
+          const targetIdx = funnel.pages.findIndex(p => p.id === el.optionRouting![selectedValue]);
+          if (targetIdx >= 0) return targetIdx;
+        }
+      }
+    }
+
     // 1. Check conditional routing (option → pageId)
     if (page.conditionalRouting) {
       for (const el of page.elements) {
@@ -547,6 +558,16 @@ export default function PublicFunnelView() {
                       }
                     } else if (el.buttonAction !== "url") {
                       handleNextPage();
+                    }
+                  }}
+                  onListItemClick={(el, itemId) => {
+                    const item = el.listItems?.find(i => i.id === itemId);
+                    if (item?.targetPageId && funnel) {
+                      const targetIdx = funnel.pages.findIndex(p => p.id === item.targetPageId);
+                      if (targetIdx >= 0) {
+                        navigateToPage(targetIdx, targetIdx > currentPageIndex ? "left" : "right");
+                        trackPageView(funnel.pages[targetIdx].id);
+                      }
                     }
                   }}
                 />
