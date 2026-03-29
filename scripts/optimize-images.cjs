@@ -20,25 +20,41 @@ async function optimizeImages() {
     }
 
     const files = fs.readdirSync(dir.path).filter(f => f.endsWith('.png') && !SKIP_FILES.includes(f));
-    console.log(`\n--- ${dir.path} (${files.length} files) ---`);
+    console.log(`\n--- ${dir.path} (${files.length} PNG files) ---`);
 
     for (const file of files) {
       const inputPath = path.join(dir.path, file);
-      const outputPath = path.join(dir.path, file.replace('.png', '.webp'));
-
       const originalSize = fs.statSync(inputPath).size;
 
+      // Skip already small PNGs (< 500 KB)
+      if (originalSize < 500 * 1024) {
+        console.log(`SKIP ${file} (${Math.round(originalSize / 1024)} KB — already small)`);
+        continue;
+      }
+
+      // 1. Create/update WebP version
+      const webpPath = path.join(dir.path, file.replace('.png', '.webp'));
       await sharp(inputPath)
         .resize({ width: dir.maxWidth, withoutEnlargement: true })
         .webp({ quality: dir.quality })
-        .toFile(outputPath);
+        .toFile(webpPath);
 
-      const newSize = fs.statSync(outputPath).size;
-      const saved = originalSize - newSize;
+      const webpSize = fs.statSync(webpPath).size;
+
+      // 2. Compress the PNG itself (for fallback/social bots)
+      const tmpPath = inputPath + '.tmp';
+      await sharp(inputPath)
+        .resize({ width: dir.maxWidth, withoutEnlargement: true })
+        .png({ compressionLevel: 9, palette: true })
+        .toFile(tmpPath);
+
+      fs.renameSync(tmpPath, inputPath);
+      const pngSize = fs.statSync(inputPath).size;
+      const saved = originalSize - pngSize;
       totalSaved += saved;
 
       console.log(
-        `${file}: ${(originalSize / 1024 / 1024).toFixed(1)} MB -> ${file.replace('.png', '.webp')}: ${(newSize / 1024).toFixed(0)} KB (saved ${(saved / 1024 / 1024).toFixed(1)} MB)`
+        `${file}: ${(originalSize / 1024 / 1024).toFixed(1)} MB → PNG: ${Math.round(pngSize / 1024)} KB, WebP: ${Math.round(webpSize / 1024)} KB (saved ${(saved / 1024 / 1024).toFixed(1)} MB)`
       );
     }
   }
