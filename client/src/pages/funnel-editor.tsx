@@ -314,7 +314,7 @@ export default function FunnelEditor() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/funnels", params?.id] });
       setHasChanges(false);
       toast({
         title: "Gespeichert",
@@ -372,19 +372,22 @@ export default function FunnelEditor() {
   });
 
   const updateLocalFunnel = useCallback((updates: Partial<Funnel>) => {
-    if (localFunnel) {
-      setLocalFunnel({ ...localFunnel, ...updates });
-      setHasChanges(true);
-    }
-  }, [localFunnel, setLocalFunnel]);
+    setLocalFunnel((prev) => {
+      if (!prev) return prev;
+      return { ...prev, ...updates };
+    });
+    setHasChanges(true);
+  }, [setLocalFunnel]);
 
-  const updatePage = (index: number, updates: Partial<FunnelPage>) => {
-    if (localFunnel) {
-      const newPages = [...localFunnel.pages];
+  const updatePage = useCallback((index: number, updates: Partial<FunnelPage>) => {
+    setLocalFunnel((prev) => {
+      if (!prev) return prev;
+      const newPages = [...prev.pages];
       newPages[index] = { ...newPages[index], ...updates };
-      updateLocalFunnel({ pages: newPages });
-    }
-  };
+      return { ...prev, pages: newPages };
+    });
+    setHasChanges(true);
+  }, [setLocalFunnel]);
 
   // A/B Test handlers
   const createABTest = useCallback((test: import("@shared/schema").ABTest) => {
@@ -468,8 +471,8 @@ export default function FunnelEditor() {
     if (!localFunnel || !selectedElementId) return;
     const page = localFunnel.pages[selectedPageIndex];
     const newElements = page.elements.filter(el => el.id !== selectedElementId);
-    updatePage(selectedPageIndex, { elements: newElements });
     setSelectedElementId(null);
+    updatePage(selectedPageIndex, { elements: newElements });
   }, [localFunnel, selectedPageIndex, selectedElementId, updatePage]);
 
   const duplicateSelectedElement = useCallback(() => {
@@ -787,15 +790,22 @@ export default function FunnelEditor() {
     }
   };
 
-  const deletePage = (index: number) => {
-    if (localFunnel && localFunnel.pages.length > 1) {
-      const newPages = localFunnel.pages.filter((_, i) => i !== index);
-      updateLocalFunnel({ pages: newPages });
-      if (selectedPageIndex >= newPages.length) {
-        setSelectedPageIndex(newPages.length - 1);
+  const deletePage = useCallback((index: number) => {
+    setLocalFunnel((prev) => {
+      if (!prev || prev.pages.length <= 1) return prev;
+      const newPages = prev.pages.filter((_, i) => i !== index);
+      return { ...prev, pages: newPages };
+    });
+    setSelectedElementId(null);
+    setSelectedPageIndex((prevIdx) => {
+      if (localFunnel && localFunnel.pages.length > 1) {
+        const newLength = localFunnel.pages.length - 1;
+        return prevIdx >= newLength ? newLength - 1 : prevIdx;
       }
-    }
-  };
+      return prevIdx;
+    });
+    setHasChanges(true);
+  }, [localFunnel, setLocalFunnel]);
 
   const renamePage = (index: number, newTitle: string) => {
     setLocalFunnel((prev) => {
