@@ -33,9 +33,10 @@ export { FormValidationEditor } from "./FormValidationEditor";
 export { FormFieldWithValidation, validateField, validateAllFields } from "./FormFieldWithValidation";
 export { ABTestEditor } from "./ABTestEditor";
 
-// Inline-Editing & Kontext-Menü
-export { InlineTextEditor, InlineHeadingEditor } from "./InlineTextEditor";
-export { ContextMenu, useContextMenu } from "./ContextMenu";
+// Kontext-Menü & Toolbars. `InlineTextEditor`/`InlineHeadingEditor` und die
+// alte `ContextMenu`-Eigenimplementierung wurden durch `InlineEditable`
+// (Doppelklick-Edit) bzw. Radix-`ContextMenu` ersetzt. Die Dateien bleiben
+// als Referenz für ein späteres Rich-Text-Toolbar-Feature erhalten.
 export { NavigatorPanel } from "./NavigatorPanel";
 export { FloatingToolbar, useToolbarPosition } from "./FloatingToolbar";
 

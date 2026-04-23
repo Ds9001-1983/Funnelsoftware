@@ -877,6 +877,19 @@ export default function FunnelEditor() {
     setHasChanges(true);
   }, []);
 
+  // Defensive Bremse: Falls der Editor unmountet, während der User gerade
+  // am linken Panel zieht (mouse down), bleiben sonst cursor/userSelect am
+  // <body> gesetzt und blockieren den Rest der App.
+  useEffect(() => {
+    return () => {
+      if (isResizingRef.current) {
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        isResizingRef.current = false;
+      }
+    };
+  }, []);
+
   // Resize-Handler für linke Sidebar
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();

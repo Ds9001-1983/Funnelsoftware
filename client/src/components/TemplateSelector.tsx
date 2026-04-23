@@ -61,7 +61,10 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
         description: "Dein neuer Funnel wurde aus der Vorlage erstellt.",
       });
       onOpenChange(false);
-      navigate(`/funnels/${data.id}/edit`);
+      // Erst nach Radix-Exit-Animation navigieren — sonst kollidiert der
+      // Dialog-Cleanup mit dem Route-Wechsel und der <body> bleibt mit
+      // `pointer-events: none` hängen.
+      setTimeout(() => navigate(`/funnels/${data.id}/edit`), 250);
     },
     onError: () => {
       toast({
