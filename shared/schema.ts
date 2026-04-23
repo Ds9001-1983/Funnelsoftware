@@ -96,6 +96,8 @@ export const analyticsEvents = pgTable("analytics_events", {
   timestamp: timestamp("timestamp").defaultNow().notNull(),
 }, (table) => [
   index("analytics_events_funnel_id_idx").on(table.funnelId),
+  index("analytics_events_funnel_event_idx").on(table.funnelId, table.eventType),
+  index("analytics_events_timestamp_idx").on(table.timestamp),
 ]);
 
 // Password reset tokens
@@ -701,6 +703,8 @@ export const teamSchema = z.object({
   name: z.string(),
   ownerId: z.number(),
   createdAt: z.string().or(z.date()),
+  // Joined field: role of the current user in this team
+  role: z.enum(["owner", "admin", "member"]).optional(),
 });
 
 export type Team = z.infer<typeof teamSchema>;

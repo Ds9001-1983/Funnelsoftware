@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback, memo } from "react";
 import {
   DndContext,
   closestCenter,
@@ -16,8 +16,6 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import {
-  Plus,
-  X,
   Undo2,
   Redo2,
   GitBranch,
@@ -44,7 +42,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Slider } from "@/components/ui/slider";
 import type { FunnelPage, PageElement, PageAnimation, Section } from "@shared/schema";
 
 import { SortableElementItem } from "./SortableElementItem";
@@ -57,7 +54,11 @@ import { SectionEditor } from "./SectionEditor";
 import { ElementStyleEditor } from "./ElementStyleEditor";
 import { FormValidationEditor } from "./FormValidationEditor";
 import { ElementDragOverlay } from "./DragOverlay";
-import { DropZone } from "./DropZone";
+import {
+  ElementQuickEditor,
+  RequiredToggle,
+  FORM_ELEMENT_TYPES,
+} from "./quick-editors";
 
 interface PageEditorProps {
   page: FunnelPage;
@@ -72,7 +73,8 @@ interface PageEditorProps {
 
 /**
  * Haupteditor für eine einzelne Funnel-Seite.
- * Ermöglicht das Bearbeiten von Inhalt, Logik und Design einer Seite.
+ * Delegiert Element-spezifische Editoren an `./quick-editors/`, während
+ * Seiten-weite Einstellungen (Titel, Logik, Design) hier gehalten werden.
  */
 export function PageEditor({
   page,
@@ -90,8 +92,7 @@ export function PageEditor({
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
-  // Section management handlers
-  const addSection = (layout: string, columnWidths: number[]) => {
+  const addSection = useCallback((layout: string, columnWidths: number[]) => {
     const newSection: Section = {
       id: `section-${Date.now()}`,
       name: "",
@@ -108,25 +109,23 @@ export function PageEditor({
     const currentSections = page.sections || [];
     onUpdate({ sections: [...currentSections, newSection] });
     setSelectedSectionId(newSection.id);
-  };
+  }, [page.sections, onUpdate]);
 
-  const updateSection = (sectionId: string, updates: Partial<Section>) => {
+  const updateSection = useCallback((sectionId: string, updates: Partial<Section>) => {
     const currentSections = page.sections || [];
     const updatedSections = currentSections.map((s) =>
       s.id === sectionId ? { ...s, ...updates } : s
     );
     onUpdate({ sections: updatedSections });
-  };
+  }, [page.sections, onUpdate]);
 
-  const deleteSection = (sectionId: string) => {
+  const deleteSection = useCallback((sectionId: string) => {
     const currentSections = page.sections || [];
     onUpdate({ sections: currentSections.filter((s) => s.id !== sectionId) });
-    if (selectedSectionId === sectionId) {
-      setSelectedSectionId(null);
-    }
-  };
+    setSelectedSectionId((prev) => (prev === sectionId ? null : prev));
+  }, [page.sections, onUpdate]);
 
-  const insertVariable = (variable: string) => {
+  const insertVariable = useCallback((variable: string) => {
     if (titleInputRef.current) {
       const start = titleInputRef.current.selectionStart || 0;
       const end = titleInputRef.current.selectionEnd || 0;
@@ -136,13 +135,13 @@ export function PageEditor({
     } else {
       onUpdate({ title: (page.title || "") + " " + variable });
     }
-  };
+  }, [page.title, onUpdate]);
 
-  const addSectionElements = (elements: PageElement[]) => {
+  const addSectionElements = useCallback((elements: PageElement[]) => {
     onUpdate({ elements: [...page.elements, ...elements] });
-  };
+  }, [page.elements, onUpdate]);
 
-  const addElement = (type: PageElement["type"]) => {
+  const addElement = useCallback((type: PageElement["type"]) => {
     const newElement: PageElement = {
       id: `el-${Date.now()}`,
       type,
@@ -218,42 +217,42 @@ export function PageEditor({
       countdownShowLabels: type === "countdown" ? true : undefined,
     };
     onUpdate({ elements: [...page.elements, newElement] });
-  };
+  }, [page.elements, onUpdate]);
 
-  const updateElement = (id: string, updates: Partial<PageElement>) => {
+  const updateElement = useCallback((id: string, updates: Partial<PageElement>) => {
     onUpdate({
       elements: page.elements.map((el) =>
         el.id === id ? { ...el, ...updates } : el
       ),
     });
-  };
+  }, [page.elements, onUpdate]);
 
-  const removeElement = (id: string) => {
+  const removeElement = useCallback((id: string) => {
     onUpdate({ elements: page.elements.filter((el) => el.id !== id) });
-  };
+  }, [page.elements, onUpdate]);
 
-  const duplicateElement = (element: PageElement) => {
+  const duplicateElement = useCallback((element: PageElement) => {
     const newElement = { ...element, id: `el-${Date.now()}` };
     const index = page.elements.findIndex(el => el.id === element.id);
     const newElements = [...page.elements];
     newElements.splice(index + 1, 0, newElement);
     onUpdate({ elements: newElements });
-  };
+  }, [page.elements, onUpdate]);
 
-  const pasteElement = () => {
+  const pasteElement = useCallback(() => {
     if (copiedElement) {
       const newElement = { ...copiedElement, id: `el-${Date.now()}` };
       onUpdate({ elements: [...page.elements, newElement] });
     }
-  };
+  }, [copiedElement, page.elements, onUpdate]);
 
-  const reorderElements = (activeId: string, overId: string) => {
+  const reorderElements = useCallback((activeId: string, overId: string) => {
     const oldIndex = page.elements.findIndex((el) => el.id === activeId);
     const newIndex = page.elements.findIndex((el) => el.id === overId);
     if (oldIndex !== -1 && newIndex !== -1) {
       onUpdate({ elements: arrayMove(page.elements, oldIndex, newIndex) });
     }
-  };
+  }, [page.elements, onUpdate]);
 
   const elementSensors = useSensors(
     useSensor(PointerSensor, {
@@ -267,18 +266,35 @@ export function PageEditor({
   );
   const [activeElement, setActiveElement] = useState<PageElement | null>(null);
 
-  const handleDragStart = (event: DragStartEvent) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     const el = page.elements.find((e) => e.id === event.active.id);
     setActiveElement(el || null);
-  };
+  }, [page.elements]);
 
-
-  const handleElementDragEnd = (event: DragEndEvent) => {
+  const handleElementDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
       reorderElements(active.id as string, over.id as string);
     }
-  };
+    setActiveElement(null);
+  }, [reorderElements]);
+
+  const handleTitleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => onUpdate({ title: e.target.value }),
+    [onUpdate],
+  );
+  const handleSubtitleChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => onUpdate({ subtitle: e.target.value }),
+    [onUpdate],
+  );
+  const handleButtonTextChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => onUpdate({ buttonText: e.target.value }),
+    [onUpdate],
+  );
+  const handleClearElementSelection = useCallback(
+    () => setSelectedElementId(null),
+    [],
+  );
 
   return (
     <div className="space-y-4">
@@ -347,7 +363,7 @@ export function PageEditor({
                 id="title"
                 ref={titleInputRef}
                 value={page.title}
-                onChange={(e) => onUpdate({ title: e.target.value })}
+                onChange={handleTitleChange}
                 data-testid="input-page-title"
               />
             </div>
@@ -356,7 +372,7 @@ export function PageEditor({
               <Textarea
                 id="subtitle"
                 value={page.subtitle || ""}
-                onChange={(e) => onUpdate({ subtitle: e.target.value })}
+                onChange={handleSubtitleChange}
                 rows={2}
                 data-testid="input-page-subtitle"
               />
@@ -366,7 +382,7 @@ export function PageEditor({
               <Input
                 id="buttonText"
                 value={page.buttonText || ""}
-                onChange={(e) => onUpdate({ buttonText: e.target.value })}
+                onChange={handleButtonTextChange}
                 data-testid="input-page-button"
               />
             </div>
@@ -394,608 +410,17 @@ export function PageEditor({
                   items={page.elements.map((el) => el.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  <div className="space-y-2" onClick={() => setSelectedElementId(null)}>
+                  <div className="space-y-2" onClick={handleClearElementSelection}>
                     {page.elements.map((el) => (
-                      <SortableElementItem
+                      <ElementListCard
                         key={el.id}
                         element={el}
-                        onDelete={() => removeElement(el.id)}
-                        onDuplicate={() => duplicateElement(el)}
-                      >
-                    <Card className={selectedElementId === el.id ? "ring-2 ring-primary cursor-pointer transition-shadow" : "cursor-pointer transition-shadow hover:shadow-md"} onClick={(e) => { e.stopPropagation(); setSelectedElementId(el.id); }}>
-                          <CardContent className="p-3 space-y-2">
-                            <div className="flex items-center justify-between gap-2">
-                              <Badge variant="secondary" className="capitalize">
-                                {elementTypeLabels[el.type] || el.type}
-                              </Badge>
-                              {(el.type === "input" || el.type === "textarea" || el.type === "fileUpload" || el.type === "date" || el.type === "select" || el.type === "radio" || el.type === "checkbox") && (
-                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                  <span>Pflicht</span>
-                                  <Switch
-                                    checked={el.required || false}
-                                    onCheckedChange={(checked) =>
-                                      updateElement(el.id, { required: checked })
-                                    }
-                                  />
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Element-specific editors */}
-                            {(el.type === "heading" || el.type === "text") && (
-                              <div className="space-y-2">
-                                {el.type === "heading" ? (
-                                  <Input
-                                    placeholder="Überschrift"
-                                    value={el.content || ""}
-                                    onChange={(e) => updateElement(el.id, { content: e.target.value })}
-                                  />
-                                ) : (
-                                  <Textarea
-                                    placeholder="Text eingeben..."
-                                    value={el.content || ""}
-                                    onChange={(e) => updateElement(el.id, { content: e.target.value })}
-                                    rows={3}
-                                  />
-                                )}
-                              </div>
-                            )}
-
-                            {(el.type === "input" || el.type === "textarea") && (
-                              <Input
-                                placeholder="Placeholder-Text"
-                                value={el.placeholder || ""}
-                                onChange={(e) => updateElement(el.id, { placeholder: e.target.value })}
-                              />
-                            )}
-
-                            {el.type === "fileUpload" && (
-                              <div className="space-y-3">
-                                <Input
-                                  placeholder="z.B. Lebenslauf hochladen"
-                                  value={el.label || ""}
-                                  onChange={(e) => updateElement(el.id, { label: e.target.value })}
-                                />
-                                <Select
-                                  value={el.acceptedFileTypes?.join(",") || "all"}
-                                  onValueChange={(v) =>
-                                    updateElement(el.id, {
-                                      acceptedFileTypes: v === "all" ? undefined : v.split(",")
-                                    })
-                                  }
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Dateitypen" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="all">Alle Dateien</SelectItem>
-                                    <SelectItem value=".pdf">Nur PDF</SelectItem>
-                                    <SelectItem value=".jpg,.jpeg,.png,.gif">Nur Bilder</SelectItem>
-                                    <SelectItem value=".pdf,.doc,.docx">Dokumente</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            )}
-
-                            {(el.type === "radio" || el.type === "select") && el.options && (
-                              <div className="space-y-2">
-                                {el.options.map((opt, optIdx) => (
-                                  <div key={optIdx} className="flex gap-2">
-                                    <Input
-                                      value={opt}
-                                      onChange={(e) => {
-                                        const newOptions = [...el.options!];
-                                        newOptions[optIdx] = e.target.value;
-                                        updateElement(el.id, { options: newOptions });
-                                      }}
-                                    />
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="shrink-0"
-                                      onClick={() => {
-                                        const newOptions = el.options!.filter((_, i) => i !== optIdx);
-                                        updateElement(el.id, { options: newOptions });
-                                      }}
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                ))}
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="w-full"
-                                  onClick={() => {
-                                    updateElement(el.id, {
-                                      options: [...(el.options || []), `Option ${(el.options?.length || 0) + 1}`],
-                                    });
-                                  }}
-                                >
-                                  <Plus className="h-4 w-4 mr-1" />
-                                  Option
-                                </Button>
-                              </div>
-                            )}
-
-                            {el.type === "video" && (
-                              <div className="space-y-2">
-                                <Select
-                                  value={el.videoType || "youtube"}
-                                  onValueChange={(v) => updateElement(el.id, { videoType: v as "youtube" | "vimeo" | "upload" })}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="youtube">YouTube</SelectItem>
-                                    <SelectItem value="vimeo">Vimeo</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <Input
-                                  placeholder="Video-URL"
-                                  value={el.videoUrl || ""}
-                                  onChange={(e) => updateElement(el.id, { videoUrl: e.target.value })}
-                                />
-                              </div>
-                            )}
-
-                            {el.type === "testimonial" && el.slides && (
-                              <div className="space-y-2">
-                                <Textarea
-                                  placeholder="Testimonial-Text"
-                                  value={el.slides[0]?.text || ""}
-                                  onChange={(e) =>
-                                    updateElement(el.id, {
-                                      slides: [{ ...el.slides![0], text: e.target.value }]
-                                    })
-                                  }
-                                  rows={2}
-                                />
-                                <div className="grid grid-cols-2 gap-2">
-                                  <Input
-                                    placeholder="Name"
-                                    value={el.slides[0]?.author || ""}
-                                    onChange={(e) =>
-                                      updateElement(el.id, {
-                                        slides: [{ ...el.slides![0], author: e.target.value }]
-                                      })
-                                    }
-                                  />
-                                  <Input
-                                    placeholder="Position"
-                                    value={el.slides[0]?.role || ""}
-                                    onChange={(e) =>
-                                      updateElement(el.id, {
-                                        slides: [{ ...el.slides![0], role: e.target.value }]
-                                      })
-                                    }
-                                  />
-                                </div>
-                              </div>
-                            )}
-
-                            {el.type === "slider" && el.slides && (
-                              <div className="space-y-2">
-                                {el.slides.map((slide, idx) => (
-                                  <div key={slide.id} className="space-y-1 p-2 bg-muted/50 rounded">
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-xs font-medium">Slide {idx + 1}</span>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-6 w-6"
-                                        onClick={() => {
-                                          const newSlides = el.slides!.filter((_, i) => i !== idx);
-                                          updateElement(el.id, { slides: newSlides });
-                                        }}
-                                      >
-                                        <X className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                    <Input
-                                      placeholder="Titel"
-                                      value={slide.title || ""}
-                                      onChange={(e) => {
-                                        const newSlides = [...el.slides!];
-                                        newSlides[idx] = { ...slide, title: e.target.value };
-                                        updateElement(el.id, { slides: newSlides });
-                                      }}
-                                    />
-                                    <Input
-                                      placeholder="Bild-URL"
-                                      value={slide.image || ""}
-                                      onChange={(e) => {
-                                        const newSlides = [...el.slides!];
-                                        newSlides[idx] = { ...slide, image: e.target.value };
-                                        updateElement(el.id, { slides: newSlides });
-                                      }}
-                                    />
-                                    <Textarea
-                                      placeholder="Beschreibung (optional)"
-                                      value={slide.text || ""}
-                                      onChange={(e) => {
-                                        const newSlides = [...el.slides!];
-                                        newSlides[idx] = { ...slide, text: e.target.value };
-                                        updateElement(el.id, { slides: newSlides });
-                                      }}
-                                      rows={2}
-                                    />
-                                  </div>
-                                ))}
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="w-full"
-                                  onClick={() => {
-                                    updateElement(el.id, {
-                                      slides: [...(el.slides || []), {
-                                        id: `slide-${Date.now()}`,
-                                        title: `Slide ${(el.slides?.length || 0) + 1}`,
-                                        image: "",
-                                        text: ""
-                                      }],
-                                    });
-                                  }}
-                                >
-                                  <Plus className="h-4 w-4 mr-1" />
-                                  Slide hinzufügen
-                                </Button>
-                              </div>
-                            )}
-
-                            {el.type === "faq" && el.faqItems && (
-                              <div className="space-y-2">
-                                {el.faqItems.map((item, idx) => (
-                                  <div key={item.id} className="space-y-1 p-2 bg-muted/50 rounded">
-                                    <Input
-                                      placeholder="Frage"
-                                      value={item.question}
-                                      onChange={(e) => {
-                                        const newItems = [...el.faqItems!];
-                                        newItems[idx] = { ...item, question: e.target.value };
-                                        updateElement(el.id, { faqItems: newItems });
-                                      }}
-                                    />
-                                    <Textarea
-                                      placeholder="Antwort"
-                                      value={item.answer}
-                                      onChange={(e) => {
-                                        const newItems = [...el.faqItems!];
-                                        newItems[idx] = { ...item, answer: e.target.value };
-                                        updateElement(el.id, { faqItems: newItems });
-                                      }}
-                                      rows={2}
-                                    />
-                                  </div>
-                                ))}
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="w-full"
-                                  onClick={() => {
-                                    updateElement(el.id, {
-                                      faqItems: [...(el.faqItems || []), {
-                                        id: `faq-${Date.now()}`,
-                                        question: "Neue Frage",
-                                        answer: "Antwort..."
-                                      }],
-                                    });
-                                  }}
-                                >
-                                  <Plus className="h-4 w-4 mr-1" />
-                                  FAQ hinzufügen
-                                </Button>
-                              </div>
-                            )}
-
-                            {el.type === "list" && el.listItems && (
-                              <div className="space-y-2">
-                                <Select
-                                  value={el.listStyle || "check"}
-                                  onValueChange={(v) => updateElement(el.id, { listStyle: v as "bullet" | "number" | "check" | "icon" })}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="check">Häkchen</SelectItem>
-                                    <SelectItem value="bullet">Punkte</SelectItem>
-                                    <SelectItem value="number">Nummern</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                {el.listItems.map((item, idx) => (
-                                  <div key={item.id} className="flex gap-2">
-                                    <Input
-                                      value={item.text}
-                                      onChange={(e) => {
-                                        const newItems = [...el.listItems!];
-                                        newItems[idx] = { ...item, text: e.target.value };
-                                        updateElement(el.id, { listItems: newItems });
-                                      }}
-                                    />
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      onClick={() => {
-                                        const newItems = el.listItems!.filter((_, i) => i !== idx);
-                                        updateElement(el.id, { listItems: newItems });
-                                      }}
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                ))}
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="w-full"
-                                  onClick={() => {
-                                    updateElement(el.id, {
-                                      listItems: [...(el.listItems || []), { id: `li-${Date.now()}`, text: "Neuer Punkt" }],
-                                    });
-                                  }}
-                                >
-                                  <Plus className="h-4 w-4 mr-1" />
-                                  Punkt hinzufügen
-                                </Button>
-                              </div>
-                            )}
-
-                            {el.type === "spacer" && (
-                              <div className="space-y-2">
-                                <Label className="text-xs">Höhe: {el.spacerHeight || 32}px</Label>
-                                <Slider
-                                  value={[el.spacerHeight || 32]}
-                                  onValueChange={([v]) => updateElement(el.id, { spacerHeight: v })}
-                                  min={8}
-                                  max={128}
-                                  step={8}
-                                />
-                              </div>
-                            )}
-
-                            {el.type === "timer" && (
-                              <div className="space-y-2">
-                                <Label className="text-xs">Enddatum</Label>
-                                <Input
-                                  type="datetime-local"
-                                  value={el.timerEndDate ? new Date(el.timerEndDate).toISOString().slice(0, 16) : ""}
-                                  onChange={(e) => updateElement(el.id, { timerEndDate: new Date(e.target.value).toISOString() })}
-                                />
-                                <Select
-                                  value={el.timerStyle || "countdown"}
-                                  onValueChange={(v) => updateElement(el.id, { timerStyle: v as "countdown" | "stopwatch" })}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="countdown">Countdown</SelectItem>
-                                    <SelectItem value="stopwatch">Stoppuhr</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <div className="flex items-center justify-between">
-                                  <Label className="text-xs">Tage anzeigen</Label>
-                                  <Switch
-                                    checked={el.timerShowDays !== false}
-                                    onCheckedChange={(checked) => updateElement(el.id, { timerShowDays: checked })}
-                                  />
-                                </div>
-                              </div>
-                            )}
-
-                            {el.type === "date" && (
-                              <div className="space-y-2">
-                                <Input
-                                  placeholder="z.B. Geburtsdatum"
-                                  value={el.label || ""}
-                                  onChange={(e) => updateElement(el.id, { label: e.target.value })}
-                                />
-                                <div className="flex items-center justify-between">
-                                  <Label className="text-xs">Uhrzeit einbeziehen</Label>
-                                  <Switch
-                                    checked={el.includeTime || false}
-                                    onCheckedChange={(checked) => updateElement(el.id, { includeTime: checked })}
-                                  />
-                                </div>
-                              </div>
-                            )}
-
-                            {el.type === "image" && (
-                              <div className="space-y-2">
-                                <Input
-                                  placeholder="Bild-URL"
-                                  value={el.imageUrl || ""}
-                                  onChange={(e) => updateElement(el.id, { imageUrl: e.target.value })}
-                                />
-                                <Input
-                                  placeholder="Alt-Text"
-                                  value={el.imageAlt || ""}
-                                  onChange={(e) => updateElement(el.id, { imageAlt: e.target.value })}
-                                />
-                              </div>
-                            )}
-
-                            {el.type === "socialProof" && (
-                              <div className="space-y-2">
-                                <Select
-                                  value={el.socialProofType || "logos"}
-                                  onValueChange={(v) => updateElement(el.id, { socialProofType: v as "badges" | "logos" | "stats" | "reviews" })}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="logos">Logos</SelectItem>
-                                    <SelectItem value="badges">Badges</SelectItem>
-                                    <SelectItem value="stats">Statistiken</SelectItem>
-                                    <SelectItem value="reviews">Bewertungen</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                {(el.socialProofItems || []).map((item, idx) => (
-                                  <div key={item.id} className="space-y-1 p-2 bg-muted/50 rounded">
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-xs font-medium">Element {idx + 1}</span>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-6 w-6"
-                                        onClick={() => {
-                                          const newItems = el.socialProofItems!.filter((_, i) => i !== idx);
-                                          updateElement(el.id, { socialProofItems: newItems });
-                                        }}
-                                      >
-                                        <X className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                    <Input
-                                      placeholder="Bild-URL (Logo)"
-                                      value={item.image || ""}
-                                      onChange={(e) => {
-                                        const newItems = [...el.socialProofItems!];
-                                        newItems[idx] = { ...item, image: e.target.value };
-                                        updateElement(el.id, { socialProofItems: newItems });
-                                      }}
-                                    />
-                                    {(el.socialProofType === "stats" || el.socialProofType === "reviews") && (
-                                      <>
-                                        <Input
-                                          placeholder="Wert (z.B. 500+)"
-                                          value={item.value || ""}
-                                          onChange={(e) => {
-                                            const newItems = [...el.socialProofItems!];
-                                            newItems[idx] = { ...item, value: e.target.value };
-                                            updateElement(el.id, { socialProofItems: newItems });
-                                          }}
-                                        />
-                                        <Input
-                                          placeholder="Beschreibung"
-                                          value={item.text || ""}
-                                          onChange={(e) => {
-                                            const newItems = [...el.socialProofItems!];
-                                            newItems[idx] = { ...item, text: e.target.value };
-                                            updateElement(el.id, { socialProofItems: newItems });
-                                          }}
-                                        />
-                                      </>
-                                    )}
-                                  </div>
-                                ))}
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="w-full"
-                                  onClick={() => {
-                                    updateElement(el.id, {
-                                      socialProofItems: [...(el.socialProofItems || []), {
-                                        id: `sp-${Date.now()}`,
-                                        image: "",
-                                        text: "",
-                                        value: ""
-                                      }],
-                                    });
-                                  }}
-                                >
-                                  <Plus className="h-4 w-4 mr-1" />
-                                  Element hinzufügen
-                                </Button>
-                              </div>
-                            )}
-
-                            {el.type === "divider" && (
-                              <div className="space-y-2">
-                                <Label className="text-xs">Stil</Label>
-                                <Select
-                                  value={el.dividerStyle || "solid"}
-                                  onValueChange={(v) => updateElement(el.id, { dividerStyle: v as "solid" | "dashed" | "dotted" | "gradient" })}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="solid">Durchgezogen</SelectItem>
-                                    <SelectItem value="dashed">Gestrichelt</SelectItem>
-                                    <SelectItem value="dotted">Gepunktet</SelectItem>
-                                    <SelectItem value="gradient">Gradient</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            )}
-
-                            {el.type === "progressBar" && (
-                              <div className="space-y-2">
-                                <Label className="text-xs">Fortschritt: {el.progressValue || 60}%</Label>
-                                <Slider
-                                  value={[el.progressValue || 60]}
-                                  onValueChange={([v]) => updateElement(el.id, { progressValue: v })}
-                                  min={0}
-                                  max={100}
-                                  step={5}
-                                />
-                                <div className="flex items-center justify-between">
-                                  <Label className="text-xs">Prozent anzeigen</Label>
-                                  <Switch
-                                    checked={el.progressShowLabel !== false}
-                                    onCheckedChange={(checked) => updateElement(el.id, { progressShowLabel: checked })}
-                                  />
-                                </div>
-                              </div>
-                            )}
-
-                            {el.type === "icon" && (
-                              <div className="space-y-2">
-                                <Label className="text-xs">Icon-Name</Label>
-                                <Select
-                                  value={el.iconName || "star"}
-                                  onValueChange={(v) => updateElement(el.id, { iconName: v })}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="star">Stern</SelectItem>
-                                    <SelectItem value="heart">Herz</SelectItem>
-                                    <SelectItem value="check">Häkchen</SelectItem>
-                                    <SelectItem value="award">Auszeichnung</SelectItem>
-                                    <SelectItem value="shield">Schild</SelectItem>
-                                    <SelectItem value="trophy">Pokal</SelectItem>
-                                    <SelectItem value="rocket">Rakete</SelectItem>
-                                    <SelectItem value="lightning">Blitz</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <Label className="text-xs">Größe</Label>
-                                <Select
-                                  value={el.iconSize || "md"}
-                                  onValueChange={(v) => updateElement(el.id, { iconSize: v as "sm" | "md" | "lg" | "xl" })}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="sm">Klein</SelectItem>
-                                    <SelectItem value="md">Mittel</SelectItem>
-                                    <SelectItem value="lg">Groß</SelectItem>
-                                    <SelectItem value="xl">Sehr groß</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            )}
-
-                            {/* Style Editor for all elements */}
-                            <ElementStyleEditor
-                              element={el}
-                              onUpdate={(updates) => updateElement(el.id, updates)}
-                            />
-
-                            {/* Validation Editor for form elements */}
-                            <FormValidationEditor
-                              element={el}
-                              onUpdate={(updates) => updateElement(el.id, updates)}
-                            />
-                          </CardContent>
-                        </Card>
-                      </SortableElementItem>
+                        selected={selectedElementId === el.id}
+                        onSelect={setSelectedElementId}
+                        onDelete={removeElement}
+                        onDuplicate={duplicateElement}
+                        onUpdateElement={updateElement}
+                      />
                     ))}
                   </div>
                 </SortableContext>
@@ -1125,3 +550,76 @@ export function PageEditor({
     </div>
   );
 }
+
+// -------------------------------------------------------------------------
+// ElementListCard – inline "Schnell-Edit"-Karte für ein Element in der Liste.
+// Eigenständige Komponente, damit Tipper in einem Element-Eingabefeld nur die
+// betroffene Karte re-rendert, nicht alle Geschwister.
+// -------------------------------------------------------------------------
+
+interface ElementListCardProps {
+  element: PageElement;
+  selected: boolean;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+  onDuplicate: (element: PageElement) => void;
+  onUpdateElement: (id: string, updates: Partial<PageElement>) => void;
+}
+
+function ElementListCardImpl({
+  element,
+  selected,
+  onSelect,
+  onDelete,
+  onDuplicate,
+  onUpdateElement,
+}: ElementListCardProps) {
+  const handleDelete = useCallback(() => onDelete(element.id), [onDelete, element.id]);
+  const handleDuplicate = useCallback(() => onDuplicate(element), [onDuplicate, element]);
+  const handleCardClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onSelect(element.id);
+    },
+    [onSelect, element.id],
+  );
+  const handleStyleUpdate = useCallback(
+    (updates: Partial<PageElement>) => onUpdateElement(element.id, updates),
+    [onUpdateElement, element.id],
+  );
+
+  return (
+    <SortableElementItem
+      element={element}
+      onDelete={handleDelete}
+      onDuplicate={handleDuplicate}
+    >
+      <Card
+        className={
+          selected
+            ? "ring-2 ring-primary cursor-pointer transition-shadow"
+            : "cursor-pointer transition-shadow hover:shadow-md"
+        }
+        onClick={handleCardClick}
+      >
+        <CardContent className="p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <Badge variant="secondary" className="capitalize">
+              {elementTypeLabels[element.type] || element.type}
+            </Badge>
+            {FORM_ELEMENT_TYPES.has(element.type) && (
+              <RequiredToggle element={element} onUpdate={handleStyleUpdate} />
+            )}
+          </div>
+
+          <ElementQuickEditor element={element} onUpdateElement={onUpdateElement} />
+
+          <ElementStyleEditor element={element} onUpdate={handleStyleUpdate} />
+          <FormValidationEditor element={element} onUpdate={handleStyleUpdate} />
+        </CardContent>
+      </Card>
+    </SortableElementItem>
+  );
+}
+
+const ElementListCard = memo(ElementListCardImpl);

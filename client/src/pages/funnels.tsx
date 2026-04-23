@@ -116,7 +116,7 @@ function FunnelGridCard({ funnel, onDelete, onClone }: { funnel: Funnel; onDelet
               </DropdownMenuItem>
               {funnel.uuid && (
                 <DropdownMenuItem asChild>
-                  <a href={`/f/${(funnel as any).slug || funnel.uuid}`} target="_blank" rel="noopener noreferrer">
+                  <a href={`/f/${funnel.slug || funnel.uuid}`} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Vorschau
                   </a>
@@ -138,7 +138,7 @@ function FunnelGridCard({ funnel, onDelete, onClone }: { funnel: Funnel; onDelet
           {funnel.status === "published" && (
             <>
               <a
-                href={`/f/${(funnel as any).slug || funnel.uuid}`}
+                href={`/f/${funnel.slug || funnel.uuid}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"

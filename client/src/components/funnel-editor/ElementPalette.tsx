@@ -1,5 +1,6 @@
-import { useCallback, useState } from "react";
-import { Layers, Zap, LayoutGrid } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { Layers, Zap, LayoutGrid, Search, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { elementCategories } from "./constants";
 import { sectionTemplates, sectionTemplateCategories } from "@/lib/section-templates";
 import type { PageElement } from "@shared/schema";
@@ -56,6 +57,26 @@ function DraggablePaletteItem({ type, label, icon: Icon, description, onClick }:
 export function ElementPalette({ onAddElement, onAddSection }: ElementPaletteProps) {
   const [activeTab, setActiveTab] = useState<"elements" | "sections">("elements");
   const [activeSectionCategory, setActiveSectionCategory] = useState<string>("content");
+  const [search, setSearch] = useState("");
+
+  const normalizedSearch = search.trim().toLowerCase();
+
+  const filteredCategories = useMemo(() => {
+    if (!normalizedSearch) return elementCategories;
+    return elementCategories
+      .map((cat) => ({
+        ...cat,
+        elements: cat.elements.filter(
+          (el) =>
+            el.label.toLowerCase().includes(normalizedSearch) ||
+            el.description.toLowerCase().includes(normalizedSearch) ||
+            el.type.toLowerCase().includes(normalizedSearch),
+        ),
+      }))
+      .filter((cat) => cat.elements.length > 0);
+  }, [normalizedSearch]);
+
+  const hasResults = filteredCategories.some((cat) => cat.elements.length > 0);
 
   return (
     <div className="space-y-3">
@@ -83,26 +104,56 @@ export function ElementPalette({ onAddElement, onAddSection }: ElementPalettePro
 
       {activeTab === "elements" ? (
         <>
-          <p className="text-xs text-muted-foreground">
-            Klicken oder ziehen zum Hinzufügen
-          </p>
-          {elementCategories.map((category) => (
-            <div key={category.name}>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5">{category.name}</p>
-              <div className="grid grid-cols-3 gap-1.5 mb-3">
-                {category.elements.map((element) => (
-                  <DraggablePaletteItem
-                    key={element.type}
-                    type={element.type}
-                    label={element.label}
-                    icon={element.icon}
-                    description={element.description}
-                    onClick={() => onAddElement(element.type)}
-                  />
-                ))}
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Element suchen…"
+              className="pl-7 pr-7 h-8 text-xs"
+              aria-label="Elemente durchsuchen"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Suche löschen"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          {!search && (
+            <p className="text-xs text-muted-foreground">
+              Klicken oder ziehen zum Hinzufügen · <kbd className="px-1 py-0.5 rounded bg-muted text-[10px] font-medium">⌘K</kbd> für Schnellzugriff
+            </p>
+          )}
+
+          {!hasResults && search ? (
+            <p className="text-xs text-muted-foreground text-center py-6">
+              Keine Treffer für „{search}".
+            </p>
+          ) : (
+            filteredCategories.map((category) => (
+              <div key={category.name}>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5">{category.name}</p>
+                <div className="grid grid-cols-3 gap-1.5 mb-3">
+                  {category.elements.map((element) => (
+                    <DraggablePaletteItem
+                      key={element.type}
+                      type={element.type}
+                      label={element.label}
+                      icon={element.icon}
+                      description={element.description}
+                      onClick={() => onAddElement(element.type)}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </>
       ) : (
         <>

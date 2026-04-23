@@ -44,14 +44,14 @@ export async function registerRoutes(
 
       const { username, email, password, displayName } = result.data;
 
-      // Check if username exists
-      const existingUsername = await storage.getUserByUsername(username);
+      // Parallel uniqueness checks
+      const [existingUsername, existingEmail] = await Promise.all([
+        storage.getUserByUsername(username),
+        storage.getUserByEmail(email),
+      ]);
       if (existingUsername) {
         return res.status(400).json({ error: "Benutzername bereits vergeben" });
       }
-
-      // Check if email exists
-      const existingEmail = await storage.getUserByEmail(email);
       if (existingEmail) {
         return res.status(400).json({ error: "E-Mail bereits registriert" });
       }
@@ -563,8 +563,10 @@ export async function registerRoutes(
       const funnel = await storage.getFunnel(funnelId, userId);
       if (!funnel) return res.status(404).json({ error: "Funnel nicht gefunden" });
 
-      const analytics = await storage.getAnalytics(funnelId);
-      const leads = await storage.getLeadsByFunnel(funnelId, userId);
+      const [analytics, leads] = await Promise.all([
+        storage.getAnalytics(funnelId),
+        storage.getLeadsByFunnel(funnelId, userId),
+      ]);
 
       // Aggregate metrics
       const totalViews = analytics.filter(e => e.eventType === "view").length;

@@ -21,7 +21,9 @@ import { FunnelProgress } from "./FunnelProgress";
 import { ElementPreviewRenderer, SectionPreviewRenderer } from "./ElementPreviewRenderer";
 import { ElementWrapper } from "./ElementWrapper";
 
-interface SortablePreviewElementProps {
+import type { ElementActions } from "./ElementPreviewRenderer";
+
+interface SortablePreviewElementProps extends ElementActions {
   element: PageElement;
   textColor: string;
   primaryColor: string;
@@ -30,6 +32,7 @@ interface SortablePreviewElementProps {
   formValues: Record<string, string>;
   updateFormValue: (elementId: string, value: string) => void;
   pageType: string;
+  onContentCommit?: (content: string) => void;
 }
 
 function SortablePreviewElement({
@@ -41,6 +44,8 @@ function SortablePreviewElement({
   formValues,
   updateFormValue,
   pageType,
+  onContentCommit,
+  ...actions
 }: SortablePreviewElementProps) {
   const {
     attributes,
@@ -77,6 +82,7 @@ function SortablePreviewElement({
           elementType={element.type}
           selectedElementId={selectedElementId}
           onSelectElement={onSelectElement}
+          {...actions}
         >
           <div className="space-y-2">
             {element.options.map((option, idx) => (
@@ -110,6 +116,8 @@ function SortablePreviewElement({
         onSelectElement={onSelectElement}
         formValues={formValues}
         updateFormValue={updateFormValue}
+        onContentCommit={onContentCommit}
+        {...actions}
       />
     </div>
   );
@@ -128,10 +136,18 @@ interface PhonePreviewProps {
   onAddElement?: (type: PageElement["type"]) => void;
   onDeleteElement?: () => void;
   onDuplicateElement?: () => void;
+  onCopyElement?: () => void;
+  onCutElement?: () => void;
+  onPasteElement?: () => void;
+  canPasteElement?: boolean;
   onMoveElementUp?: () => void;
   onMoveElementDown?: () => void;
+  canMoveElementUp?: boolean;
+  canMoveElementDown?: boolean;
   onShowElementPicker?: () => void;
   onReorderElements?: (oldIndex: number, newIndex: number) => void;
+  /** Inline-Edit commit für ein konkretes Element (heading/text/button). */
+  onUpdateElementContent?: (elementId: string, content: string) => void;
 }
 
 /**
@@ -148,6 +164,17 @@ export function PhonePreview({
   onSelectElement,
   onAddElement,
   onReorderElements,
+  onDeleteElement,
+  onDuplicateElement,
+  onCopyElement,
+  onCutElement,
+  onPasteElement,
+  canPasteElement,
+  onMoveElementUp,
+  onMoveElementDown,
+  canMoveElementUp,
+  canMoveElementDown,
+  onUpdateElementContent,
 }: PhonePreviewProps) {
   const [isDropOver, setIsDropOver] = useState(false);
 
@@ -304,6 +331,26 @@ export function PhonePreview({
               </p>
             ))}
 
+          {/* Empty-State: keine Elemente, keine Sektionen */}
+          {page.elements.length === 0 && (!page.sections || page.sections.length === 0) && (
+            <div
+              className="mt-8 mx-auto max-w-[280px] rounded-xl border-2 border-dashed border-muted-foreground/20 bg-muted/30 p-6 text-center"
+              style={{ color: textColor }}
+            >
+              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                <Layers className="h-5 w-5 opacity-60" />
+              </div>
+              <p className="text-sm font-medium mb-1" style={{ color: textColor }}>
+                Noch keine Elemente
+              </p>
+              <p className="text-xs opacity-70 leading-relaxed">
+                Ziehe ein Element aus der Palette links oder drücke{" "}
+                <kbd className="px-1 py-0.5 rounded bg-background/60 text-[10px] font-semibold">⌘K</kbd>
+                {" "}für die Command-Palette.
+              </p>
+            </div>
+          )}
+
           {/* All elements with Drag & Drop reordering */}
           {page.elements.length > 0 && (
             <DndContext
@@ -316,7 +363,7 @@ export function PhonePreview({
                 strategy={verticalListSortingStrategy}
               >
                 <div className="mt-4 space-y-3">
-                  {page.elements.map((el) => (
+                  {page.elements.map((el, idx) => (
                     <SortablePreviewElement
                       key={el.id}
                       element={el}
@@ -327,6 +374,25 @@ export function PhonePreview({
                       formValues={formValues}
                       updateFormValue={updateFormValue}
                       pageType={page.type}
+                      // Actions operieren auf dem gerade selektierten Element.
+                      // ElementWrapper selektiert bei Rechtsklick via onContextMenu
+                      // synchron, bevor das Menü aufgeht – also wirken die Handler
+                      // auf genau das Element, auf das der Nutzer geklickt hat.
+                      onCopy={onCopyElement}
+                      onCut={onCutElement}
+                      onPaste={onPasteElement}
+                      canPaste={canPasteElement}
+                      onDuplicate={onDuplicateElement}
+                      onDelete={onDeleteElement}
+                      onMoveUp={onMoveElementUp}
+                      onMoveDown={onMoveElementDown}
+                      canMoveUp={canMoveElementUp ?? idx > 0}
+                      canMoveDown={canMoveElementDown ?? idx < page.elements.length - 1}
+                      onContentCommit={
+                        onUpdateElementContent
+                          ? (content) => onUpdateElementContent(el.id, content)
+                          : undefined
+                      }
                     />
                   ))}
                 </div>

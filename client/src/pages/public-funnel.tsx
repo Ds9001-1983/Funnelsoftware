@@ -18,6 +18,12 @@ import { ElementPreviewRenderer } from "@/components/funnel-editor/ElementPrevie
 import { FunnelProgress } from "@/components/funnel-editor/FunnelProgress";
 import type { FunnelPage, Theme, PageElement, ABTest } from "@shared/schema";
 
+declare global {
+  interface Window {
+    dataLayer?: Record<string, unknown>[];
+  }
+}
+
 interface PublicFunnel {
   uuid: string;
   name: string;
@@ -174,7 +180,7 @@ export default function PublicFunnelView() {
     const gtmId = funnel.gtmId;
 
     // Initialize dataLayer
-    (window as any).dataLayer = (window as any).dataLayer || [];
+    window.dataLayer = window.dataLayer || [];
 
     // Inject GTM script
     const script = document.createElement("script");
@@ -185,9 +191,9 @@ export default function PublicFunnelView() {
   }, [funnel?.gtmId]);
 
   // Push GTM dataLayer event helper
-  const pushDataLayer = useCallback((eventData: Record<string, any>) => {
-    if ((window as any).dataLayer) {
-      (window as any).dataLayer.push(eventData);
+  const pushDataLayer = useCallback((eventData: Record<string, unknown>) => {
+    if (window.dataLayer) {
+      window.dataLayer.push(eventData);
     }
   }, []);
 
