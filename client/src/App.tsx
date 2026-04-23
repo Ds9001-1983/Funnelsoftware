@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TopNavigation } from "@/components/top-navigation";
 import { EmailVerificationBanner } from "@/components/email-verification-banner";
+import { GlobalErrorHandler } from "@/components/global-error-handler";
 import { AuthProvider, RequireAuth, useAuth } from "@/hooks/use-auth";
 import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
 import { useGlobalBodyLockGuard } from "@/hooks/use-ensure-body-unlocked";
@@ -179,6 +180,7 @@ function AppShell() {
   return (
     <ErrorBoundary fallbackTitle="Ein unerwarteter Fehler ist aufgetreten">
       <Toaster />
+      <GlobalErrorHandler />
       <Router />
       <CookieConsent />
     </ErrorBoundary>

@@ -18,11 +18,37 @@ export async function fetchCsrfToken(): Promise<void> {
 // Fetch CSRF token on module load
 fetchCsrfToken();
 
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  body?: unknown;
+
+  constructor(status: number, message: string, code?: string, body?: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+    this.body = body;
   }
+}
+
+async function throwIfResNotOk(res: Response) {
+  if (res.ok) return;
+  const text = (await res.text()) || res.statusText;
+  let code: string | undefined;
+  let message = text;
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+    if (body && typeof body === "object") {
+      const b = body as { code?: string; error?: string; message?: string };
+      code = b.code;
+      message = b.error || b.message || text;
+    }
+  } catch {
+    // not JSON — keep raw text as message
+  }
+  throw new ApiError(res.status, message, code, body);
 }
 
 export async function apiRequest(

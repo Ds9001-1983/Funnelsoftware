@@ -36,6 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useTheme } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
+import { apiRequest } from "@/lib/queryClient";
 
 function ProfileSettings() {
   const { user, refetchUser } = useAuth();
@@ -314,10 +315,7 @@ function BillingSettings() {
   const handleUpgrade = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/billing/create-checkout", {
-        method: "POST",
-        credentials: "include",
-      });
+      const res = await apiRequest("POST", "/api/billing/create-checkout");
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
@@ -334,10 +332,7 @@ function BillingSettings() {
   const handleManageSubscription = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/billing/portal", {
-        method: "POST",
-        credentials: "include",
-      });
+      const res = await apiRequest("POST", "/api/billing/portal");
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
