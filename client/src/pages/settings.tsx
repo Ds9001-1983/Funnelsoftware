@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import type { Team, TeamMember, ApiKey } from "@shared/schema";
 import {
   User,
   Bell,
@@ -470,8 +471,8 @@ function BillingSettings() {
 function TeamSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [teams, setTeams] = useState<any[]>([]);
-  const [members, setMembers] = useState<Record<number, any[]>>({});
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [members, setMembers] = useState<Record<number, TeamMember[]>>({});
   const [newTeamName, setNewTeamName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
@@ -496,7 +497,7 @@ function TeamSettings() {
     } catch {}
   };
 
-  useState(() => { fetchTeams(); });
+  useEffect(() => { fetchTeams(); }, []);
 
   const createTeam = async () => {
     if (!newTeamName.trim()) return;
@@ -611,7 +612,7 @@ function TeamSettings() {
                       />
                       <Button size="sm" onClick={() => inviteMember(team.id)}>Einladen</Button>
                     </div>
-                    {(members[team.id] || []).map((m: any) => (
+                    {(members[team.id] || []).map((m) => (
                       <div key={m.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
                         <div>
                           <span className="text-sm font-medium">{m.displayName || m.username || m.invitedEmail}</span>
@@ -638,7 +639,7 @@ function TeamSettings() {
 function ApiKeySettings() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [keys, setKeys] = useState<any[]>([]);
+  const [keys, setKeys] = useState<ApiKey[]>([]);
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyValue, setNewKeyValue] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -653,7 +654,7 @@ function ApiKeySettings() {
     } catch {} finally { setIsLoading(false); }
   };
 
-  useState(() => { fetchKeys(); });
+  useEffect(() => { fetchKeys(); }, []);
 
   const createKey = async () => {
     if (!newKeyName.trim()) return;
@@ -759,7 +760,7 @@ function ApiKeySettings() {
             <p className="text-sm text-muted-foreground text-center py-4">Noch keine API-Keys erstellt.</p>
           ) : (
             <div className="space-y-2">
-              {keys.map((key: any) => (
+              {keys.map((key) => (
                 <div key={key.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                   <div>
                     <span className="text-sm font-medium">{key.name}</span>

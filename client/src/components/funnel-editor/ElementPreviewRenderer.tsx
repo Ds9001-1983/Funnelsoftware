@@ -25,8 +25,22 @@ import {
 import type { PageElement, Section } from "@shared/schema";
 import { ElementWrapper, elementTypeLabels } from "./ElementWrapper";
 import { FormFieldWithValidation } from "./FormFieldWithValidation";
+import { InlineEditable } from "./InlineEditable";
 
-interface ElementPreviewRendererProps {
+export interface ElementActions {
+  onCopy?: () => void;
+  onCut?: () => void;
+  onPaste?: () => void;
+  canPaste?: boolean;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+}
+
+interface ElementPreviewRendererProps extends ElementActions {
   element: PageElement;
   textColor: string;
   primaryColor: string;
@@ -36,6 +50,8 @@ interface ElementPreviewRendererProps {
   updateFormValue?: (elementId: string, value: string) => void;
   onButtonClick?: (element: PageElement) => void;
   onListItemClick?: (element: PageElement, itemId: string) => void;
+  /** Inline-Edit commit für heading/text/button. Bindet element.id extern. */
+  onContentCommit?: (content: string) => void;
 }
 
 /**
@@ -51,12 +67,33 @@ function ElementPreviewRendererBase({
   updateFormValue,
   onButtonClick,
   onListItemClick,
+  onCopy,
+  onCut,
+  onPaste,
+  canPaste,
+  onDuplicate,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
+  onContentCommit,
 }: ElementPreviewRendererProps) {
   const wrapperProps = {
     elementId: el.id,
     elementType: el.type,
     selectedElementId,
     onSelectElement,
+    onCopy,
+    onCut,
+    onPaste,
+    canPaste,
+    onDuplicate,
+    onDelete,
+    onMoveUp,
+    onMoveDown,
+    canMoveUp,
+    canMoveDown,
   };
 
   switch (el.type) {
@@ -330,41 +367,70 @@ function ElementPreviewRendererBase({
         </ElementWrapper>
       );
 
-    case "heading":
+    case "heading": {
+      const headingStyle = {
+        color: el.styles?.color || textColor,
+        fontSize: el.styles?.fontSize || "1.25rem",
+        fontWeight: el.styles?.fontWeight || "bold",
+        fontStyle: el.styles?.fontStyle || "normal",
+        textAlign: (el.styles?.textAlign as "left" | "center" | "right") || "center",
+      } as const;
       return (
         <ElementWrapper {...wrapperProps}>
-          <h3
-            className="font-bold"
-            style={{
-              color: el.styles?.color || textColor,
-              fontSize: el.styles?.fontSize || "1.25rem",
-              fontWeight: el.styles?.fontWeight || "bold",
-              fontStyle: el.styles?.fontStyle || "normal",
-              textAlign: (el.styles?.textAlign as "left" | "center" | "right") || "center",
-            }}
-          >
-            {el.content || "Überschrift"}
-          </h3>
+          {onContentCommit ? (
+            <InlineEditable
+              value={el.content || ""}
+              onCommit={onContentCommit}
+              placeholder="Überschrift"
+              className="font-bold w-full text-center"
+              style={headingStyle}
+              renderDisplay={(v) => (
+                <h3 className="font-bold" style={headingStyle}>
+                  {v || "Überschrift"}
+                </h3>
+              )}
+            />
+          ) : (
+            <h3 className="font-bold" style={headingStyle}>
+              {el.content || "Überschrift"}
+            </h3>
+          )}
         </ElementWrapper>
       );
+    }
 
-    case "text":
+    case "text": {
+      const textStyle = {
+        color: el.styles?.color || textColor,
+        fontSize: el.styles?.fontSize || "0.875rem",
+        fontWeight: el.styles?.fontWeight || "normal",
+        fontStyle: el.styles?.fontStyle || "normal",
+        textAlign: (el.styles?.textAlign as "left" | "center" | "right") || "center",
+      } as const;
       return (
         <ElementWrapper {...wrapperProps}>
-          <p
-            className="text-sm"
-            style={{
-              color: el.styles?.color || textColor,
-              fontSize: el.styles?.fontSize || "0.875rem",
-              fontWeight: el.styles?.fontWeight || "normal",
-              fontStyle: el.styles?.fontStyle || "normal",
-              textAlign: (el.styles?.textAlign as "left" | "center" | "right") || "center",
-            }}
-          >
-            {el.content || "Text hier..."}
-          </p>
+          {onContentCommit ? (
+            <InlineEditable
+              value={el.content || ""}
+              onCommit={onContentCommit}
+              multiline
+              placeholder="Text hier..."
+              className="text-sm w-full"
+              style={textStyle}
+              renderDisplay={(v) => (
+                <p className="text-sm" style={textStyle}>
+                  {v || "Text hier..."}
+                </p>
+              )}
+            />
+          ) : (
+            <p className="text-sm" style={textStyle}>
+              {el.content || "Text hier..."}
+            </p>
+          )}
         </ElementWrapper>
       );
+    }
 
     case "image":
       return (
@@ -443,35 +509,52 @@ function ElementPreviewRendererBase({
         </ElementWrapper>
       );
 
-    case "button":
+    case "button": {
+      const btnClass = `w-full py-3 px-6 rounded-xl font-semibold text-sm transition-all ${
+        el.buttonVariant === "outline"
+          ? "border-2 border-primary text-primary bg-transparent"
+          : el.buttonVariant === "secondary"
+          ? "bg-gray-200 text-gray-800"
+          : el.buttonVariant === "ghost"
+          ? "bg-transparent text-primary hover:bg-primary/10"
+          : "bg-primary text-white"
+      }`;
+      const btnStyle =
+        el.buttonVariant === "primary" || !el.buttonVariant
+          ? { backgroundColor: primaryColor }
+          : undefined;
+      const handleClick = (e: React.MouseEvent) => {
+        if (!onButtonClick) return;
+        e.stopPropagation();
+        if (el.buttonAction === "url" && el.buttonUrl) {
+          window.open(el.buttonUrl, el.buttonTarget || "_self");
+        } else {
+          onButtonClick(el);
+        }
+      };
       return (
         <ElementWrapper {...wrapperProps}>
-          <button
-            className={`w-full py-3 px-6 rounded-xl font-semibold text-sm transition-all ${
-              el.buttonVariant === "outline"
-                ? "border-2 border-primary text-primary bg-transparent"
-                : el.buttonVariant === "secondary"
-                ? "bg-gray-200 text-gray-800"
-                : el.buttonVariant === "ghost"
-                ? "bg-transparent text-primary hover:bg-primary/10"
-                : "bg-primary text-white"
-            }`}
-            style={el.buttonVariant === "primary" || !el.buttonVariant ? { backgroundColor: primaryColor } : undefined}
-            onClick={(e) => {
-              // Only handle clicks in public view (when onButtonClick is provided)
-              if (!onButtonClick) return;
-              e.stopPropagation();
-              if (el.buttonAction === "url" && el.buttonUrl) {
-                window.open(el.buttonUrl, el.buttonTarget || "_self");
-              } else {
-                onButtonClick(el);
-              }
-            }}
-          >
-            {el.content || "Button"}
-          </button>
+          {onContentCommit ? (
+            <InlineEditable
+              value={el.content || ""}
+              onCommit={onContentCommit}
+              placeholder="Button"
+              className={btnClass}
+              style={btnStyle}
+              renderDisplay={(v) => (
+                <button className={btnClass} style={btnStyle} onClick={handleClick}>
+                  {v || "Button"}
+                </button>
+              )}
+            />
+          ) : (
+            <button className={btnClass} style={btnStyle} onClick={handleClick}>
+              {el.content || "Button"}
+            </button>
+          )}
         </ElementWrapper>
       );
+    }
 
     case "testimonial":
       return (

@@ -77,6 +77,7 @@ import {
   LayoutTemplate,
   Cloud,
   CloudOff,
+  FlaskConical,
   Scissors,
   Maximize2,
   Search,
@@ -141,6 +142,7 @@ import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useHistory, useAutoSave } from "@/hooks/use-history";
+import { useBeforeUnload } from "@/hooks/use-before-unload";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Funnel, FunnelPage, PageElement, PageAnimation, Section, Column } from "@shared/schema";
 import confetti from "canvas-confetti";
@@ -174,10 +176,16 @@ import {
 import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
 
 import { HistoryIndicator } from "@/components/funnel-editor/HistoryIndicator";
+import { SaveStatusIndicator } from "@/components/funnel-editor/SaveStatusIndicator";
+import { CommandPalette } from "@/components/funnel-editor/CommandPalette";
+import { ShortcutOverlay } from "@/components/funnel-editor/ShortcutOverlay";
 import { ThemePresetPicker } from "@/components/funnel-editor/ThemePresetPicker";
 import { PublishDialog } from "@/components/funnel-editor/PublishDialog";
 
 const PageEditor = lazy(() => import("@/components/funnel-editor/PageEditor").then(m => ({ default: m.PageEditor })));
+const LogicFlowView = lazy(() =>
+  import("@/components/funnel-editor/LogicFlowView").then((m) => ({ default: m.LogicFlowView })),
+);
 
 type PageType = FunnelPage["type"];
 
@@ -216,6 +224,10 @@ export default function FunnelEditor() {
 
   // Publish dialog
   const [showPublishDialog, setShowPublishDialog] = useState(false);
+  const [showABTests, setShowABTests] = useState(false);
+  const [showLogicFlow, setShowLogicFlow] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
 
   // Perspective-style editor states
   const [showRightPanel, setShowRightPanel] = useState(false);
@@ -246,6 +258,8 @@ export default function FunnelEditor() {
   } = useHistory<Funnel | null>(null);
 
   const [hasChanges, setHasChanges] = useState(false);
+
+  useBeforeUnload(hasChanges, "Es gibt ungespeicherte Änderungen. Trotzdem schließen?");
 
   useDocumentTitle(localFunnel ? `${localFunnel.name} bearbeiten` : "Funnel Editor");
 
@@ -308,27 +322,43 @@ export default function FunnelEditor() {
     }
   }, [hasChanges, autoSaveEnabled, scheduleAutoSave]);
 
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+
   const saveMutation = useMutation({
     mutationFn: async (data: Partial<Funnel>) => {
       const response = await apiRequest("PATCH", `/api/funnels/${params?.id}`, data);
       return response.json();
     },
+    // Exponential backoff: 1s → 2s → 4s, max 3 Versuche.
+    // CSRF-/Auth-Fehler werden nicht retried (bringt nichts, gleiche Antwort).
+    retry: (failureCount, error) => {
+      if (failureCount >= 3) return false;
+      const status = (error as { status?: number } | null)?.status;
+      if (status === 401 || status === 403 || status === 404) return false;
+      return true;
+    },
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 4000),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/funnels", params?.id] });
       setHasChanges(false);
-      toast({
-        title: "Gespeichert",
-        description: "Deine Änderungen wurden gespeichert.",
-      });
+      setLastSavedAt(new Date());
     },
     onError: () => {
       toast({
-        title: "Fehler",
-        description: "Änderungen konnten nicht gespeichert werden.",
+        title: "Speichern fehlgeschlagen",
+        description: "Nach mehreren Versuchen nicht gespeichert. Bitte Speichern-Button erneut drücken.",
         variant: "destructive",
       });
     },
   });
+
+  const saveStatus: "saved" | "dirty" | "saving" | "error" = saveMutation.isPending
+    ? "saving"
+    : saveMutation.isError
+      ? "error"
+      : hasChanges
+        ? "dirty"
+        : "saved";
 
   const publishMutation = useMutation({
     mutationFn: async (slug: string) => {
@@ -501,6 +531,21 @@ export default function FunnelEditor() {
       });
     }
   }, [localFunnel, selectedPageIndex, selectedElementId, toast]);
+
+  const cutSelectedElement = useCallback(() => {
+    if (!localFunnel || !selectedElementId) return;
+    const page = localFunnel.pages[selectedPageIndex];
+    const element = page.elements.find((el) => el.id === selectedElementId);
+    if (!element) return;
+    setClipboard({ type: "element", data: element });
+    const newElements = page.elements.filter((el) => el.id !== selectedElementId);
+    updatePage(selectedPageIndex, { elements: newElements });
+    setSelectedElementId(null);
+    toast({
+      title: "Element ausgeschnitten",
+      description: "Das Element wurde ausgeschnitten.",
+    });
+  }, [localFunnel, selectedPageIndex, selectedElementId, updatePage, toast]);
 
   const copyCurrentPage = useCallback(() => {
     if (!localFunnel) return;
@@ -730,7 +775,7 @@ export default function FunnelEditor() {
     setSelectedElementId(null);
   }, [selectedPageIndex]);
 
-  const addPage = (type: PageType) => {
+  const addPage = useCallback((type: PageType) => {
     if (localFunnel) {
       const newPage: FunnelPage = {
         id: `page-${Date.now()}`,
@@ -749,9 +794,9 @@ export default function FunnelEditor() {
       updateLocalFunnel({ pages: [...localFunnel.pages, newPage] });
       setSelectedPageIndex(localFunnel.pages.length);
     }
-  };
+  }, [localFunnel, updateLocalFunnel]);
 
-  const duplicatePage = (index: number) => {
+  const duplicatePage = useCallback((index: number) => {
     if (localFunnel) {
       const pageToDuplicate = localFunnel.pages[index];
       const newPage: FunnelPage = {
@@ -768,9 +813,9 @@ export default function FunnelEditor() {
       updateLocalFunnel({ pages: newPages });
       setSelectedPageIndex(index + 1);
     }
-  };
+  }, [localFunnel, updateLocalFunnel]);
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
 
     if (over && active.id !== over.id && localFunnel) {
@@ -788,7 +833,7 @@ export default function FunnelEditor() {
         setSelectedPageIndex(selectedPageIndex + 1);
       }
     }
-  };
+  }, [localFunnel, selectedPageIndex, updateLocalFunnel]);
 
   const deletePage = useCallback((index: number) => {
     setLocalFunnel((prev) => {
@@ -807,23 +852,30 @@ export default function FunnelEditor() {
     setHasChanges(true);
   }, [localFunnel, setLocalFunnel]);
 
-  const renamePage = (index: number, newTitle: string) => {
+  const renamePage = useCallback((index: number, newTitle: string) => {
     setLocalFunnel((prev) => {
       if (!prev) return prev;
       const pages = [...prev.pages];
       pages[index] = { ...pages[index], title: newTitle };
       return { ...prev, pages };
     });
-  };
+    setHasChanges(true);
+  }, []);
 
-  const togglePageVisibility = (index: number) => {
+  const handleRenamePrompt = useCallback((index: number, currentTitle: string) => {
+    const newTitle = prompt("Neuer Seitenname:", currentTitle);
+    if (newTitle && newTitle.trim()) renamePage(index, newTitle.trim());
+  }, [renamePage]);
+
+  const togglePageVisibility = useCallback((index: number) => {
     setLocalFunnel((prev) => {
       if (!prev) return prev;
       const pages = [...prev.pages];
       pages[index] = { ...pages[index], hidden: !pages[index].hidden };
       return { ...prev, pages };
     });
-  };
+    setHasChanges(true);
+  }, []);
 
   // Resize-Handler für linke Sidebar
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
@@ -853,7 +905,7 @@ export default function FunnelEditor() {
     document.body.style.userSelect = "none";
   }, [leftPanelWidth]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (localFunnel) {
       saveMutation.mutate({
         name: localFunnel.name,
@@ -864,36 +916,66 @@ export default function FunnelEditor() {
         abTests: localFunnel.abTests,
       });
     }
-  };
+  }, [localFunnel, saveMutation]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Save: Ctrl+S
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+      const target = e.target as HTMLElement;
+      const isEditing =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable;
+      const modKey = e.metaKey || e.ctrlKey;
+
+      // Save: Ctrl+S (auch während Edit — Content soll nicht verloren gehen)
+      if (modKey && e.key === "s") {
         e.preventDefault();
         if (hasChanges) handleSave();
+        return;
       }
+
+      // Die folgenden Shortcuts nur, wenn NICHT gerade in einem Input-Feld getippt wird.
+      if (isEditing) return;
+
       // Undo: Ctrl+Z
-      if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
+      if (modKey && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
         if (canUndo) {
           undo();
           setHasChanges(true);
         }
+        return;
       }
       // Redo: Ctrl+Y or Ctrl+Shift+Z
-      if ((e.metaKey || e.ctrlKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+      if (modKey && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
         e.preventDefault();
         if (canRedo) {
           redo();
           setHasChanges(true);
         }
+        return;
+      }
+      // Move selected element up/down: Ctrl+ArrowUp / ArrowDown
+      if (modKey && e.key === "ArrowUp" && selectedElementId) {
+        e.preventDefault();
+        moveElementUp();
+        return;
+      }
+      if (modKey && e.key === "ArrowDown" && selectedElementId) {
+        e.preventDefault();
+        moveElementDown();
+        return;
+      }
+      // Shortcut-Hilfe: Shift+? (ohne Modifier)
+      if (!modKey && e.shiftKey && e.key === "?") {
+        e.preventDefault();
+        setShowShortcutHelp(true);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [hasChanges, localFunnel, canUndo, canRedo, undo, redo]);
+  }, [hasChanges, canUndo, canRedo, undo, redo, handleSave, moveElementUp, moveElementDown, selectedElementId]);
 
   if (isLoading) {
     return (
@@ -950,7 +1032,7 @@ export default function FunnelEditor() {
           <Badge variant={localFunnel.status === "published" ? "default" : "secondary"} className="shrink-0 text-[10px]">
             {localFunnel.status === "published" ? "Live" : "Entwurf"}
           </Badge>
-          {hasChanges && <div className="h-2 w-2 rounded-full bg-yellow-500 shrink-0" title="Ungespeicherte Änderungen" />}
+          <SaveStatusIndicator status={saveStatus} lastSavedAt={lastSavedAt} onRetry={handleSave} />
         </div>
 
         {/* Center - Device Toggle */}
@@ -971,7 +1053,7 @@ export default function FunnelEditor() {
           <HistoryIndicator canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} historyLength={historyLength} />
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={autoSaveEnabled ? "Auto-Save deaktivieren" : "Auto-Save aktivieren"} onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}>
                 {autoSaveEnabled ? <Cloud className="h-4 w-4 text-green-500" /> : <CloudOff className="h-4 w-4 text-muted-foreground" />}
               </Button>
             </TooltipTrigger>
@@ -979,7 +1061,42 @@ export default function FunnelEditor() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowSettings(true)} data-testid="button-settings">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                aria-label="Flow-Ansicht öffnen"
+                onClick={() => setShowLogicFlow(true)}
+                data-testid="button-logic-flow"
+              >
+                <GitBranch className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Flow-Ansicht</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 relative"
+                aria-label="A/B-Tests öffnen"
+                onClick={() => setShowABTests(true)}
+                data-testid="button-abtests"
+              >
+                <FlaskConical className="h-4 w-4" />
+                {(localFunnel.abTests || []).some(
+                  (t) => t.pageId === selectedPage?.id && t.status === "running",
+                ) && (
+                  <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-green-500" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>A/B-Tests</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Einstellungen" onClick={() => setShowSettings(true)} data-testid="button-settings">
                 <Settings className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -987,7 +1104,7 @@ export default function FunnelEditor() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(`/f/${localFunnel?.slug || localFunnel?.uuid}`, '_blank')}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Vorschau in neuem Tab öffnen" onClick={() => window.open(`/f/${localFunnel?.slug || localFunnel?.uuid}`, '_blank')}>
                 <Eye className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -1070,16 +1187,13 @@ export default function FunnelEditor() {
                         page={page}
                         index={index}
                         selected={index === selectedPageIndex}
-                        onSelect={() => setSelectedPageIndex(index)}
-                        onDelete={() => deletePage(index)}
-                        onDuplicate={() => duplicatePage(index)}
                         totalPages={localFunnel.pages.length}
-                        onRename={() => {
-                          const newTitle = prompt('Neuer Seitenname:', page.title);
-                          if (newTitle && newTitle.trim()) renamePage(index, newTitle.trim());
-                        }}
-                        onToggleVisibility={() => togglePageVisibility(index)}
                         isHidden={page.hidden}
+                        onSelect={setSelectedPageIndex}
+                        onDelete={deletePage}
+                        onDuplicate={duplicatePage}
+                        onRename={handleRenamePrompt}
+                        onToggleVisibility={togglePageVisibility}
                       />
                     ))}
                   </div>
@@ -1209,6 +1323,17 @@ export default function FunnelEditor() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            {(localFunnel.abTests || []).some(
+              (t) => t.pageId === selectedPage?.id && t.status === "running",
+            ) && (
+              <button
+                onClick={() => setShowABTests(true)}
+                className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-green-500/10 border border-green-500/30 px-2.5 py-1 text-xs font-medium text-green-700 dark:text-green-400 hover:bg-green-500/20 transition-colors"
+              >
+                <FlaskConical className="h-3 w-3" />
+                A/B-Test läuft
+              </button>
+            )}
             <PhonePreview
               page={selectedPage}
               pageIndex={selectedPageIndex}
@@ -1223,8 +1348,20 @@ export default function FunnelEditor() {
               onAddElement={addElementToPage}
               onDeleteElement={deleteSelectedElement}
               onDuplicateElement={duplicateSelectedElement}
+              onCopyElement={copySelectedElement}
+              onCutElement={cutSelectedElement}
+              onPasteElement={pasteFromClipboard}
+              canPasteElement={clipboard?.type === "element"}
               onMoveElementUp={moveElementUp}
               onMoveElementDown={moveElementDown}
+              onUpdateElementContent={(elementId, content) => {
+                if (!localFunnel) return;
+                const page = localFunnel.pages[selectedPageIndex];
+                const newElements = page.elements.map((el) =>
+                  el.id === elementId ? { ...el, content } : el,
+                );
+                updatePage(selectedPageIndex, { elements: newElements });
+              }}
               onShowElementPicker={() => setSelectedElementId(null)}
               onReorderElements={(oldIndex, newIndex) => {
                 if (!localFunnel) return;
@@ -1261,6 +1398,91 @@ export default function FunnelEditor() {
         onOpenChange={setShowAddPage}
         onAdd={addPage}
       />
+
+      {/* Shortcut-Hilfe (?) */}
+      <ShortcutOverlay open={showShortcutHelp} onOpenChange={setShowShortcutHelp} />
+
+      {/* Command Palette (⌘K) */}
+      <CommandPalette
+        open={showCommandPalette}
+        onOpenChange={setShowCommandPalette}
+        pages={localFunnel.pages}
+        onSave={handleSave}
+        canSave={hasChanges && !saveMutation.isPending}
+        onPublish={() => setShowPublishDialog(true)}
+        onPreview={() => window.open(`/f/${localFunnel.slug || localFunnel.uuid}`, "_blank")}
+        onUndo={undo}
+        canUndo={canUndo}
+        onRedo={redo}
+        canRedo={canRedo}
+        onOpenSettings={() => setShowSettings(true)}
+        onOpenABTests={() => setShowABTests(true)}
+        onOpenLogicFlow={() => setShowLogicFlow(true)}
+        onJumpToPage={(idx) => setSelectedPageIndex(idx)}
+        onAddPage={addPage}
+        onAddElement={addElementToPage}
+      />
+
+      {/* Logic Flow Dialog */}
+      <Dialog open={showLogicFlow} onOpenChange={setShowLogicFlow}>
+        <DialogContent className="max-w-[95vw] w-[95vw] h-[85vh] p-0 gap-0 flex flex-col">
+          <DialogHeader className="p-4 border-b">
+            <DialogTitle className="flex items-center gap-2">
+              <GitBranch className="h-5 w-5" />
+              Funnel-Flow
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0">
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                  Lade Flow-Ansicht…
+                </div>
+              }
+            >
+              <LogicFlowView
+                pages={localFunnel.pages}
+                selectedPageId={selectedPage?.id}
+                onSelectPage={(pageId) => {
+                  const idx = localFunnel.pages.findIndex((p) => p.id === pageId);
+                  if (idx >= 0) {
+                    setSelectedPageIndex(idx);
+                    setShowLogicFlow(false);
+                  }
+                }}
+              />
+            </Suspense>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* A/B Tests Sheet */}
+      <Sheet open={showABTests} onOpenChange={setShowABTests}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <FlaskConical className="h-5 w-5" />
+              A/B-Tests: {selectedPage?.title || "—"}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="mt-6">
+            {selectedPage ? (
+              <ABTestEditor
+                page={selectedPage}
+                abTests={localFunnel.abTests || []}
+                onCreateTest={createABTest}
+                onUpdateTest={updateABTest}
+                onDeleteTest={deleteABTest}
+                onStartTest={startABTest}
+                onPauseTest={pauseABTest}
+                onCompleteTest={completeABTest}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">Keine Seite ausgewählt.</p>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Settings Sheet */}
       <Sheet open={showSettings} onOpenChange={setShowSettings}>

@@ -1,4 +1,20 @@
 import { useState, ReactNode } from "react";
+import {
+  Copy,
+  ClipboardPaste,
+  Trash2,
+  MoveUp,
+  MoveDown,
+  Scissors,
+} from "lucide-react";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 // Element type labels for display - Extended with OpenFunnels types
 export const elementTypeLabels: Record<string, string> = {
@@ -49,11 +65,24 @@ interface ElementWrapperProps {
   selectedElementId?: string | null;
   onSelectElement?: (elementId: string | null) => void;
   children: ReactNode;
+  /** Context-menu actions. Wenn mindestens einer gesetzt ist, wird bei
+   * Rechtsklick ein Kontextmenü angezeigt. */
+  onCopy?: () => void;
+  onCut?: () => void;
+  onPaste?: () => void;
+  canPaste?: boolean;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
 }
 
 /**
  * Wrapper component for elements in the preview with selection handling.
  * Provides visual feedback for hover and selection states.
+ * Optional: Right-click context-menu with element actions.
  */
 export function ElementWrapper({
   elementId,
@@ -61,11 +90,24 @@ export function ElementWrapper({
   selectedElementId,
   onSelectElement,
   children,
+  onCopy,
+  onCut,
+  onPaste,
+  canPaste,
+  onDuplicate,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp = true,
+  canMoveDown = true,
 }: ElementWrapperProps) {
   const isSelected = selectedElementId === elementId;
   const [isHovered, setIsHovered] = useState(false);
 
-  return (
+  const hasContextMenu =
+    !!(onCopy || onCut || onPaste || onDuplicate || onDelete || onMoveUp || onMoveDown);
+
+  const wrapped = (
     <div
       data-element-id={elementId}
       className={`element-wrapper relative group cursor-pointer transition-all duration-200 rounded-lg p-1 ${
@@ -91,7 +133,7 @@ export function ElementWrapper({
             className={`px-2 py-0.5 text-xs font-medium rounded shadow-sm transition-all ${
               isSelected
                 ? "bg-primary text-primary-foreground"
-                : "bg-white text-gray-700 border border-gray-200"
+                : "bg-popover text-popover-foreground border"
             }`}
           >
             {elementTypeLabels[elementType] || elementType}
@@ -109,5 +151,75 @@ export function ElementWrapper({
         </>
       )}
     </div>
+  );
+
+  if (!hasContextMenu) return wrapped;
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild onContextMenu={() => onSelectElement?.(elementId)}>
+        {wrapped}
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        {onCopy && (
+          <ContextMenuItem onSelect={onCopy}>
+            <Copy />
+            Kopieren
+            <ContextMenuShortcut>⌘C</ContextMenuShortcut>
+          </ContextMenuItem>
+        )}
+        {onCut && (
+          <ContextMenuItem onSelect={onCut}>
+            <Scissors />
+            Ausschneiden
+            <ContextMenuShortcut>⌘X</ContextMenuShortcut>
+          </ContextMenuItem>
+        )}
+        {onPaste && (
+          <ContextMenuItem onSelect={onPaste} disabled={!canPaste}>
+            <ClipboardPaste />
+            Einfügen
+            <ContextMenuShortcut>⌘V</ContextMenuShortcut>
+          </ContextMenuItem>
+        )}
+        {(onCopy || onCut || onPaste) && (onDuplicate || onMoveUp || onMoveDown || onDelete) && (
+          <ContextMenuSeparator />
+        )}
+        {onDuplicate && (
+          <ContextMenuItem onSelect={onDuplicate}>
+            <Copy />
+            Duplizieren
+            <ContextMenuShortcut>⌘D</ContextMenuShortcut>
+          </ContextMenuItem>
+        )}
+        {onMoveUp && (
+          <ContextMenuItem onSelect={onMoveUp} disabled={!canMoveUp}>
+            <MoveUp />
+            Nach oben
+            <ContextMenuShortcut>⌘↑</ContextMenuShortcut>
+          </ContextMenuItem>
+        )}
+        {onMoveDown && (
+          <ContextMenuItem onSelect={onMoveDown} disabled={!canMoveDown}>
+            <MoveDown />
+            Nach unten
+            <ContextMenuShortcut>⌘↓</ContextMenuShortcut>
+          </ContextMenuItem>
+        )}
+        {onDelete && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              onSelect={onDelete}
+              className="text-destructive focus:text-destructive focus:bg-destructive/10"
+            >
+              <Trash2 />
+              Löschen
+              <ContextMenuShortcut>Del</ContextMenuShortcut>
+            </ContextMenuItem>
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }

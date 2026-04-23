@@ -1,6 +1,7 @@
+import { memo, useCallback } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Copy, Trash2 } from "lucide-react";
+import { GripVertical, Copy, Trash2, Edit2, Eye, EyeOff } from "lucide-react";
 import { PageActionsMenu } from "./PageActionsMenu";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,6 +9,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { pageTypeLabels, pageTypeIcons } from "./constants";
 import type { FunnelPage } from "@shared/schema";
 
@@ -15,30 +23,34 @@ interface SortablePageItemProps {
   page: FunnelPage;
   index: number;
   selected: boolean;
-  onSelect: () => void;
-  onDelete: () => void;
-  onDuplicate: () => void;
   totalPages: number;
-  onRename?: () => void;
-  onToggleVisibility?: () => void;
   isHidden?: boolean;
+  onSelect: (index: number) => void;
+  onDelete: (index: number) => void;
+  onDuplicate: (index: number) => void;
+  onRename?: (index: number, currentTitle: string) => void;
+  onToggleVisibility?: (index: number) => void;
 }
 
 /**
  * Ein sortierbares Seiten-Element in der Seitenliste.
  * Unterstützt Drag-and-Drop zum Neuanordnen von Seiten.
+ *
+ * Callbacks nehmen den `index` als Argument entgegen, damit der Parent stabile
+ * Handler (via `useCallback`) durchreichen kann. Der innere `memo()`-Wrapper
+ * verhindert dann Re-Renders, wenn sich nur entfernte State-Slices ändern.
  */
-export function SortablePageItem({
+function SortablePageItemImpl({
   page,
   index,
   selected,
+  totalPages,
+  isHidden,
   onSelect,
   onDelete,
   onDuplicate,
-  totalPages,
   onRename,
   onToggleVisibility,
-  isHidden,
 }: SortablePageItemProps) {
   const {
     attributes,
@@ -55,7 +67,34 @@ export function SortablePageItem({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  return (
+  const handleSelect = useCallback(() => onSelect(index), [onSelect, index]);
+  const handleDelete = useCallback(() => onDelete(index), [onDelete, index]);
+  const handleDuplicate = useCallback(() => onDuplicate(index), [onDuplicate, index]);
+  const handleRename = useCallback(
+    () => onRename?.(index, page.title),
+    [onRename, index, page.title],
+  );
+  const handleToggleVisibility = useCallback(
+    () => onToggleVisibility?.(index),
+    [onToggleVisibility, index],
+  );
+
+  const handleDuplicateClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onDuplicate(index);
+    },
+    [onDuplicate, index],
+  );
+  const handleDeleteClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onDelete(index);
+    },
+    [onDelete, index],
+  );
+
+  const body = (
     <div
       ref={setNodeRef}
       style={style}
@@ -64,7 +103,7 @@ export function SortablePageItem({
           ? "bg-accent ring-2 ring-primary/20"
           : "hover:bg-muted/50"
       } ${isDragging ? "z-50 shadow-xl" : ""}`}
-      onClick={onSelect}
+      onClick={handleSelect}
       data-testid={`page-item-${index}`}
     >
       <button
@@ -96,10 +135,7 @@ export function SortablePageItem({
               size="icon"
               variant="ghost"
               className="h-7 w-7"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDuplicate();
-              }}
+              onClick={handleDuplicateClick}
             >
               <Copy className="h-3.5 w-3.5" />
             </Button>
@@ -112,10 +148,7 @@ export function SortablePageItem({
               size="icon"
               variant="ghost"
               className="h-7 w-7 text-destructive hover:text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
+              onClick={handleDeleteClick}
               disabled={totalPages <= 1}
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -127,13 +160,50 @@ export function SortablePageItem({
           <PageActionsMenu
             pageTitle={page.title}
             isHidden={isHidden}
-            onRename={onRename}
-            onDuplicate={onDuplicate}
-            onToggleVisibility={onToggleVisibility}
-            onDelete={onDelete}
+            onRename={handleRename}
+            onDuplicate={handleDuplicate}
+            onToggleVisibility={handleToggleVisibility}
+            onDelete={handleDelete}
           />
         )}
       </div>
     </div>
   );
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild onContextMenu={handleSelect}>
+        {body}
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        {onRename && (
+          <ContextMenuItem onSelect={handleRename}>
+            <Edit2 />
+            Umbenennen
+          </ContextMenuItem>
+        )}
+        <ContextMenuItem onSelect={handleDuplicate}>
+          <Copy />
+          Duplizieren
+        </ContextMenuItem>
+        {onToggleVisibility && (
+          <ContextMenuItem onSelect={handleToggleVisibility}>
+            {isHidden ? <Eye /> : <EyeOff />}
+            {isHidden ? "Sichtbar machen" : "Ausblenden"}
+          </ContextMenuItem>
+        )}
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          onSelect={handleDelete}
+          disabled={totalPages <= 1}
+          className="text-destructive focus:text-destructive focus:bg-destructive/10"
+        >
+          <Trash2 />
+          Löschen
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  );
 }
+
+export const SortablePageItem = memo(SortablePageItemImpl);
