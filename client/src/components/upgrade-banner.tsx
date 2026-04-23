@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, Sparkles, Loader2, X } from "lucide-react";
+import { AlertTriangle, Sparkles, Loader2, X, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,7 +17,7 @@ interface UpgradeBannerProps {
 }
 
 export function UpgradeBanner({ variant }: UpgradeBannerProps) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -116,6 +116,15 @@ export function UpgradeBanner({ variant }: UpgradeBannerProps) {
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               Jetzt upgraden
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full gap-2 text-muted-foreground"
+              onClick={() => logout()}
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Ausloggen
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -153,6 +162,15 @@ export function UpgradeBanner({ variant }: UpgradeBannerProps) {
             <Button className="w-full gap-2" size="lg" onClick={handleUpgrade} disabled={isLoading}>
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               Zahlungsdaten hinterlegen
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full gap-2 text-muted-foreground"
+              onClick={() => logout()}
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Ausloggen
             </Button>
           </div>
         </DialogContent>
