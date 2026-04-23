@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { TopNavigation } from "@/components/top-navigation";
 import { EmailVerificationBanner } from "@/components/email-verification-banner";
 import { GlobalErrorHandler } from "@/components/global-error-handler";
+import { UpgradeBanner } from "@/components/upgrade-banner";
 import { AuthProvider, RequireAuth, useAuth } from "@/hooks/use-auth";
 import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
 import { useGlobalBodyLockGuard } from "@/hooks/use-ensure-body-unlocked";
@@ -182,6 +183,9 @@ function AppShell() {
       <Toaster />
       <GlobalErrorHandler />
       <Router />
+      {/* Globale Blocking-Guards: zeigen sich selbst nur, wenn User betroffen */}
+      <UpgradeBanner variant="payment-required" />
+      <UpgradeBanner variant="expired" />
       <CookieConsent />
     </ErrorBoundary>
   );

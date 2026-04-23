@@ -209,12 +209,9 @@ export default function Dashboard() {
       {/* Welcome Modal für neue User */}
       <WelcomeModal hasFunnels={hasFunnels} userName={user?.displayName} />
 
-      {/* Blocking Modal wenn Stripe Checkout abgebrochen */}
-      <UpgradeBanner variant="payment-required" />
-      {/* Trial-Ablauf Warnung */}
+      {/* Trial-Ablauf Warnung (dismissible, 3-Tages-Vorlauf)
+          payment-required + expired werden global in AppShell gerendert */}
       <UpgradeBanner variant="warning" />
-      {/* Blocking Modal wenn Trial abgelaufen */}
-      <UpgradeBanner variant="expired" />
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>
