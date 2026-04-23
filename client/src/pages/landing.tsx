@@ -3,27 +3,37 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   Zap,
-  Layers,
-  Users,
-  BarChart3,
   Sparkles,
   Smartphone,
-  Clock,
   Target,
   Check,
   ArrowRight,
-  Star,
   ChevronRight,
   MousePointerClick,
   PenTool,
   Palette,
   TrendingUp,
   Cookie,
+  ShieldCheck,
+  Server,
+  Lock,
+  Briefcase,
+  GraduationCap,
+  UserSearch,
+  Mail,
+  Headphones,
 } from "lucide-react";
 import { resetCookieConsent } from "@/components/cookie-consent";
 
-// Template preview data with images
+const CONTACT_EMAIL = "info@superbrand.marketing";
+
 const templatePreviews = [
   {
     name: "Lead-Generierung",
@@ -66,105 +76,179 @@ const features = [
   {
     icon: MousePointerClick,
     title: "Drag & Drop Builder",
-    description: "Erstelle beeindruckende Funnels ohne eine einzige Zeile Code. Einfach Elemente ziehen und ablegen.",
+    description: "Erstelle komplette Funnels per Maus. Kein HTML, kein CSS, kein Frust.",
     image: "/images/feature-drag-drop.webp",
   },
   {
     icon: Smartphone,
     title: "Mobile-First Design",
-    description: "Alle Funnels sind automatisch für Smartphones optimiert - dort, wo deine Kunden sind.",
+    description: "Jeder Funnel ist automatisch für Smartphones optimiert — dort, wo 80 % deiner Besucher landen.",
     image: "/images/feature-mobile.webp",
   },
   {
     icon: PenTool,
     title: "20+ Elemente",
-    description: "Von Texten über Videos bis hin zu Formularen und Countdowns - alles was du brauchst.",
+    description: "Texte, Videos, Formulare, Countdowns, Quizze, Slider — alles für hohe Conversion.",
   },
   {
     icon: Palette,
     title: "Vollständig anpassbar",
-    description: "Passe Farben, Schriften und Layouts an deine Marke an. Keine Kompromisse.",
+    description: "Farben, Fonts, Layouts und Corporate Identity — du entscheidest, nicht das Template.",
   },
   {
     icon: TrendingUp,
     title: "Analytics & Insights",
-    description: "Verfolge Views, Conversions und Lead-Qualität in Echtzeit.",
+    description: "Views, Conversions, Drop-offs und Lead-Qualität in Echtzeit — ohne Google Analytics.",
     image: "/images/feature-analytics.webp",
   },
   {
     icon: Target,
     title: "Conditional Logic",
-    description: "Zeige verschiedene Seiten basierend auf den Antworten deiner Besucher.",
+    description: "Zeige Besuchern dynamisch verschiedene Seiten — basierend auf ihren Antworten.",
   },
 ];
 
-const pricingPlans = [
+const personas = [
   {
-    name: "Starter",
-    price: "0",
-    description: "Perfekt zum Ausprobieren",
-    features: [
-      "3 aktive Funnels",
-      "100 Leads/Monat",
-      "Basis-Templates",
-      "E-Mail Support",
-    ],
-    cta: "Kostenlos starten",
-    popular: false,
+    icon: GraduationCap,
+    title: "Coaches & Berater",
+    description: "Qualifiziere Interessenten mit Quiz-Funnels und verkaufe deine Programme ohne Sales-Call-Marathon.",
   },
+  {
+    icon: Briefcase,
+    title: "Dienstleister & Agenturen",
+    description: "Präsentiere deine Leistungen, hole Erstgespräche und stelle Angebote in weniger als 10 Minuten live.",
+  },
+  {
+    icon: UserSearch,
+    title: "Recruiter & HR-Teams",
+    description: "Filtere Bewerbungen mit klugen Fragen — und spare Stunden beim Screening.",
+  },
+];
+
+const steps = [
+  {
+    number: "01",
+    title: "Registrieren",
+    description: "Account in 30 Sekunden — E-Mail, Passwort, fertig.",
+  },
+  {
+    number: "02",
+    title: "Template wählen",
+    description: "10 fertige, konversionsstarke Vorlagen — oder leer starten.",
+  },
+  {
+    number: "03",
+    title: "Anpassen",
+    description: "Texte, Farben, Bilder, Fragen — per Drag & Drop in Minuten.",
+  },
+  {
+    number: "04",
+    title: "Launchen & Leads sammeln",
+    description: "Eigene Domain, Live-Analytics und Leads automatisch in deinem Dashboard.",
+  },
+];
+
+interface PricingPlan {
+  name: string;
+  price: string;
+  priceSuffix?: string;
+  description: string;
+  features: string[];
+  cta: string;
+  ctaHref: string;
+  popular: boolean;
+  note?: string;
+}
+
+const pricingPlans: PricingPlan[] = [
   {
     name: "Pro",
     price: "49",
-    description: "Für wachsende Unternehmen",
+    priceSuffix: "€ / Monat",
+    description: "Alles, was du zum Launch brauchst",
     features: [
       "Unbegrenzte Funnels",
       "Unbegrenzte Leads",
-      "Alle Templates",
-      "Erweiterte Analytics",
+      "Alle Templates & Elemente",
       "Eigene Domain",
-      "Priority Support",
+      "Live-Analytics & Conversion-Tracking",
+      "A/B-Tests & Conditional Logic",
+      "E-Mail-Benachrichtigungen",
+      "Support per E-Mail",
     ],
     cta: "14 Tage kostenlos testen",
+    ctaHref: "/register",
     popular: true,
+    note: "14 Tage gratis · Erste Belastung nach Trial · Monatlich kündbar",
+  },
+  {
+    name: "Agency",
+    price: "ab 149",
+    priceSuffix: "€ / Monat",
+    description: "Für Teams, White-Label und API",
+    features: [
+      "Alles aus Pro",
+      "Team-Seats (bis 10 Nutzer)",
+      "White-Label Branding",
+      "API-Zugang",
+      "Mehrere Domains",
+      "Priority Support",
+    ],
+    cta: "Kontakt aufnehmen",
+    ctaHref: `mailto:${CONTACT_EMAIL}?subject=Agency-Plan%20Anfrage`,
+    popular: false,
   },
   {
     name: "Enterprise",
-    price: "199",
-    description: "Für Teams & Agenturen",
+    price: "Individuell",
+    description: "SLA, Integrationen, dedizierter Manager",
     features: [
-      "Alles aus Pro",
-      "Team-Accounts",
-      "White-Label Option",
-      "API-Zugang",
-      "Dedicated Account Manager",
+      "Alles aus Agency",
       "SLA-Garantie",
+      "Custom Integrationen",
+      "Dedizierter Account Manager",
+      "Onboarding-Workshop",
+      "Compliance auf Anfrage (AVV, SOC2)",
     ],
     cta: "Kontakt aufnehmen",
+    ctaHref: `mailto:${CONTACT_EMAIL}?subject=Enterprise-Anfrage`,
     popular: false,
   },
 ];
 
-const testimonials = [
+const faqs = [
   {
-    name: "Sarah M.",
-    role: "Marketing Manager",
-    company: "TechStart GmbH",
-    text: "Mit Trichterwerk haben wir unsere Lead-Generierung verdreifacht. Der Drag & Drop Builder ist unglaublich intuitiv.",
-    rating: 5,
+    q: "Was ist im 14-tägigen Trial enthalten?",
+    a: "Volle Pro-Features — unbegrenzte Funnels, alle Templates, Analytics, Conditional Logic, eigene Domain. Zwei Wochen lang testen, bevor dir etwas berechnet wird.",
   },
   {
-    name: "Thomas K.",
-    role: "Geschäftsführer",
-    company: "Consulting Plus",
-    text: "Endlich ein Tool, das auch auf dem Handy perfekt funktioniert. Unsere Conversion-Rate ist um 40% gestiegen.",
-    rating: 5,
+    q: "Brauche ich zum Start eine Kreditkarte?",
+    a: "Ja — wir hinterlegen deine Zahlungsmethode direkt zum Start über Stripe (PayPal, Kreditkarte, SEPA), belasten aber erst nach den 14 Tagen. Du kannst jederzeit vorher kündigen, ohne Kosten.",
   },
   {
-    name: "Lisa B.",
-    role: "HR Director",
-    company: "Future Talents",
-    text: "Der Recruiting-Funnel hat unseren Bewerbungsprozess revolutioniert. Schneller, einfacher, besser.",
-    rating: 5,
+    q: "Kann ich jederzeit kündigen?",
+    a: "Ja. Der Pro-Plan ist monatlich kündbar. Keine Mindestlaufzeit, keine Kündigungsgebühren. Kündigung direkt im Stripe-Kundenportal in deinen Einstellungen.",
+  },
+  {
+    q: "Brauche ich technische Vorkenntnisse?",
+    a: "Nein. Wenn du eine E-Mail schreiben kannst, kannst du Trichterwerk bedienen. Drag & Drop, fertige Templates, deutsche Oberfläche. Kein HTML, kein CSS, kein Hosting-Setup.",
+  },
+  {
+    q: "Wo werden meine Daten und Leads gespeichert?",
+    a: "Auf Servern in der EU, DSGVO-konform. Deine Leads gehören dir — jederzeit als CSV exportierbar. Kein Weiterverkauf, keine Datenweitergabe.",
+  },
+  {
+    q: "Wie funktioniert „Eigene Domain“?",
+    a: "Du hinterlegst deine Domain (z. B. funnel.deine-firma.de) in den Einstellungen, trägst einen CNAME bei deinem Provider ein — fertig. SSL-Zertifikat automatisch.",
+  },
+  {
+    q: "Kann ich meinen Plan später wechseln?",
+    a: "Ja — Upgrade jederzeit direkt im Dashboard. Downgrade oder Kündigung über das Stripe-Kundenportal.",
+  },
+  {
+    q: "Welche Zahlungsmethoden werden akzeptiert?",
+    a: "Kreditkarte (Visa, Mastercard, Amex), PayPal, SEPA-Lastschrift — alles abgewickelt über Stripe mit SSL-Verschlüsselung.",
   },
 ];
 
@@ -175,13 +259,13 @@ export default function Landing() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img 
-              src="/images/logo-icon.webp" 
-              alt="Trichterwerk Logo" 
+            <img
+              src="/images/logo-icon.webp"
+              alt="Trichterwerk Logo"
               className="h-9 w-9 rounded-lg"
               onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                e.currentTarget.style.display = "none";
+                e.currentTarget.nextElementSibling?.classList.remove("hidden");
               }}
             />
             <div className="hidden flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -199,13 +283,16 @@ export default function Landing() {
             <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors">
               Preise
             </a>
+            <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors">
+              FAQ
+            </a>
           </nav>
           <div className="flex items-center gap-3">
             <Link href="/login">
               <Button variant="ghost">Anmelden</Button>
             </Link>
             <Link href="/register">
-              <Button>Kostenlos starten</Button>
+              <Button>14 Tage testen</Button>
             </Link>
           </div>
         </div>
@@ -216,15 +303,17 @@ export default function Landing() {
         <div className="container mx-auto text-center max-w-4xl">
           <Badge variant="secondary" className="mb-6">
             <Sparkles className="h-3 w-3 mr-1" />
-            Jetzt mit 14 Tagen kostenlos testen
+            Made in Germany · DSGVO-konform · Hosting in der EU
           </Badge>
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
-            Erstelle Funnels, die{" "}
-            <span className="text-primary">konvertieren</span>
+            Funnels, die{" "}
+            <span className="text-primary">verkaufen</span>.
+            <br className="hidden md:block" />
+            Ohne Code. Ohne Agentur.
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Mit Trichterwerk erstellst du in Minuten mobile-optimierte Marketing-Funnels,
-            die Besucher in Kunden verwandeln. Ohne Programmierkenntnisse.
+            Der deutsche Funnel-Builder für Coaches, Berater und Agenturen —
+            mobile-optimierte Landingpages und Lead-Funnels in Minuten live.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/register">
@@ -235,33 +324,24 @@ export default function Landing() {
             </Link>
             <a href="#features">
               <Button size="lg" variant="outline" className="text-lg px-8">
-                Mehr erfahren
+                Features ansehen
               </Button>
             </a>
           </div>
-          <div className="flex flex-col items-center gap-2 mt-4">
-            <p className="text-sm text-muted-foreground">Sichere Zahlung mit</p>
-            <div className="flex items-center gap-4">
-              {/* PayPal */}
-              <svg className="h-6" viewBox="0 0 101 32" fill="currentColor" opacity="0.6">
-                <path d="M12.237 4.574H4.726a.937.937 0 00-.926.79L.875 26.078a.562.562 0 00.555.65h3.588a.937.937 0 00.926-.79l.79-5.012a.937.937 0 01.926-.79h2.134c4.447 0 7.012-2.153 7.685-6.42.303-1.866.012-3.332-.864-4.358-.963-1.127-2.672-1.784-4.378-1.784zm.78 6.323c-.37 2.424-2.22 2.424-4.012 2.424H7.87l.715-4.527a.562.562 0 01.555-.474h.534c1.22 0 2.373 0 2.967.696.355.415.462 1.032.376 1.881z"/>
-                <path d="M35.865 10.78h-3.6a.562.562 0 00-.554.474l-.158 1.005-.252-.365c-.778-1.13-2.512-1.507-4.243-1.507-3.97 0-7.362 3.007-8.022 7.226-.343 2.103.144 4.113 1.337 5.514 1.095 1.287 2.66 1.823 4.524 1.823 3.198 0 4.97-2.055 4.97-2.055l-.16.997a.562.562 0 00.555.65h3.24a.937.937 0 00.926-.79l1.944-12.323a.562.562 0 00-.555-.65zm-5.006 6.993c-.346 2.05-1.97 3.427-4.045 3.427-1.042 0-1.875-.335-2.41-.968-.532-.63-.732-1.527-.563-2.524.322-2.032 1.97-3.456 4.012-3.456 1.02 0 1.848.338 2.395.978.55.645.767 1.548.611 2.543z"/>
-                <path d="M55.467 10.78h-3.616a.937.937 0 00-.774.41l-4.47 6.583-1.894-6.328a.937.937 0 00-.898-.665h-3.554a.562.562 0 00-.532.746l3.568 10.47-3.356 4.737a.562.562 0 00.46.886h3.612a.937.937 0 00.77-.402l10.779-15.564a.562.562 0 00-.46-.873z"/>
-                <path d="M67.337 4.574h-7.51a.937.937 0 00-.927.79l-2.925 18.537a.562.562 0 00.555.65h3.85a.656.656 0 00.648-.553l.83-5.249a.937.937 0 01.926-.79h2.134c4.447 0 7.012-2.153 7.685-6.42.303-1.866.012-3.332-.864-4.358-.963-1.127-2.672-1.784-4.378-1.784zm.78 6.323c-.37 2.424-2.22 2.424-4.012 2.424h-1.137l.715-4.527a.562.562 0 01.555-.474h.534c1.22 0 2.373 0 2.968.696.354.415.462 1.032.375 1.881z"/>
-                <path d="M90.965 10.78h-3.6a.562.562 0 00-.555.474l-.158 1.005-.25-.365c-.78-1.13-2.514-1.507-4.245-1.507-3.97 0-7.362 3.007-8.022 7.226-.343 2.103.144 4.113 1.337 5.514 1.095 1.287 2.66 1.823 4.524 1.823 3.198 0 4.97-2.055 4.97-2.055l-.16.997a.562.562 0 00.555.65h3.24a.937.937 0 00.927-.79l1.943-12.323a.562.562 0 00-.555-.65zm-5.007 6.993c-.345 2.05-1.97 3.427-4.044 3.427-1.042 0-1.876-.335-2.41-.968-.532-.63-.733-1.527-.563-2.524.322-2.032 1.97-3.456 4.012-3.456 1.02 0 1.848.338 2.395.978.55.645.766 1.548.61 2.543z"/>
-                <path d="M95.897 5.018l-2.97 18.885a.562.562 0 00.554.65h3.1a.937.937 0 00.926-.79l2.927-18.537a.562.562 0 00-.555-.65h-3.427a.562.562 0 00-.555.442z"/>
-              </svg>
-              {/* Visa */}
-              <svg className="h-5" viewBox="0 0 48 16" fill="currentColor" opacity="0.6">
-                <path d="M19.318 0l-3.575 15.33h-3.575L15.743 0h3.575zm14.327 9.892l1.88-5.184.543 2.592.994 2.592h-3.417zm3.977 5.438h3.303L38.17 0h-2.967a1.49 1.49 0 00-1.392.928l-4.903 14.402h3.432l.682-1.888h4.19l.11 1.888zm-8.775-5c.015-3.954-5.468-4.172-5.432-5.938.012-.537.524-1.108 1.644-1.254a7.312 7.312 0 013.83.672l.682-3.186A10.437 10.437 0 0026.078 0c-3.23 0-5.504 1.718-5.523 4.178-.02 1.818 1.622 2.832 2.86 3.436 1.274.618 1.702 1.014 1.696 1.567-.008.846-1.016 1.22-1.957 1.234-1.644.026-2.598-.444-3.358-.8l-.593 2.772c.764.35 2.174.656 3.638.67 3.434 0 5.68-1.696 5.691-4.327zM14.14 0L8.56 15.33H5.01L2.278 2.72C2.118 2.042 1.978 1.79 1.46 1.51 0.612 1.05 0 .77 0 .77l.06-.29h5.556c.71 0 1.347.472 1.51 1.29l1.375 7.306L11.872 0H14.14z"/>
-              </svg>
-              {/* Mastercard */}
-              <svg className="h-5" viewBox="0 0 32 20" fill="currentColor" opacity="0.6">
-                <circle cx="10" cy="10" r="10" fillOpacity="0.8"/>
-                <circle cx="22" cy="10" r="10" fillOpacity="0.6"/>
-              </svg>
-              {/* Amex */}
-              <span className="text-xs font-bold opacity-60">AMEX</span>
+
+          {/* Trust chips */}
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-8 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              <span>14 Tage gratis testen</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Lock className="h-4 w-4 text-primary" />
+              <span>Monatlich kündbar</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Server className="h-4 w-4 text-primary" />
+              <span>Stripe-gesicherte Zahlung</span>
             </div>
           </div>
         </div>
@@ -284,26 +364,30 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-12 border-y bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <div>
-              <div className="text-3xl md:text-4xl font-bold text-primary">10k+</div>
-              <div className="text-muted-foreground">Erstellte Funnels</div>
-            </div>
-            <div>
-              <div className="text-3xl md:text-4xl font-bold text-primary">500k+</div>
-              <div className="text-muted-foreground">Gesammelte Leads</div>
-            </div>
-            <div>
-              <div className="text-3xl md:text-4xl font-bold text-primary">98%</div>
-              <div className="text-muted-foreground">Zufriedene Kunden</div>
-            </div>
-            <div>
-              <div className="text-3xl md:text-4xl font-bold text-primary">4.9/5</div>
-              <div className="text-muted-foreground">Bewertung</div>
-            </div>
+      {/* Für wen? */}
+      <section className="py-20 px-4 border-y bg-muted/30">
+        <div className="container mx-auto">
+          <div className="text-center mb-12">
+            <Badge variant="secondary" className="mb-4">Für wen?</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              Gebaut für Macher, nicht für Entwickler
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Wenn du heute launchen willst statt in zwei Wochen, bist du hier richtig.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {personas.map((p) => (
+              <Card key={p.title} className="text-center">
+                <CardHeader>
+                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 mx-auto">
+                    <p.icon className="h-6 w-6 text-primary" />
+                  </div>
+                  <CardTitle className="text-xl">{p.title}</CardTitle>
+                  <CardDescription className="text-base">{p.description}</CardDescription>
+                </CardHeader>
+              </Card>
+            ))}
           </div>
         </div>
       </section>
@@ -314,23 +398,25 @@ export default function Landing() {
           <div className="text-center mb-16">
             <Badge variant="secondary" className="mb-4">Features</Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Alles was du brauchst, um Leads zu gewinnen
+              Alles drin, was moderne Funnels brauchen
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Trichterwerk bietet dir alle Werkzeuge, um professionelle Marketing-Funnels zu erstellen -
-              ohne technisches Know-how.
+              Keine versteckten Limits, keine Add-ons. Was du hier siehst, ist im Pro-Plan enthalten.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature) => (
-              <Card key={feature.title} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden">
+              <Card
+                key={feature.title}
+                className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden"
+              >
                 {feature.image && (
                   <div className="h-40 overflow-hidden bg-muted">
                     <picture>
                       <source srcSet={feature.image} type="image/webp" />
                       <img
-                        src={feature.image.replace('.webp', '.png')}
+                        src={feature.image.replace(".webp", ".png")}
                         alt={feature.title}
                         width={800}
                         height={533}
@@ -345,9 +431,7 @@ export default function Landing() {
                     <feature.icon className="h-6 w-6 text-primary" />
                   </div>
                   <CardTitle className="text-xl">{feature.title}</CardTitle>
-                  <CardDescription className="text-base">
-                    {feature.description}
-                  </CardDescription>
+                  <CardDescription className="text-base">{feature.description}</CardDescription>
                 </CardHeader>
               </Card>
             ))}
@@ -355,17 +439,37 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* So einfach geht's */}
+      <section className="py-20 px-4 bg-muted/30 border-y">
+        <div className="container mx-auto">
+          <div className="text-center mb-16">
+            <Badge variant="secondary" className="mb-4">In 4 Schritten live</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              Vom Signup zum ersten Lead in unter einer Stunde
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+            {steps.map((step) => (
+              <div key={step.number} className="relative">
+                <div className="text-5xl font-bold text-primary/20 mb-2">{step.number}</div>
+                <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
+                <p className="text-muted-foreground text-sm">{step.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Templates Section */}
-      <section id="templates" className="py-20 px-4 bg-muted/30">
+      <section id="templates" className="py-20 px-4">
         <div className="container mx-auto">
           <div className="text-center mb-16">
             <Badge variant="secondary" className="mb-4">Templates</Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Starte mit professionellen Vorlagen
+              Starte mit bewährten Vorlagen
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Wähle aus unseren bewährten Templates und passe sie an deine Marke an.
-              Jedes Template ist für maximale Conversion optimiert.
+              10 professionell gestaltete Templates — jedes auf Conversion optimiert. Einfach anpassen und launchen.
             </p>
           </div>
 
@@ -382,7 +486,7 @@ export default function Landing() {
                   <picture>
                     <source srcSet={template.image} type="image/webp" />
                     <img
-                      src={template.image.replace('.webp', '.png')}
+                      src={template.image.replace(".webp", ".png")}
                       alt={template.name}
                       width={600}
                       height={400}
@@ -414,134 +518,142 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <Badge variant="secondary" className="mb-4">Kundenstimmen</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Was unsere Kunden sagen
-            </h2>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((testimonial) => (
-              <Card key={testimonial.name} className="relative">
-                <CardContent className="p-6">
-                  <div className="flex gap-1 mb-4">
-                    {Array.from({ length: testimonial.rating }).map((_, i) => (
-                      <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                    ))}
-                  </div>
-                  <p className="text-muted-foreground mb-6">"{testimonial.text}"</p>
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground font-medium">
-                      {testimonial.name.charAt(0)}
-                    </div>
-                    <div>
-                      <div className="font-semibold">{testimonial.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {testimonial.role}, {testimonial.company}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Pricing Section */}
-      <section id="pricing" className="py-20 px-4 bg-muted/30">
+      <section id="pricing" className="py-20 px-4 bg-muted/30 border-y">
         <div className="container mx-auto">
           <div className="text-center mb-16">
             <Badge variant="secondary" className="mb-4">Preise</Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Einfache, transparente Preise
+              Transparente Preise. Keine Überraschungen.
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Starte kostenlos und upgrade wenn du bereit bist.
-              Keine versteckten Kosten, keine Überraschungen.
+              Ein fairer Preis für alle Features. Monatlich kündbar. 14 Tage gratis testen.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
             {pricingPlans.map((plan) => (
               <Card
                 key={plan.name}
-                className={`relative ${plan.popular ? "border-primary shadow-lg scale-105" : ""}`}
+                className={`relative flex flex-col ${
+                  plan.popular ? "border-primary shadow-lg md:scale-105" : ""
+                }`}
               >
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                     <Badge className="bg-primary">Beliebteste Wahl</Badge>
                   </div>
                 )}
-                <CardHeader className="text-center pb-2">
-                  <CardTitle className="text-xl">{plan.name}</CardTitle>
+                <CardHeader className="text-center pb-4">
+                  <CardTitle className="text-2xl">{plan.name}</CardTitle>
                   <CardDescription>{plan.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="text-center">
-                  <div className="mb-6">
-                    <span className="text-4xl font-bold">{plan.price}€</span>
-                    <span className="text-muted-foreground">/Monat</span>
+                  <div className="mt-4">
+                    <span className="text-4xl font-bold">{plan.price}</span>
+                    {plan.priceSuffix && (
+                      <span className="text-muted-foreground ml-1">{plan.priceSuffix}</span>
+                    )}
                   </div>
-                  <ul className="space-y-3 mb-6 text-left">
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col">
+                  <ul className="space-y-3 mb-6 text-left flex-1">
                     {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-primary shrink-0" />
+                      <li key={feature} className="flex items-start gap-2">
+                        <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                         <span className="text-sm">{feature}</span>
                       </li>
                     ))}
                   </ul>
-                  <Link href="/register">
-                    <Button
-                      className="w-full"
-                      variant={plan.popular ? "default" : "outline"}
-                    >
-                      {plan.cta}
-                    </Button>
-                  </Link>
+                  {plan.ctaHref.startsWith("mailto:") ? (
+                    <a href={plan.ctaHref}>
+                      <Button className="w-full" variant={plan.popular ? "default" : "outline"}>
+                        {plan.cta}
+                      </Button>
+                    </a>
+                  ) : (
+                    <Link href={plan.ctaHref}>
+                      <Button className="w-full" variant={plan.popular ? "default" : "outline"}>
+                        {plan.cta}
+                      </Button>
+                    </Link>
+                  )}
+                  {plan.note && (
+                    <p className="text-xs text-muted-foreground text-center mt-3">{plan.note}</p>
+                  )}
                 </CardContent>
               </Card>
             ))}
           </div>
+
+          {/* Pricing footer */}
+          <div className="max-w-3xl mx-auto mt-10 text-center space-y-2 text-sm text-muted-foreground">
+            <p>
+              Alle Preise netto zzgl. 19&nbsp;% MwSt. · Monatlich kündbar · Keine Setup-Gebühr
+            </p>
+            <p>
+              Unsicher, welcher Plan passt?{" "}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="underline hover:text-foreground">
+                Schreib uns
+              </a>{" "}
+              — wir melden uns innerhalb eines Werktags.
+            </p>
+          </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 px-4">
+      {/* FAQ Section */}
+      <section id="faq" className="py-20 px-4">
+        <div className="container mx-auto max-w-3xl">
+          <div className="text-center mb-12">
+            <Badge variant="secondary" className="mb-4">FAQ</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Häufige Fragen</h2>
+            <p className="text-muted-foreground">
+              Fehlt etwas?{" "}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="underline hover:text-foreground">
+                Schreib uns eine E-Mail
+              </a>
+              .
+            </p>
+          </div>
+          <Accordion type="single" collapsible className="w-full">
+            {faqs.map((faq, idx) => (
+              <AccordionItem key={idx} value={`item-${idx}`}>
+                <AccordionTrigger className="text-left">{faq.q}</AccordionTrigger>
+                <AccordionContent className="text-muted-foreground">{faq.a}</AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </div>
+      </section>
+
+      {/* Final CTA Section */}
+      <section className="py-20 px-4 bg-muted/30 border-t">
         <div className="container mx-auto max-w-4xl">
-          <Card className="bg-primary text-primary-foreground">
+          <Card className="bg-primary text-primary-foreground overflow-hidden">
             <CardContent className="p-12 text-center">
               <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                Bereit, mehr Leads zu generieren?
+                Bereit für deinen nächsten Funnel?
               </h2>
-              <p className="text-primary-foreground/80 max-w-2xl mx-auto mb-6">
-                Starte jetzt kostenlos und erstelle deinen ersten Funnel in weniger als 5 Minuten.
+              <p className="text-primary-foreground/85 max-w-2xl mx-auto mb-8">
+                Starte jetzt mit 14 Tagen Pro-Zugang. Keine Mindestlaufzeit. Kündigung mit zwei Klicks.
               </p>
-              <div className="flex items-center justify-center gap-4 mb-6 opacity-80">
-                {/* PayPal */}
-                <svg className="h-5 text-primary-foreground" viewBox="0 0 101 32" fill="currentColor">
-                  <path d="M12.237 4.574H4.726a.937.937 0 00-.926.79L.875 26.078a.562.562 0 00.555.65h3.588a.937.937 0 00.926-.79l.79-5.012a.937.937 0 01.926-.79h2.134c4.447 0 7.012-2.153 7.685-6.42.303-1.866.012-3.332-.864-4.358-.963-1.127-2.672-1.784-4.378-1.784zm.78 6.323c-.37 2.424-2.22 2.424-4.012 2.424H7.87l.715-4.527a.562.562 0 01.555-.474h.534c1.22 0 2.373 0 2.967.696.355.415.462 1.032.376 1.881z"/>
-                </svg>
-                {/* Visa */}
-                <svg className="h-4 text-primary-foreground" viewBox="0 0 48 16" fill="currentColor">
-                  <path d="M19.318 0l-3.575 15.33h-3.575L15.743 0h3.575zm14.327 9.892l1.88-5.184.543 2.592.994 2.592h-3.417z"/>
-                </svg>
-                {/* Mastercard circles */}
-                <div className="flex -space-x-2">
-                  <div className="w-4 h-4 rounded-full bg-primary-foreground/60"></div>
-                  <div className="w-4 h-4 rounded-full bg-primary-foreground/40"></div>
-                </div>
-                <span className="text-xs font-bold text-primary-foreground">AMEX</span>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link href="/register">
+                  <Button size="lg" variant="secondary" className="gap-2 text-lg px-8">
+                    14 Tage kostenlos testen
+                    <ArrowRight className="h-5 w-5" />
+                  </Button>
+                </Link>
+                <a href={`mailto:${CONTACT_EMAIL}?subject=Demo-Anfrage`}>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="gap-2 text-lg px-8 bg-transparent border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
+                  >
+                    <Headphones className="h-5 w-5" />
+                    Demo anfragen
+                  </Button>
+                </a>
               </div>
-              <Link href="/register">
-                <Button size="lg" variant="secondary" className="gap-2 text-lg px-8">
-                  14 Tage kostenlos testen
-                  <ArrowRight className="h-5 w-5" />
-                </Button>
-              </Link>
             </CardContent>
           </Card>
         </div>
@@ -553,13 +665,13 @@ export default function Landing() {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
               <Link href="/" className="flex items-center gap-2 mb-4">
-                <img 
-                  src="/images/logo-icon.webp" 
-                  alt="Trichterwerk Logo" 
+                <img
+                  src="/images/logo-icon.webp"
+                  alt="Trichterwerk Logo"
                   className="h-8 w-8 rounded-lg"
                   onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                    e.currentTarget.style.display = "none";
+                    e.currentTarget.nextElementSibling?.classList.remove("hidden");
                   }}
                 />
                 <div className="hidden flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -568,7 +680,7 @@ export default function Landing() {
                 <span className="text-lg font-bold">Trichterwerk</span>
               </Link>
               <p className="text-sm text-muted-foreground">
-                Der einfachste Weg, mobile-optimierte Marketing-Funnels zu erstellen.
+                Der deutsche Funnel-Builder für Coaches, Berater und Agenturen.
               </p>
             </div>
             <div>
@@ -577,24 +689,30 @@ export default function Landing() {
                 <li><a href="#features" className="hover:text-foreground">Features</a></li>
                 <li><a href="#templates" className="hover:text-foreground">Templates</a></li>
                 <li><a href="#pricing" className="hover:text-foreground">Preise</a></li>
+                <li><a href="#faq" className="hover:text-foreground">FAQ</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Produkt</h4>
+              <h4 className="font-semibold mb-4">Account</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#features" className="hover:text-foreground">Features</a></li>
-                <li><a href="#pricing" className="hover:text-foreground">Preise</a></li>
                 <li><Link href="/register" className="hover:text-foreground">Kostenlos testen</Link></li>
+                <li><Link href="/login" className="hover:text-foreground">Anmelden</Link></li>
+                <li>
+                  <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-foreground flex items-center gap-1">
+                    <Mail className="h-3 w-3" />
+                    Kontakt
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Legal</h4>
+              <h4 className="font-semibold mb-4">Rechtliches</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link href="/impressum" className="hover:text-foreground">Impressum</Link></li>
                 <li><Link href="/datenschutz" className="hover:text-foreground">Datenschutz</Link></li>
                 <li>
-                  <button 
-                    onClick={resetCookieConsent} 
+                  <button
+                    onClick={resetCookieConsent}
                     className="hover:text-foreground flex items-center gap-1"
                   >
                     <Cookie className="h-3 w-3" />
@@ -605,7 +723,17 @@ export default function Landing() {
             </div>
           </div>
           <div className="pt-8 border-t text-center text-sm text-muted-foreground">
-            <p>&copy; {new Date().getFullYear()} Trichterwerk · Ein Produkt von <a href="https://superbrand.marketing" target="_blank" rel="noopener noreferrer" className="hover:text-foreground underline">SUPERBRAND.marketing</a></p>
+            <p>
+              &copy; {new Date().getFullYear()} Trichterwerk · Ein Produkt von{" "}
+              <a
+                href="https://superbrand.marketing"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground underline"
+              >
+                SUPERBRAND.marketing
+              </a>
+            </p>
           </div>
         </div>
       </footer>
