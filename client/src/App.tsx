@@ -9,6 +9,7 @@ import { TopNavigation } from "@/components/top-navigation";
 import { EmailVerificationBanner } from "@/components/email-verification-banner";
 import { AuthProvider, RequireAuth, useAuth } from "@/hooks/use-auth";
 import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
+import { useGlobalBodyLockGuard } from "@/hooks/use-ensure-body-unlocked";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Funnels from "@/pages/funnels";
@@ -170,17 +171,27 @@ function Router() {
   );
 }
 
+function AppShell() {
+  // Globale Bremse gegen hängengebliebene Radix-Body-Locks
+  // (pointer-events:none / overflow:hidden / data-scroll-locked).
+  useGlobalBodyLockGuard();
+
+  return (
+    <ErrorBoundary fallbackTitle="Ein unerwarteter Fehler ist aufgetreten">
+      <Toaster />
+      <Router />
+      <CookieConsent />
+    </ErrorBoundary>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="trichterwerk-theme">
         <TooltipProvider>
           <AuthProvider>
-            <ErrorBoundary fallbackTitle="Ein unerwarteter Fehler ist aufgetreten">
-              <Toaster />
-              <Router />
-              <CookieConsent />
-            </ErrorBoundary>
+            <AppShell />
           </AuthProvider>
         </TooltipProvider>
       </ThemeProvider>
