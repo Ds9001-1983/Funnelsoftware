@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface UpgradeBannerProps {
   variant: "warning" | "expired" | "inline" | "payment-required";
@@ -31,10 +32,7 @@ export function UpgradeBanner({ variant }: UpgradeBannerProps) {
   const handleUpgrade = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/billing/create-checkout", {
-        method: "POST",
-        credentials: "include",
-      });
+      const res = await apiRequest("POST", "/api/billing/create-checkout");
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;

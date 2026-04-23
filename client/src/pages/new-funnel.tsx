@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, ApiError } from "@/lib/queryClient";
 import { defaultTemplates, createBlankFunnel, type ClientTemplate } from "@/lib/templates";
 import type { InsertFunnel } from "@shared/schema";
 
@@ -118,7 +118,11 @@ export default function NewFunnel() {
       });
       navigate(`/funnels/${funnel.id}`);
     },
-    onError: () => {
+    onError: (error) => {
+      // Globaler Handler übernimmt bekannte Plan-/Email-Fehler (TRIAL_EXPIRED, EMAIL_NOT_VERIFIED)
+      if (error instanceof ApiError && (error.code === "TRIAL_EXPIRED" || error.code === "EMAIL_NOT_VERIFIED")) {
+        return;
+      }
       toast({
         title: "Fehler",
         description: "Der Funnel konnte nicht erstellt werden.",
