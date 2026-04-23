@@ -59,6 +59,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useEnsureBodyUnlocked } from "@/hooks/use-ensure-body-unlocked";
 
 interface AdminUser {
   id: number;
@@ -108,6 +109,8 @@ export default function AdminDashboard() {
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  useEnsureBodyUnlocked(showDeleteDialog || showEditDialog);
 
   const pageSize = 20;
 
@@ -203,7 +206,10 @@ export default function AdminDashboard() {
     },
   });
 
-  // Delete user mutation
+  // Delete user mutation — kein Optimistic Update in `onMutate`, weil der
+  // Re-Render während der Radix-Dialog-Exit-Animation den Body-Pointer-Lock
+  // hängen lässt. `onSettled` invalidiert die Liste sauber, wenn der Dialog
+  // garantiert zu ist.
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: number) => {
       const res = await fetch(`/api/admin/users/${userId}`, {
@@ -212,25 +218,11 @@ export default function AdminDashboard() {
       if (!res.ok) throw new Error("Delete failed");
       return res.json();
     },
-    onMutate: async (deletedId) => {
-      await queryClient.cancelQueries({ queryKey: ["/api/admin/users"] });
-      const previous = queryClient.getQueryData<{ users: AdminUser[]; total: number }>(["/api/admin/users", currentPage, searchQuery]);
-      queryClient.setQueryData<{ users: AdminUser[]; total: number }>(
-        ["/api/admin/users", currentPage, searchQuery],
-        (old) => old ? { users: old.users.filter((u) => u.id !== deletedId), total: old.total - 1 } : { users: [], total: 0 }
-      );
-      setShowDeleteDialog(false);
-      setSelectedUser(null);
-      return { previous };
-    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       toast({ title: "Benutzer gelöscht" });
     },
-    onError: (_err, _id, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(["/api/admin/users", currentPage, searchQuery], context.previous);
-      }
+    onError: () => {
       toast({ title: "Fehler beim Löschen", variant: "destructive" });
     },
     onSettled: () => {
@@ -714,9 +706,10 @@ export default function AdminDashboard() {
             <Button
               variant="destructive"
               onClick={() => {
-                if (selectedUser) {
-                  deleteUserMutation.mutate(selectedUser.id);
-                }
+                if (!selectedUser) return;
+                deleteUserMutation.mutate(selectedUser.id);
+                setShowDeleteDialog(false);
+                setSelectedUser(null);
               }}
             >
               Endgültig löschen

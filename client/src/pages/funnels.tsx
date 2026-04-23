@@ -48,6 +48,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { useEnsureBodyUnlocked } from "@/hooks/use-ensure-body-unlocked";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Funnel } from "@shared/schema";
 
@@ -275,24 +276,20 @@ export default function Funnels() {
   const [deleteTarget, setDeleteTarget] = useState<Funnel | null>(null);
   const { toast } = useToast();
 
+  useEnsureBodyUnlocked(!!deleteTarget);
+
   const { data: funnels, isLoading } = useQuery<Funnel[]>({
     queryKey: ["/api/funnels"],
   });
 
+  // Kein Optimistic Update in `onMutate`: Ein `setQueryData` während der
+  // Radix-Dialog-Exit-Animation führte zu hängendem `pointer-events: none`
+  // am <body> — die Seite fror ein, bis der User neu lud. `onSettled` macht
+  // den Refresh sauber, nachdem der Dialog längst geschlossen ist.
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/funnels/${id}`);
       return id;
-    },
-    onMutate: async (deletedId) => {
-      // Optimistic Update: Funnel sofort aus der Liste entfernen
-      await queryClient.cancelQueries({ queryKey: ["/api/funnels"] });
-      const previous = queryClient.getQueryData<Funnel[]>(["/api/funnels"]);
-      queryClient.setQueryData<Funnel[]>(["/api/funnels"], (old) =>
-        old ? old.filter((f) => f.id !== deletedId) : []
-      );
-      setDeleteTarget(null);
-      return { previous };
     },
     onSuccess: (_data, deletedId) => {
       toast({
@@ -315,11 +312,7 @@ export default function Funnels() {
         ),
       });
     },
-    onError: (_err, _id, context) => {
-      // Rollback bei Fehler
-      if (context?.previous) {
-        queryClient.setQueryData(["/api/funnels"], context.previous);
-      }
+    onError: () => {
       toast({
         title: "Fehler",
         description: "Der Funnel konnte nicht gelöscht werden.",
@@ -465,11 +458,9 @@ export default function Funnels() {
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
-                if (deleteTarget) {
-                  const id = deleteTarget.id;
-                  setDeleteTarget(null);
-                  setTimeout(() => deleteMutation.mutate(id), 0);
-                }
+                if (!deleteTarget) return;
+                deleteMutation.mutate(deleteTarget.id);
+                setDeleteTarget(null);
               }}
             >
               Endgültig löschen

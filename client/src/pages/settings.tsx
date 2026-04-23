@@ -480,24 +480,34 @@ function TeamSettings() {
 
   const isEnterprise = user?.isPro || user?.subscriptionPlan === "enterprise";
 
-  const fetchTeams = async () => {
+  const fetchTeams = async (signal?: AbortSignal) => {
     try {
-      const res = await fetch("/api/teams", { credentials: "include" });
+      const res = await fetch("/api/teams", { credentials: "include", signal });
       if (res.ok) setTeams(await res.json());
-    } catch {} finally { setIsLoading(false); }
+    } catch (err) {
+      if ((err as Error).name === "AbortError") return;
+    } finally {
+      if (!signal?.aborted) setIsLoading(false);
+    }
   };
 
-  const fetchMembers = async (teamId: number) => {
+  const fetchMembers = async (teamId: number, signal?: AbortSignal) => {
     try {
-      const res = await fetch(`/api/teams/${teamId}/members`, { credentials: "include" });
+      const res = await fetch(`/api/teams/${teamId}/members`, { credentials: "include", signal });
       if (res.ok) {
         const data = await res.json();
         setMembers(prev => ({ ...prev, [teamId]: data }));
       }
-    } catch {}
+    } catch (err) {
+      if ((err as Error).name === "AbortError") return;
+    }
   };
 
-  useEffect(() => { fetchTeams(); }, []);
+  useEffect(() => {
+    const ac = new AbortController();
+    fetchTeams(ac.signal);
+    return () => ac.abort();
+  }, []);
 
   const createTeam = async () => {
     if (!newTeamName.trim()) return;
@@ -647,14 +657,22 @@ function ApiKeySettings() {
 
   const isEnterprise = user?.isPro || user?.subscriptionPlan === "enterprise";
 
-  const fetchKeys = async () => {
+  const fetchKeys = async (signal?: AbortSignal) => {
     try {
-      const res = await fetch("/api/api-keys", { credentials: "include" });
+      const res = await fetch("/api/api-keys", { credentials: "include", signal });
       if (res.ok) setKeys(await res.json());
-    } catch {} finally { setIsLoading(false); }
+    } catch (err) {
+      if ((err as Error).name === "AbortError") return;
+    } finally {
+      if (!signal?.aborted) setIsLoading(false);
+    }
   };
 
-  useEffect(() => { fetchKeys(); }, []);
+  useEffect(() => {
+    const ac = new AbortController();
+    fetchKeys(ac.signal);
+    return () => ac.abort();
+  }, []);
 
   const createKey = async () => {
     if (!newKeyName.trim()) return;
