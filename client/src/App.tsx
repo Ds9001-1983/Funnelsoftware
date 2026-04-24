@@ -22,6 +22,7 @@ import ResetPassword from "@/pages/reset-password";
 import VerifyEmail from "@/pages/verify-email";
 import Impressum from "@/pages/impressum";
 import Datenschutz from "@/pages/datenschutz";
+import AGB from "@/pages/agb";
 import { CookieConsent } from "@/components/cookie-consent";
 
 // Lazy-loaded pages for code-splitting
@@ -123,6 +124,9 @@ function Router() {
   }
   if (location === "/datenschutz") {
     return <Datenschutz />;
+  }
+  if (location === "/agb" || location === "/nutzungsbedingungen") {
+    return <AGB />;
   }
 
   // Full-screen pages without sidebar (but protected)
