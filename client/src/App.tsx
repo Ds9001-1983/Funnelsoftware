@@ -85,6 +85,17 @@ function Router() {
     );
   }
 
+  // Preview mode für Owner (auth, zeigt auch Drafts)
+  if (location.startsWith("/preview/")) {
+    return (
+      <RequireAuth>
+        <Suspense fallback={<PageLoader />}>
+          <PublicFunnelView />
+        </Suspense>
+      </RequireAuth>
+    );
+  }
+
   // Landing page for non-authenticated users
   if (location === "/" && !isAuthenticated) {
     return <Landing />;

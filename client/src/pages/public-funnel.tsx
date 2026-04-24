@@ -1,7 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
-import { useParams } from "wouter";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useLocation, Link } from "wouter";
 import confetti from "canvas-confetti";
-import { Loader2, AlertCircle, ChevronRight, ChevronLeft } from "lucide-react";
+import {
+  Loader2,
+  AlertCircle,
+  ChevronRight,
+  ChevronLeft,
+  Eye,
+  RefreshCw,
+  ArrowLeft,
+} from "lucide-react";
 
 // Inject slide animation keyframes
 const slideStyles = document.createElement("style");
@@ -113,7 +121,14 @@ function applyVariantOverrides(
 }
 
 export default function PublicFunnelView() {
-  const params = useParams<{ uuid: string }>();
+  const [location] = useLocation();
+  // Preview-Mode wenn Route /preview/:id ist (nur für eingeloggte Owner)
+  const isPreviewMode = location.startsWith("/preview/");
+  // ID/UUID aus der Pfad-URL extrahieren (/f/:uuid oder /preview/:id)
+  const params = {
+    uuid: location.replace(/^\/(f|preview)\//, "").split(/[/?#]/)[0],
+  };
+
   const [funnel, setFunnel] = useState<PublicFunnel | null>(null);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [slideDirection, setSlideDirection] = useState<"left" | "right">("left");
@@ -121,6 +136,7 @@ export default function PublicFunnelView() {
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [viewTracked, setViewTracked] = useState(false);
@@ -128,40 +144,77 @@ export default function PublicFunnelView() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [variantAssignments, setVariantAssignments] = useState<Record<string, string>>({});
 
-  // Fetch funnel data
+  // Fetch funnel data (public ODER preview, je nach Route)
   useEffect(() => {
+    if (!params.uuid) return;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s Timeout
+
     async function loadFunnel() {
+      setIsLoading(true);
+      setError(null);
       try {
-        const res = await fetch(`/api/public/funnels/${params.uuid}`);
+        const url = isPreviewMode
+          ? `/api/funnels/${params.uuid}/preview`
+          : `/api/public/funnels/${params.uuid}`;
+
+        const res = await fetch(url, {
+          credentials: isPreviewMode ? "include" : "same-origin",
+          signal: controller.signal,
+        });
+
         if (!res.ok) {
-          if (res.status === 404) {
-            setError("Dieser Funnel existiert nicht oder ist nicht veröffentlicht.");
+          if (res.status === 401 || res.status === 403) {
+            setError("Bitte melde dich an, um diese Vorschau zu sehen.");
+          } else if (res.status === 404) {
+            setError(
+              isPreviewMode
+                ? "Funnel nicht gefunden — bitte prüfe die ID."
+                : "Dieser Funnel existiert nicht oder ist nicht veröffentlicht.",
+            );
           } else {
             setError("Funnel konnte nicht geladen werden.");
           }
           return;
         }
-        const data = await res.json();
-        // Versteckte Seiten herausfiltern
-        data.pages = data.pages.filter((p: FunnelPage) => !p.hidden);
 
-        // A/B-Test Varianten anwenden
+        const data = await res.json();
+        // Versteckte Seiten herausfiltern (Preview zeigt Owner auch versteckte — Audit-freundlich)
+        if (!isPreviewMode) {
+          data.pages = data.pages.filter((p: FunnelPage) => !p.hidden);
+        }
+
+        // A/B-Test Varianten anwenden (nur public, nicht im Preview)
         const activeTests: ABTest[] = data.abTests || [];
-        if (activeTests.length > 0) {
+        if (!isPreviewMode && activeTests.length > 0) {
           const assignments = getVariantAssignments(data.uuid, activeTests);
           data.pages = applyVariantOverrides(data.pages, activeTests, assignments);
           setVariantAssignments(assignments);
         }
 
         setFunnel(data);
-      } catch {
-        setError("Verbindungsfehler. Bitte versuche es später erneut.");
+      } catch (err: unknown) {
+        if ((err as Error)?.name === "AbortError") {
+          setError(
+            "Ladevorgang hat länger als 15 Sekunden gedauert. Bitte versuche es erneut.",
+          );
+        } else {
+          setError("Verbindungsfehler. Bitte versuche es später erneut.");
+        }
       } finally {
+        clearTimeout(timeoutId);
         setIsLoading(false);
       }
     }
-    if (params.uuid) loadFunnel();
-  }, [params.uuid]);
+
+    loadFunnel();
+
+    return () => {
+      controller.abort();
+      clearTimeout(timeoutId);
+    };
+  }, [params.uuid, isPreviewMode, retryNonce]);
 
   // Set page title for SEO + load font
   useEffect(() => {
@@ -197,9 +250,9 @@ export default function PublicFunnelView() {
     }
   }, []);
 
-  // Track view on first load
+  // Track view on first load (nicht im Preview-Mode — Owner-Tests sollen Stats nicht verfälschen)
   useEffect(() => {
-    if (funnel && !viewTracked) {
+    if (funnel && !viewTracked && !isPreviewMode) {
       setViewTracked(true);
       fetch("/api/public/analytics", {
         method: "POST",
@@ -215,12 +268,12 @@ export default function PublicFunnelView() {
 
       pushDataLayer({ event: "funnel_view", funnel_name: funnel.name, funnel_id: funnel.uuid });
     }
-  }, [funnel, viewTracked, pushDataLayer, variantAssignments]);
+  }, [funnel, viewTracked, pushDataLayer, variantAssignments, isPreviewMode]);
 
-  // Track page navigation
+  // Track page navigation (nicht im Preview-Mode)
   const trackPageView = useCallback(
     (pageId: string) => {
-      if (!funnel) return;
+      if (!funnel || isPreviewMode) return;
       fetch("/api/public/analytics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -243,7 +296,7 @@ export default function PublicFunnelView() {
         });
       }
     },
-    [funnel, pushDataLayer]
+    [funnel, pushDataLayer, isPreviewMode]
   );
 
   const updateFormValue = useCallback((elementId: string, value: string) => {
@@ -368,6 +421,13 @@ export default function PublicFunnelView() {
     // Validierung
     if (!validateCurrentPage()) return;
 
+    // Im Preview-Mode: zur Thankyou-Seite springen, aber keinen Lead anlegen
+    if (isPreviewMode) {
+      const thankyouIndex = funnel.pages.findIndex((p) => p.type === "thankyou");
+      if (thankyouIndex >= 0) setCurrentPageIndex(thankyouIndex);
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitError(null);
 
@@ -457,27 +517,48 @@ export default function PublicFunnelView() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [funnel, formValues, isSubmitting, validateCurrentPage]);
+  }, [funnel, formValues, isSubmitting, validateCurrentPage, isPreviewMode, pushDataLayer]);
 
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        <p className="text-sm text-gray-500">
+          {isPreviewMode ? "Vorschau wird geladen …" : "Funnel wird geladen …"}
+        </p>
       </div>
     );
   }
 
-  // Error state
+  // Error state — mit Retry + Zurück-Link für Preview-Mode
   if (error || !funnel) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="text-center max-w-md">
           <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-4" />
           <h1 className="text-xl font-semibold text-gray-800 mb-2">
-            Seite nicht verfügbar
+            {isPreviewMode ? "Vorschau nicht verfügbar" : "Seite nicht verfügbar"}
           </h1>
-          <p className="text-gray-500">{error || "Funnel nicht gefunden."}</p>
+          <p className="text-gray-500 mb-6">{error || "Funnel nicht gefunden."}</p>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => setRetryNonce((n) => n + 1)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Erneut versuchen
+            </button>
+            {isPreviewMode && (
+              <Link
+                href={`/funnels/${params.uuid}`}
+                className="inline-flex items-center gap-1.5 px-4 py-2 border border-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Zurück zum Editor
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -501,6 +582,22 @@ export default function PublicFunnelView() {
         fontFamily: theme.fontFamily || "system-ui, sans-serif",
       }}
     >
+      {/* Preview-Mode Banner — zeigt Owner „Dies ist nur eine Vorschau" */}
+      {isPreviewMode && (
+        <div className="sticky top-0 z-50 bg-amber-500 text-amber-950 text-xs font-medium px-4 py-2 flex items-center justify-center gap-2 shadow-sm">
+          <Eye className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            Vorschau-Modus — diese Seite ist für Besucher noch nicht erreichbar.
+          </span>
+          <Link
+            href={`/funnels/${params.uuid}`}
+            className="ml-2 underline underline-offset-2 hover:no-underline"
+          >
+            Zurück zum Editor
+          </Link>
+        </div>
+      )}
+
       {/* Progress bar */}
       {funnel.pages.length > 1 && !isThankyouPage && (
         <FunnelProgress
