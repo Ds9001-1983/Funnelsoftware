@@ -233,7 +233,10 @@ export default function FunnelEditor() {
   const [showRightPanel, setShowRightPanel] = useState(false);
   const [leftPanelWidth, setLeftPanelWidth] = useState(() => {
     const saved = localStorage.getItem("editor-left-panel-width");
-    return saved ? parseInt(saved) : 256;
+    const parsed = saved ? parseInt(saved) : 280;
+    // Alte gespeicherte Werte unter 220 auf neues Minimum anheben,
+    // sonst bleiben Element-/Seitennamen weiter zu kurz abgeschnitten.
+    return Math.max(parsed, 220);
   });
   const isResizingRef = useRef(false);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
@@ -899,7 +902,7 @@ export default function FunnelEditor() {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizingRef.current) return;
-      const newWidth = Math.min(Math.max(startWidth + (e.clientX - startX), 180), 400);
+      const newWidth = Math.min(Math.max(startWidth + (e.clientX - startX), 220), 400);
       setLeftPanelWidth(newWidth);
     };
 

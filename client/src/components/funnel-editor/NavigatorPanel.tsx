@@ -47,6 +47,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { FunnelPage, PageElement, Section } from "@shared/schema";
 
 interface NavigatorPanelProps {
@@ -191,15 +196,27 @@ function NavigatorItem({
           onClick={(e) => e.stopPropagation()}
         />
       ) : (
-        <span
-          className="text-xs truncate flex-1"
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            setIsEditing(true);
-          }}
-        >
-          {element.label || elementLabels[element.type] || element.type}
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              className="text-xs truncate flex-1"
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                setIsEditing(true);
+              }}
+            >
+              {element.label || elementLabels[element.type] || element.type}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="max-w-xs">
+            <p className="font-medium">
+              {element.label || elementLabels[element.type] || element.type}
+            </p>
+            <p className="text-xs opacity-70">
+              {elementLabels[element.type] || element.type} · Doppelklick zum Umbenennen
+            </p>
+          </TooltipContent>
+        </Tooltip>
       )}
 
       {/* Actions */}
@@ -301,9 +318,16 @@ export function NavigatorPanel({
             className="flex items-center gap-1 py-1 px-1 text-xs font-medium text-muted-foreground cursor-pointer hover:bg-muted rounded"
             onClick={() => onSelectElement(null)}
           >
-            <Layers className="h-3.5 w-3.5" />
-            <span>{page.title || "Seite"}</span>
-            <span className="ml-auto text-[10px]">{page.elements.length} Elemente</span>
+            <Layers className="h-3.5 w-3.5 shrink-0" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="truncate flex-1 min-w-0">{page.title || "Seite"}</span>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p className="font-medium">{page.title || "Seite"}</p>
+              </TooltipContent>
+            </Tooltip>
+            <span className="ml-auto text-[10px] shrink-0">{page.elements.length} Elemente</span>
           </div>
         </div>
 
@@ -319,13 +343,20 @@ export function NavigatorPanel({
                     onClick={() => toggleSection(section.id)}
                   >
                     {isExpanded ? (
-                      <ChevronDown className="h-3 w-3" />
+                      <ChevronDown className="h-3 w-3 shrink-0" />
                     ) : (
-                      <ChevronRight className="h-3 w-3" />
+                      <ChevronRight className="h-3 w-3 shrink-0" />
                     )}
-                    <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span>{section.name || "Sektion"}</span>
-                    <span className="ml-auto text-[10px] text-muted-foreground">
+                    <Layers className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="truncate flex-1 min-w-0">{section.name || "Sektion"}</span>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        <p className="font-medium">{section.name || "Sektion"}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <span className="ml-auto text-[10px] text-muted-foreground shrink-0">
                       {section.columns.reduce((acc, col) => acc + col.elements.length, 0)}
                     </span>
                   </div>
