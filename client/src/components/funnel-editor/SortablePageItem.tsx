@@ -123,8 +123,16 @@ function SortablePageItemImpl({
         </span>
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium truncate">{page.title}</div>
-        <div className="text-xs text-muted-foreground">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="text-sm font-medium truncate">{page.title}</div>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="max-w-xs">
+            <p className="font-medium">{page.title}</p>
+            <p className="text-xs opacity-70">{pageTypeLabels[page.type]}</p>
+          </TooltipContent>
+        </Tooltip>
+        <div className="text-xs text-muted-foreground truncate">
           {pageTypeLabels[page.type]}
         </div>
       </div>
