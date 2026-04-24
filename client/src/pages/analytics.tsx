@@ -566,7 +566,7 @@ export default function Analytics() {
         <div>
           <h1 className="text-2xl font-bold">Analytics</h1>
           <p className="text-muted-foreground">
-            Verfolge die Performance deiner Funnels
+            Verfolge Conversion und Lead-Qualität deiner Funnels
           </p>
         </div>
         <Select value={timeRange} onValueChange={setTimeRange}>
@@ -833,7 +833,7 @@ export default function Analytics() {
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Zap className="h-5 w-5 text-muted-foreground" />
-                Performance Übersicht
+                Analytics-Übersicht
               </CardTitle>
             </CardHeader>
             <CardContent>

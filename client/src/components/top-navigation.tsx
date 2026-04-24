@@ -12,8 +12,8 @@ import { useAuth } from "@/hooks/use-auth";
 
 const navItems = [
   { label: "Funnels", href: "/funnels" },
-  { label: "Performance", href: "/analytics" },
-  { label: "Kontakte", href: "/leads" },
+  { label: "Analytics", href: "/analytics" },
+  { label: "Leads", href: "/leads" },
 ];
 
 export function TopNavigation() {

@@ -150,7 +150,7 @@ export default function FunnelMetrics() {
       {/* Views Over Time */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Kontakte vs. Besucher (14 Tage)</CardTitle>
+          <CardTitle className="text-base">Leads vs. Besucher (14 Tage)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-end gap-1 h-40">
@@ -188,7 +188,7 @@ export default function FunnelMetrics() {
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-sm bg-primary" />
-              Kontakte
+              Leads
             </div>
           </div>
         </CardContent>
