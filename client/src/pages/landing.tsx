@@ -963,6 +963,7 @@ export default function Landing() {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link href="/impressum" className="hover:text-foreground">Impressum</Link></li>
                 <li><Link href="/datenschutz" className="hover:text-foreground">Datenschutz</Link></li>
+                <li><Link href="/agb" className="hover:text-foreground">AGB</Link></li>
                 <li>
                   <button
                     onClick={resetCookieConsent}

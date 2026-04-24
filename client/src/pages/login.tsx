@@ -138,13 +138,13 @@ export default function Login() {
         {/* Footer */}
         <p className="text-center text-sm text-muted-foreground">
           Mit der Anmeldung akzeptierst du unsere{" "}
-          <a href="#" className="underline underline-offset-4 hover:text-primary">
+          <Link href="/agb" className="underline underline-offset-4 hover:text-primary">
             Nutzungsbedingungen
-          </a>{" "}
+          </Link>{" "}
           und{" "}
-          <a href="#" className="underline underline-offset-4 hover:text-primary">
+          <Link href="/datenschutz" className="underline underline-offset-4 hover:text-primary">
             Datenschutzrichtlinie
-          </a>
+          </Link>
           .
         </p>
       </div>
