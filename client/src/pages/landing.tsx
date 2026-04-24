@@ -159,6 +159,8 @@ interface PricingPlan {
   ctaHref: string;
   popular: boolean;
   note?: string;
+  comingSoon?: boolean;
+  comingSoonLabel?: string;
 }
 
 const pricingPlans: PricingPlan[] = [
@@ -195,9 +197,12 @@ const pricingPlans: PricingPlan[] = [
       "Mehrere Domains",
       "Priority Support",
     ],
-    cta: "Kontakt aufnehmen",
-    ctaHref: `mailto:${CONTACT_EMAIL}?subject=Agency-Plan%20Anfrage`,
+    cta: "Auf Warteliste setzen",
+    ctaHref: `mailto:${CONTACT_EMAIL}?subject=Agency-Plan%20Warteliste%20(2026)`,
     popular: false,
+    comingSoon: true,
+    comingSoonLabel: "Kommt 2026",
+    note: "Frühen Zugang sichern — wir melden uns zum Launch",
   },
   {
     name: "Enterprise",
@@ -537,18 +542,28 @@ export default function Landing() {
                 key={plan.name}
                 className={`relative flex flex-col ${
                   plan.popular ? "border-primary shadow-lg md:scale-105" : ""
-                }`}
+                } ${plan.comingSoon ? "border-dashed" : ""}`}
               >
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                     <Badge className="bg-primary">Beliebteste Wahl</Badge>
                   </div>
                 )}
+                {plan.comingSoon && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <Badge variant="secondary" className="gap-1">
+                      <Sparkles className="h-3 w-3" />
+                      {plan.comingSoonLabel ?? "Coming soon"}
+                    </Badge>
+                  </div>
+                )}
                 <CardHeader className="text-center pb-4">
                   <CardTitle className="text-2xl">{plan.name}</CardTitle>
                   <CardDescription>{plan.description}</CardDescription>
                   <div className="mt-4">
-                    <span className="text-4xl font-bold">{plan.price}</span>
+                    <span className={`text-4xl font-bold ${plan.comingSoon ? "text-muted-foreground" : ""}`}>
+                      {plan.price}
+                    </span>
                     {plan.priceSuffix && (
                       <span className="text-muted-foreground ml-1">{plan.priceSuffix}</span>
                     )}
@@ -558,14 +573,21 @@ export default function Landing() {
                   <ul className="space-y-3 mb-6 text-left flex-1">
                     {plan.features.map((feature) => (
                       <li key={feature} className="flex items-start gap-2">
-                        <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                        <Check
+                          className={`h-4 w-4 shrink-0 mt-0.5 ${
+                            plan.comingSoon ? "text-muted-foreground" : "text-primary"
+                          }`}
+                        />
                         <span className="text-sm">{feature}</span>
                       </li>
                     ))}
                   </ul>
                   {plan.ctaHref.startsWith("mailto:") ? (
                     <a href={plan.ctaHref}>
-                      <Button className="w-full" variant={plan.popular ? "default" : "outline"}>
+                      <Button
+                        className="w-full"
+                        variant={plan.popular ? "default" : plan.comingSoon ? "secondary" : "outline"}
+                      >
                         {plan.cta}
                       </Button>
                     </a>
