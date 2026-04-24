@@ -1120,11 +1120,27 @@ export default function FunnelEditor() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Vorschau in neuem Tab öffnen" onClick={() => window.open(`/f/${localFunnel?.slug || localFunnel?.uuid}`, '_blank')}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                aria-label="Vorschau in neuem Tab öffnen"
+                onClick={() => {
+                  if (!localFunnel) return;
+                  // Draft → auth-Preview-Route; Published → öffentliche Route
+                  const url =
+                    localFunnel.status === "published"
+                      ? `/f/${localFunnel.slug || localFunnel.uuid}`
+                      : `/preview/${localFunnel.id}`;
+                  window.open(url, "_blank");
+                }}
+              >
                 <Eye className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Vorschau</TooltipContent>
+            <TooltipContent>
+              {localFunnel?.status === "published" ? "Vorschau" : "Vorschau (Entwurf)"}
+            </TooltipContent>
           </Tooltip>
           <div className="h-5 w-px bg-border mx-1 hidden sm:block" />
           <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={handleSave} disabled={!hasChanges || saveMutation.isPending} data-testid="button-save">
@@ -1426,7 +1442,14 @@ export default function FunnelEditor() {
         onSave={handleSave}
         canSave={hasChanges && !saveMutation.isPending}
         onPublish={() => setShowPublishDialog(true)}
-        onPreview={() => window.open(`/f/${localFunnel.slug || localFunnel.uuid}`, "_blank")}
+        onPreview={() =>
+          window.open(
+            localFunnel.status === "published"
+              ? `/f/${localFunnel.slug || localFunnel.uuid}`
+              : `/preview/${localFunnel.id}`,
+            "_blank",
+          )
+        }
         onUndo={undo}
         canUndo={canUndo}
         onRedo={redo}
@@ -1737,7 +1760,14 @@ export default function FunnelEditor() {
             </button>
             <button
               className="flex flex-col items-center gap-1 p-2 rounded-lg text-muted-foreground"
-              onClick={() => window.open(`/f/${localFunnel?.slug || localFunnel?.uuid}`, '_blank')}
+              onClick={() => {
+                if (!localFunnel) return;
+                const url =
+                  localFunnel.status === "published"
+                    ? `/f/${localFunnel.slug || localFunnel.uuid}`
+                    : `/preview/${localFunnel.id}`;
+                window.open(url, "_blank");
+              }}
             >
               <Eye className="h-5 w-5" />
               <span className="text-xs">Vorschau</span>
