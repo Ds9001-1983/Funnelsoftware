@@ -51,14 +51,14 @@ const mainMenuItems = [
     icon: Layers,
   },
   {
-    title: "Kontakte",
+    title: "Leads",
     description: "Leads und CRM verwalten",
     url: "/leads",
     icon: Users,
   },
   {
     title: "Analytics",
-    description: "Performance analysieren",
+    description: "Conversion-Daten auswerten",
     url: "/analytics",
     icon: BarChart3,
   },

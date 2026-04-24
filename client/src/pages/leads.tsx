@@ -632,9 +632,9 @@ export default function Leads() {
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold">Kontakte</h1>
+          <h1 className="text-2xl font-bold">Leads</h1>
           <p className="text-muted-foreground">
-            Verwalte deine Leads und Kontakte
+            Verwalte und qualifiziere deine Leads
           </p>
         </div>
         <Button
@@ -709,7 +709,7 @@ export default function Leads() {
                 ))}
                 {columnLeads.length === 0 && (
                   <div className="text-center py-8 text-xs text-muted-foreground">
-                    Keine Kontakte
+                    Keine Leads
                   </div>
                 )}
               </div>
@@ -756,7 +756,7 @@ export default function Leads() {
       <Card className="overflow-hidden">
         <div className="hidden md:flex items-center gap-4 px-4 py-3 border-b border-border bg-muted/30 text-sm font-medium text-muted-foreground">
           <div className="h-10 w-10 shrink-0" />
-          <div className="flex-1">Kontakt</div>
+          <div className="flex-1">Lead</div>
           <div className="w-36 hidden lg:block">Funnel</div>
           <div className="w-24 hidden md:block">Quelle</div>
           <div className="w-[130px]">Status</div>

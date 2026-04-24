@@ -155,7 +155,7 @@ function FunnelGridCard({ funnel, onDelete, onClone }: { funnel: Funnel; onDelet
           )}
           {funnel.leads > 0 && (
             <Badge variant="outline" className="text-xs px-2 py-0">
-              {funnel.leads} {funnel.leads === 1 ? "Kontakt" : "Kontakte"}
+              {funnel.leads} {funnel.leads === 1 ? "Lead" : "Leads"}
             </Badge>
           )}
         </div>
