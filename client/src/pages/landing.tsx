@@ -14,6 +14,7 @@ import {
   Smartphone,
   Target,
   Check,
+  X as XIcon,
   ArrowRight,
   ChevronRight,
   MousePointerClick,
@@ -29,6 +30,12 @@ import {
   UserSearch,
   Mail,
   Headphones,
+  Flag,
+  Heart,
+  CreditCard,
+  BarChart3,
+  Webhook,
+  Send,
 } from "lucide-react";
 import { resetCookieConsent } from "@/components/cookie-consent";
 
@@ -222,6 +229,34 @@ const pricingPlans: PricingPlan[] = [
   },
 ];
 
+const integrations = [
+  { icon: CreditCard, label: "Stripe", note: "Zahlungen & Trial-Abo" },
+  { icon: Webhook, label: "Webhooks", note: "Beliebige Endpoints" },
+  { icon: Zap, label: "Zapier & Make", note: "5 000+ Apps via Webhook" },
+  { icon: Send, label: "SMTP / E-Mail", note: "Auto-Benachrichtigungen" },
+  { icon: Server, label: "Eigene Domain", note: "Mit SSL inklusive" },
+  { icon: BarChart3, label: "CSV-Export", note: "Deine Leads, deine Daten" },
+];
+
+interface ComparisonRow {
+  label: string;
+  trichterwerk: boolean | string;
+  typeform: boolean | string;
+  perspective: boolean | string;
+  webflow: boolean | string;
+}
+
+const comparisonRows: ComparisonRow[] = [
+  { label: "Deutsche Oberfläche & Support", trichterwerk: true, typeform: false, perspective: true, webflow: false },
+  { label: "Hosting in der EU / DSGVO-konform", trichterwerk: true, typeform: false, perspective: true, webflow: "teilweise" },
+  { label: "Mobile-First Editor", trichterwerk: true, typeform: true, perspective: true, webflow: false },
+  { label: "Conditional Logic & Quiz", trichterwerk: true, typeform: true, perspective: true, webflow: false },
+  { label: "Eigene Domain inklusive", trichterwerk: true, typeform: false, perspective: true, webflow: true },
+  { label: "A/B-Tests", trichterwerk: true, typeform: false, perspective: false, webflow: "mit Add-on" },
+  { label: "Setup-Zeit bis Launch", trichterwerk: "< 1 h", typeform: "1–2 h", perspective: "2–4 h", webflow: "Tage" },
+  { label: "Monatspreis", trichterwerk: "49 €", typeform: "ab 25 $", perspective: "ab 99 €", webflow: "ab 29 $ + Design" },
+];
+
 const faqs = [
   {
     q: "Was ist im 14-tägigen Trial enthalten?",
@@ -303,26 +338,56 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4">
-        <div className="container mx-auto text-center max-w-4xl">
+      {/* Hero Section mit Gradient-Backdrop */}
+      <section className="relative pt-32 pb-20 px-4 overflow-hidden">
+        {/* Background glow */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 top-20 h-[520px] -z-10 opacity-60 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(ellipse at 50% 20%, hsl(var(--primary) / 0.18), transparent 60%)",
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="absolute -z-10 top-40 left-1/2 -translate-x-1/2 w-[900px] h-[900px] rounded-full blur-3xl opacity-30 pointer-events-none"
+          style={{
+            background:
+              "conic-gradient(from 180deg at 50% 50%, hsl(var(--primary) / 0.3), transparent 40%, hsl(var(--primary) / 0.2))",
+          }}
+        />
+
+        <div className="container mx-auto text-center max-w-4xl relative">
           <Badge variant="secondary" className="mb-6">
             <Sparkles className="h-3 w-3 mr-1" />
             Made in Germany · DSGVO-konform · Hosting in der EU
           </Badge>
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
+          <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 leading-[1.05]">
             Funnels, die{" "}
-            <span className="text-primary">verkaufen</span>.
+            <span className="relative inline-block">
+              <span className="relative z-10 bg-gradient-to-r from-primary via-primary to-primary/70 bg-clip-text text-transparent">
+                verkaufen
+              </span>
+              <span
+                aria-hidden="true"
+                className="absolute inset-x-0 bottom-1 h-3 bg-primary/15 -z-0 rounded"
+              />
+            </span>
+            .
             <br className="hidden md:block" />
             Ohne Code. Ohne Agentur.
           </h1>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          <p className="text-xl md:text-2xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
             Der deutsche Funnel-Builder für Coaches, Berater und Agenturen —
             mobile-optimierte Landingpages und Lead-Funnels in Minuten live.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/register">
-              <Button size="lg" className="gap-2 text-lg px-8">
+              <Button
+                size="lg"
+                className="gap-2 text-lg px-8 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-shadow"
+              >
                 14 Tage kostenlos testen
                 <ArrowRight className="h-5 w-5" />
               </Button>
@@ -335,7 +400,7 @@ export default function Landing() {
           </div>
 
           {/* Trust chips */}
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-8 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-10 text-sm text-muted-foreground">
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="h-4 w-4 text-primary" />
               <span>14 Tage gratis testen</span>
@@ -351,9 +416,18 @@ export default function Landing() {
           </div>
         </div>
 
-        {/* Hero Image - Dashboard Preview */}
-        <div className="container mx-auto mt-16 max-w-6xl">
-          <div className="relative rounded-xl border shadow-2xl overflow-hidden">
+        {/* Hero Image - Dashboard Preview mit Glow-Frame */}
+        <div className="container mx-auto mt-16 max-w-6xl relative">
+          {/* Accent glow behind screenshot */}
+          <div
+            aria-hidden="true"
+            className="absolute -inset-8 -z-10 rounded-3xl opacity-40 blur-2xl"
+            style={{
+              background:
+                "linear-gradient(135deg, hsl(var(--primary) / 0.3), transparent 50%, hsl(var(--primary) / 0.2))",
+            }}
+          />
+          <div className="relative rounded-xl border shadow-2xl overflow-hidden ring-1 ring-primary/20">
             <picture>
               <source srcSet="/images/hero-dashboard.webp" type="image/webp" />
               <img
@@ -365,6 +439,29 @@ export default function Landing() {
               />
             </picture>
             <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent pointer-events-none" />
+          </div>
+        </div>
+      </section>
+
+      {/* Integrations Trust-Bar */}
+      <section className="py-12 px-4 border-y bg-muted/20">
+        <div className="container mx-auto">
+          <p className="text-center text-sm uppercase tracking-wider text-muted-foreground mb-8 font-medium">
+            Verbindet sich mit den Tools, die du schon nutzt
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 max-w-5xl mx-auto">
+            {integrations.map((int) => (
+              <div
+                key={int.label}
+                className="flex flex-col items-center text-center gap-2 opacity-70 hover:opacity-100 transition-opacity"
+              >
+                <div className="h-10 w-10 rounded-lg bg-background border flex items-center justify-center">
+                  <int.icon className="h-5 w-5" />
+                </div>
+                <div className="text-sm font-medium">{int.label}</div>
+                <div className="text-xs text-muted-foreground">{int.note}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -465,8 +562,84 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Vergleichstabelle */}
+      <section className="py-20 px-4">
+        <div className="container mx-auto max-w-6xl">
+          <div className="text-center mb-12">
+            <Badge variant="secondary" className="mb-4">Warum Trichterwerk?</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              Im direkten Vergleich
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Ehrlich verglichen: wo Trichterwerk glänzt und was du bei anderen Tools bekommst.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border bg-card">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/30">
+                  <th className="text-left p-4 font-medium min-w-[200px]">Feature</th>
+                  <th className="p-4 font-semibold">
+                    <div className="flex items-center gap-2 justify-center text-primary">
+                      <Zap className="h-4 w-4" />
+                      Trichterwerk
+                    </div>
+                  </th>
+                  <th className="p-4 font-medium text-muted-foreground">Typeform</th>
+                  <th className="p-4 font-medium text-muted-foreground">Perspective</th>
+                  <th className="p-4 font-medium text-muted-foreground">Webflow</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparisonRows.map((row, idx) => (
+                  <tr
+                    key={row.label}
+                    className={`border-b last:border-0 ${idx % 2 === 1 ? "bg-muted/10" : ""}`}
+                  >
+                    <td className="p-4 font-medium">{row.label}</td>
+                    <td className="p-4 text-center bg-primary/5">
+                      {typeof row.trichterwerk === "boolean" ? (
+                        row.trichterwerk ? (
+                          <Check className="h-5 w-5 text-primary mx-auto" />
+                        ) : (
+                          <XIcon className="h-5 w-5 text-muted-foreground/60 mx-auto" />
+                        )
+                      ) : (
+                        <span className="font-semibold text-primary">{row.trichterwerk}</span>
+                      )}
+                    </td>
+                    {(["typeform", "perspective", "webflow"] as const).map((col) => {
+                      const val = row[col];
+                      return (
+                        <td key={col} className="p-4 text-center">
+                          {typeof val === "boolean" ? (
+                            val ? (
+                              <Check className="h-5 w-5 text-muted-foreground mx-auto" />
+                            ) : (
+                              <XIcon className="h-5 w-5 text-muted-foreground/40 mx-auto" />
+                            )
+                          ) : (
+                            <span className="text-muted-foreground">{val}</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="text-xs text-muted-foreground text-center mt-4">
+            Preise und Features der Wettbewerber: Stand {new Date().toLocaleDateString("de-DE", { month: "long", year: "numeric" })}.
+            Ohne Gewähr — aktuelle Details auf den Anbieter-Websites.
+          </p>
+        </div>
+      </section>
+
       {/* Templates Section */}
-      <section id="templates" className="py-20 px-4">
+      <section id="templates" className="py-20 px-4 border-t">
         <div className="container mx-auto">
           <div className="text-center mb-16">
             <Badge variant="secondary" className="mb-4">Templates</Badge>
@@ -644,6 +817,64 @@ export default function Landing() {
               </AccordionItem>
             ))}
           </Accordion>
+        </div>
+      </section>
+
+      {/* Mission / Warum wir das gebaut haben */}
+      <section className="py-20 px-4 border-t">
+        <div className="container mx-auto max-w-4xl">
+          <div className="grid md:grid-cols-[auto,1fr] gap-8 items-start">
+            <div className="flex md:flex-col items-center md:items-start gap-3 shrink-0">
+              <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Flag className="h-7 w-7 text-primary" />
+              </div>
+              <div className="md:mt-2">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                  Unser Warum
+                </div>
+                <div className="text-sm font-semibold">Gemacht in Deutschland</div>
+              </div>
+            </div>
+            <div>
+              <h2 className="text-3xl md:text-4xl font-bold mb-4 leading-tight">
+                Warum wir Trichterwerk gebaut haben
+              </h2>
+              <div className="space-y-4 text-muted-foreground text-lg leading-relaxed">
+                <p>
+                  Wir sind{" "}
+                  <a
+                    href="https://superbrand.marketing"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-foreground font-semibold underline underline-offset-4 decoration-primary/40 hover:decoration-primary"
+                  >
+                    SUPERBRAND
+                  </a>{" "}
+                  — eine kleine Agentur aus Deutschland. Jahrelang haben wir für Kunden
+                  Funnels mit amerikanischen Tools gebaut: teuer, englischsprachig,
+                  Daten in den USA, Support-Tickets tagelang offen.
+                </p>
+                <p>
+                  Irgendwann reichte es. Wir wollten ein Werkzeug, das{" "}
+                  <span className="text-foreground font-medium">in unserer Sprache spricht</span>,{" "}
+                  <span className="text-foreground font-medium">unsere Regeln respektiert</span>{" "}
+                  (DSGVO, Hosting in der EU), und trotzdem so gut ist wie die großen
+                  Namen. Also haben wir's selbst gebaut.
+                </p>
+                <p>
+                  Trichterwerk ist kein Riesen-Konzern, keine VC-Bude, keine Massen-SaaS.
+                  Wir wachsen mit unseren Kunden, antworten persönlich auf jede Mail,
+                  und bauen die Features, die du wirklich brauchst.
+                </p>
+              </div>
+              <div className="flex items-center gap-3 mt-8 pt-6 border-t">
+                <Heart className="h-5 w-5 text-primary fill-primary/20" />
+                <span className="text-sm text-muted-foreground">
+                  Keine Hype-Versprechen. Keine Fake-Stats. Nur ein solides Tool, das den Job macht.
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
