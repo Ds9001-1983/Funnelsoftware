@@ -60,6 +60,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useEnsureBodyUnlocked } from "@/hooks/use-ensure-body-unlocked";
+import { apiRequest } from "@/lib/queryClient";
 
 interface AdminUser {
   id: number;
@@ -187,12 +188,7 @@ export default function AdminDashboard() {
   // Update user mutation
   const updateUserMutation = useMutation({
     mutationFn: async (updates: { id: number; data: Partial<AdminUser> }) => {
-      const res = await fetch(`/api/admin/users/${updates.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates.data),
-      });
-      if (!res.ok) throw new Error("Update failed");
+      const res = await apiRequest("PATCH", `/api/admin/users/${updates.id}`, updates.data);
       return res.json();
     },
     onSuccess: () => {
@@ -212,10 +208,7 @@ export default function AdminDashboard() {
   // garantiert zu ist.
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: number) => {
-      const res = await fetch(`/api/admin/users/${userId}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Delete failed");
+      const res = await apiRequest("DELETE", `/api/admin/users/${userId}`);
       return res.json();
     },
     onSuccess: () => {
