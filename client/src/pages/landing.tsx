@@ -238,6 +238,22 @@ const integrations = [
   { icon: BarChart3, label: "CSV-Export", note: "Deine Leads, deine Daten" },
 ];
 
+// Vergrößerte Trust-Leiste direkt unter dem Hero-CTA
+const heroTrust = [
+  { icon: ShieldCheck, label: "14 Tage gratis testen" },
+  { icon: Lock, label: "Monatlich kündbar" },
+  { icon: Flag, label: "Made in Germany" },
+  { icon: Server, label: "EU-Hosting · DSGVO-konform" },
+];
+
+// Ehrliche, belegbare Produktfakten statt erfundener Kundenstimmen
+const proofStats = [
+  { value: "< 1 Std.", label: "vom Signup zum ersten Funnel live" },
+  { value: "10", label: "fertige, konversionsstarke Templates" },
+  { value: "20+", label: "Bausteine für jeden Funnel-Typ" },
+  { value: "100 %", label: "DSGVO-konform, Hosting in der EU" },
+];
+
 interface ComparisonRow {
   label: string;
   trichterwerk: boolean | string;
@@ -399,20 +415,17 @@ export default function Landing() {
             </a>
           </div>
 
-          {/* Trust chips */}
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-10 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-primary" />
-              <span>14 Tage gratis testen</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Lock className="h-4 w-4 text-primary" />
-              <span>Monatlich kündbar</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Server className="h-4 w-4 text-primary" />
-              <span>Stripe-gesicherte Zahlung</span>
-            </div>
+          {/* Trust-Leiste */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-12">
+            {heroTrust.map((t) => (
+              <div
+                key={t.label}
+                className="flex items-center gap-2 rounded-full border bg-background/60 px-4 py-2 text-sm font-medium shadow-sm backdrop-blur"
+              >
+                <t.icon className="h-4 w-4 text-primary shrink-0" />
+                <span>{t.label}</span>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -444,19 +457,30 @@ export default function Landing() {
       </section>
 
       {/* Integrations Trust-Bar */}
-      <section className="py-12 px-4 border-y bg-muted/20">
+      <section className="py-14 px-4 border-y bg-muted/20">
         <div className="container mx-auto">
-          <p className="text-center text-sm uppercase tracking-wider text-muted-foreground mb-8 font-medium">
-            Verbindet sich mit den Tools, die du schon nutzt
-          </p>
+          <div className="text-center mb-8 max-w-2xl mx-auto">
+            <p className="text-sm uppercase tracking-wider text-primary mb-3 font-semibold">
+              Integrationen & CRM
+            </p>
+            <h2 className="text-2xl md:text-3xl font-bold mb-3">
+              Deine Leads landen dort, wo du arbeitest
+            </h2>
+            <p className="text-muted-foreground">
+              Übergib neue Kontakte in Echtzeit an{" "}
+              <span className="font-medium text-foreground">HubSpot, Pipedrive, Notion, Google Sheets</span>{" "}
+              und 5 000+ weitere Tools — per Zapier, Make oder Webhook. Oder
+              exportiere jederzeit alles als CSV. Deine Daten, dein System.
+            </p>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 max-w-5xl mx-auto">
             {integrations.map((int) => (
               <div
                 key={int.label}
-                className="flex flex-col items-center text-center gap-2 opacity-70 hover:opacity-100 transition-opacity"
+                className="flex flex-col items-center text-center gap-2 hover:opacity-100 transition-opacity"
               >
-                <div className="h-10 w-10 rounded-lg bg-background border flex items-center justify-center">
-                  <int.icon className="h-5 w-5" />
+                <div className="h-11 w-11 rounded-lg bg-background border flex items-center justify-center shadow-sm">
+                  <int.icon className="h-5 w-5 text-primary" />
                 </div>
                 <div className="text-sm font-medium">{int.label}</div>
                 <div className="text-xs text-muted-foreground">{int.note}</div>
@@ -692,6 +716,24 @@ export default function Landing() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Ergebnis-/Fakten-Band */}
+      <section className="py-16 px-4 border-t">
+        <div className="container mx-auto max-w-5xl">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center">
+            {proofStats.map((s) => (
+              <div key={s.label}>
+                <div className="text-4xl md:text-5xl font-bold text-primary mb-2">
+                  {s.value}
+                </div>
+                <p className="text-sm text-muted-foreground leading-snug">
+                  {s.label}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
