@@ -609,11 +609,12 @@ export default function PublicFunnelView() {
         />
       )}
 
-      {/* Page content with slide animation */}
-      <div className="flex-1 flex flex-col items-center justify-start px-4 py-8 overflow-hidden">
+      {/* Page content with slide animation — vertikal zentriert bei wenig Inhalt,
+          wächst nach oben/unten und bleibt scrollbar bei viel Inhalt (my-auto). */}
+      <div className="flex-1 flex flex-col px-4 py-8 overflow-y-auto">
         <div
           key={currentPageIndex}
-          className="w-full max-w-lg mx-auto space-y-6"
+          className="w-full max-w-lg mx-auto my-auto space-y-6"
           style={{
             animation: `${slideDirection === "left" ? "slideInFromRight" : "slideInFromLeft"} 0.35s ease-out`,
           }}

@@ -1,3 +1,6 @@
+// Lädt .env im lokalen Development. Bereits gesetzte echte Env-Vars (Production)
+// haben Vorrang — dotenv überschreibt vorhandene Variablen standardmäßig nicht.
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
