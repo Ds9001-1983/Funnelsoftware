@@ -14,7 +14,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "optimize-images": "node scripts/optimize-images.cjs"
+    "optimize-images": "node scripts/optimize-images.cjs",
+    "lighthouse": "npx --yes lighthouse https://trichterwerk.de/ --preset=desktop --output=html --output-path=./lighthouse-report.html --chrome-flags=\"--headless\" --view"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

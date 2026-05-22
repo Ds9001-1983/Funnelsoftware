@@ -9,3 +9,6 @@ vite.config.ts.*
 .env
 .env.local
 .env.production
+
+# Lighthouse-Reports (lokal generiert)
+lighthouse-report.html
