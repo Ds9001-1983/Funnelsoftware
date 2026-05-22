@@ -25,8 +25,11 @@ export function FunnelProgress({ currentPage, totalPages, primaryColor, backgrou
   return (
     <div className="w-full px-4 py-2">
       <div
-        className="h-1.5 rounded-full overflow-hidden"
-        style={{ backgroundColor: trackColor ?? "rgb(229 231 235)" /* gray-200 */ }}
+        // Ohne backgroundColor-Prop bleibt der Track die Tailwind-Klasse
+        // (gray-200) und bekommt keinen Inline-Style — nur bei dunklem Seiten-
+        // hintergrund wird er inline aufgehellt.
+        className={`h-1.5 rounded-full overflow-hidden${trackColor ? "" : " bg-gray-200"}`}
+        style={trackColor ? { backgroundColor: trackColor } : undefined}
       >
         <div
           className="h-full rounded-full transition-all duration-500 ease-out"
