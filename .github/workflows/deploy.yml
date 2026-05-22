@@ -6,6 +6,16 @@ on:
       - main
   workflow_dispatch:
 
+# Nur ein Deploy gleichzeitig: neue Pushes in schneller Folge werden
+# gereiht, nicht parallel ausgeführt. Sonst konkurrieren mehrere
+# `npm ci` + `npm run build` um /var/www/funnelflow und kippen sich
+# gegenseitig (zuletzt beobachtet: „Could not resolve ./_hashClear").
+# cancel-in-progress: false → laufender Deploy wird nicht abgebrochen,
+# sondern läuft sauber zu Ende; nachfolgende Pushes warten.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
