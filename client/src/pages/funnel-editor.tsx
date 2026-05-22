@@ -204,6 +204,10 @@ export default function FunnelEditor() {
 
   // Mobile detection and responsive sidebar states
   const [isMobile, setIsMobile] = useState(false);
+  // Hinweis, dass der Builder am Desktop am besten funktioniert (einmalig wegklickbar)
+  const [mobileHintDismissed, setMobileHintDismissed] = useState(
+    () => localStorage.getItem("editor-mobile-hint-dismissed") === "true",
+  );
   const [showLeftSidebar, setShowLeftSidebar] = useState(true);
 
   // Detect mobile screen size
@@ -1153,6 +1157,28 @@ export default function FunnelEditor() {
           </Button>
         </div>
       </div>
+
+      {/* Mobile-Hinweis: Builder ist für Desktop optimiert */}
+      {isMobile && !mobileHintDismissed && (
+        <div className="flex items-start gap-2 border-b border-border bg-primary/5 px-3 py-2 text-xs text-muted-foreground md:hidden">
+          <Info className="h-4 w-4 shrink-0 text-primary mt-px" />
+          <p className="flex-1 leading-snug">
+            Der Builder funktioniert am besten am Desktop. Auf dem Smartphone
+            kannst du Funnels ansehen und kleine Anpassungen vornehmen.
+          </p>
+          <button
+            type="button"
+            aria-label="Hinweis ausblenden"
+            className="shrink-0 rounded p-0.5 hover:bg-primary/10"
+            onClick={() => {
+              localStorage.setItem("editor-mobile-hint-dismissed", "true");
+              setMobileHintDismissed(true);
+            }}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Main content - 3-Panel Layout */}
       <div className="flex-1 flex overflow-hidden">
