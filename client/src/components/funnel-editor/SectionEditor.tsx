@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,7 @@ interface SectionEditorProps {
   onAddSection: (layout: string, columns: number[]) => void;
   onUpdateSection: (sectionId: string, updates: Partial<Section>) => void;
   onDeleteSection: (sectionId: string) => void;
+  onDuplicateSection: (sectionId: string) => void;
   onSelectSection: (sectionId: string | null) => void;
   selectedSectionId: string | null;
 }
@@ -31,6 +32,7 @@ export function SectionEditor({
   onAddSection,
   onUpdateSection,
   onDeleteSection,
+  onDuplicateSection,
   onSelectSection,
   selectedSectionId,
 }: SectionEditorProps) {
@@ -59,6 +61,21 @@ export function SectionEditor({
                   variant="ghost"
                   size="sm"
                   className="h-6 w-6 p-0"
+                  title="Sektion duplizieren"
+                  aria-label="Sektion duplizieren"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDuplicateSection(section.id);
+                  }}
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  title="Sektion löschen"
+                  aria-label="Sektion löschen"
                   onClick={(e) => {
                     e.stopPropagation();
                     onDeleteSection(section.id);

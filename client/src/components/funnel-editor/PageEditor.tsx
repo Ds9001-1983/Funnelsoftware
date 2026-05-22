@@ -125,6 +125,33 @@ export function PageEditor({
     setSelectedSectionId((prev) => (prev === sectionId ? null : prev));
   }, [page.sections, onUpdate]);
 
+  const duplicateSection = useCallback((sectionId: string) => {
+    const currentSections = page.sections || [];
+    const index = currentSections.findIndex((s) => s.id === sectionId);
+    if (index === -1) return;
+    const original = currentSections[index];
+    const uid = Date.now();
+    // Tiefe Kopie mit frischen IDs für Sektion, Spalten und Elemente,
+    // damit nichts mit dem Original kollidiert.
+    const clone: Section = {
+      ...original,
+      id: `section-${uid}`,
+      name: original.name ? `${original.name} (Kopie)` : original.name,
+      columns: original.columns.map((col, colIdx) => ({
+        ...col,
+        id: `col-${uid}-${colIdx}`,
+        elements: col.elements.map((el, elIdx) => ({
+          ...el,
+          id: `el-${uid}-${colIdx}-${elIdx}`,
+        })),
+      })),
+    };
+    const next = [...currentSections];
+    next.splice(index + 1, 0, clone);
+    onUpdate({ sections: next });
+    setSelectedSectionId(clone.id);
+  }, [page.sections, onUpdate]);
+
   const insertVariable = useCallback((variable: string) => {
     if (titleInputRef.current) {
       const start = titleInputRef.current.selectionStart || 0;
@@ -535,6 +562,7 @@ export function PageEditor({
               onAddSection={addSection}
               onUpdateSection={updateSection}
               onDeleteSection={deleteSection}
+              onDuplicateSection={duplicateSection}
               onSelectSection={setSelectedSectionId}
               selectedSectionId={selectedSectionId}
             />
