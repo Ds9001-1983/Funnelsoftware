@@ -18,6 +18,7 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useAuth } from "@/hooks/use-auth";
 import { WelcomeModal } from "@/components/welcome-modal";
 import { UpgradeBanner } from "@/components/upgrade-banner";
+import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import type { Funnel, Lead } from "@shared/schema";
 
 function StatCard({
@@ -224,6 +225,11 @@ export default function Dashboard() {
           </Button>
         </Link>
       </div>
+
+      {/* Aktivierungs-Checkliste, sobald mind. ein Funnel existiert */}
+      {!funnelsLoading && hasFunnels && (
+        <OnboardingChecklist publishedCount={activeFunnels} totalLeads={totalLeads} />
+      )}
 
       {/* Hero-Section für neue User ohne Funnels */}
       {!funnelsLoading && !hasFunnels ? (
