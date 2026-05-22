@@ -64,8 +64,25 @@ function ProtectedMainLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Vollbild-Seite (ohne Sidebar) hinter Auth + Lazy-Suspense.
+function ProtectedFull({ children }: { children: React.ReactNode }) {
+  return (
+    <RequireAuth>
+      <Suspense fallback={<PageLoader />}>{children}</Suspense>
+    </RequireAuth>
+  );
+}
+
+// Seite mit Sidebar (geschützt) + Lazy-Suspense.
+function SidebarPage({ children }: { children: React.ReactNode }) {
+  return (
+    <ProtectedMainLayout>
+      <Suspense fallback={<PageLoader />}>{children}</Suspense>
+    </ProtectedMainLayout>
+  );
+}
+
 function Router() {
-  const [location] = useLocation();
   const { isAuthenticated, isLoading } = useAuth();
 
   // Show loading spinner while checking auth
@@ -77,114 +94,106 @@ function Router() {
     );
   }
 
-  // Public funnel view (no auth required)
-  if (location.startsWith("/f/")) {
-    return (
-      <Suspense fallback={<PageLoader />}>
-        <PublicFunnelView />
-      </Suspense>
-    );
-  }
-
-  // Preview mode für Owner (auth, zeigt auch Drafts)
-  if (location.startsWith("/preview/")) {
-    return (
-      <RequireAuth>
+  // Deklaratives Routing. Reihenfolge in <Switch> ist relevant: spezifischere
+  // Pfade (z. B. /funnels/new) müssen vor Parameter-Routen (/funnels/:id) stehen.
+  return (
+    <Switch>
+      {/* Öffentliche Funnel-Ansicht (ohne Auth) */}
+      <Route path="/f/:uuid">
         <Suspense fallback={<PageLoader />}>
           <PublicFunnelView />
         </Suspense>
-      </RequireAuth>
-    );
-  }
+      </Route>
 
-  // Landing page for non-authenticated users
-  if (location === "/" && !isAuthenticated) {
-    return <Landing />;
-  }
+      {/* Owner-Vorschau (mit Auth, zeigt auch Entwürfe) */}
+      <Route path="/preview/:id">
+        <ProtectedFull>
+          <PublicFunnelView />
+        </ProtectedFull>
+      </Route>
 
-  // Auth pages (no sidebar)
-  if (location === "/login") {
-    return <Login />;
-  }
-  if (location === "/register") {
-    return <Register />;
-  }
-  if (location === "/forgot-password") {
-    return <ForgotPassword />;
-  }
-  if (location.startsWith("/reset-password")) {
-    return <ResetPassword />;
-  }
-  if (location.startsWith("/verify-email")) {
-    return <VerifyEmail />;
-  }
+      {/* Auth-Seiten (ohne Sidebar) */}
+      <Route path="/login" component={Login} />
+      <Route path="/register" component={Register} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
+      <Route path="/verify-email" component={VerifyEmail} />
 
-  // Admin page (protected)
-  if (location === "/admin") {
-    return (
-      <RequireAuth>
-        <Suspense fallback={<PageLoader />}>
+      {/* Rechtliche Seiten (ohne Sidebar, ohne Auth) */}
+      <Route path="/impressum" component={Impressum} />
+      <Route path="/datenschutz" component={Datenschutz} />
+      <Route path="/agb" component={AGB} />
+      <Route path="/nutzungsbedingungen" component={AGB} />
+
+      {/* Admin (geschützt, ohne Sidebar) */}
+      <Route path="/admin">
+        <ProtectedFull>
           <Admin />
-        </Suspense>
-      </RequireAuth>
-    );
-  }
-  // Legal pages (no sidebar, no auth required)
-  if (location === "/impressum") {
-    return <Impressum />;
-  }
-  if (location === "/datenschutz") {
-    return <Datenschutz />;
-  }
-  if (location === "/agb" || location === "/nutzungsbedingungen") {
-    return <AGB />;
-  }
+        </ProtectedFull>
+      </Route>
 
-  // Full-screen pages without sidebar (but protected)
-  if (location.startsWith("/funnels/new") || (location.startsWith("/funnels/") && location !== "/funnels")) {
-    // Metrics page for a specific funnel
-    if (location.match(/^\/funnels\/\d+\/metrics/)) {
-      return (
-        <RequireAuth>
-          <Suspense fallback={<PageLoader />}>
-            <FunnelMetrics />
-          </Suspense>
-        </RequireAuth>
-      );
-    }
-    const isEditor = location.startsWith("/funnels/") && !location.includes("/new") && !location.includes("/metrics");
-    if (isEditor) {
-      return (
-        <RequireAuth>
-          <Suspense fallback={<PageLoader />}>
-            <FunnelEditor />
-          </Suspense>
-        </RequireAuth>
-      );
-    }
-    return (
-      <RequireAuth>
-        <Suspense fallback={<PageLoader />}>
+      {/* Vollbild-Funnel-Seiten ohne Sidebar — spezifisch vor :id */}
+      <Route path="/funnels/new">
+        <ProtectedFull>
           <NewFunnel />
-        </Suspense>
-      </RequireAuth>
-    );
-  }
+        </ProtectedFull>
+      </Route>
+      <Route path="/funnels/:id/metrics">
+        <ProtectedFull>
+          <FunnelMetrics />
+        </ProtectedFull>
+      </Route>
+      <Route path="/funnels/:id">
+        <ProtectedFull>
+          <FunnelEditor />
+        </ProtectedFull>
+      </Route>
 
-  return (
-    <ProtectedMainLayout>
-      <Suspense fallback={<PageLoader />}>
-        <Switch>
-          <Route path="/" component={Funnels} />
-          <Route path="/funnels" component={Funnels} />
-          <Route path="/dashboard" component={Funnels} />
-          <Route path="/leads" component={Leads} />
-          <Route path="/analytics" component={Analytics} />
-          <Route path="/settings" component={Settings} />
-          <Route component={NotFound} />
-        </Switch>
-      </Suspense>
-    </ProtectedMainLayout>
+      {/* Startseite: Landing für Gäste, sonst Funnel-Liste mit Sidebar */}
+      <Route path="/">
+        {isAuthenticated ? (
+          <SidebarPage>
+            <Funnels />
+          </SidebarPage>
+        ) : (
+          <Landing />
+        )}
+      </Route>
+
+      {/* Seiten mit Sidebar (geschützt) */}
+      <Route path="/funnels">
+        <SidebarPage>
+          <Funnels />
+        </SidebarPage>
+      </Route>
+      <Route path="/dashboard">
+        <SidebarPage>
+          <Funnels />
+        </SidebarPage>
+      </Route>
+      <Route path="/leads">
+        <SidebarPage>
+          <Leads />
+        </SidebarPage>
+      </Route>
+      <Route path="/analytics">
+        <SidebarPage>
+          <Analytics />
+        </SidebarPage>
+      </Route>
+      <Route path="/settings">
+        <SidebarPage>
+          <Settings />
+        </SidebarPage>
+      </Route>
+
+      {/* 404 */}
+      <Route>
+        <SidebarPage>
+          <NotFound />
+        </SidebarPage>
+      </Route>
+    </Switch>
   );
 }
 
