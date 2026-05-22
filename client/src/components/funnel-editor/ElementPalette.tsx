@@ -42,7 +42,7 @@ function DraggablePaletteItem({ type, label, icon: Icon, description, onClick }:
       <div className="h-10 w-10 rounded-lg flex items-center justify-center mb-2 bg-muted group-hover:bg-primary/20 transition-colors">
         <Icon className="h-5 w-5 transition-colors text-muted-foreground group-hover:text-primary" />
       </div>
-      <span className="text-xs font-medium text-center truncate w-full transition-colors group-hover:text-primary">
+      <span className="text-xs font-medium text-center leading-tight line-clamp-2 break-words w-full transition-colors group-hover:text-primary">
         {label}
       </span>
     </div>
