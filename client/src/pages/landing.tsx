@@ -238,6 +238,22 @@ const integrations = [
   { icon: BarChart3, label: "CSV-Export", note: "Deine Leads, deine Daten" },
 ];
 
+// Vergrößerte Trust-Leiste direkt unter dem Hero-CTA
+const heroTrust = [
+  { icon: ShieldCheck, label: "14 Tage gratis testen" },
+  { icon: Lock, label: "Monatlich kündbar" },
+  { icon: Flag, label: "Made in Germany" },
+  { icon: Server, label: "EU-Hosting · DSGVO-konform" },
+];
+
+// Ehrliche, belegbare Produktfakten statt erfundener Kundenstimmen
+const proofStats = [
+  { value: "< 1 Std.", label: "vom Signup zum ersten Funnel live" },
+  { value: "10", label: "fertige, konversionsstarke Templates" },
+  { value: "20+", label: "Bausteine für jeden Funnel-Typ" },
+  { value: "100 %", label: "DSGVO-konform, Hosting in der EU" },
+];
+
 interface ComparisonRow {
   label: string;
   trichterwerk: boolean | string;
@@ -399,20 +415,17 @@ export default function Landing() {
             </a>
           </div>
 
-          {/* Trust chips */}
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-10 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-primary" />
-              <span>14 Tage gratis testen</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Lock className="h-4 w-4 text-primary" />
-              <span>Monatlich kündbar</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Server className="h-4 w-4 text-primary" />
-              <span>Stripe-gesicherte Zahlung</span>
-            </div>
+          {/* Trust-Leiste */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-12">
+            {heroTrust.map((t) => (
+              <div
+                key={t.label}
+                className="flex items-center gap-2 rounded-full border bg-background/60 px-4 py-2 text-sm font-medium shadow-sm backdrop-blur"
+              >
+                <t.icon className="h-4 w-4 text-primary shrink-0" />
+                <span>{t.label}</span>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -692,6 +705,24 @@ export default function Landing() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Ergebnis-/Fakten-Band */}
+      <section className="py-16 px-4 border-t">
+        <div className="container mx-auto max-w-5xl">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center">
+            {proofStats.map((s) => (
+              <div key={s.label}>
+                <div className="text-4xl md:text-5xl font-bold text-primary mb-2">
+                  {s.value}
+                </div>
+                <p className="text-sm text-muted-foreground leading-snug">
+                  {s.label}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
