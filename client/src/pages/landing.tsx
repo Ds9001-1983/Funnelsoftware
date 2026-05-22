@@ -457,19 +457,30 @@ export default function Landing() {
       </section>
 
       {/* Integrations Trust-Bar */}
-      <section className="py-12 px-4 border-y bg-muted/20">
+      <section className="py-14 px-4 border-y bg-muted/20">
         <div className="container mx-auto">
-          <p className="text-center text-sm uppercase tracking-wider text-muted-foreground mb-8 font-medium">
-            Verbindet sich mit den Tools, die du schon nutzt
-          </p>
+          <div className="text-center mb-8 max-w-2xl mx-auto">
+            <p className="text-sm uppercase tracking-wider text-primary mb-3 font-semibold">
+              Integrationen & CRM
+            </p>
+            <h2 className="text-2xl md:text-3xl font-bold mb-3">
+              Deine Leads landen dort, wo du arbeitest
+            </h2>
+            <p className="text-muted-foreground">
+              Übergib neue Kontakte in Echtzeit an{" "}
+              <span className="font-medium text-foreground">HubSpot, Pipedrive, Notion, Google Sheets</span>{" "}
+              und 5 000+ weitere Tools — per Zapier, Make oder Webhook. Oder
+              exportiere jederzeit alles als CSV. Deine Daten, dein System.
+            </p>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 max-w-5xl mx-auto">
             {integrations.map((int) => (
               <div
                 key={int.label}
-                className="flex flex-col items-center text-center gap-2 opacity-70 hover:opacity-100 transition-opacity"
+                className="flex flex-col items-center text-center gap-2 hover:opacity-100 transition-opacity"
               >
-                <div className="h-10 w-10 rounded-lg bg-background border flex items-center justify-center">
-                  <int.icon className="h-5 w-5" />
+                <div className="h-11 w-11 rounded-lg bg-background border flex items-center justify-center shadow-sm">
+                  <int.icon className="h-5 w-5 text-primary" />
                 </div>
                 <div className="text-sm font-medium">{int.label}</div>
                 <div className="text-xs text-muted-foreground">{int.note}</div>
