@@ -16,6 +16,8 @@ import {
   Archive,
   ArchiveRestore,
   X,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,13 +32,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -209,9 +204,23 @@ function FunnelGridCard({
   );
 }
 
-function FunnelListRow({ funnel, onDelete, onClone }: { funnel: Funnel; onDelete: () => void; onClone: () => void }) {
-  const conversionRate = funnel.views > 0 
-    ? ((funnel.leads / funnel.views) * 100).toFixed(1) 
+function FunnelListRow({
+  funnel,
+  onDelete,
+  onClone,
+  onArchive,
+  selected,
+  onToggleSelect,
+}: {
+  funnel: Funnel;
+  onDelete: () => void;
+  onClone: () => void;
+  onArchive: () => void;
+  selected: boolean;
+  onToggleSelect: () => void;
+}) {
+  const conversionRate = funnel.views > 0
+    ? ((funnel.leads / funnel.views) * 100).toFixed(1)
     : "0.0";
 
   const formatDate = (dateStr: string | Date) => {
@@ -224,8 +233,17 @@ function FunnelListRow({ funnel, onDelete, onClone }: { funnel: Funnel; onDelete
   };
 
   return (
-    <div className="flex items-center gap-4 p-4 border-b border-border hover:bg-muted/30 transition-colors group">
-      <div 
+    <div
+      className={`flex items-center gap-4 p-4 border-b border-border last:border-0 hover:bg-muted/30 transition-colors group ${selected ? "bg-primary/5" : ""}`}
+    >
+      <Checkbox
+        checked={selected}
+        onCheckedChange={onToggleSelect}
+        aria-label={`${funnel.name} auswählen`}
+        data-testid={`checkbox-select-${funnel.id}`}
+        className="shrink-0"
+      />
+      <div
         className="h-12 w-12 rounded-md shrink-0"
         style={{ backgroundColor: funnel.theme.primaryColor }}
       />
@@ -291,6 +309,19 @@ function FunnelListRow({ funnel, onDelete, onClone }: { funnel: Funnel; onDelete
                 </a>
               </DropdownMenuItem>
             )}
+            <DropdownMenuItem onClick={onArchive}>
+              {funnel.status === "archived" ? (
+                <>
+                  <ArchiveRestore className="h-4 w-4 mr-2" />
+                  Reaktivieren
+                </>
+              ) : (
+                <>
+                  <Archive className="h-4 w-4 mr-2" />
+                  Archivieren
+                </>
+              )}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
@@ -548,17 +579,44 @@ export default function Funnels() {
             ))}
           </TabsList>
         </Tabs>
-        {filteredFunnels.length > 0 && (
-          <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
-            <Checkbox
-              checked={allVisibleSelected}
-              onCheckedChange={toggleSelectAll}
-              aria-label="Alle auswählen"
-              data-testid="checkbox-select-all"
-            />
-            Alle auswählen
-          </label>
-        )}
+        <div className="flex items-center gap-4">
+          {filteredFunnels.length > 0 && (
+            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
+              <Checkbox
+                checked={allVisibleSelected}
+                onCheckedChange={toggleSelectAll}
+                aria-label="Alle auswählen"
+                data-testid="checkbox-select-all"
+              />
+              Alle auswählen
+            </label>
+          )}
+          {/* Ansicht umschalten */}
+          <div className="flex items-center rounded-md border p-0.5">
+            <Button
+              size="icon"
+              variant={viewMode === "grid" ? "secondary" : "ghost"}
+              className="h-7 w-7"
+              aria-label="Rasteransicht"
+              aria-pressed={viewMode === "grid"}
+              data-testid="button-view-grid"
+              onClick={() => handleViewMode("grid")}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              className="h-7 w-7"
+              aria-label="Listenansicht"
+              aria-pressed={viewMode === "list"}
+              data-testid="button-view-list"
+              onClick={() => handleViewMode("list")}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Bulk-Aktionsleiste */}
@@ -624,24 +682,45 @@ export default function Funnels() {
           ))}
         </div>
       ) : filteredFunnels.length > 0 ? (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredFunnels.map((funnel) => (
-            <FunnelGridCard
-              key={funnel.id}
-              funnel={funnel}
-              onDelete={() => setDeleteTarget(funnel)}
-              onClone={() => cloneMutation.mutate(funnel.id)}
-              onArchive={() =>
-                archiveMutation.mutate({
-                  id: funnel.id,
-                  archived: funnel.status !== "archived",
-                })
-              }
-              selected={selectedIds.has(funnel.id)}
-              onToggleSelect={() => toggleSelect(funnel.id)}
-            />
-          ))}
-        </div>
+        viewMode === "list" ? (
+          <Card className="overflow-hidden">
+            {filteredFunnels.map((funnel) => (
+              <FunnelListRow
+                key={funnel.id}
+                funnel={funnel}
+                onDelete={() => setDeleteTarget(funnel)}
+                onClone={() => cloneMutation.mutate(funnel.id)}
+                onArchive={() =>
+                  archiveMutation.mutate({
+                    id: funnel.id,
+                    archived: funnel.status !== "archived",
+                  })
+                }
+                selected={selectedIds.has(funnel.id)}
+                onToggleSelect={() => toggleSelect(funnel.id)}
+              />
+            ))}
+          </Card>
+        ) : (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredFunnels.map((funnel) => (
+              <FunnelGridCard
+                key={funnel.id}
+                funnel={funnel}
+                onDelete={() => setDeleteTarget(funnel)}
+                onClone={() => cloneMutation.mutate(funnel.id)}
+                onArchive={() =>
+                  archiveMutation.mutate({
+                    id: funnel.id,
+                    archived: funnel.status !== "archived",
+                  })
+                }
+                selected={selectedIds.has(funnel.id)}
+                onToggleSelect={() => toggleSelect(funnel.id)}
+              />
+            ))}
+          </div>
+        )
       ) : (
         <Card className="p-12">
           <div className="text-center max-w-md mx-auto">
