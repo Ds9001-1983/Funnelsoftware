@@ -2,9 +2,11 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <!-- maximum-scale entfernt: Pinch-Zoom muss für Barrierefreiheit (WCAG 1.4.4) möglich bleiben -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Trichterwerk - Erstelle mobile-optimierte Marketing-Funnels für Lead-Generierung, höhere Conversions und mehr Kunden." />
-    
+    <link rel="canonical" href="https://trichterwerk.de/" />
+
     <!-- Open Graph / Social Media -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Trichterwerk - Funnel Builder" />
@@ -31,6 +33,41 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+
+    <!-- Strukturierte Daten (JSON-LD) für SEO -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://trichterwerk.de/#organization",
+          "name": "Trichterwerk",
+          "url": "https://trichterwerk.de/",
+          "logo": "https://trichterwerk.de/images/logo.webp",
+          "email": "info@superbrand.marketing",
+          "founder": { "@type": "Person", "name": "Dennis Sasse" },
+          "parentOrganization": { "@type": "Organization", "name": "SUPERBRAND.marketing", "url": "https://superbrand.marketing" }
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "Trichterwerk",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "url": "https://trichterwerk.de/",
+          "description": "Deutscher Funnel-Builder für mobile-optimierte Landingpages und Lead-Funnels — Drag-and-Drop, Templates, bedingte Logik, DSGVO-konform mit Hosting in der EU.",
+          "inLanguage": "de",
+          "publisher": { "@id": "https://trichterwerk.de/#organization" },
+          "offers": {
+            "@type": "Offer",
+            "price": "49",
+            "priceCurrency": "EUR",
+            "description": "Pro-Plan, monatlich kündbar, 14 Tage kostenlos testen"
+          }
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
