@@ -22,6 +22,7 @@ if (!document.getElementById("funnel-slide-styles")) {
   document.head.appendChild(slideStyles);
 }
 import { loadFont } from "@/lib/font-loader";
+import { getMutedContrastColor } from "@/lib/utils";
 import { ElementPreviewRenderer } from "@/components/funnel-editor/ElementPreviewRenderer";
 import { FunnelProgress } from "@/components/funnel-editor/FunnelProgress";
 import type { FunnelPage, Theme, PageElement, ABTest } from "@shared/schema";
@@ -604,6 +605,7 @@ export default function PublicFunnelView() {
           currentPage={currentPageIndex}
           totalPages={funnel.pages.length}
           primaryColor={theme.primaryColor}
+          backgroundColor={currentPage.backgroundColor || theme.backgroundColor}
         />
       )}
 
@@ -756,7 +758,10 @@ export default function PublicFunnelView() {
       </div>
 
       {/* Branding footer */}
-      <div className="text-center py-4 text-xs opacity-30">
+      <div
+        className="text-center py-4 text-xs"
+        style={{ color: getMutedContrastColor(currentPage.backgroundColor || theme.backgroundColor) }}
+      >
         Erstellt mit Trichterwerk
       </div>
     </div>
