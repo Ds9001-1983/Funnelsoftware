@@ -188,10 +188,35 @@ function Router() {
   );
 }
 
+// Routen, auf denen anonyme Besucher landen können → hier ist der Cookie-Banner
+// DSGVO-relevant. Im eingeloggten Backend/Editor blockiert er nur und wird daher
+// nicht gerendert.
+function isPublicRoute(location: string, isAuthenticated: boolean): boolean {
+  if (location.startsWith("/f/")) return true; // öffentliche Funnel-Ansicht
+  if (location.startsWith("/preview/")) return false; // Owner-Vorschau (eingeloggt)
+  const publicExact = [
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/impressum",
+    "/datenschutz",
+    "/agb",
+    "/nutzungsbedingungen",
+  ];
+  if (publicExact.includes(location)) return true;
+  if (location.startsWith("/reset-password")) return true;
+  if (location.startsWith("/verify-email")) return true;
+  if (location === "/" && !isAuthenticated) return true; // Landing
+  return false;
+}
+
 function AppShell() {
   // Globale Bremse gegen hängengebliebene Radix-Body-Locks
   // (pointer-events:none / overflow:hidden / data-scroll-locked).
   useGlobalBodyLockGuard();
+  const [location] = useLocation();
+  const { isAuthenticated } = useAuth();
+  const showCookieConsent = isPublicRoute(location, isAuthenticated);
 
   return (
     <ErrorBoundary fallbackTitle="Ein unerwarteter Fehler ist aufgetreten">
@@ -201,7 +226,8 @@ function AppShell() {
       {/* Globale Blocking-Guards: zeigen sich selbst nur, wenn User betroffen */}
       <UpgradeBanner variant="payment-required" />
       <UpgradeBanner variant="expired" />
-      <CookieConsent />
+      {/* Cookie-Banner nur auf öffentlichen Seiten — blockiert sonst den App-Bereich */}
+      {showCookieConsent && <CookieConsent />}
     </ErrorBoundary>
   );
 }
