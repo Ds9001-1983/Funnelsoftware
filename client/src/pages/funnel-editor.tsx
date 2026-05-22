@@ -32,7 +32,6 @@ import {
   Layers,
   Upload,
   FileUp,
-  Info,
   Video,
   Calendar,
   ChevronLeft,
@@ -64,7 +63,6 @@ import {
   Monitor,
   Tablet,
   Menu,
-  X,
   Check,
   AlignLeft,
   AlignCenter,
@@ -204,10 +202,6 @@ export default function FunnelEditor() {
 
   // Mobile detection and responsive sidebar states
   const [isMobile, setIsMobile] = useState(false);
-  // Hinweis, dass der Builder am Desktop am besten funktioniert (einmalig wegklickbar)
-  const [mobileHintDismissed, setMobileHintDismissed] = useState(
-    () => localStorage.getItem("editor-mobile-hint-dismissed") === "true",
-  );
   const [showLeftSidebar, setShowLeftSidebar] = useState(true);
 
   // Detect mobile screen size
@@ -997,6 +991,42 @@ export default function FunnelEditor() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [hasChanges, canUndo, canRedo, undo, redo, handleSave, moveElementUp, moveElementDown, selectedElementId]);
 
+  // Der Builder ist für kleine Viewports nicht bedienbar — statt einer kaputten
+  // Oberfläche einen klaren Hinweis zeigen (Desktop-Editor bleibt unverändert).
+  if (isMobile) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6 text-center">
+        <div className="max-w-sm">
+          <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
+            <Monitor className="h-8 w-8 text-primary" />
+          </div>
+          <h1 className="text-xl font-bold mb-2">Bitte am Desktop bearbeiten</h1>
+          <p className="text-muted-foreground mb-8">
+            Der Funnel-Editor ist für größere Bildschirme optimiert. Bitte öffne
+            Trichterwerk auf einem Tablet oder Desktop, um deinen Funnel zu
+            bearbeiten.
+          </p>
+          <div className="flex flex-col gap-3">
+            <Button onClick={() => navigate("/funnels")} className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Zurück zu meinen Funnels
+            </Button>
+            {params?.id && (
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/preview/${params.id}`)}
+                className="gap-2"
+              >
+                <Eye className="h-4 w-4" />
+                Vorschau ansehen
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="h-screen flex">
@@ -1157,28 +1187,6 @@ export default function FunnelEditor() {
           </Button>
         </div>
       </div>
-
-      {/* Mobile-Hinweis: Builder ist für Desktop optimiert */}
-      {isMobile && !mobileHintDismissed && (
-        <div className="flex items-start gap-2 border-b border-border bg-primary/5 px-3 py-2 text-xs text-muted-foreground md:hidden">
-          <Info className="h-4 w-4 shrink-0 text-primary mt-px" />
-          <p className="flex-1 leading-snug">
-            Der Builder funktioniert am besten am Desktop. Auf dem Smartphone
-            kannst du Funnels ansehen und kleine Anpassungen vornehmen.
-          </p>
-          <button
-            type="button"
-            aria-label="Hinweis ausblenden"
-            className="shrink-0 rounded p-0.5 hover:bg-primary/10"
-            onClick={() => {
-              localStorage.setItem("editor-mobile-hint-dismissed", "true");
-              setMobileHintDismissed(true);
-            }}
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
 
       {/* Main content - 3-Panel Layout */}
       <div className="flex-1 flex overflow-hidden">
