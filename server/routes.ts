@@ -19,7 +19,7 @@ import { sendWebhook, buildWebhookPayload, generateWebhookSecret } from "./webho
 import { sendCapiEvent } from "./capi";
 import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan, requireVerifiedEmail } from "./auth";
 import {
-  insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema,
+  insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema, insertDomainSchema,
   loginSchema, registerSchema, slugSchema
 } from "@shared/schema";
 import { z } from "zod";
@@ -1530,6 +1530,131 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Admin init error:", error);
       res.status(500).json({ error: "Admin konnte nicht initialisiert werden" });
+    }
+  });
+
+  // ============ CUSTOM DOMAINS ============
+
+  app.get("/api/domains", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+      const list = await storage.listDomains(userId);
+      res.json(list);
+    } catch (error) {
+      console.error("List domains error:", error);
+      res.status(500).json({ error: "Domains konnten nicht geladen werden" });
+    }
+  });
+
+  app.post("/api/domains", isAuthenticated, requireVerifiedEmail, requireActivePlan, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const result = insertDomainSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: "Ungültige Domain-Daten", details: result.error.errors });
+      }
+
+      // Funnel muss dem Nutzer gehören
+      const funnel = await storage.getFunnel(result.data.funnelId, userId);
+      if (!funnel) return res.status(404).json({ error: "Funnel nicht gefunden" });
+
+      // Hostname darf nicht doppelt vergeben sein
+      const existing = await storage.getDomainByHostname(result.data.hostname);
+      if (existing) return res.status(409).json({ error: "Diese Domain ist bereits registriert" });
+
+      const domain = await storage.createDomain(funnel.id, userId, result.data.hostname);
+      res.status(201).json(domain);
+    } catch (error) {
+      console.error("Create domain error:", error);
+      res.status(500).json({ error: "Domain konnte nicht angelegt werden" });
+    }
+  });
+
+  app.post("/api/domains/:id/verify", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const id = parseInt(String(req.params.id));
+      if (isNaN(id)) return res.status(400).json({ error: "Ungültige ID" });
+
+      const domain = await storage.getDomain(id, userId);
+      if (!domain) return res.status(404).json({ error: "Domain nicht gefunden" });
+      if (domain.verified) return res.json({ ...domain, alreadyVerified: true });
+
+      // DNS-TXT-Lookup an _trichterwerk-verify.<hostname>
+      const { promises: dns } = await import("dns");
+      let records: string[][] = [];
+      try {
+        records = await dns.resolveTxt(`_trichterwerk-verify.${domain.hostname}`);
+      } catch {
+        return res.status(400).json({
+          error: "DNS-TXT-Eintrag nicht gefunden. Bitte 1–5 Minuten warten und erneut versuchen.",
+        });
+      }
+
+      const flat = records.map((parts) => parts.join("")).map((v) => v.trim());
+      if (!flat.includes(domain.verificationToken)) {
+        return res.status(400).json({
+          error: "Verifikations-Token stimmt nicht überein.",
+          expected: domain.verificationToken,
+          found: flat,
+        });
+      }
+
+      const verified = await storage.markDomainVerified(id, userId);
+      res.json(verified);
+    } catch (error) {
+      console.error("Verify domain error:", error);
+      res.status(500).json({ error: "Domain konnte nicht verifiziert werden" });
+    }
+  });
+
+  app.delete("/api/domains/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const id = parseInt(String(req.params.id));
+      if (isNaN(id)) return res.status(400).json({ error: "Ungültige ID" });
+
+      const ok = await storage.deleteDomain(id, userId);
+      if (!ok) return res.status(404).json({ error: "Domain nicht gefunden" });
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete domain error:", error);
+      res.status(500).json({ error: "Domain konnte nicht gelöscht werden" });
+    }
+  });
+
+  // Public: Funnel anhand des Host-Headers/Querys auflösen — nutzt die SPA,
+  // um auf einer Custom-Domain den richtigen Funnel zu rendern.
+  app.get("/api/public/funnel-by-host", async (req, res) => {
+    try {
+      const rawHost = (req.query.host as string | undefined) || req.headers.host || "";
+      const host = String(rawHost).toLowerCase().split(":")[0].trim();
+      if (!host) return res.status(400).json({ error: "Host fehlt" });
+
+      const domain = await storage.getDomainByHostname(host);
+      if (!domain || !domain.verified) return res.status(404).json({ error: "Keine verifizierte Domain" });
+
+      const funnel = await storage.getFunnel(domain.funnelId, domain.userId);
+      if (!funnel || funnel.status !== "published") {
+        return res.status(404).json({ error: "Funnel nicht verfügbar" });
+      }
+
+      // Reduzierter Payload (öffentliche Sicht — Sensitive Felder weglassen)
+      res.json({
+        uuid: funnel.uuid,
+        slug: funnel.slug,
+        name: funnel.name,
+      });
+    } catch (error) {
+      console.error("Funnel-by-host error:", error);
+      res.status(500).json({ error: "Funnel konnte nicht aufgelöst werden" });
     }
   });
 

@@ -2,11 +2,12 @@ import { eq, desc, and, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   users, funnels, leads, templates, analyticsEvents, passwordResetTokens,
-  teams, teamMembers, apiKeys,
+  teams, teamMembers, apiKeys, domains,
   type User, type InsertUser, type Funnel, type InsertFunnel,
   type Lead, type InsertLead, type AnalyticsEvent, type Template,
   type FunnelPage, type Theme,
   type Team, type InsertTeam, type TeamMember, type ApiKey, type InsertApiKey,
+  type Domain,
 } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
@@ -71,6 +72,14 @@ export interface IStorage {
   getTemplates(): Promise<Template[]>;
   getTemplate(id: number): Promise<Template | undefined>;
   seedTemplates(): Promise<void>;
+
+  // Custom Domains
+  listDomains(userId: number): Promise<Domain[]>;
+  getDomain(id: number, userId: number): Promise<Domain | undefined>;
+  getDomainByHostname(hostname: string): Promise<Domain | undefined>;
+  createDomain(funnelId: number, userId: number, hostname: string): Promise<Domain>;
+  markDomainVerified(id: number, userId: number): Promise<Domain | undefined>;
+  deleteDomain(id: number, userId: number): Promise<boolean>;
 }
 
 // Database storage implementation
@@ -939,6 +948,62 @@ export class DatabaseStorage implements IStorage {
 
   async updateApiKeyLastUsed(keyId: number): Promise<void> {
     await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, keyId));
+  }
+
+  // ============ CUSTOM DOMAINS ============
+
+  async listDomains(userId: number): Promise<Domain[]> {
+    return await db
+      .select()
+      .from(domains)
+      .where(eq(domains.userId, userId))
+      .orderBy(desc(domains.createdAt)) as Domain[];
+  }
+
+  async getDomain(id: number, userId: number): Promise<Domain | undefined> {
+    const [row] = await db
+      .select()
+      .from(domains)
+      .where(and(eq(domains.id, id), eq(domains.userId, userId)));
+    return row as Domain | undefined;
+  }
+
+  async getDomainByHostname(hostname: string): Promise<Domain | undefined> {
+    const [row] = await db
+      .select()
+      .from(domains)
+      .where(eq(domains.hostname, hostname.toLowerCase()));
+    return row as Domain | undefined;
+  }
+
+  async createDomain(funnelId: number, userId: number, hostname: string): Promise<Domain> {
+    const verificationToken = randomBytes(24).toString("hex");
+    const [row] = await db
+      .insert(domains)
+      .values({
+        funnelId,
+        userId,
+        hostname: hostname.toLowerCase(),
+        verificationToken,
+      })
+      .returning();
+    return row as Domain;
+  }
+
+  async markDomainVerified(id: number, userId: number): Promise<Domain | undefined> {
+    const [row] = await db
+      .update(domains)
+      .set({ verified: true, verifiedAt: new Date(), sslStatus: "pending" })
+      .where(and(eq(domains.id, id), eq(domains.userId, userId)))
+      .returning();
+    return row as Domain | undefined;
+  }
+
+  async deleteDomain(id: number, userId: number): Promise<boolean> {
+    const result = await db
+      .delete(domains)
+      .where(and(eq(domains.id, id), eq(domains.userId, userId)));
+    return (result as any).rowCount > 0;
   }
 }
 
