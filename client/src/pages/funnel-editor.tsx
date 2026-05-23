@@ -141,6 +141,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useHistory, useAutoSave } from "@/hooks/use-history";
 import { useBeforeUnload } from "@/hooks/use-before-unload";
+import { useFunnelEditor } from "@/hooks/use-funnel-editor";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Funnel, FunnelPage, PageElement, PageAnimation, Section, Column } from "@shared/schema";
 import confetti from "canvas-confetti";
@@ -175,6 +176,7 @@ import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
 
 import { HistoryIndicator } from "@/components/funnel-editor/HistoryIndicator";
 import { SaveStatusIndicator } from "@/components/funnel-editor/SaveStatusIndicator";
+import { EditorToolbar } from "@/components/funnel-editor/EditorToolbar";
 import { CommandPalette } from "@/components/funnel-editor/CommandPalette";
 import { ShortcutOverlay } from "@/components/funnel-editor/ShortcutOverlay";
 import { ThemePresetPicker } from "@/components/funnel-editor/ThemePresetPicker";
@@ -192,13 +194,36 @@ export default function FunnelEditor() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
+  // Daten-/Persistenz-Layer extrahiert in einen Hook (Stufe 3.1). Die alten
+  // Namen bleiben via Destructuring identisch, damit der restliche Editor-Code
+  // unverändert weiterläuft.
+  const {
+    funnel,
+    isLoading,
+    localFunnel,
+    setLocalFunnel,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    historyLength,
+    hasChanges,
+    setHasChanges,
+    autoSaveEnabled,
+    setAutoSaveEnabled,
+    lastAutoSave,
+    lastSavedAt,
+    saveMutation,
+    saveStatus,
+    updateLocalFunnel,
+    updatePage,
+  } = useFunnelEditor(params?.id);
+
   const [selectedPageIndex, setSelectedPageIndex] = useState(0);
   const [showAddPage, setShowAddPage] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [editorTab, setEditorTab] = useState<"overview" | "design">("overview");
   const [previewMode, setPreviewMode] = useState<"phone" | "tablet" | "desktop">("phone");
-  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
-  const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
 
   // Mobile detection and responsive sidebar states
   const [isMobile, setIsMobile] = useState(false);
@@ -246,22 +271,6 @@ export default function FunnelEditor() {
     data: PageElement | Section | FunnelPage;
   } | null>(null);
 
-  // History state for undo/redo
-  const {
-    state: localFunnel,
-    set: setLocalFunnel,
-    undo,
-    redo,
-    reset: resetHistory,
-    canUndo,
-    canRedo,
-    historyLength,
-  } = useHistory<Funnel | null>(null);
-
-  const [hasChanges, setHasChanges] = useState(false);
-
-  useBeforeUnload(hasChanges, "Es gibt ungespeicherte Änderungen. Trotzdem schließen?");
-
   useDocumentTitle(localFunnel ? `${localFunnel.name} bearbeiten` : "Funnel Editor");
 
   const sensors = useSensors(
@@ -274,92 +283,6 @@ export default function FunnelEditor() {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-
-  const { data: funnel, isLoading } = useQuery<Funnel>({
-    queryKey: ["/api/funnels", params?.id],
-    enabled: !!params?.id,
-  });
-
-  // Initialize funnel from query
-  useEffect(() => {
-    if (funnel && !localFunnel) {
-      resetHistory(funnel);
-    }
-  }, [funnel]);
-
-  // Load selected font on funnel load
-  useEffect(() => {
-    if (localFunnel?.theme?.fontFamily) {
-      loadFont(localFunnel.theme.fontFamily);
-    }
-  }, [localFunnel?.theme?.fontFamily]);
-
-  // Auto-save functionality
-  const performAutoSave = useCallback(() => {
-    if (localFunnel && hasChanges && autoSaveEnabled) {
-      saveMutation.mutate({
-        name: localFunnel.name,
-        description: localFunnel.description,
-        pages: localFunnel.pages,
-        theme: localFunnel.theme,
-        status: localFunnel.status,
-        abTests: localFunnel.abTests,
-      });
-      setLastAutoSave(new Date());
-    }
-  }, [localFunnel, hasChanges, autoSaveEnabled]);
-
-  const { scheduleAutoSave } = useAutoSave(
-    localFunnel,
-    performAutoSave,
-    5000, // 5 Sekunden nach letzter Änderung
-    autoSaveEnabled && hasChanges
-  );
-
-  // Schedule auto-save when changes occur
-  useEffect(() => {
-    if (hasChanges && autoSaveEnabled) {
-      scheduleAutoSave();
-    }
-  }, [hasChanges, autoSaveEnabled, scheduleAutoSave]);
-
-  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
-
-  const saveMutation = useMutation({
-    mutationFn: async (data: Partial<Funnel>) => {
-      const response = await apiRequest("PATCH", `/api/funnels/${params?.id}`, data);
-      return response.json();
-    },
-    // Exponential backoff: 1s → 2s → 4s, max 3 Versuche.
-    // CSRF-/Auth-Fehler werden nicht retried (bringt nichts, gleiche Antwort).
-    retry: (failureCount, error) => {
-      if (failureCount >= 3) return false;
-      const status = (error as { status?: number } | null)?.status;
-      if (status === 401 || status === 403 || status === 404) return false;
-      return true;
-    },
-    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 4000),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/funnels", params?.id] });
-      setHasChanges(false);
-      setLastSavedAt(new Date());
-    },
-    onError: () => {
-      toast({
-        title: "Speichern fehlgeschlagen",
-        description: "Nach mehreren Versuchen nicht gespeichert. Bitte Speichern-Button erneut drücken.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const saveStatus: "saved" | "dirty" | "saving" | "error" = saveMutation.isPending
-    ? "saving"
-    : saveMutation.isError
-      ? "error"
-      : hasChanges
-        ? "dirty"
-        : "saved";
 
   const publishMutation = useMutation({
     mutationFn: async (slug: string) => {
@@ -401,24 +324,6 @@ export default function FunnelEditor() {
       toast({ title: "Slug aktualisiert", description: "Die URL wurde geändert." });
     },
   });
-
-  const updateLocalFunnel = useCallback((updates: Partial<Funnel>) => {
-    setLocalFunnel((prev) => {
-      if (!prev) return prev;
-      return { ...prev, ...updates };
-    });
-    setHasChanges(true);
-  }, [setLocalFunnel]);
-
-  const updatePage = useCallback((index: number, updates: Partial<FunnelPage>) => {
-    setLocalFunnel((prev) => {
-      if (!prev) return prev;
-      const newPages = [...prev.pages];
-      newPages[index] = { ...newPages[index], ...updates };
-      return { ...prev, pages: newPages };
-    });
-    setHasChanges(true);
-  }, [setLocalFunnel]);
 
   // A/B Test handlers
   const createABTest = useCallback((test: import("@shared/schema").ABTest) => {
@@ -1067,126 +972,43 @@ export default function FunnelEditor() {
   return (
     <ErrorBoundary>
     <div className={`h-screen flex flex-col bg-background ${isMobile ? "pb-16" : ""}`}>
-      {/* Header - Clean & Minimal */}
-      <div className="h-12 border-b border-border bg-card flex items-center justify-between px-3 shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => navigate("/funnels")} data-testid="button-back">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          {isMobile && (
-            <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 md:hidden" onClick={() => setShowLeftSidebar(!showLeftSidebar)}>
-              <Layers className="h-4 w-4" />
-            </Button>
-          )}
-          <span className="font-medium text-sm truncate">{localFunnel.name}</span>
-          <Badge variant={localFunnel.status === "published" ? "default" : "secondary"} className="shrink-0 text-[10px]">
-            {localFunnel.status === "published" ? "Live" : "Entwurf"}
-          </Badge>
-          <SaveStatusIndicator status={saveStatus} lastSavedAt={lastSavedAt} onRetry={handleSave} />
-        </div>
-
-        {/* Center - Device Toggle */}
-        <div className="flex items-center bg-muted rounded-lg p-0.5">
-          <Button size="icon" variant={previewMode === "phone" ? "secondary" : "ghost"} className="h-7 w-7" onClick={() => setPreviewMode("phone")}>
-            <Smartphone className="h-3.5 w-3.5" />
-          </Button>
-          <Button size="icon" variant={previewMode === "tablet" ? "secondary" : "ghost"} className="h-7 w-7" onClick={() => setPreviewMode("tablet")}>
-            <Tablet className="h-3.5 w-3.5" />
-          </Button>
-          <Button size="icon" variant={previewMode === "desktop" ? "secondary" : "ghost"} className="h-7 w-7" onClick={() => setPreviewMode("desktop")}>
-            <Monitor className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-
-        {/* Right - Actions */}
-        <div className="flex items-center gap-1">
-          <HistoryIndicator canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} historyLength={historyLength} />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={autoSaveEnabled ? "Auto-Save deaktivieren" : "Auto-Save aktivieren"} onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}>
-                {autoSaveEnabled ? <Cloud className="h-4 w-4 text-green-500" /> : <CloudOff className="h-4 w-4 text-muted-foreground" />}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{autoSaveEnabled ? `Auto-Save aktiv${lastAutoSave ? ` (${lastAutoSave.toLocaleTimeString()})` : ""}` : "Auto-Save deaktiviert"}</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                aria-label="Flow-Ansicht öffnen"
-                onClick={() => setShowLogicFlow(true)}
-                data-testid="button-logic-flow"
-              >
-                <GitBranch className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Flow-Ansicht</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 relative"
-                aria-label="A/B-Tests öffnen"
-                onClick={() => setShowABTests(true)}
-                data-testid="button-abtests"
-              >
-                <FlaskConical className="h-4 w-4" />
-                {(localFunnel.abTests || []).some(
-                  (t) => t.pageId === selectedPage?.id && t.status === "running",
-                ) && (
-                  <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-green-500" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>A/B-Tests</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Einstellungen" onClick={() => setShowSettings(true)} data-testid="button-settings">
-                <Settings className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Einstellungen</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                aria-label="Vorschau in neuem Tab öffnen"
-                onClick={() => {
-                  if (!localFunnel) return;
-                  // Draft → auth-Preview-Route; Published → öffentliche Route
-                  const url =
-                    localFunnel.status === "published"
-                      ? `/f/${localFunnel.slug || localFunnel.uuid}`
-                      : `/preview/${localFunnel.id}`;
-                  window.open(url, "_blank");
-                }}
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {localFunnel?.status === "published" ? "Vorschau" : "Vorschau (Entwurf)"}
-            </TooltipContent>
-          </Tooltip>
-          <div className="h-5 w-px bg-border mx-1 hidden sm:block" />
-          <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={handleSave} disabled={!hasChanges || saveMutation.isPending} data-testid="button-save">
-            <Save className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Speichern</span>
-          </Button>
-          <Button size="sm" className="gap-1.5 h-8" onClick={() => setShowPublishDialog(true)} disabled={publishMutation.isPending} data-testid="button-publish">
-            <Globe className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{localFunnel.status === "published" ? "URL verwalten" : "Veröffentlichen"}</span>
-          </Button>
-        </div>
-      </div>
+      {/* Header — extrahiert in EditorToolbar (Stufe 3.1) */}
+      <EditorToolbar
+        localFunnel={localFunnel}
+        selectedPage={selectedPage}
+        saveStatus={saveStatus}
+        lastSavedAt={lastSavedAt}
+        hasChanges={hasChanges}
+        isSavePending={saveMutation.isPending}
+        isPublishPending={publishMutation.isPending}
+        previewMode={previewMode}
+        setPreviewMode={setPreviewMode}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={undo}
+        onRedo={redo}
+        historyLength={historyLength}
+        autoSaveEnabled={autoSaveEnabled}
+        setAutoSaveEnabled={setAutoSaveEnabled}
+        lastAutoSave={lastAutoSave}
+        isMobile={isMobile}
+        showLeftSidebar={showLeftSidebar}
+        setShowLeftSidebar={setShowLeftSidebar}
+        onBack={() => navigate("/funnels")}
+        onSave={handleSave}
+        onOpenLogicFlow={() => setShowLogicFlow(true)}
+        onOpenABTests={() => setShowABTests(true)}
+        onOpenSettings={() => setShowSettings(true)}
+        onOpenPublish={() => setShowPublishDialog(true)}
+        onOpenPreview={() => {
+          // Draft → auth-Preview-Route; Published → öffentliche Route
+          const url =
+            localFunnel.status === "published"
+              ? `/f/${localFunnel.slug || localFunnel.uuid}`
+              : `/preview/${localFunnel.id}`;
+          window.open(url, "_blank");
+        }}
+      />
 
       {/* Main content - 3-Panel Layout */}
       <div className="flex-1 flex overflow-hidden">
