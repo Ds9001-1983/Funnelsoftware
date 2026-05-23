@@ -12,3 +12,8 @@ vite.config.ts.*
 
 # Lighthouse-Reports (lokal generiert)
 lighthouse-report.html
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/

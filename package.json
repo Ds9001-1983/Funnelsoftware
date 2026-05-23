@@ -15,7 +15,9 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "optimize-images": "node scripts/optimize-images.cjs",
-    "lighthouse": "npx --yes lighthouse https://trichterwerk.de/ --preset=desktop --output=html --output-path=./lighthouse-report.html --chrome-flags=\"--headless\" --view"
+    "lighthouse": "npx --yes lighthouse https://trichterwerk.de/ --preset=desktop --output=html --output-path=./lighthouse-report.html --chrome-flags=\"--headless\" --view",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install --with-deps chromium"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -89,6 +91,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@replit/vite-plugin-cartographer": "^0.4.4",
     "@replit/vite-plugin-dev-banner": "^0.1.1",
     "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
