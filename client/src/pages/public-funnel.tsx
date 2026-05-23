@@ -23,6 +23,7 @@ if (!document.getElementById("funnel-slide-styles")) {
 }
 import { loadFont } from "@/lib/font-loader";
 import { getMutedContrastColor } from "@/lib/utils";
+import { getNextPageIndex } from "@/lib/funnel-logic";
 import { ElementPreviewRenderer } from "@/components/funnel-editor/ElementPreviewRenderer";
 import { FunnelProgress } from "@/components/funnel-editor/FunnelProgress";
 import type { FunnelPage, Theme, PageElement, ABTest } from "@shared/schema";
@@ -328,65 +329,7 @@ export default function PublicFunnelView() {
 
   const resolveNextPageIndex = useCallback((): number | null => {
     if (!funnel) return null;
-    const page = funnel.pages[currentPageIndex];
-
-    // 0. Check button elements with specific page targets
-    for (const el of page.elements) {
-      if (el.type === "button" && el.buttonAction === "page" && el.buttonNextPageId) {
-        const targetIdx = funnel.pages.findIndex(p => p.id === el.buttonNextPageId);
-        if (targetIdx >= 0) return targetIdx;
-      }
-    }
-
-    // 0.5 Check element-level optionRouting (select/radio)
-    for (const el of page.elements) {
-      if ((el.type === "select" || el.type === "radio") && el.optionRouting) {
-        const selectedValue = formValues[el.id];
-        if (selectedValue && el.optionRouting[selectedValue]) {
-          const targetIdx = funnel.pages.findIndex(p => p.id === el.optionRouting![selectedValue]);
-          if (targetIdx >= 0) return targetIdx;
-        }
-      }
-    }
-
-    // 1. Check conditional routing (option → pageId)
-    if (page.conditionalRouting) {
-      for (const el of page.elements) {
-        const value = formValues[el.id];
-        if (value && page.conditionalRouting[value]) {
-          const targetIdx = funnel.pages.findIndex(p => p.id === page.conditionalRouting![value]);
-          if (targetIdx >= 0) return targetIdx;
-        }
-      }
-    }
-
-    // 2. Check advanced conditions
-    if (page.conditions && page.conditions.length > 0) {
-      for (const cond of page.conditions) {
-        const value = formValues[cond.elementId] || "";
-        let match = false;
-        switch (cond.operator) {
-          case "equals": match = value === cond.value; break;
-          case "notEquals": match = value !== cond.value; break;
-          case "contains": match = value.includes(cond.value || ""); break;
-          case "isEmpty": match = !value.trim(); break;
-        }
-        if (match) {
-          const targetIdx = funnel.pages.findIndex(p => p.id === cond.targetPageId);
-          if (targetIdx >= 0) return targetIdx;
-        }
-      }
-    }
-
-    // 3. Check fixed nextPageId
-    if (page.nextPageId) {
-      const targetIdx = funnel.pages.findIndex(p => p.id === page.nextPageId);
-      if (targetIdx >= 0) return targetIdx;
-    }
-
-    // 4. Default: next sequential page
-    const nextIndex = currentPageIndex + 1;
-    return nextIndex < funnel.pages.length ? nextIndex : null;
+    return getNextPageIndex(funnel.pages, currentPageIndex, formValues);
   }, [funnel, currentPageIndex, formValues]);
 
   const navigateToPage = useCallback((targetIndex: number, direction: "left" | "right") => {
