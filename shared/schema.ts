@@ -43,6 +43,13 @@ export const funnels = pgTable("funnels", {
   webhookEnabled: boolean("webhook_enabled").notNull().default(false),
   webhookSecret: text("webhook_secret"),
   gtmId: text("gtm_id"),
+  // Server-Side Meta Conversions API (CAPI). Pixel-ID darf öffentlich sein,
+  // der Access-Token ist ein Secret und sollte nur dem Funnel-Owner gezeigt
+  // werden. Beides + capiEnabled wird beim Lead-Capture serverseitig
+  // ausgewertet (nur bei Marketing-Consent feuern — siehe server/capi.ts).
+  metaPixelId: text("meta_pixel_id"),
+  metaCapiToken: text("meta_capi_token"),
+  capiEnabled: boolean("capi_enabled").notNull().default(false),
   views: integer("views").notNull().default(0),
   leads: integer("leads_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -578,6 +585,9 @@ export const funnelSchema = z.object({
   webhookEnabled: z.boolean().optional(),
   webhookSecret: z.string().nullable().optional(),
   gtmId: z.string().nullable().optional(),
+  metaPixelId: z.string().nullable().optional(),
+  metaCapiToken: z.string().nullable().optional(),
+  capiEnabled: z.boolean().optional(),
   views: z.number(),
   leads: z.number(),
   createdAt: z.string().or(z.date()),
@@ -635,6 +645,9 @@ export const insertLeadSchema = z.object({
   answers: z.record(z.string(), z.any()).optional(),
   status: z.enum(["new", "contacted", "qualified", "converted", "lost"]).default("new"),
   source: z.string().optional(),
+  // DSGVO-Marketing-Einwilligung des Besuchers (Cookie-Consent). Wird vom
+  // Public-Funnel mitgeschickt und gated server-side Tracking (Meta CAPI).
+  marketingConsent: z.boolean().optional(),
 });
 
 export type InsertLead = z.infer<typeof insertLeadSchema>;

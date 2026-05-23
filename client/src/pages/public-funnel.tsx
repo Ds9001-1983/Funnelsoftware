@@ -405,6 +405,17 @@ export default function PublicFunnelView() {
         }
       }
 
+      // DSGVO: Marketing-Consent aus dem Cookie-Banner auslesen — gated
+      // server-side Tracking (z. B. Meta CAPI). Wenn kein Banner gespeichert
+      // wurde, gilt default-deny.
+      let marketingConsent = false;
+      try {
+        const prefs = localStorage.getItem("trichterwerk-cookie-preferences");
+        if (prefs) marketingConsent = !!JSON.parse(prefs)?.marketing;
+      } catch {
+        // ungültiges JSON → kein Consent
+      }
+
       const res = await fetch("/api/public/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -417,6 +428,7 @@ export default function PublicFunnelView() {
           message: message || undefined,
           answers: formData,
           source: document.referrer || "direct",
+          marketingConsent,
         }),
       });
 

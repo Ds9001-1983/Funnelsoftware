@@ -16,6 +16,7 @@ import {
   constructWebhookEvent,
 } from "./stripe";
 import { sendWebhook, buildWebhookPayload, generateWebhookSecret } from "./webhooks";
+import { sendCapiEvent } from "./capi";
 import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan, requireVerifiedEmail } from "./auth";
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema,
@@ -803,6 +804,57 @@ export async function registerRoutes(
       const owner = await storage.getUser(funnel.userId);
       if (owner?.email) {
         sendLeadNotificationEmail(owner.email, lead, funnel.name).catch(() => {});
+      }
+
+      // Async: Server-Side Meta Conversions API. DSGVO: nur bei aktivem
+      // Marketing-Consent des Besuchers feuern. Funktioniert nur, wenn der
+      // Funnel-Owner Pixel-ID + CAPI-Token konfiguriert und capiEnabled=true
+      // gesetzt hat. eventId = lead.uuid → dedupliziert sauber mit einem
+      // client-seitigen Pixel-Event, wenn das später ergänzt wird.
+      const consent = !!result.data.marketingConsent;
+      if (consent && funnel.capiEnabled && funnel.metaPixelId && funnel.metaCapiToken) {
+        const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol;
+        const host = req.get("host");
+        const referer = req.headers.referer;
+        const eventSourceUrl =
+          (typeof referer === "string" && referer) ||
+          `${proto}://${host}/f/${funnel.slug || funnel.uuid}`;
+        const fwd = req.headers["x-forwarded-for"];
+        const ip =
+          (typeof fwd === "string" ? fwd.split(",")[0]?.trim() : undefined) ||
+          req.socket.remoteAddress ||
+          undefined;
+        const ua = req.headers["user-agent"];
+        const cookies = (req.headers.cookie || "").split(";").reduce(
+          (acc, part) => {
+            const [k, ...rest] = part.trim().split("=");
+            if (k) acc[k] = rest.join("=");
+            return acc;
+          },
+          {} as Record<string, string>,
+        );
+        // Name in firstName + lastName aufteilen (Meta erwartet getrennt).
+        const [firstName, ...nameRest] = (lead.name || "").trim().split(/\s+/);
+        const lastName = nameRest.join(" ") || undefined;
+        sendCapiEvent({
+          pixelId: funnel.metaPixelId,
+          accessToken: funnel.metaCapiToken,
+          eventName: "Lead",
+          eventId: lead.uuid,
+          eventSourceUrl,
+          userData: {
+            email: lead.email,
+            phone: lead.phone,
+            firstName: firstName || undefined,
+            lastName,
+            clientIpAddress: ip,
+            clientUserAgent: typeof ua === "string" ? ua : undefined,
+            fbc: cookies._fbc,
+            fbp: cookies._fbp,
+          },
+        }).catch((err) => {
+          console.error("Meta CAPI failed:", err);
+        });
       }
     } catch (error) {
       console.error("Create public lead error:", error);

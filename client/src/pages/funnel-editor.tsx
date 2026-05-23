@@ -1586,6 +1586,51 @@ export default function FunnelEditor() {
                     Container-ID für Tracking (Google Ads, Meta Pixel, etc.)
                   </p>
                 </div>
+
+                {/* Server-Side Meta CAPI */}
+                <div className="space-y-3 pt-2 border-t">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm">Server-Side Tracking (Meta CAPI)</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Sendet Lead-Events direkt an Meta — überlebt iOS-ATT und Adblocker.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={!!localFunnel.capiEnabled}
+                      onCheckedChange={(checked) => updateLocalFunnel({ capiEnabled: checked })}
+                      aria-label="Server-Side Tracking aktivieren"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Meta Pixel ID</Label>
+                    <Input
+                      value={localFunnel.metaPixelId || ""}
+                      onChange={(e) =>
+                        updateLocalFunnel({ metaPixelId: e.target.value || null })
+                      }
+                      placeholder="1234567890123456"
+                      className="text-sm"
+                      disabled={!localFunnel.capiEnabled}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">CAPI Access Token</Label>
+                    <Input
+                      type="password"
+                      value={localFunnel.metaCapiToken || ""}
+                      onChange={(e) =>
+                        updateLocalFunnel({ metaCapiToken: e.target.value || null })
+                      }
+                      placeholder="EAA... (System User Access Token)"
+                      className="text-sm font-mono"
+                      disabled={!localFunnel.capiEnabled}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Secret — wird in der DB gespeichert und nur server-seitig verwendet. Events feuern ausschließlich, wenn der Besucher Marketing-Cookies akzeptiert hat (DSGVO).
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
