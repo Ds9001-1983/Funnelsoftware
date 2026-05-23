@@ -1,5 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -219,10 +219,50 @@ function isPublicRoute(location: string, isAuthenticated: boolean): boolean {
   return false;
 }
 
+// Kanonische App-Hosts — alle anderen werden als Custom-Domain behandelt.
+const CANONICAL_HOSTS = new Set([
+  "trichterwerk.de",
+  "www.trichterwerk.de",
+  "localhost",
+  "127.0.0.1",
+  "0.0.0.0",
+]);
+
+/**
+ * Wenn die App unter einer Custom-Domain (CNAME) aufgerufen wird, fragen wir
+ * beim Server, welcher Funnel zu diesem Host gehört, und routen direkt auf
+ * `/f/<uuid>`. Greift nur einmal pro Mount.
+ */
+function useCustomDomainResolver() {
+  const [location, setLocation] = useLocation();
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const host = window.location.hostname.toLowerCase();
+    if (CANONICAL_HOSTS.has(host)) return;
+    // Bereits auf einer Funnel-Route → nichts tun.
+    if (location.startsWith("/f/") || location.startsWith("/preview/")) return;
+    let cancelled = false;
+    fetch(`/api/public/funnel-by-host?host=${encodeURIComponent(host)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.uuid) {
+          setLocation(`/f/${data.slug || data.uuid}`);
+        }
+      })
+      .catch(() => {
+        // Schweigen — Fallback ist die normale Landing/Route.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [location, setLocation]);
+}
+
 function AppShell() {
   // Globale Bremse gegen hängengebliebene Radix-Body-Locks
   // (pointer-events:none / overflow:hidden / data-scroll-locked).
   useGlobalBodyLockGuard();
+  useCustomDomainResolver();
   const [location] = useLocation();
   const { isAuthenticated } = useAuth();
   const showCookieConsent = isPublicRoute(location, isAuthenticated);

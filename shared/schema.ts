@@ -60,6 +60,24 @@ export const funnels = pgTable("funnels", {
   index("funnels_slug_idx").on(table.slug),
 ]);
 
+// Custom Domains table — pro Funnel kann eine eigene Domain hinterlegt werden.
+// Verifikation läuft über einen TXT-Record auf `_trichterwerk-verify.<hostname>`.
+export const domains = pgTable("domains", {
+  id: serial("id").primaryKey(),
+  funnelId: integer("funnel_id").notNull().references(() => funnels.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  hostname: text("hostname").notNull().unique(),
+  verified: boolean("verified").notNull().default(false),
+  verificationToken: text("verification_token").notNull(),
+  sslStatus: text("ssl_status").notNull().default("pending"), // pending, active, error
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  verifiedAt: timestamp("verified_at"),
+}, (table) => [
+  index("domains_user_id_idx").on(table.userId),
+  index("domains_funnel_id_idx").on(table.funnelId),
+  index("domains_hostname_idx").on(table.hostname),
+]);
+
 // Leads table
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
@@ -651,6 +669,34 @@ export const insertLeadSchema = z.object({
 });
 
 export type InsertLead = z.infer<typeof insertLeadSchema>;
+
+// Custom-Domain-Schemas
+const hostnameRegex = /^(?=.{3,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
+
+export const domainSchema = z.object({
+  id: z.number(),
+  funnelId: z.number(),
+  userId: z.number(),
+  hostname: z.string(),
+  verified: z.boolean(),
+  verificationToken: z.string(),
+  sslStatus: z.enum(["pending", "active", "error"]),
+  createdAt: z.string().or(z.date()),
+  verifiedAt: z.string().or(z.date()).nullable().optional(),
+});
+export type Domain = z.infer<typeof domainSchema>;
+
+export const insertDomainSchema = z.object({
+  funnelId: z.number(),
+  hostname: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(3)
+    .max(253)
+    .regex(hostnameRegex, "Ungültiger Hostname"),
+});
+export type InsertDomain = z.infer<typeof insertDomainSchema>;
 
 // Analytics schema
 export const analyticsEventSchema = z.object({

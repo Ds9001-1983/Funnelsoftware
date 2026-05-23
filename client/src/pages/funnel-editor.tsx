@@ -177,6 +177,7 @@ import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
 import { HistoryIndicator } from "@/components/funnel-editor/HistoryIndicator";
 import { SaveStatusIndicator } from "@/components/funnel-editor/SaveStatusIndicator";
 import { EditorToolbar } from "@/components/funnel-editor/EditorToolbar";
+import { CustomDomainPanel } from "@/components/funnel-editor/CustomDomainPanel";
 import { CommandPalette } from "@/components/funnel-editor/CommandPalette";
 import { ShortcutOverlay } from "@/components/funnel-editor/ShortcutOverlay";
 import { ThemePresetPicker } from "@/components/funnel-editor/ThemePresetPicker";
@@ -1631,6 +1632,9 @@ export default function FunnelEditor() {
                     </p>
                   </div>
                 </div>
+
+                {/* Eigene Domain (Stufe 4.2) */}
+                <CustomDomainPanel funnelId={localFunnel.id} />
               </div>
             </div>
           </div>
