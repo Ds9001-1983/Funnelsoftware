@@ -52,4 +52,5 @@ Läuft auf **http://localhost:5000**.
 - **Admin-Panel:** `/admin`, Login mit `ADMIN_USERNAME` / `ADMIN_PASSWORD` aus der `.env`.
 - **TypeScript-Check:** `npm run check`
 - **Tests:** `npm run test:run` (CI führt sie zuverlässig aus; lokal kann der Vitest-Worker je nach Umgebung Probleme beim Forken haben — dann auf `npm run check` stützen).
+- **End-to-End-Tests (Playwright):** einmalig `npm run test:e2e:install` (Browser herunterladen), dann `npm run test:e2e`. Startet automatisch den Dev-Server auf Port 5000 und führt die Smoke-Tests in `tests-e2e/` aus.
 - **Produktions-Build:** `npm run build`, Start mit `npm start`.

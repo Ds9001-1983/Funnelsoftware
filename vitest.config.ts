@@ -9,7 +9,9 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./client/src/test/setup.ts"],
     include: ["**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
-    exclude: ["node_modules", "dist", ".idea", ".git", ".cache"],
+    // tests-e2e/ gehört Playwright (siehe playwright.config.ts) — vitest darf
+    // dort nicht hineinlaufen, sonst greift es .spec.ts-Dateien fälschlich auf.
+    exclude: ["node_modules", "dist", ".idea", ".git", ".cache", "tests-e2e/**"],
     typecheck: {
       tsconfig: "./tsconfig.test.json",
     },
