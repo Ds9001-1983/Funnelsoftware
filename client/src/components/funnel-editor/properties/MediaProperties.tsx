@@ -7,7 +7,6 @@ import {
   ChevronUp,
   ChevronDown,
   Search,
-  Upload,
   Music,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -100,21 +99,13 @@ export const ImageProperties = memo(function ImageProperties({ element, onUpdate
         </div>
       </div>
 
-      <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center hover:border-primary/50 transition-colors cursor-pointer">
-        <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-        <p className="text-xs text-muted-foreground">
-          Bild ablegen oder klicken zum Durchsuchen
-        </p>
-        <p className="text-xs text-muted-foreground mt-1">
-          (Max. 10MB; .png .jpg .webp .gif)
-        </p>
-      </div>
+      <ImageUploader
+        variant="dropzone"
+        value={element.imageUrl || ""}
+        onChange={(url) => onUpdate({ imageUrl: url })}
+      />
 
       <div className="space-y-2">
-        <ImageUploader
-          value={element.imageUrl || ""}
-          onChange={(url) => onUpdate({ imageUrl: url })}
-        />
         <Label className="text-xs">oder URL eingeben</Label>
         <Input
           value={element.imageUrl || ""}
