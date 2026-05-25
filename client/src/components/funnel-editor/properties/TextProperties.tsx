@@ -1,8 +1,9 @@
 import { memo } from "react";
-import { AlignLeft, AlignCenter, AlignRight, Bold, Italic } from "lucide-react";
+import { AlignLeft, AlignCenter, AlignRight, Bold, Italic, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -138,6 +139,31 @@ export const TextProperties = memo(function TextProperties({ element, onUpdate }
         >
           <Italic className="h-4 w-4" />
         </Button>
+      </div>
+
+      {/* Element-weiter Link */}
+      <div className="space-y-2 pt-2 border-t">
+        <Label className="text-xs flex items-center gap-1.5">
+          <LinkIcon className="h-3 w-3" />
+          Link (optional)
+        </Label>
+        <Input
+          value={element.linkUrl || ""}
+          onChange={(e) => onUpdate({ linkUrl: e.target.value || undefined })}
+          placeholder="https://…"
+          className="text-sm h-8"
+        />
+        {element.linkUrl && (
+          <div className="flex items-center justify-between">
+            <Label className="text-xs text-muted-foreground">Im neuen Tab öffnen</Label>
+            <Switch
+              checked={element.linkTarget === "_blank"}
+              onCheckedChange={(checked) =>
+                onUpdate({ linkTarget: checked ? "_blank" : "_self" })
+              }
+            />
+          </div>
+        )}
       </div>
     </div>
   );
