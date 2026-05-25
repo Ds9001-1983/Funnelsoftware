@@ -56,8 +56,12 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  // FormData (z. B. Datei-Uploads) muss roh durchgereicht werden — den
+  // Content-Type setzt der Browser selbst inkl. multipart-Boundary. JSON
+  // dagegen serialisieren wir mit Header.
+  const isFormData = typeof FormData !== "undefined" && data instanceof FormData;
   const headers: Record<string, string> = {};
-  if (data) {
+  if (data && !isFormData) {
     headers["Content-Type"] = "application/json";
   }
   // Add CSRF token for state-changing requests
@@ -65,10 +69,16 @@ export async function apiRequest(
     headers["X-CSRF-Token"] = csrfToken;
   }
 
+  const body = isFormData
+    ? (data as FormData)
+    : data
+      ? JSON.stringify(data)
+      : undefined;
+
   const res = await fetch(url, {
     method,
     headers,
-    body: data ? JSON.stringify(data) : undefined,
+    body,
     credentials: "include",
   });
 
@@ -77,8 +87,8 @@ export async function apiRequest(
     // Don't retry known application-level 403s (not CSRF errors)
     const cloned = res.clone();
     try {
-      const body = await cloned.json();
-      if (body.code === "TRIAL_EXPIRED" || body.code === "EMAIL_NOT_VERIFIED") {
+      const errorBody = await cloned.json();
+      if (errorBody.code === "TRIAL_EXPIRED" || errorBody.code === "EMAIL_NOT_VERIFIED") {
         await throwIfResNotOk(res);
         return res;
       }
@@ -92,7 +102,7 @@ export async function apiRequest(
       const retryRes = await fetch(url, {
         method,
         headers,
-        body: data ? JSON.stringify(data) : undefined,
+        body,
         credentials: "include",
       });
       await throwIfResNotOk(retryRes);

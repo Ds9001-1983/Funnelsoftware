@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, Loader2, X } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 interface ImageUploaderProps {
   value: string;
@@ -26,17 +27,9 @@ export function ImageUploader({ value, onChange, className }: ImageUploaderProps
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/uploads", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.error || "Upload fehlgeschlagen");
-      }
-
+      // apiRequest setzt den CSRF-Token automatisch (sonst → 403
+      // EBADCSRFTOKEN) und reicht FormData korrekt durch.
+      const res = await apiRequest("POST", "/api/uploads", formData);
       const data = await res.json();
       onChange(data.url);
     } catch (err) {
