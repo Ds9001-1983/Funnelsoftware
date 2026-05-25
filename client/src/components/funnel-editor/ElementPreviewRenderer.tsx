@@ -432,25 +432,39 @@ function ElementPreviewRendererBase({
       );
     }
 
-    case "image":
+    case "image": {
+      // S/M/L/XL aus den Bild-Properties auswerten (Default: L)
+      const size = el.styles?.imageSize || "L";
+      const sizeStyle: React.CSSProperties =
+        size === "S"
+          ? { maxWidth: 200, maxHeight: 160 }
+          : size === "M"
+          ? { maxWidth: 320, maxHeight: 240 }
+          : size === "XL"
+          ? { maxWidth: "100%", maxHeight: 480 }
+          : { maxWidth: 500, maxHeight: 360 }; // L (default)
       return (
         <ElementWrapper {...wrapperProps}>
-          <div className="w-full">
+          <div className="w-full flex justify-center">
             {el.imageUrl ? (
               <img
                 src={el.imageUrl}
                 alt={el.imageAlt || "Bild"}
-                className="w-full rounded-lg shadow-md object-cover"
-                style={{ maxHeight: "200px" }}
+                className="rounded-lg shadow-md object-cover w-full"
+                style={sizeStyle}
               />
             ) : (
-              <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+              <div
+                className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center w-full"
+                style={sizeStyle}
+              >
                 <Image className="h-8 w-8 text-gray-400" />
               </div>
             )}
           </div>
         </ElementWrapper>
       );
+    }
 
     case "icon": {
       const iconSizeClass =
