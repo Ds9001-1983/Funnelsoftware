@@ -395,6 +395,10 @@ export const pageElementSchema = z.object({
   buttonVariant: z.enum(["primary", "secondary", "outline", "ghost"]).optional(),
   buttonAction: z.enum(["next", "page", "url"]).optional(), // next=sequential, page=specific page, url=external
   buttonNextPageId: z.string().optional(), // Target page ID when buttonAction="page"
+  // Element-weiter Link (für Text-/Heading-/Image-Elemente): wenn gesetzt,
+  // wird das gerenderte Element in ein <a href> gewickelt.
+  linkUrl: z.string().optional(),
+  linkTarget: z.enum(["_self", "_blank"]).optional(),
   // General styles (extended)
   styles: z.object({
     fontSize: z.string().optional(),

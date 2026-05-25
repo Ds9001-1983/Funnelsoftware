@@ -1,12 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Bold, Italic, Underline, Link, AlignLeft, AlignCenter, AlignRight } from "lucide-react";
+import { Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 
 interface InlineTextEditorProps {
   content: string;
@@ -41,13 +35,11 @@ function InlineToolbar({
   position,
   styles,
   onStyleChange,
-  onAddLink,
   visible,
 }: {
   position: ToolbarPosition;
   styles: TextStyles;
   onStyleChange: (styles: Partial<TextStyles>) => void;
-  onAddLink: () => void;
   visible: boolean;
 }) {
   if (!visible) return null;
@@ -120,22 +112,6 @@ function InlineToolbar({
       >
         <AlignRight className="h-3.5 w-3.5" />
       </Button>
-
-      <div className="w-px h-4 bg-border mx-1" />
-
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-            <Link className="h-3.5 w-3.5" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-64 p-2">
-          <Input placeholder="URL eingeben..." className="h-8 text-sm" />
-          <Button size="sm" className="w-full mt-2 h-7">
-            Link einfügen
-          </Button>
-        </PopoverContent>
-      </Popover>
 
       <div className="w-px h-4 bg-border mx-1" />
 
@@ -244,7 +220,6 @@ export function InlineTextEditor({
         position={toolbarPosition}
         styles={styles}
         onStyleChange={handleStyleChange}
-        onAddLink={() => {}}
         visible={showToolbar && isEditing}
       />
 

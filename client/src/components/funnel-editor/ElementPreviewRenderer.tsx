@@ -96,6 +96,23 @@ function ElementPreviewRendererBase({
     canMoveDown,
   };
 
+  // Im Edit-Mode (mit onContentCommit) wird der Element-Link NICHT klickbar,
+  // damit der Nutzer das Element noch auswählen/bearbeiten kann. Im Public-
+  // Funnel wickelt der Helper das Element in ein <a href> mit Target.
+  const withLink = (node: React.ReactNode) =>
+    !onContentCommit && el.linkUrl ? (
+      <a
+        href={el.linkUrl}
+        target={el.linkTarget || "_self"}
+        rel="noopener noreferrer"
+        className="block hover:opacity-90 transition-opacity"
+      >
+        {node}
+      </a>
+    ) : (
+      node
+    );
+
   switch (el.type) {
     case "input":
     case "textarea":
@@ -375,7 +392,7 @@ function ElementPreviewRendererBase({
         fontStyle: el.styles?.fontStyle || "normal",
         textAlign: (el.styles?.textAlign as "left" | "center" | "right") || "center",
       } as const;
-      return (
+      return withLink(
         <ElementWrapper {...wrapperProps}>
           {onContentCommit ? (
             <InlineEditable
@@ -407,7 +424,7 @@ function ElementPreviewRendererBase({
         fontStyle: el.styles?.fontStyle || "normal",
         textAlign: (el.styles?.textAlign as "left" | "center" | "right") || "center",
       } as const;
-      return (
+      return withLink(
         <ElementWrapper {...wrapperProps}>
           {onContentCommit ? (
             <InlineEditable
@@ -443,7 +460,7 @@ function ElementPreviewRendererBase({
           : size === "XL"
           ? { maxWidth: "100%", maxHeight: 480 }
           : { maxWidth: 500, maxHeight: 360 }; // L (default)
-      return (
+      return withLink(
         <ElementWrapper {...wrapperProps}>
           <div className="w-full flex justify-center">
             {el.imageUrl ? (
