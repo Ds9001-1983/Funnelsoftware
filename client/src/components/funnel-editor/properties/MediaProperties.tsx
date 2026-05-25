@@ -1,10 +1,11 @@
 import { memo } from "react";
-import { Music, Link as LinkIcon } from "lucide-react";
+import { Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ImageUploader } from "../ImageUploader";
+import { AudioUploader } from "../AudioUploader";
 import type { PropertiesProps } from "./types";
 
 export const ImageProperties = memo(function ImageProperties({ element, onUpdate }: PropertiesProps) {
@@ -136,8 +137,13 @@ export const VideoProperties = memo(function VideoProperties({ element, onUpdate
 export const AudioProperties = memo(function AudioProperties({ element, onUpdate }: PropertiesProps) {
   return (
     <div className="space-y-4">
+      <AudioUploader
+        value={element.audioUrl || ""}
+        onChange={(url) => onUpdate({ audioUrl: url })}
+      />
+
       <div className="space-y-2">
-        <Label className="text-xs">Audio-URL</Label>
+        <Label className="text-xs">oder URL eingeben</Label>
         <Input
           value={element.audioUrl || ""}
           onChange={(e) => onUpdate({ audioUrl: e.target.value })}
@@ -145,15 +151,7 @@ export const AudioProperties = memo(function AudioProperties({ element, onUpdate
           className="text-sm h-8"
         />
       </div>
-      <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center hover:border-primary/50 transition-colors cursor-pointer">
-        <Music className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-        <p className="text-xs text-muted-foreground">
-          Audio-Datei ablegen oder klicken
-        </p>
-        <p className="text-xs text-muted-foreground mt-1">
-          (Max. 50MB; .mp3 .wav .ogg)
-        </p>
-      </div>
+
       <div className="flex items-center justify-between">
         <Label className="text-xs">Autoplay</Label>
         <Switch

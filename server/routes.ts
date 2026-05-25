@@ -335,6 +335,62 @@ export async function registerRoutes(
     }
   });
 
+  // Audio-Upload: andere Limits & MIME-Whitelist als Bilder, keine Konvertierung
+  // (Audio direkt im Original-Format speichern).
+  const audioUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
+    fileFilter: (_req, file, cb) => {
+      const allowed = [
+        "audio/mpeg", // .mp3 (RFC-konform)
+        "audio/mp3", // .mp3 (Browser senden teils diesen alten Wert)
+        "audio/wav",
+        "audio/wave",
+        "audio/x-wav",
+        "audio/ogg",
+        "audio/webm",
+      ];
+      cb(null, allowed.includes(file.mimetype));
+    },
+  });
+
+  app.post(
+    "/api/uploads/audio",
+    isAuthenticated,
+    audioUpload.single("file"),
+    async (req, res) => {
+      try {
+        if (!req.file) {
+          return res.status(400).json({
+            error: "Keine Datei hochgeladen oder ungültiges Format.",
+          });
+        }
+
+        // Endung aus MIME ableiten (sicherer als req.file.originalname).
+        const mimeToExt: Record<string, string> = {
+          "audio/mpeg": "mp3",
+          "audio/mp3": "mp3",
+          "audio/wav": "wav",
+          "audio/wave": "wav",
+          "audio/x-wav": "wav",
+          "audio/ogg": "ogg",
+          "audio/webm": "webm",
+        };
+        const ext = mimeToExt[req.file.mimetype] || "bin";
+        const filename = `${randomUUID()}.${ext}`;
+        const outputPath = path.join(uploadsDir, filename);
+
+        await fs.promises.writeFile(outputPath, req.file.buffer);
+
+        const url = `/uploads/${filename}`;
+        res.json({ url, filename });
+      } catch (error) {
+        console.error("Audio upload error:", error);
+        res.status(500).json({ error: "Fehler beim Hochladen" });
+      }
+    },
+  );
+
   // Serve uploaded files
   app.use("/uploads", (await import("express")).default.static(uploadsDir, {
     maxAge: "30d",
