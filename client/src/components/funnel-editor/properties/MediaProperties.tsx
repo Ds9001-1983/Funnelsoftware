@@ -1,14 +1,5 @@
 import { memo } from "react";
-import {
-  Settings,
-  Scissors,
-  Maximize2,
-  ExternalLink,
-  ChevronUp,
-  ChevronDown,
-  Search,
-  Music,
-} from "lucide-react";
+import { Music } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +11,7 @@ export const ImageProperties = memo(function ImageProperties({ element, onUpdate
   return (
     <div className="space-y-4">
       <div className="space-y-2">
+        <Label className="text-xs font-medium">Bildgröße</Label>
         <div className="flex gap-1">
           {["S", "M", "L", "XL"].map((size) => (
             <Button
@@ -36,46 +28,11 @@ export const ImageProperties = memo(function ImageProperties({ element, onUpdate
               {size}
             </Button>
           ))}
-          <Button variant="outline" size="sm" className="px-2">
-            <Settings className="h-3.5 w-3.5" />
-          </Button>
         </div>
-      </div>
-
-      <div className="flex gap-1">
-        <Button variant="outline" size="sm" className="flex-1 text-xs">
-          <Scissors className="h-3.5 w-3.5 mr-1" />
-          Zuschneiden
-        </Button>
-        <Button variant="outline" size="sm" className="flex-1 text-xs">
-          <Maximize2 className="h-3.5 w-3.5 mr-1" />
-          Vollbild
-        </Button>
-        <Button variant="outline" size="sm" className="px-2">
-          <ExternalLink className="h-3.5 w-3.5" />
-        </Button>
       </div>
 
       <div className="space-y-2">
-        <Label className="text-xs font-medium">Hintergrund</Label>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 justify-start gap-2 h-9"
-          >
-            <ChevronUp className="h-3.5 w-3.5" />
-            <div className="flex-1 h-1 bg-muted rounded" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 justify-start gap-2 h-9"
-          >
-            <ChevronDown className="h-3.5 w-3.5" />
-            <div className="flex-1 h-1 bg-muted rounded" />
-          </Button>
-        </div>
+        <Label className="text-xs font-medium">Hintergrundfarbe</Label>
         <div className="flex items-center gap-2">
           <Input
             type="color"
@@ -87,15 +44,15 @@ export const ImageProperties = memo(function ImageProperties({ element, onUpdate
             }
             className="w-10 h-8 p-1 cursor-pointer"
           />
-          <span className="text-xs text-muted-foreground">Hintergrundfarbe</span>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label className="text-xs font-medium">Alle Medien</Label>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input placeholder="Suche" className="pl-8 h-8 text-sm" />
+          <Input
+            value={element.styles?.backgroundColor || "#ffffff"}
+            onChange={(e) =>
+              onUpdate({
+                styles: { ...element.styles, backgroundColor: e.target.value },
+              })
+            }
+            className="flex-1 h-8 text-sm font-mono"
+          />
         </div>
       </div>
 
