@@ -1,4 +1,5 @@
-import { memo } from "react";
+import { memo, useState } from "react";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,19 +12,51 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { QuizEditor, defaultQuizConfig } from "../QuizElement";
 import type { PropertiesProps } from "./types";
 
-export const QuizProperties = memo(function QuizProperties(_: PropertiesProps) {
+export const QuizProperties = memo(function QuizProperties({ element, onUpdate }: PropertiesProps) {
+  const [open, setOpen] = useState(false);
+  const config = element.quizConfig || defaultQuizConfig;
+  const questionCount = config.questions?.length ?? 0;
+  const resultCount = config.results?.length ?? 0;
+
   return (
     <div className="space-y-4">
-      <div className="p-3 bg-muted rounded-md">
+      <div className="p-3 bg-muted rounded-md space-y-1">
         <p className="text-xs text-muted-foreground">
-          Der Quiz-Editor wird separat in einem erweiterten Modal geöffnet.
+          {questionCount === 0
+            ? "Noch keine Fragen — Quiz-Editor öffnen und Fragen anlegen."
+            : `${questionCount} Frage${questionCount === 1 ? "" : "n"}, ${resultCount} Ergebnis${resultCount === 1 ? "" : "se"}.`}
         </p>
       </div>
-      <Button variant="outline" size="sm" className="w-full">
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-full gap-2"
+        onClick={() => setOpen(true)}
+      >
+        <Pencil className="h-3.5 w-3.5" />
         Quiz bearbeiten
       </Button>
+
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Quiz-Editor</SheetTitle>
+            <SheetDescription>
+              Fragen, Antworten mit Punktewerten und Ergebnisbereiche konfigurieren.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-4">
+            <QuizEditor
+              config={config}
+              onChange={(next) => onUpdate({ quizConfig: next })}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 });
