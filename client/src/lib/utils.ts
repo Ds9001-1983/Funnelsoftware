@@ -1,8 +1,21 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { isSafeUrl } from "@shared/schema"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+/**
+ * Gibt die URL zurück, wenn ihr Protokoll erlaubt ist (http/https/mailto/tel)
+ * oder sie relativ/ein Anker ist — andernfalls "". Verhindert ausführbare
+ * `javascript:`/`data:`-URLs in href/window.open auf veröffentlichten Funnels.
+ * Teilt die Whitelist mit dem Zod-Schema (`isSafeUrl` in shared/schema.ts).
+ */
+export function sanitizeUrl(url: string | null | undefined): string {
+  if (!url) return ""
+  const trimmed = url.trim()
+  return isSafeUrl(trimmed) ? trimmed : ""
 }
 
 /** Parst #rgb / #rrggbb (mit/ohne #) zu [r,g,b]; null bei ungültiger Eingabe. */
