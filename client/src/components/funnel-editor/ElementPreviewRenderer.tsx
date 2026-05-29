@@ -26,6 +26,7 @@ import type { PageElement, Section } from "@shared/schema";
 import { ElementWrapper, elementTypeLabels } from "./ElementWrapper";
 import { FormFieldWithValidation } from "./FormFieldWithValidation";
 import { InlineEditable } from "./InlineEditable";
+import { sanitizeUrl } from "@/lib/utils";
 
 export interface ElementActions {
   onCopy?: () => void;
@@ -99,10 +100,13 @@ function ElementPreviewRendererBase({
   // Im Edit-Mode (mit onContentCommit) wird der Element-Link NICHT klickbar,
   // damit der Nutzer das Element noch auswählen/bearbeiten kann. Im Public-
   // Funnel wickelt der Helper das Element in ein <a href> mit Target.
+  // sanitizeUrl blockt `javascript:`/`data:`-URLs (Stored XSS) — bei
+  // unsicherer/leerer URL wird gar kein <a> gerendert.
+  const safeLinkUrl = !onContentCommit ? sanitizeUrl(el.linkUrl) : "";
   const withLink = (node: React.ReactNode) =>
-    !onContentCommit && el.linkUrl ? (
+    safeLinkUrl ? (
       <a
-        href={el.linkUrl}
+        href={safeLinkUrl}
         target={el.linkTarget || "_self"}
         rel="noopener noreferrer"
         className="block hover:opacity-90 transition-opacity"
@@ -558,7 +562,12 @@ function ElementPreviewRendererBase({
         if (!onButtonClick) return;
         e.stopPropagation();
         if (el.buttonAction === "url" && el.buttonUrl) {
-          window.open(el.buttonUrl, el.buttonTarget || "_self");
+          // sanitizeUrl blockt javascript:/data: (XSS/Open-Redirect);
+          // noopener,noreferrer kappt den Zugriff der Zielseite auf window.opener.
+          const safeUrl = sanitizeUrl(el.buttonUrl);
+          if (safeUrl) {
+            window.open(safeUrl, el.buttonTarget || "_self", "noopener,noreferrer");
+          }
         } else {
           onButtonClick(el);
         }
@@ -846,44 +855,26 @@ function ElementPreviewRendererBase({
       );
 
     case "quiz": {
+      // Das interaktive Quiz ist im öffentlichen Funnel (noch) nicht funktionsfähig
+      // — es wurde nur statisch gerendert. Bis es richtig gebaut ist, blenden wir
+      // es für Besucher KOMPLETT aus (kein irreführender Klick-Schein) und zeigen
+      // im Editor nur einen klaren WIP-Platzhalter.
+      // Public-Render (kein onContentCommit) → nichts anzeigen.
+      if (!onContentCommit) return null;
       const config = el.quizConfig;
       const questionCount = config?.questions?.length ?? 0;
-      const firstQuestion = config?.questions?.[0];
       return (
         <ElementWrapper {...wrapperProps}>
-          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-4 border border-purple-200">
-            <div className="flex items-center gap-2 mb-3">
-              <Award className="h-5 w-5 text-purple-600" />
-              <span className="font-semibold text-purple-900 text-sm">
+          <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 text-center">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <Award className="h-5 w-5 text-amber-600" />
+              <span className="font-semibold text-amber-900 text-sm">
                 Quiz ({questionCount} {questionCount === 1 ? "Frage" : "Fragen"})
               </span>
             </div>
-            {firstQuestion ? (
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-800">
-                  {firstQuestion.question}
-                </p>
-                <div className="space-y-1.5">
-                  {firstQuestion.answers.slice(0, 4).map((answer) => (
-                    <div
-                      key={answer.id}
-                      className="bg-white rounded-lg px-3 py-2 text-xs text-gray-700 border border-gray-200 hover:border-purple-300 transition-colors"
-                    >
-                      {answer.text}
-                    </div>
-                  ))}
-                </div>
-                {questionCount > 1 && (
-                  <p className="text-xs text-purple-500 mt-2">
-                    + {questionCount - 1} weitere {questionCount - 1 === 1 ? "Frage" : "Fragen"}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="text-xs text-gray-500">
-                Klicke um Quiz-Fragen hinzuzufügen
-              </p>
-            )}
+            <p className="text-xs text-amber-700">
+              Interaktive Funktion in Arbeit — für Besucher aktuell ausgeblendet.
+            </p>
           </div>
         </ElementWrapper>
       );

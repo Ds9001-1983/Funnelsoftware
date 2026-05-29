@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   funnelTemplates,
+  visibleTemplates,
   templateCategories,
   getTemplatesByCategory,
   getTemplateById,
@@ -44,28 +45,36 @@ describe("funnel-templates", () => {
   });
 
   describe("templateCategories", () => {
-    it("sollte eine 'all' Kategorie haben", () => {
+    it("sollte eine 'all' Kategorie passend zu den sichtbaren Templates haben", () => {
       const allCategory = templateCategories.find((c) => c.id === "all");
       expect(allCategory).toBeDefined();
-      expect(allCategory?.count).toBe(funnelTemplates.length);
+      expect(allCategory?.count).toBe(visibleTemplates.length);
     });
 
-    it("sollte korrekte Zählungen für jede Kategorie haben", () => {
+    it("sollte korrekte Zählungen für jede sichtbare Kategorie haben", () => {
       templateCategories.forEach((category) => {
         if (category.id === "all") return;
-        
-        const actualCount = funnelTemplates.filter(
+
+        const actualCount = visibleTemplates.filter(
           (t) => t.category === category.id
         ).length;
         expect(category.count).toBe(actualCount);
       });
     });
+
+    it("sollte keine leeren Kategorien anzeigen (z. B. ausgeblendetes Quiz)", () => {
+      templateCategories.forEach((category) => {
+        if (category.id === "all") return;
+        expect(category.count).toBeGreaterThan(0);
+      });
+      expect(templateCategories.find((c) => c.id === "quiz")).toBeUndefined();
+    });
   });
 
   describe("getTemplatesByCategory", () => {
-    it("sollte alle Templates für 'all' zurückgeben", () => {
+    it("sollte alle sichtbaren Templates für 'all' zurückgeben", () => {
       const templates = getTemplatesByCategory("all");
-      expect(templates.length).toBe(funnelTemplates.length);
+      expect(templates.length).toBe(visibleTemplates.length);
     });
 
     it("sollte nur Templates der angegebenen Kategorie zurückgeben", () => {
@@ -106,9 +115,11 @@ describe("funnel-templates", () => {
       expect(templates.length).toBeGreaterThan(0);
     });
 
-    it("sollte Quiz Templates haben", () => {
+    it("sollte das Quiz vorerst ausblenden (WIP, nicht im Public-Funnel funktionsfähig)", () => {
       const templates = getTemplatesByCategory("quiz");
-      expect(templates.length).toBeGreaterThan(0);
+      expect(templates.length).toBe(0);
+      // Definition bleibt aber für eine spätere Reaktivierung erhalten:
+      expect(getTemplateById("template-quiz")).toBeDefined();
     });
   });
 });
