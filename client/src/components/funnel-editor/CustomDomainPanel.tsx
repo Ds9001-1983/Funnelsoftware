@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { Domain } from "@shared/schema";
+import { hostnameRegex, type Domain } from "@shared/schema";
 
 interface CustomDomainPanelProps {
   funnelId: number;
@@ -28,6 +28,11 @@ export function CustomDomainPanel({ funnelId }: CustomDomainPanelProps) {
   });
 
   const forFunnel = domains.filter((d) => d.funnelId === funnelId);
+
+  // Frontend-Validierung: gleiche Regel wie das Server-Zod-Schema.
+  const normalizedHost = hostname.trim().toLowerCase();
+  const isValidHost = hostnameRegex.test(normalizedHost);
+  const showHostError = hostname.trim().length > 0 && !isValidHost;
 
   const createMutation = useMutation({
     mutationFn: async (host: string) => {
@@ -100,17 +105,23 @@ export function CustomDomainPanel({ funnelId }: CustomDomainPanelProps) {
           placeholder="funnel.deine-firma.de"
           className="text-sm"
           disabled={createMutation.isPending}
+          aria-invalid={showHostError}
         />
         <Button
           size="sm"
-          onClick={() => createMutation.mutate(hostname.trim().toLowerCase())}
-          disabled={!hostname.trim() || createMutation.isPending}
+          onClick={() => createMutation.mutate(normalizedHost)}
+          disabled={!isValidHost || createMutation.isPending}
           className="gap-1.5"
         >
           <Plus className="h-3.5 w-3.5" />
           Hinzufügen
         </Button>
       </div>
+      {showHostError && (
+        <p className="text-xs text-destructive">
+          Bitte einen gültigen Hostnamen eingeben (z. B. <code>funnel.deine-firma.de</code>) — ohne <code>https://</code> oder Pfad.
+        </p>
+      )}
 
       {isLoading ? (
         <p className="text-xs text-muted-foreground">Lade Domains…</p>
