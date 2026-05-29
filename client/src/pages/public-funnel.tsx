@@ -384,21 +384,26 @@ export default function PublicFunnelView() {
       let company = "";
       let message = "";
 
-      // Map form values to lead fields based on element type + label
+      // Map form values to lead fields. Explizites mapToLeadField hat Vorrang;
+      // andernfalls Label-/Placeholder-Heuristik (Fallback für Alt-Funnels).
       for (const page of funnel.pages) {
         for (const el of page.elements) {
           const value = formValues[el.id];
           if (!value) continue;
 
-          // Map fields based on label/placeholder text
-          if (el.type === "input") {
+          if (el.mapToLeadField) {
+            if (el.mapToLeadField === "name") name = value;
+            else if (el.mapToLeadField === "email") email = value;
+            else if (el.mapToLeadField === "phone") phone = value;
+            else if (el.mapToLeadField === "company") company = value;
+            else if (el.mapToLeadField === "message") message = value;
+          } else if (el.type === "input") {
             const label = (el.label || el.placeholder || "").toLowerCase();
             if (label.includes("email") || label.includes("e-mail")) email = value;
             else if (label.includes("telefon") || label.includes("phone") || label.includes("handy")) phone = value;
             else if (label.includes("name") || label.includes("vorname")) name = value;
             else if (label.includes("firma") || label.includes("unternehmen") || label.includes("company")) company = value;
-          }
-          if (el.type === "textarea") {
+          } else if (el.type === "textarea") {
             message = value;
           }
           formData[el.label || el.id] = value;

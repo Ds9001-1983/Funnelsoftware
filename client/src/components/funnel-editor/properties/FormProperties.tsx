@@ -33,6 +33,33 @@ export const InputFieldProperties = memo(function InputFieldProperties({ element
           className="text-sm"
         />
       </div>
+      <div className="space-y-2">
+        <Label className="text-xs">Lead-Feld (Zuordnung)</Label>
+        <Select
+          value={element.mapToLeadField || "auto"}
+          onValueChange={(v) =>
+            onUpdate({
+              mapToLeadField:
+                v === "auto" ? undefined : (v as "name" | "email" | "phone" | "company" | "message"),
+            })
+          }
+        >
+          <SelectTrigger className="h-8 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="auto">Automatisch (anhand Label)</SelectItem>
+            <SelectItem value="name">Name</SelectItem>
+            <SelectItem value="email">E-Mail</SelectItem>
+            <SelectItem value="phone">Telefon</SelectItem>
+            <SelectItem value="company">Firma</SelectItem>
+            <SelectItem value="message">Nachricht</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          Bestimmt eindeutig, welchem Lead-Feld dieser Wert zugeordnet wird (statt Raten per Label).
+        </p>
+      </div>
       <div className="flex items-center justify-between">
         <Label className="text-xs">Pflichtfeld</Label>
         <Switch

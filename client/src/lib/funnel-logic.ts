@@ -41,7 +41,12 @@ export function getNextPageIndex(
     }
   }
 
-  // 1. Seitenweites conditionalRouting (Antwort → Seite)
+  // 1. Seitenweites conditionalRouting (Antwort-Wert → Seite).
+  // WICHTIG (deterministische Reihenfolge): Die Map ist nach Antwort-WERT
+  // gekeyt, nicht nach Element. Haben mehrere Elemente einer Seite einen Wert,
+  // gewinnt das ERSTE in `page.elements`-Reihenfolge, dessen Wert ein Key in
+  // conditionalRouting ist. Das ist bewusst und stabil — pro Seite sollte daher
+  // nur ein routing-relevantes Element konfiguriert werden.
   if (page.conditionalRouting) {
     for (const el of page.elements) {
       const value = formValues[el.id];
