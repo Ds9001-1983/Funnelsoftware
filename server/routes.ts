@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
+import rateLimit from "express-rate-limit";
 import sharp from "sharp";
 import path from "path";
 import fs from "fs";
@@ -20,12 +21,23 @@ import { sendCapiEvent } from "./capi";
 import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan, requireVerifiedEmail } from "./auth";
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema, insertDomainSchema,
-  loginSchema, registerSchema, slugSchema
+  loginSchema, registerSchema, slugSchema,
+  MAX_IMAGE_UPLOAD_BYTES, MAX_AUDIO_UPLOAD_BYTES
 } from "@shared/schema";
 import { z } from "zod";
 
 // Partial update schemas for PATCH endpoints
 const updateFunnelSchema = funnelSchema.partial().omit({ id: true, uuid: true, userId: true, createdAt: true, updatedAt: true });
+
+// Rate-Limit für die DNS-Verifikation: begrenzt DNS-Lookup-Floods.
+// Route-Level statt app.use, weil der Pfad einen :id-Parameter hat.
+const domainVerifyLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 Minute
+  max: 10,
+  message: { error: "Zu viele Verifizierungs-Versuche. Bitte kurz warten." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 const updateLeadSchema = leadSchema.partial().omit({ id: true, uuid: true, funnelId: true, userId: true, createdAt: true, funnelName: true });
 
 export async function registerRoutes(
@@ -306,7 +318,7 @@ export async function registerRoutes(
 
   const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+    limits: { fileSize: MAX_IMAGE_UPLOAD_BYTES }, // gemeinsam mit dem Client
     fileFilter: (_req, file, cb) => {
       const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
       cb(null, allowed.includes(file.mimetype));
@@ -314,13 +326,14 @@ export async function registerRoutes(
   });
 
   app.post("/api/uploads", isAuthenticated, upload.single("file"), async (req, res) => {
+    let outputPath: string | undefined;
     try {
       if (!req.file) {
         return res.status(400).json({ error: "Keine Datei hochgeladen oder ungültiges Format." });
       }
 
       const filename = `${randomUUID()}.webp`;
-      const outputPath = path.join(uploadsDir, filename);
+      outputPath = path.join(uploadsDir, filename);
 
       await sharp(req.file.buffer)
         .resize({ width: 1200, withoutEnlargement: true })
@@ -331,6 +344,10 @@ export async function registerRoutes(
       res.json({ url, filename });
     } catch (error) {
       console.error("Upload error:", error);
+      // Teilweise geschriebene Datei aufräumen (kein verwaister WebP-Müll).
+      if (outputPath) {
+        await fs.promises.unlink(outputPath).catch(() => {});
+      }
       res.status(500).json({ error: "Fehler beim Hochladen" });
     }
   });
@@ -339,7 +356,7 @@ export async function registerRoutes(
   // (Audio direkt im Original-Format speichern).
   const audioUpload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
+    limits: { fileSize: MAX_AUDIO_UPLOAD_BYTES }, // gemeinsam mit dem Client
     fileFilter: (_req, file, cb) => {
       const allowed = [
         "audio/mpeg", // .mp3 (RFC-konform)
@@ -359,6 +376,7 @@ export async function registerRoutes(
     isAuthenticated,
     audioUpload.single("file"),
     async (req, res) => {
+      let outputPath: string | undefined;
       try {
         if (!req.file) {
           return res.status(400).json({
@@ -378,7 +396,7 @@ export async function registerRoutes(
         };
         const ext = mimeToExt[req.file.mimetype] || "bin";
         const filename = `${randomUUID()}.${ext}`;
-        const outputPath = path.join(uploadsDir, filename);
+        outputPath = path.join(uploadsDir, filename);
 
         await fs.promises.writeFile(outputPath, req.file.buffer);
 
@@ -386,6 +404,10 @@ export async function registerRoutes(
         res.json({ url, filename });
       } catch (error) {
         console.error("Audio upload error:", error);
+        // Teilweise geschriebene Datei aufräumen.
+        if (outputPath) {
+          await fs.promises.unlink(outputPath).catch(() => {});
+        }
         res.status(500).json({ error: "Fehler beim Hochladen" });
       }
     },
@@ -847,6 +869,15 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Ungültige Lead-Daten", details: result.error.errors });
       }
 
+      // Idempotenz: identische E-Mail auf demselben Funnel innerhalb von 30s →
+      // kein Duplikat anlegen (Doppelklick/Retry), bestehende ID zurückgeben.
+      if (result.data.email) {
+        const dup = await storage.findRecentLead(funnel.id, result.data.email, 30_000);
+        if (dup) {
+          return res.status(200).json({ success: true, id: dup.uuid, deduplicated: true });
+        }
+      }
+
       const lead = await storage.createLead(result.data, funnel.userId);
       res.status(201).json({ success: true, id: lead.uuid });
 
@@ -908,9 +939,18 @@ export async function registerRoutes(
             fbc: cookies._fbc,
             fbp: cookies._fbp,
           },
-        }).catch((err) => {
-          console.error("Meta CAPI failed:", err);
-        });
+        })
+          .then(() => {
+            // Letztes Event OK → eventuellen Fehlerstatus löschen.
+            storage.setCapiError(funnel.id, null).catch(() => {});
+          })
+          .catch((err) => {
+            console.error("Meta CAPI failed:", err);
+            // Fehler am Funnel festhalten → Warnung im Editor (statt stummem Log).
+            storage
+              .setCapiError(funnel.id, String(err?.message || err).slice(0, 500))
+              .catch(() => {});
+          });
       }
     } catch (error) {
       console.error("Create public lead error:", error);
@@ -1617,19 +1657,24 @@ export async function registerRoutes(
       const funnel = await storage.getFunnel(result.data.funnelId, userId);
       if (!funnel) return res.status(404).json({ error: "Funnel nicht gefunden" });
 
-      // Hostname darf nicht doppelt vergeben sein
+      // Hostname darf nicht doppelt vergeben sein (Vorab-Check für schnelles Feedback)
       const existing = await storage.getDomainByHostname(result.data.hostname);
       if (existing) return res.status(409).json({ error: "Diese Domain ist bereits registriert" });
 
       const domain = await storage.createDomain(funnel.id, userId, result.data.hostname);
       res.status(201).json(domain);
-    } catch (error) {
+    } catch (error: any) {
+      // Race-Condition: zwei parallele Requests passieren beide den Vorab-Check.
+      // Der DB-Unique-Constraint auf hostname schlägt zu → sauberer 409 statt 500.
+      if (error?.code === "23505" && error?.constraint?.includes("hostname")) {
+        return res.status(409).json({ error: "Diese Domain ist bereits registriert" });
+      }
       console.error("Create domain error:", error);
       res.status(500).json({ error: "Domain konnte nicht angelegt werden" });
     }
   });
 
-  app.post("/api/domains/:id/verify", isAuthenticated, async (req, res) => {
+  app.post("/api/domains/:id/verify", domainVerifyLimiter, isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
@@ -1654,10 +1699,10 @@ export async function registerRoutes(
 
       const flat = records.map((parts) => parts.join("")).map((v) => v.trim());
       if (!flat.includes(domain.verificationToken)) {
+        // Bewusst KEIN expected/found zurückgeben (Information Disclosure) —
+        // den erwarteten Token zeigt die UI ohnehin im Setup-Bereich.
         return res.status(400).json({
-          error: "Verifikations-Token stimmt nicht überein.",
-          expected: domain.verificationToken,
-          found: flat,
+          error: "Verifikations-Token stimmt nicht überein. DNS-Eintrag prüfen und 1–5 Minuten warten.",
         });
       }
 
