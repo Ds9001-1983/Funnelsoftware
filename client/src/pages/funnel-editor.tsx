@@ -79,6 +79,7 @@ import {
   Scissors,
   Maximize2,
   Search,
+  AlertTriangle,
   // New icons for OpenFunnels-style elements
   Music,
   Code,
@@ -418,7 +419,9 @@ export default function FunnelEditor() {
     const elementIndex = page.elements.findIndex(el => el.id === selectedElementId);
     if (elementIndex === -1) return;
     const element = page.elements[elementIndex];
-    const newElement = { ...element, id: `el-${Date.now()}` };
+    // Zufallssuffix wie an den anderen Duplizier-/Paste-Stellen — sonst kollidieren
+    // mehrere Duplikate innerhalb derselben Millisekunde auf dieselbe ID.
+    const newElement = { ...element, id: `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` };
     const newElements = [...page.elements];
     newElements.splice(elementIndex + 1, 0, newElement);
     updatePage(selectedPageIndex, { elements: newElements });
@@ -743,18 +746,20 @@ export default function FunnelEditor() {
   }, [localFunnel, selectedPageIndex, updateLocalFunnel]);
 
   const deletePage = useCallback((index: number) => {
+    if (!localFunnel || localFunnel.pages.length <= 1) return;
+    // Neue Seitenzahl EINMAL beim Aufruf festhalten (nicht im async State-Updater
+    // aus der Closure lesen → kein stale localFunnel bei gebatchten Deletes).
+    const newLength = localFunnel.pages.length - 1;
     setLocalFunnel((prev) => {
       if (!prev || prev.pages.length <= 1) return prev;
-      const newPages = prev.pages.filter((_, i) => i !== index);
-      return { ...prev, pages: newPages };
+      return { ...prev, pages: prev.pages.filter((_, i) => i !== index) };
     });
     setSelectedElementId(null);
     setSelectedPageIndex((prevIdx) => {
-      if (localFunnel && localFunnel.pages.length > 1) {
-        const newLength = localFunnel.pages.length - 1;
-        return prevIdx >= newLength ? newLength - 1 : prevIdx;
-      }
-      return prevIdx;
+      // Liegt die gelöschte Seite vor der aktuellen, rückt der Index nach vorn;
+      // anschließend auf den gültigen Bereich [0, newLength-1] klammern.
+      const shifted = index < prevIdx ? prevIdx - 1 : prevIdx;
+      return Math.min(Math.max(0, shifted), newLength - 1);
     });
     setHasChanges(true);
   }, [localFunnel, setLocalFunnel]);
@@ -834,6 +839,10 @@ export default function FunnelEditor() {
         theme: localFunnel.theme,
         status: localFunnel.status,
         abTests: localFunnel.abTests,
+        // CAPI-Einstellungen wurden bisher nicht mitgesendet → CAPI feuerte nie.
+        metaPixelId: localFunnel.metaPixelId,
+        metaCapiToken: localFunnel.metaCapiToken,
+        capiEnabled: localFunnel.capiEnabled,
       });
     }
   }, [localFunnel, saveMutation]);
@@ -1603,6 +1612,14 @@ export default function FunnelEditor() {
                       aria-label="Server-Side Tracking aktivieren"
                     />
                   </div>
+                  {localFunnel.capiEnabled && localFunnel.capiLastError && (
+                    <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">
+                      <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      <span>
+                        Letztes Tracking-Event ist fehlgeschlagen: {localFunnel.capiLastError}. Bitte Pixel-ID und Token prüfen.
+                      </span>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label className="text-xs">Meta Pixel ID</Label>
                     <Input
