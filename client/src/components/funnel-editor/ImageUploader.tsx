@@ -2,9 +2,10 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, Loader2, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { MAX_IMAGE_UPLOAD_BYTES } from "@shared/schema";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
-const MAX_BYTES = 10 * 1024 * 1024; // 10 MB — passt zum UI-Hinweis
+const MAX_BYTES = MAX_IMAGE_UPLOAD_BYTES; // gemeinsame Konstante mit dem Server
 
 interface ImageUploaderProps {
   value: string;
@@ -60,6 +61,7 @@ export function ImageUploader({ value, onChange, className, variant = "button" }
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
+    if (uploading) return; // Doppel-Upload verhindern (openPicker prüft das bereits)
     const file = e.dataTransfer.files?.[0];
     if (file) handleUpload(file);
   };

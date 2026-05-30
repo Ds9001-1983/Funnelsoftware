@@ -1,11 +1,11 @@
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, sql, gte } from "drizzle-orm";
 import { db } from "./db";
 import {
   users, funnels, leads, templates, analyticsEvents, passwordResetTokens,
   teams, teamMembers, apiKeys, domains,
   type User, type InsertUser, type Funnel, type InsertFunnel,
   type Lead, type InsertLead, type AnalyticsEvent, type Template,
-  type FunnelPage, type Theme,
+  type FunnelPage, type Theme, type ABTest,
   type Team, type InsertTeam, type TeamMember, type ApiKey, type InsertApiKey,
   type Domain,
 } from "@shared/schema";
@@ -54,6 +54,7 @@ export interface IStorage {
   isSlugAvailable(slug: string, excludeFunnelId?: number): Promise<boolean>;
   createFunnel(funnel: InsertFunnel, userId: number): Promise<Funnel>;
   updateFunnel(id: number, userId: number, funnel: Partial<Funnel>): Promise<Funnel | undefined>;
+  setCapiError(funnelId: number, error: string | null): Promise<void>;
   deleteFunnel(id: number, userId: number): Promise<boolean>;
 
   // Leads
@@ -61,6 +62,7 @@ export interface IStorage {
   getLeadsByFunnel(funnelId: number, userId: number): Promise<Lead[]>;
   getLead(id: number, userId: number): Promise<Lead | undefined>;
   createLead(lead: InsertLead, userId: number): Promise<Lead>;
+  findRecentLead(funnelId: number, email: string, withinMs: number): Promise<Lead | undefined>;
   updateLead(id: number, userId: number, lead: Partial<Lead>): Promise<Lead | undefined>;
   deleteLead(id: number, userId: number): Promise<boolean>;
 
@@ -212,10 +214,15 @@ export class DatabaseStorage implements IStorage {
     if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.pages !== undefined) updateData.pages = updates.pages;
     if (updates.theme !== undefined) updateData.theme = updates.theme;
+    if (updates.abTests !== undefined) updateData.abTests = updates.abTests;
     if (updates.webhookUrl !== undefined) updateData.webhookUrl = updates.webhookUrl;
     if (updates.webhookEnabled !== undefined) updateData.webhookEnabled = updates.webhookEnabled;
     if (updates.webhookSecret !== undefined) updateData.webhookSecret = updates.webhookSecret;
     if (updates.gtmId !== undefined) updateData.gtmId = updates.gtmId;
+    // Meta-CAPI-Einstellungen (wurden bisher verschluckt → CAPI feuerte nie).
+    if (updates.metaPixelId !== undefined) updateData.metaPixelId = updates.metaPixelId;
+    if (updates.metaCapiToken !== undefined) updateData.metaCapiToken = updates.metaCapiToken;
+    if (updates.capiEnabled !== undefined) updateData.capiEnabled = updates.capiEnabled;
     if (updates.views !== undefined) updateData.views = updates.views;
     if (updates.leads !== undefined) updateData.leads = updates.leads;
 
@@ -227,6 +234,16 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     return funnel ? this.mapFunnelToResponse(funnel) : undefined;
+  }
+
+  /**
+   * Speichert den letzten CAPI-Fehler am Funnel (null = letztes Event OK).
+   * Server-verwaltet — nicht über updateFunnel/Client setzbar.
+   */
+  async setCapiError(funnelId: number, error: string | null): Promise<void> {
+    await db.update(funnels)
+      .set({ capiLastError: error, capiLastErrorAt: error ? new Date() : null })
+      .where(eq(funnels.id, funnelId));
   }
 
   async deleteFunnel(id: number, userId: number): Promise<boolean> {
@@ -250,10 +267,20 @@ export class DatabaseStorage implements IStorage {
       status: funnel.status as "draft" | "published" | "archived",
       pages: funnel.pages as FunnelPage[],
       theme: funnel.theme as Theme,
+      abTests: (funnel.abTests as ABTest[] | null) ?? [],
       webhookUrl: funnel.webhookUrl,
       webhookEnabled: funnel.webhookEnabled,
       webhookSecret: funnel.webhookSecret,
       gtmId: funnel.gtmId,
+      // CAPI-Felder müssen zurückgelesen werden, sonst feuert das Lead-Tracking
+      // nie. metaCapiToken ist ein Secret — die öffentlichen Funnel-Routen
+      // bauen ihre Antwort eigenständig zusammen und geben den Token NICHT aus;
+      // nur der authentifizierte Owner sieht ihn (wie im Editor, type=password).
+      metaPixelId: funnel.metaPixelId,
+      metaCapiToken: funnel.metaCapiToken,
+      capiEnabled: funnel.capiEnabled,
+      capiLastError: funnel.capiLastError,
+      capiLastErrorAt: funnel.capiLastErrorAt ? funnel.capiLastErrorAt.toISOString() : null,
       views: funnel.views,
       leads: funnel.leads,
       createdAt: funnel.createdAt.toISOString(),
@@ -302,6 +329,20 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(leads.id, id), eq(leads.userId, userId)));
 
     return result ? this.mapLeadToResponse(result.lead, result.funnelName) : undefined;
+  }
+
+  /**
+   * Findet einen kürzlich angelegten Lead mit gleicher E-Mail auf demselben
+   * Funnel (Idempotenz gegen Doppel-Submit). Gibt undefined zurück, wenn keiner
+   * im Zeitfenster existiert.
+   */
+  async findRecentLead(funnelId: number, email: string, withinMs: number): Promise<Lead | undefined> {
+    const since = new Date(Date.now() - withinMs);
+    const [row] = await db.select().from(leads)
+      .where(and(eq(leads.funnelId, funnelId), eq(leads.email, email), gte(leads.createdAt, since)))
+      .orderBy(desc(leads.createdAt))
+      .limit(1);
+    return row ? this.mapLeadToResponse(row) : undefined;
   }
 
   async createLead(insertLead: InsertLead, userId: number): Promise<Lead> {

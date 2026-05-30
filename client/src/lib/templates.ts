@@ -9,6 +9,8 @@ export interface ClientTemplate {
   thumbnail: string;
   pages: FunnelPage[];
   theme: Theme;
+  /** Wenn true, in der Auswahl ausgeblendet (z. B. WIP-Feature). Definition bleibt erhalten. */
+  hidden?: boolean;
 }
 
 // Also export as FunnelTemplate for backward compatibility
@@ -631,6 +633,10 @@ export const defaultTemplates: ClientTemplate[] = [
     description: "Qualifiziere Leads mit einem unterhaltsamen Quiz",
     category: "quiz",
     thumbnail: "/templates/quiz.webp",
+    // Vorerst ausgeblendet: das interaktive Quiz ist im öffentlichen Funnel noch
+    // nicht funktionsfähig (siehe ElementPreviewRenderer "quiz"-Case). Flag
+    // entfernen, sobald das Quiz richtig gebaut ist.
+    hidden: true,
     pages: [
       {
         id: "page-1",
@@ -838,24 +844,34 @@ export const defaultTemplates: ClientTemplate[] = [
 // Also export as funnelTemplates for backward compatibility
 export const funnelTemplates = defaultTemplates;
 
-// Template categories for filtering UI
+// In der Auswahl sichtbare Templates (ohne `hidden`-Vorlagen wie das WIP-Quiz).
+export const visibleTemplates = defaultTemplates.filter((t) => !t.hidden);
+
+// Template categories for filtering UI — Zählungen basieren auf den SICHTBAREN
+// Templates; Kategorien ohne sichtbare Vorlage (z. B. Quiz) fallen automatisch raus.
 export const templateCategories = [
-  { id: "all", name: "Alle", count: defaultTemplates.length },
-  { id: "leads", name: "Lead-Generierung", count: defaultTemplates.filter(t => t.category === "leads").length },
-  { id: "sales", name: "Verkauf", count: defaultTemplates.filter(t => t.category === "sales").length },
-  { id: "recruiting", name: "Recruiting", count: defaultTemplates.filter(t => t.category === "recruiting").length },
-  { id: "webinar", name: "Webinar", count: defaultTemplates.filter(t => t.category === "webinar").length },
-  { id: "quiz", name: "Quiz", count: defaultTemplates.filter(t => t.category === "quiz").length },
-  { id: "survey", name: "Umfrage", count: defaultTemplates.filter(t => t.category === "survey").length },
-];
+  { id: "all", name: "Alle" },
+  { id: "leads", name: "Lead-Generierung" },
+  { id: "sales", name: "Verkauf" },
+  { id: "recruiting", name: "Recruiting" },
+  { id: "webinar", name: "Webinar" },
+  { id: "quiz", name: "Quiz" },
+  { id: "survey", name: "Umfrage" },
+]
+  .map((c) => ({
+    ...c,
+    count: c.id === "all" ? visibleTemplates.length : visibleTemplates.filter(t => t.category === c.id).length,
+  }))
+  .filter((c) => c.id === "all" || c.count > 0);
 
 export function getTemplateById(id: string): ClientTemplate | undefined {
+  // Auch ausgeblendete Templates bleiben per ID auffindbar (z. B. für Bestands-Funnels).
   return defaultTemplates.find(t => t.id === id);
 }
 
 export function getTemplatesByCategory(category: string): ClientTemplate[] {
-  if (category === "all") return defaultTemplates;
-  return defaultTemplates.filter(t => t.category === category);
+  if (category === "all") return visibleTemplates;
+  return visibleTemplates.filter(t => t.category === category);
 }
 
 export function createBlankFunnel(): { pages: FunnelPage[], theme: ClientTemplate["theme"] } {

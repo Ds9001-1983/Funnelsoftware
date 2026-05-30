@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest, ApiError } from "@/lib/queryClient";
-import { defaultTemplates, createBlankFunnel, type ClientTemplate } from "@/lib/templates";
+import { visibleTemplates, createBlankFunnel, type ClientTemplate } from "@/lib/templates";
 import type { InsertFunnel } from "@shared/schema";
 
 type Step = "template" | "details";
@@ -204,7 +204,6 @@ export default function NewFunnel() {
                   { key: "sales", label: "Sales" },
                   { key: "recruiting", label: "Recruiting" },
                   { key: "webinar", label: "Webinar" },
-                  { key: "quiz", label: "Quiz" },
                   { key: "survey", label: "Umfrage" },
                 ].map((cat) => (
                   <button
@@ -222,7 +221,7 @@ export default function NewFunnel() {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {defaultTemplates
+                {visibleTemplates
                   .filter((t) => categoryFilter === "all" || t.category === categoryFilter)
                   .map((template) => (
                   <TemplateCard

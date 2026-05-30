@@ -140,4 +140,22 @@ describe("getNextPageIndex — Routing-Priorität", () => {
     ];
     expect(getNextPageIndex(pages, 0, { in1: "ja" })).toBe(1); // byCond
   });
+
+  it("conditionalRouting ist deterministisch: erstes passendes Element in Reihenfolge gewinnt", () => {
+    const pages = [
+      page({
+        id: "p1",
+        elements: [
+          { id: "first", type: "radio" } as FunnelPage["elements"][number],
+          { id: "second", type: "radio" } as FunnelPage["elements"][number],
+        ],
+        // Beide Werte sind Keys in der Map → das erste Element (first) entscheidet.
+        conditionalRouting: { a: "pA", b: "pB" },
+      }),
+      page({ id: "pA" }),
+      page({ id: "pB" }),
+    ];
+    expect(getNextPageIndex(pages, 0, { first: "a", second: "b" })).toBe(1); // pA (first gewinnt)
+    expect(getNextPageIndex(pages, 0, { first: "b", second: "a" })).toBe(2); // pB (first gewinnt)
+  });
 });

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 interface HistoryState<T> {
   past: T[];
@@ -119,6 +119,14 @@ export function useAutoSave<T>(
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+  }, []);
+
+  // Beim Unmount schwebenden Timeout aufräumen, sonst feuert triggerSave/onSave
+  // nach dem Verlassen des Editors (Speichern auf nicht mehr gemountetem State).
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, []);
 
   return { scheduleAutoSave, cancelAutoSave, triggerSave };

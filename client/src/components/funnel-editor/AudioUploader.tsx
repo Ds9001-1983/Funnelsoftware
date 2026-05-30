@@ -1,9 +1,10 @@
 import { useState, useRef } from "react";
 import { Music, Loader2, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { MAX_AUDIO_UPLOAD_BYTES } from "@shared/schema";
 
 const ACCEPT = "audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/webm";
-const MAX_BYTES = 50 * 1024 * 1024; // 50 MB (passt zum UI-Hinweis + Server-Limit)
+const MAX_BYTES = MAX_AUDIO_UPLOAD_BYTES; // gemeinsame Konstante mit dem Server
 
 interface AudioUploaderProps {
   value: string;
@@ -56,6 +57,7 @@ export function AudioUploader({ value, onChange, className }: AudioUploaderProps
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
+    if (uploading) return; // Doppel-Upload verhindern (openPicker prüft das bereits)
     const file = e.dataTransfer.files?.[0];
     if (file) handleUpload(file);
   };

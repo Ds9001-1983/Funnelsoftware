@@ -94,11 +94,13 @@ export async function sendCapiEvent(args: SendCapiEventArgs): Promise<void> {
     ],
   };
 
-  const url = `https://graph.facebook.com/${META_GRAPH_API_VERSION}/${encodeURIComponent(pixelId)}/events?access_token=${encodeURIComponent(accessToken)}`;
+  // access_token gehört in den POST-Body, NICHT in den Query-String — sonst
+  // landet das Secret in Server-/Proxy-/Access-Logs.
+  const url = `https://graph.facebook.com/${META_GRAPH_API_VERSION}/${encodeURIComponent(pixelId)}/events`;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, access_token: accessToken }),
   });
 
   if (!res.ok) {

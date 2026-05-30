@@ -3,6 +3,46 @@ import { pgTable, text, varchar, integer, boolean, timestamp, jsonb, serial, ind
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// ============ URL-SICHERHEIT ============
+
+/** Erlaubte Protokolle für nutzerdefinierte Links (Element-Link / Button). */
+export const SAFE_URL_PROTOCOLS = ["http:", "https:", "mailto:", "tel:"] as const;
+
+/**
+ * True, wenn die URL gefahrlos in `href`/`window.open` verwendet werden darf:
+ * relative URLs/Anker oder absolute URLs mit erlaubtem Protokoll. Blockt
+ * `javascript:`, `data:`, `vbscript:` etc. (Stored XSS / Open Redirect).
+ * Leere Eingabe = kein Link = unbedenklich.
+ */
+export function isSafeUrl(url: string | null | undefined): boolean {
+  if (!url) return true;
+  // Tabs/Zeilenumbrüche entfernen — Browser ignorieren sie in URLs, also dürfen
+  // sie kein "javascript:" verschleiern (z. B. "java\tscript:...").
+  const t = url.replace(/[\t\n\r]/g, "").trim();
+  if (!t) return true;
+  // Relative URLs, root-relative und reine Anker enthalten kein Protokoll.
+  if (/^(\/|#|\.\/|\.\.\/)/.test(t)) return true;
+  try {
+    return (SAFE_URL_PROTOCOLS as readonly string[]).includes(new URL(t).protocol.toLowerCase());
+  } catch {
+    // Kein parsebares absolutes Protokoll → als relativ behandeln (nicht ausführbar).
+    return true;
+  }
+}
+
+/** Zod-String, der nur sichere URL-Protokolle (oder relative URLs) zulässt. */
+export const safeUrlSchema = z
+  .string()
+  .refine(isSafeUrl, { message: "Unerlaubtes URL-Protokoll (erlaubt: http, https, mailto, tel)" });
+
+// ============ UPLOAD-LIMITS ============
+// Gemeinsame Quelle der Wahrheit für Client (Vorab-Validierung + UI-Hinweis)
+// und Server (multer-Limit), damit beide nicht auseinanderlaufen.
+/** Max. Bildgröße in Bytes (Bild wird serverseitig zu WebP/1200px reduziert). */
+export const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
+/** Max. Audiogröße in Bytes (wird im Originalformat gespeichert). */
+export const MAX_AUDIO_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MB
+
 // ============ DATABASE TABLES ============
 
 // Users table
@@ -39,6 +79,7 @@ export const funnels = pgTable("funnels", {
   status: text("status").notNull().default("draft"), // draft, published, archived
   pages: jsonb("pages").notNull().default([]),
   theme: jsonb("theme").notNull().default({}),
+  abTests: jsonb("ab_tests").notNull().default([]),
   webhookUrl: text("webhook_url"),
   webhookEnabled: boolean("webhook_enabled").notNull().default(false),
   webhookSecret: text("webhook_secret"),
@@ -50,6 +91,10 @@ export const funnels = pgTable("funnels", {
   metaPixelId: text("meta_pixel_id"),
   metaCapiToken: text("meta_capi_token"),
   capiEnabled: boolean("capi_enabled").notNull().default(false),
+  // Letzter CAPI-Fehler (null = letztes Event OK / noch keins) — für eine
+  // Tracking-Warnung im Editor, statt Fehler nur stumm zu loggen.
+  capiLastError: text("capi_last_error"),
+  capiLastErrorAt: timestamp("capi_last_error_at"),
   views: integer("views").notNull().default(0),
   leads: integer("leads_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -247,6 +292,9 @@ export const pageElementSchema = z.object({
   content: z.string().optional(),
   placeholder: z.string().optional(),
   required: z.boolean().optional(),
+  // Explizites Lead-Feld-Mapping (überschreibt die Label-Heuristik im Public-Funnel).
+  // Wenn gesetzt, wird der Wert dieses Inputs eindeutig diesem Lead-Feld zugeordnet.
+  mapToLeadField: z.enum(["name", "email", "phone", "company", "message"]).optional(),
   // Validation options for form elements
   validation: z.object({
     type: z.enum(["text", "email", "phone", "url", "number", "custom"]).optional(),
@@ -390,14 +438,14 @@ export const pageElementSchema = z.object({
     }).optional(),
   })).optional(),
   // Button properties
-  buttonUrl: z.string().optional(),
+  buttonUrl: safeUrlSchema.optional(),
   buttonTarget: z.enum(["_self", "_blank"]).optional(),
   buttonVariant: z.enum(["primary", "secondary", "outline", "ghost"]).optional(),
   buttonAction: z.enum(["next", "page", "url"]).optional(), // next=sequential, page=specific page, url=external
   buttonNextPageId: z.string().optional(), // Target page ID when buttonAction="page"
   // Element-weiter Link (für Text-/Heading-/Image-Elemente): wenn gesetzt,
   // wird das gerenderte Element in ein <a href> gewickelt.
-  linkUrl: z.string().optional(),
+  linkUrl: safeUrlSchema.optional(),
   linkTarget: z.enum(["_self", "_blank"]).optional(),
   // General styles (extended)
   styles: z.object({
@@ -607,9 +655,21 @@ export const funnelSchema = z.object({
   webhookEnabled: z.boolean().optional(),
   webhookSecret: z.string().nullable().optional(),
   gtmId: z.string().nullable().optional(),
-  metaPixelId: z.string().nullable().optional(),
-  metaCapiToken: z.string().nullable().optional(),
+  // Format-Validierung: Pixel-ID ist numerisch, Token ausreichend lang.
+  // Leer/null erlaubt (zum Deaktivieren/Leeren).
+  metaPixelId: z
+    .string()
+    .nullable()
+    .optional()
+    .refine((v) => !v || /^\d{6,20}$/.test(v), { message: "Pixel-ID muss numerisch sein (nur Ziffern)" }),
+  metaCapiToken: z
+    .string()
+    .nullable()
+    .optional()
+    .refine((v) => !v || v.length >= 20, { message: "CAPI-Token sieht zu kurz/ungültig aus" }),
   capiEnabled: z.boolean().optional(),
+  capiLastError: z.string().nullable().optional(),
+  capiLastErrorAt: z.string().or(z.date()).nullable().optional(),
   views: z.number(),
   leads: z.number(),
   createdAt: z.string().or(z.date()),
@@ -675,7 +735,8 @@ export const insertLeadSchema = z.object({
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 
 // Custom-Domain-Schemas
-const hostnameRegex = /^(?=.{3,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
+// Exportiert, damit das Frontend (CustomDomainPanel) dieselbe Validierung nutzt.
+export const hostnameRegex = /^(?=.{3,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
 
 export const domainSchema = z.object({
   id: z.number(),
