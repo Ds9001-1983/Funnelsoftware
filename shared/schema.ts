@@ -95,6 +95,11 @@ export const funnels = pgTable("funnels", {
   // Tracking-Warnung im Editor, statt Fehler nur stumm zu loggen.
   capiLastError: text("capi_last_error"),
   capiLastErrorAt: timestamp("capi_last_error_at"),
+  // Rechtstexte des Funnel-Owners: Besucher-Funnels erheben personenbezogene
+  // Daten — der Owner braucht Impressum + Datenschutzerklärung im Footer
+  // (§ 5 DDG, Art. 13 DSGVO). URLs zeigen auf die Seiten des Kunden.
+  impressumUrl: text("impressum_url"),
+  datenschutzUrl: text("datenschutz_url"),
   views: integer("views").notNull().default(0),
   leads: integer("leads_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -137,6 +142,11 @@ export const leads = pgTable("leads", {
   answers: jsonb("answers").default({}),
   status: text("status").notNull().default("new"), // new, contacted, qualified, converted, lost
   source: text("source"),
+  // Einwilligungsnachweis (Art. 7 Abs. 1 DSGVO): Der Marketing-Consent des
+  // Besuchers gated die CAPI-Übermittlung — ohne Persistierung ist die
+  // Einwilligung nicht nachweisbar.
+  marketingConsent: boolean("marketing_consent").notNull().default(false),
+  consentAt: timestamp("consent_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
   index("leads_user_id_idx").on(table.userId),
@@ -708,6 +718,17 @@ export const funnelSchema = z.object({
   capiEnabled: z.boolean().optional(),
   capiLastError: z.string().nullable().optional(),
   capiLastErrorAt: z.string().or(z.date()).nullable().optional(),
+  // Rechtstexte des Funnel-Owners (Footer-Links im Public-Funnel)
+  impressumUrl: z
+    .string()
+    .nullable()
+    .optional()
+    .refine((v) => !v || isSafeUrl(v), { message: "Unerlaubtes URL-Protokoll" }),
+  datenschutzUrl: z
+    .string()
+    .nullable()
+    .optional()
+    .refine((v) => !v || isSafeUrl(v), { message: "Unerlaubtes URL-Protokoll" }),
   views: z.number(),
   leads: z.number(),
   createdAt: z.string().or(z.date()),
@@ -749,6 +770,9 @@ export const leadSchema = z.object({
   answers: z.record(z.string(), z.any()).optional().nullable(),
   status: z.enum(["new", "contacted", "qualified", "converted", "lost"]),
   source: z.string().optional().nullable(),
+  // Einwilligungsnachweis (Art. 7 Abs. 1 DSGVO)
+  marketingConsent: z.boolean().optional(),
+  consentAt: z.string().or(z.date()).optional().nullable(),
   createdAt: z.string().or(z.date()),
 });
 

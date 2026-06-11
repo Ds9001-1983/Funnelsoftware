@@ -23,6 +23,7 @@ import VerifyEmail from "@/pages/verify-email";
 import Impressum from "@/pages/impressum";
 import Datenschutz from "@/pages/datenschutz";
 import AGB from "@/pages/agb";
+import AVV from "@/pages/avv";
 import { CookieConsent } from "@/components/cookie-consent";
 
 // Lazy-loaded pages for code-splitting
@@ -123,6 +124,7 @@ function Router() {
       <Route path="/impressum" component={Impressum} />
       <Route path="/datenschutz" component={Datenschutz} />
       <Route path="/agb" component={AGB} />
+      <Route path="/avv" component={AVV} />
       <Route path="/nutzungsbedingungen" component={AGB} />
 
       {/* Admin (geschützt, ohne Sidebar) */}

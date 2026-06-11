@@ -758,6 +758,8 @@ export async function registerRoutes(
         pages: funnel.pages,
         theme: funnel.theme,
         status: funnel.status,
+        impressumUrl: funnel.impressumUrl || null,
+        datenschutzUrl: funnel.datenschutzUrl || null,
       });
     } catch (error) {
       console.error("Preview funnel error:", error);
@@ -793,6 +795,8 @@ export async function registerRoutes(
         theme: funnel.theme,
         gtmId: funnel.gtmId || null,
         abTests: activeTests,
+        impressumUrl: funnel.impressumUrl || null,
+        datenschutzUrl: funnel.datenschutzUrl || null,
       });
     } catch (error) {
       console.error("Get public funnel error:", error);

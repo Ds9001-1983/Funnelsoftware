@@ -225,6 +225,8 @@ export class DatabaseStorage implements IStorage {
     if (updates.metaPixelId !== undefined) updateData.metaPixelId = updates.metaPixelId;
     if (updates.metaCapiToken !== undefined) updateData.metaCapiToken = updates.metaCapiToken;
     if (updates.capiEnabled !== undefined) updateData.capiEnabled = updates.capiEnabled;
+    if (updates.impressumUrl !== undefined) updateData.impressumUrl = updates.impressumUrl;
+    if (updates.datenschutzUrl !== undefined) updateData.datenschutzUrl = updates.datenschutzUrl;
     // views/leads bewusst NICHT übernehmbar: server-verwaltete Zähler,
     // werden ausschließlich intern per SQL-Inkrement geschrieben.
 
@@ -283,6 +285,8 @@ export class DatabaseStorage implements IStorage {
       capiEnabled: funnel.capiEnabled,
       capiLastError: funnel.capiLastError,
       capiLastErrorAt: funnel.capiLastErrorAt ? funnel.capiLastErrorAt.toISOString() : null,
+      impressumUrl: funnel.impressumUrl,
+      datenschutzUrl: funnel.datenschutzUrl,
       views: funnel.views,
       leads: funnel.leads,
       createdAt: funnel.createdAt.toISOString(),
@@ -353,6 +357,9 @@ export class DatabaseStorage implements IStorage {
       const [lead] = await tx.insert(leads).values({
         ...insertLead,
         userId,
+        // Einwilligungsnachweis explizit persistieren (Art. 7 Abs. 1 DSGVO)
+        marketingConsent: insertLead.marketingConsent ?? false,
+        consentAt: insertLead.marketingConsent ? new Date() : null,
       }).returning();
 
       // Increment leads count on funnel
@@ -426,6 +433,8 @@ export class DatabaseStorage implements IStorage {
       answers: lead.answers as Record<string, any> | null,
       status: lead.status as "new" | "contacted" | "qualified" | "converted" | "lost",
       source: lead.source,
+      marketingConsent: lead.marketingConsent,
+      consentAt: lead.consentAt ? lead.consentAt.toISOString() : null,
       createdAt: lead.createdAt.toISOString(),
     };
   }

@@ -296,13 +296,13 @@ export default function Register() {
         {/* Footer */}
         <p className="text-center text-sm text-muted-foreground">
           Mit der Registrierung akzeptierst du unsere{" "}
-          <a href="#" className="underline underline-offset-4 hover:text-primary">
-            Nutzungsbedingungen
-          </a>{" "}
+          <Link href="/agb" className="underline underline-offset-4 hover:text-primary">
+            AGB
+          </Link>{" "}
           und{" "}
-          <a href="#" className="underline underline-offset-4 hover:text-primary">
-            Datenschutzrichtlinie
-          </a>
+          <Link href="/datenschutz" className="underline underline-offset-4 hover:text-primary">
+            Datenschutzerklärung
+          </Link>
           .
         </p>
       </div>
