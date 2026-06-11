@@ -223,16 +223,20 @@ function ExportDialog({
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  // Filter leads by date range
+  // Filter leads by date range. "Von"/"Bis" sind lokale Kalendertage:
+  // new Date("2026-06-11") wäre Mitternacht UTC (= 02:00 lokal) und schnitt
+  // Leads zwischen 00:00 und 02:00 ab — daher explizit lokale Tagesgrenzen.
   const filteredLeads = useMemo(() => {
+    const parseLocalDay = (value: string, endOfDay: boolean) => {
+      const [y, m, d] = value.split("-").map(Number);
+      return endOfDay
+        ? new Date(y, m - 1, d, 23, 59, 59, 999)
+        : new Date(y, m - 1, d, 0, 0, 0, 0);
+    };
     return leads.filter(lead => {
       const leadDate = new Date(lead.createdAt);
-      if (dateFrom && leadDate < new Date(dateFrom)) return false;
-      if (dateTo) {
-        const endDate = new Date(dateTo);
-        endDate.setHours(23, 59, 59, 999);
-        if (leadDate > endDate) return false;
-      }
+      if (dateFrom && leadDate < parseLocalDay(dateFrom, false)) return false;
+      if (dateTo && leadDate > parseLocalDay(dateTo, true)) return false;
       return true;
     });
   }, [leads, dateFrom, dateTo]);
@@ -269,9 +273,18 @@ function ExportDialog({
       return row;
     });
 
+    // CSV-Formel-Injection: Zellen, die mit =, +, -, @ oder Tab/CR beginnen,
+    // würde Excel als Formel ausführen — Besucher kontrollieren diese Werte.
+    const escapeCsvCell = (cell: unknown) => {
+      let value = String(cell);
+      if (/^[=+\-@\t\r]/.test(value)) {
+        value = `'${value}`;
+      }
+      return `"${value.replace(/"/g, '""')}"`;
+    };
     const csvContent = [
       headers.join(";"),
-      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(";"))
+      ...rows.map(row => row.map(escapeCsvCell).join(";"))
     ].join("\n");
 
     const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
@@ -308,16 +321,23 @@ function ExportDialog({
       return row;
     });
 
+    // Besucher-Daten escapen — ungeescaptes HTML würde in Excel interpretiert
+    const escapeHtml = (cell: unknown) =>
+      String(cell)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
     const tableHtml = `
       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
       <head><meta charset="UTF-8"></head>
       <body>
         <table>
           <thead>
-            <tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr>
+            <tr>${headers.map(h => `<th>${escapeHtml(h)}</th>`).join("")}</tr>
           </thead>
           <tbody>
-            ${rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join("")}</tr>`).join("")}
+            ${rows.map(row => `<tr>${row.map(cell => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`).join("")}
           </tbody>
         </table>
       </body>
@@ -611,7 +631,22 @@ export default function Leads() {
         description: "Der Lead wurde erfolgreich gelöscht.",
       });
     },
+    onError: () => {
+      toast({
+        title: "Löschen fehlgeschlagen",
+        description: "Der Lead konnte nicht gelöscht werden. Bitte erneut versuchen.",
+        variant: "destructive",
+      });
+    },
   });
+
+  // Löschen ist endgültig (Kundendaten!) — ein Fehlklick darf nicht reichen
+  const confirmDelete = (lead: Lead) => {
+    const label = lead.name || lead.email || `Lead #${lead.id}`;
+    if (window.confirm(`„${label}" endgültig löschen? Das kann nicht rückgängig gemacht werden.`)) {
+      deleteMutation.mutate(lead.id);
+    }
+  };
 
   const filteredLeads = leads?.filter((lead) => {
     const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
@@ -696,7 +731,7 @@ export default function Leads() {
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="text-destructive"
-                              onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(lead.id); }}
+                              onClick={(e) => { e.stopPropagation(); confirmDelete(lead); }}
                             >
                               <Trash2 className="h-3 w-3 mr-2" />
                               Löschen
@@ -781,7 +816,7 @@ export default function Leads() {
               key={lead.id}
               lead={lead}
               onView={() => setSelectedLead(lead)}
-              onDelete={() => deleteMutation.mutate(lead.id)}
+              onDelete={() => confirmDelete(lead)}
               onStatusChange={(status) =>
                 updateMutation.mutate({ id: lead.id, status })
               }

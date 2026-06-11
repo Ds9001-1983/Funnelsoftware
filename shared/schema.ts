@@ -68,7 +68,10 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
-});
+}, (table) => [
+  // Jeder Stripe-Webhook macht einen Lookup über die Customer-ID
+  index("users_stripe_customer_id_idx").on(table.stripeCustomerId),
+]);
 
 // Funnels table
 export const funnels = pgTable("funnels", {
@@ -232,7 +235,11 @@ export const sessions = pgTable("session", {
   sid: varchar("sid").primaryKey(),
   sess: jsonb("sess").notNull(),
   expire: timestamp("expire", { precision: 6 }).notNull(),
-});
+}, (table) => [
+  // connect-pg-simple prunt abgelaufene Sessions über expire — ohne Index
+  // ist jeder Prune-Lauf ein Full Table Scan
+  index("session_expire_idx").on(table.expire),
+]);
 
 // ============ ZOD SCHEMAS & TYPES ============
 
@@ -780,17 +787,18 @@ export const leadSchema = z.object({
 
 export type Lead = z.infer<typeof leadSchema>;
 
-// Insert lead schema
+// Insert lead schema — Längenlimits, weil der Endpunkt öffentlich ist
+// (ohne Limits: bis ~1 MB Datenmüll pro Lead über den 1mb-Body-Cap).
 export const insertLeadSchema = z.object({
   funnelId: z.number(),
-  name: z.string().optional(),
-  email: z.string().email().optional(),
-  phone: z.string().optional(),
-  company: z.string().optional(),
-  message: z.string().optional(),
-  answers: z.record(z.string(), z.any()).optional(),
+  name: z.string().max(200).optional(),
+  email: z.string().email().max(254).optional(),
+  phone: z.string().max(50).optional(),
+  company: z.string().max(200).optional(),
+  message: z.string().max(5000).optional(),
+  answers: z.record(z.string().max(200), z.any()).optional(),
   status: z.enum(["new", "contacted", "qualified", "converted", "lost"]).default("new"),
-  source: z.string().optional(),
+  source: z.string().max(500).optional(),
   // DSGVO-Marketing-Einwilligung des Besuchers (Cookie-Consent). Wird vom
   // Public-Funnel mitgeschickt und gated server-side Tracking (Meta CAPI).
   marketingConsent: z.boolean().optional(),

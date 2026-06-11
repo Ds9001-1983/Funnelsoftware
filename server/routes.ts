@@ -444,7 +444,7 @@ export async function registerRoutes(
     },
   });
 
-  app.post("/api/uploads", isAuthenticated, upload.single("file"), async (req, res) => {
+  app.post("/api/uploads", isAuthenticated, requireVerifiedEmail, requireActivePlan, upload.single("file"), async (req, res) => {
     let outputPath: string | undefined;
     try {
       if (!req.file) {
@@ -493,6 +493,8 @@ export async function registerRoutes(
   app.post(
     "/api/uploads/audio",
     isAuthenticated,
+    requireVerifiedEmail,
+    requireActivePlan,
     audioUpload.single("file"),
     async (req, res) => {
       let outputPath: string | undefined;
@@ -1344,9 +1346,10 @@ export async function registerRoutes(
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
 
-      // Enterprise plan check
+      // Enterprise plan check — als Enterprise verkauftes Feature darf nicht
+      // für jeden Pro-/Trial-Account frei sein (Umsatzleck). Admins ausgenommen.
       const user = await storage.getUser(userId);
-      if (!user?.isPro && user?.subscriptionPlan !== "enterprise") {
+      if (!user?.isAdmin && user?.subscriptionPlan !== "enterprise") {
         return res.status(403).json({ error: "API-Zugang erfordert einen Enterprise-Plan." });
       }
 
@@ -1928,6 +1931,23 @@ export async function registerRoutes(
       // Funnel muss dem Nutzer gehören
       const funnel = await storage.getFunnel(result.data.funnelId, userId);
       if (!funnel) return res.status(404).json({ error: "Funnel nicht gefunden" });
+
+      // Eigene Plattform-Hosts dürfen nicht claimbar sein (Squatting würde
+      // die Auflösung über funnel-by-host kapern)
+      const reservedHosts = ["trichterwerk.de", "www.trichterwerk.de", "localhost"];
+      if (reservedHosts.includes(result.data.hostname)) {
+        return res.status(400).json({ error: "Dieser Hostname ist reserviert" });
+      }
+
+      // Squatting-Bremse: max. 5 UNVERIFIZIERTE Domains pro Account —
+      // unverifizierte Einträge blockieren den Hostname global.
+      const ownDomains = await storage.listDomains(userId);
+      const unverified = ownDomains.filter((d) => !d.verified).length;
+      if (unverified >= 5) {
+        return res.status(400).json({
+          error: "Zu viele unbestätigte Domains. Bitte verifiziere oder lösche bestehende Einträge zuerst.",
+        });
+      }
 
       // Hostname darf nicht doppelt vergeben sein (Vorab-Check für schnelles Feedback)
       const existing = await storage.getDomainByHostname(result.data.hostname);
