@@ -173,7 +173,12 @@ export const TimerProperties = memo(function TimerProperties({ element, onUpdate
         <Input
           type="datetime-local"
           value={element.timerEndDate ? element.timerEndDate.slice(0, 16) : ""}
-          onChange={(e) => onUpdate({ timerEndDate: new Date(e.target.value).toISOString() })}
+          onChange={(e) =>
+            // Leeres Feld: new Date("") wirft RangeError bei toISOString()
+            onUpdate({
+              timerEndDate: e.target.value ? new Date(e.target.value).toISOString() : undefined,
+            })
+          }
           className="text-sm h-8"
         />
       </div>

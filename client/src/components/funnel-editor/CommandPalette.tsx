@@ -35,7 +35,7 @@ export interface CommandPaletteActions {
   onRedo: () => void;
   canRedo: boolean;
   onOpenSettings: () => void;
-  onOpenABTests: () => void;
+  onOpenABTests?: () => void;
   onOpenLogicFlow: () => void;
   onJumpToPage: (pageIndex: number) => void;
   onAddPage: (type: FunnelPage["type"]) => void;
@@ -148,10 +148,12 @@ export function CommandPalette({
             <GitBranch />
             Flow-Ansicht
           </CommandItem>
-          <CommandItem onSelect={() => run(onOpenABTests)}>
-            <FlaskConical />
-            A/B-Tests
-          </CommandItem>
+          {onOpenABTests && (
+            <CommandItem onSelect={() => run(onOpenABTests)}>
+              <FlaskConical />
+              A/B-Tests
+            </CommandItem>
+          )}
         </CommandGroup>
 
         {pages.length > 0 && (

@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import {
   Play,
   ChevronDown,
@@ -21,6 +21,11 @@ import {
   Rocket,
   Zap,
   Circle,
+  Mail,
+  Phone,
+  Home,
+  UserRound,
+  Settings,
 } from "lucide-react";
 import type { PageElement, Section } from "@shared/schema";
 import { ElementWrapper, elementTypeLabels } from "./ElementWrapper";
@@ -49,6 +54,138 @@ export function getVideoEmbedUrl(
     return m ? `https://player.vimeo.com/video/${m[1]}` : null;
   }
   return null;
+}
+
+/**
+ * Verbleibende Zeit bis zu einem Zieldatum, sekündlich aktualisiert.
+ * invalid = kein parsebares Datum; bei Ablauf bleibt alles auf 0 stehen.
+ */
+function useCountdown(target: string | undefined): {
+  invalid: boolean;
+  days: string;
+  hours: string;
+  minutes: string;
+  seconds: string;
+} {
+  const targetMs = target ? new Date(target).getTime() : NaN;
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (isNaN(targetMs)) return;
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [targetMs]);
+
+  if (isNaN(targetMs)) {
+    return { invalid: true, days: "00", hours: "00", minutes: "00", seconds: "00" };
+  }
+  const diff = Math.max(0, targetMs - now);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    invalid: false,
+    days: pad(Math.floor(diff / 86_400_000)),
+    hours: pad(Math.floor(diff / 3_600_000) % 24),
+    minutes: pad(Math.floor(diff / 60_000) % 60),
+    seconds: pad(Math.floor(diff / 1000) % 60),
+  };
+}
+
+/**
+ * Sichere Embed-URL für Terminbuchungs-Anbieter (Allowlist: Calendly, Cal.com).
+ * Gibt null zurück, wenn der Host nicht erlaubt oder die URL unbrauchbar ist.
+ */
+export function getCalendarEmbedUrl(url: string | undefined): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") return null;
+    const host = parsed.hostname.toLowerCase();
+    const allowed =
+      host === "calendly.com" ||
+      host.endsWith(".calendly.com") ||
+      host === "cal.com" ||
+      host.endsWith(".cal.com");
+    return allowed ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Timer-Element mit echtem Live-Countdown (eigene Komponente wegen Hook). */
+function TimerElementView({ el, textColor }: { el: PageElement; textColor: string }) {
+  const t = useCountdown(el.timerEndDate);
+  const timerUnits =
+    el.timerShowDays !== false
+      ? [
+          { value: t.days, label: "Tage" },
+          { value: t.hours, label: "Std" },
+          { value: t.minutes, label: "Min" },
+          { value: t.seconds, label: "Sek" },
+        ]
+      : [
+          { value: t.hours, label: "Std" },
+          { value: t.minutes, label: "Min" },
+          { value: t.seconds, label: "Sek" },
+        ];
+  return (
+    <div className="bg-white/10 backdrop-blur rounded-lg p-4 text-center">
+      <div className="flex justify-center gap-3">
+        {timerUnits.map((unit, idx) => (
+          <div key={idx}>
+            <div className="text-2xl font-bold" style={{ color: textColor }}>
+              {unit.value}
+            </div>
+            <div className="text-xs opacity-60" style={{ color: textColor }}>
+              {unit.label}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Countdown-Element mit echtem Live-Countdown (eigene Komponente wegen Hook). */
+function CountdownElementView({ el }: { el: PageElement }) {
+  const t = useCountdown(el.countdownDate);
+  const items = [
+    { value: t.days, label: "Tage" },
+    { value: t.hours, label: "Std" },
+    { value: t.minutes, label: "Min" },
+    { value: t.seconds, label: "Sek" },
+  ];
+  return (
+    <div
+      className={`p-4 rounded-xl ${
+        el.countdownStyle === "flip" ? "bg-gray-900" : "bg-white border"
+      }`}
+    >
+      <div className="flex justify-center gap-2">
+        {items.map((item, idx) => (
+          <div key={idx} className="text-center">
+            <div
+              className={`text-2xl font-bold px-3 py-2 rounded ${
+                el.countdownStyle === "flip"
+                  ? "bg-gray-800 text-white"
+                  : "bg-gray-100 text-gray-900"
+              }`}
+            >
+              {item.value}
+            </div>
+            {el.countdownShowLabels !== false && (
+              <div
+                className={`text-xs mt-1 ${
+                  el.countdownStyle === "flip" ? "text-gray-400" : "text-gray-500"
+                }`}
+              >
+                {item.label}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export interface ElementActions {
@@ -389,7 +526,17 @@ function ElementPreviewRendererBase({
       );
     }
 
-    case "audio":
+    case "audio": {
+      // Public-Funnel: echter Player statt Fake-Mockup mit hartkodiertem "3:24"
+      if (!onContentCommit) {
+        if (!el.audioUrl) return null;
+        return (
+          <ElementWrapper {...wrapperProps}>
+            <audio controls src={el.audioUrl} className="w-full" preload="metadata" />
+          </ElementWrapper>
+        );
+      }
+      // Editor-Vorschau: Mockup + Hinweis, ob eine Datei hinterlegt ist
       return (
         <ElementWrapper {...wrapperProps}>
           <div className="bg-gray-100 rounded-xl p-4 flex items-center gap-3">
@@ -400,14 +547,14 @@ function ElementPreviewRendererBase({
               <div className="h-1 bg-gray-300 rounded-full">
                 <div className="h-1 bg-primary rounded-full w-1/3" />
               </div>
-              <div className="flex justify-between mt-1 text-xs text-gray-500">
-                <span>0:00</span>
-                <span>3:24</span>
-              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                {el.audioUrl ? "Audio hinterlegt" : "Keine Audio-Datei — für Besucher ausgeblendet"}
+              </p>
             </div>
           </div>
         </ElementWrapper>
       );
+    }
 
     case "list":
       return (
@@ -491,78 +638,46 @@ function ElementPreviewRendererBase({
       );
 
     case "timer": {
-      const timerUnits = el.timerShowDays !== false
-        ? [
-            { value: "00", label: "Tage" },
-            { value: "12", label: "Std" },
-            { value: "45", label: "Min" },
-            { value: "30", label: "Sek" },
-          ]
-        : [
-            { value: "12", label: "Std" },
-            { value: "45", label: "Min" },
-            { value: "30", label: "Sek" },
-          ];
+      // Ohne Zieldatum gibt es nichts herunterzuzählen: im Public-Funnel
+      // ausblenden (statt Fake-Zahlen), im Editor Hinweis zeigen.
+      if (!el.timerEndDate) {
+        if (!onContentCommit) return null;
+        return (
+          <ElementWrapper {...wrapperProps}>
+            <div className="bg-white/10 backdrop-blur rounded-lg p-4 text-center">
+              <p className="text-xs opacity-60" style={{ color: textColor }}>
+                Timer: Kein Zieldatum gesetzt — für Besucher ausgeblendet.
+              </p>
+            </div>
+          </ElementWrapper>
+        );
+      }
       return (
         <ElementWrapper {...wrapperProps}>
-          <div className="bg-white/10 backdrop-blur rounded-lg p-4 text-center">
-            <div className="flex justify-center gap-3">
-              {timerUnits.map((unit, idx) => (
-                <div key={idx}>
-                  <div className="text-2xl font-bold" style={{ color: textColor }}>
-                    {unit.value}
-                  </div>
-                  <div className="text-xs opacity-60" style={{ color: textColor }}>
-                    {unit.label}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <TimerElementView el={el} textColor={textColor} />
         </ElementWrapper>
       );
     }
 
-    case "countdown":
+    case "countdown": {
+      if (!el.countdownDate) {
+        if (!onContentCommit) return null;
+        return (
+          <ElementWrapper {...wrapperProps}>
+            <div className="p-4 rounded-xl bg-white border text-center">
+              <p className="text-xs text-gray-500">
+                Countdown: Kein Zieldatum gesetzt — für Besucher ausgeblendet.
+              </p>
+            </div>
+          </ElementWrapper>
+        );
+      }
       return (
         <ElementWrapper {...wrapperProps}>
-          <div
-            className={`p-4 rounded-xl ${
-              el.countdownStyle === "flip" ? "bg-gray-900" : "bg-white border"
-            }`}
-          >
-            <div className="flex justify-center gap-2">
-              {[
-                { value: "07", label: "Tage" },
-                { value: "12", label: "Std" },
-                { value: "45", label: "Min" },
-                { value: "30", label: "Sek" },
-              ].map((item, idx) => (
-                <div key={idx} className="text-center">
-                  <div
-                    className={`text-2xl font-bold px-3 py-2 rounded ${
-                      el.countdownStyle === "flip"
-                        ? "bg-gray-800 text-white"
-                        : "bg-gray-100 text-gray-900"
-                    }`}
-                  >
-                    {item.value}
-                  </div>
-                  {el.countdownShowLabels !== false && (
-                    <div
-                      className={`text-xs mt-1 ${
-                        el.countdownStyle === "flip" ? "text-gray-400" : "text-gray-500"
-                      }`}
-                    >
-                      {item.label}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+          <CountdownElementView el={el} />
         </ElementWrapper>
       );
+    }
 
     case "heading": {
       const headingStyle = {
@@ -673,6 +788,8 @@ function ElementPreviewRendererBase({
           ? "h-6 w-6"
           : "h-8 w-8";
 
+      // Map muss alle in IconProperties wählbaren Namen abdecken — sonst
+      // rendert die Auswahl stillschweigend als Stern.
       const IconComponent = {
         star: Star,
         heart: Heart,
@@ -682,6 +799,13 @@ function ElementPreviewRendererBase({
         trophy: Trophy,
         rocket: Rocket,
         lightning: Zap,
+        zap: Zap,
+        "arrow-right": ChevronRight,
+        mail: Mail,
+        phone: Phone,
+        home: Home,
+        user: UserRound,
+        settings: Settings,
       }[el.iconName || "star"] || Star;
 
       return (
@@ -772,28 +896,38 @@ function ElementPreviewRendererBase({
       );
     }
 
-    case "testimonial":
+    case "testimonial": {
+      // ALLE konfigurierten Bewertungen rendern — das Properties-Panel erlaubt
+      // mehrere, gerendert wurde bisher überall nur die erste.
+      const testimonials = el.slides?.length
+        ? el.slides
+        : [{ id: "placeholder", text: "", author: "", role: "" }];
       return (
         <ElementWrapper {...wrapperProps}>
-          <div className="bg-white rounded-xl p-4 shadow-md">
-            <div className="flex gap-0.5 mb-3">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star key={star} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-              ))}
-            </div>
-            <p className="text-sm text-gray-700 mb-3 text-left">
-              "{el.slides?.[0]?.text || "Großartiger Service!"}"
-            </p>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400" />
-              <div className="text-left">
-                <p className="text-sm font-semibold">{el.slides?.[0]?.author || "Kunde"}</p>
-                <p className="text-xs text-gray-500">{el.slides?.[0]?.role || "Position"}</p>
+          <div className="space-y-3">
+            {testimonials.map((slide, idx) => (
+              <div key={slide.id || idx} className="bg-white rounded-xl p-4 shadow-md">
+                <div className="flex gap-0.5 mb-3">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star key={star} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                  ))}
+                </div>
+                <p className="text-sm text-gray-700 mb-3 text-left">
+                  "{slide.text || "Großartiger Service!"}"
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400" />
+                  <div className="text-left">
+                    <p className="text-sm font-semibold">{slide.author || "Kunde"}</p>
+                    <p className="text-xs text-gray-500">{slide.role || "Position"}</p>
+                  </div>
+                </div>
               </div>
-            </div>
+            ))}
           </div>
         </ElementWrapper>
       );
+    }
 
     case "slider": {
       const slides = el.slides || [{ id: "1" }, { id: "2" }, { id: "3" }];
@@ -880,7 +1014,24 @@ function ElementPreviewRendererBase({
         </ElementWrapper>
       );
 
-    case "calendar":
+    case "calendar": {
+      const calendarEmbed = getCalendarEmbedUrl(el.calendarUrl);
+      // Public-Funnel: echtes Buchungs-Embed (Calendly/Cal.com) oder nichts —
+      // der statische Kalender-Mock war für Besucher komplett funktionslos.
+      if (!onContentCommit) {
+        if (!calendarEmbed) return null;
+        return (
+          <ElementWrapper {...wrapperProps}>
+            <iframe
+              src={calendarEmbed}
+              title="Terminbuchung"
+              className="w-full rounded-xl border bg-white"
+              style={{ height: 640 }}
+            />
+          </ElementWrapper>
+        );
+      }
+      // Editor-Vorschau: Mock + klarer Hinweis auf den Konfigurationsstand
       return (
         <ElementWrapper {...wrapperProps}>
           <div className="bg-white rounded-xl p-4 shadow-md border">
@@ -905,12 +1056,17 @@ function ElementPreviewRendererBase({
                 </div>
               ))}
             </div>
-            <p className="text-xs text-gray-500 text-center">
-              {el.calendarProvider === "calendly" ? "Powered by Calendly" : "Terminauswahl"}
+            <p className="text-xs text-center font-medium">
+              {calendarEmbed ? (
+                <span className="text-green-600">Buchungs-Link aktiv — Besucher sehen das echte Calendly/Cal.com-Widget</span>
+              ) : (
+                <span className="text-amber-600">Keine gültige Calendly-/Cal.com-URL — für Besucher ausgeblendet</span>
+              )}
             </p>
           </div>
         </ElementWrapper>
       );
+    }
 
     case "chart":
       return (
@@ -954,13 +1110,17 @@ function ElementPreviewRendererBase({
       );
 
     case "embed":
+      // Embed ist nicht fertig gebaut (kein sicheres Iframe-Rendering, CSP
+      // blockt fremde Hosts) — Besucher sehen nichts, Editor zeigt WIP-Hinweis.
+      // Aus der Palette entfernt; bestehende Elemente bleiben editierbar.
+      if (!onContentCommit) return null;
       return (
         <ElementWrapper {...wrapperProps}>
-          <div className="aspect-video bg-gray-100 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-300">
+          <div className="aspect-video bg-amber-50 rounded-xl flex items-center justify-center border-2 border-dashed border-amber-300">
             <div className="text-center">
-              <Code className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">Eingebetteter Inhalt</p>
-              <p className="text-xs text-gray-400 mt-1">{el.embedUrl || "URL hinzufügen"}</p>
+              <Code className="h-8 w-8 text-amber-500 mx-auto mb-2" />
+              <p className="text-sm text-amber-700">Einbetten — in Arbeit</p>
+              <p className="text-xs text-amber-600 mt-1">Für Besucher aktuell ausgeblendet</p>
             </div>
           </div>
         </ElementWrapper>

@@ -463,6 +463,9 @@ function BillingSettings() {
   );
 }
 
+// Teams sind für den Launch deaktiviert (kaputte Einladungen, kein Annahme-Flow)
+const TEAMS_ENABLED = false;
+
 function TeamSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -825,10 +828,16 @@ export default function Settings() {
             <CreditCard className="h-4 w-4" />
             <span className="hidden sm:inline">Abrechnung</span>
           </TabsTrigger>
-          <TabsTrigger value="team" className="gap-2" data-testid="tab-team">
-            <Users className="h-4 w-4" />
-            <span className="hidden sm:inline">Team</span>
-          </TabsTrigger>
+          {/* Team-Tab für den Launch deaktiviert: Einladungen nicht
+              registrierter E-Mails schlagen mit 500 fehl (FK userId=0),
+              es gibt weder Einladungs-Mail noch Annahme-Flow. Reaktivieren,
+              wenn das Feature fertig gebaut ist (P2 im Launch-Plan). */}
+          {TEAMS_ENABLED && (
+            <TabsTrigger value="team" className="gap-2" data-testid="tab-team">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Team</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="api" className="gap-2" data-testid="tab-api">
             <Key className="h-4 w-4" />
             <span className="hidden sm:inline">API</span>
@@ -847,9 +856,11 @@ export default function Settings() {
         <TabsContent value="billing">
           <BillingSettings />
         </TabsContent>
-        <TabsContent value="team">
-          <TeamSettings />
-        </TabsContent>
+        {TEAMS_ENABLED && (
+          <TabsContent value="team">
+            <TeamSettings />
+          </TabsContent>
+        )}
         <TabsContent value="api">
           <ApiKeySettings />
         </TabsContent>

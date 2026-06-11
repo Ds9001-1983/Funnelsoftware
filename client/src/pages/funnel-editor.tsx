@@ -184,10 +184,15 @@ import { ShortcutOverlay } from "@/components/funnel-editor/ShortcutOverlay";
 import { ThemePresetPicker } from "@/components/funnel-editor/ThemePresetPicker";
 import { PublishDialog } from "@/components/funnel-editor/PublishDialog";
 
-const PageEditor = lazy(() => import("@/components/funnel-editor/PageEditor").then(m => ({ default: m.PageEditor })));
 const LogicFlowView = lazy(() =>
   import("@/components/funnel-editor/LogicFlowView").then((m) => ({ default: m.LogicFlowView })),
 );
+
+// A/B-Tests sind für den Launch deaktiviert: Varianten-Statistiken werden
+// noch nicht erhoben (Views/Conversions bleiben 0) und "Gewinner anwenden"
+// hat keine Wirkung — das Feature wäre irreführend. Reaktivieren, sobald
+// Tracking + Winner-Apply gebaut sind (P2 im Launch-Plan).
+const AB_TESTS_ENABLED = false;
 
 type PageType = FunnelPage["type"];
 
@@ -1043,7 +1048,7 @@ export default function FunnelEditor() {
         onBack={handleBackToFunnels}
         onSave={handleSave}
         onOpenLogicFlow={() => setShowLogicFlow(true)}
-        onOpenABTests={() => setShowABTests(true)}
+        onOpenABTests={AB_TESTS_ENABLED ? () => setShowABTests(true) : undefined}
         onOpenSettings={() => setShowSettings(true)}
         onOpenPublish={() => setShowPublishDialog(true)}
         onOpenPreview={() => {
@@ -1257,7 +1262,7 @@ export default function FunnelEditor() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {(localFunnel.abTests || []).some(
+            {AB_TESTS_ENABLED && (localFunnel.abTests || []).some(
               (t) => t.pageId === selectedPage?.id && t.status === "running",
             ) && (
               <button
@@ -1357,7 +1362,7 @@ export default function FunnelEditor() {
         onRedo={handleRedo}
         canRedo={canRedo}
         onOpenSettings={() => setShowSettings(true)}
-        onOpenABTests={() => setShowABTests(true)}
+        onOpenABTests={AB_TESTS_ENABLED ? () => setShowABTests(true) : undefined}
         onOpenLogicFlow={() => setShowLogicFlow(true)}
         onJumpToPage={(idx) => setSelectedPageIndex(idx)}
         onAddPage={addPage}
