@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getContrastColor, getMutedContrastColor, sanitizeUrl } from "./utils";
+import { getContrastColor, getMutedContrastColor, sanitizeUrl, remapElementIds } from "./utils";
 
 describe("getContrastColor", () => {
   it("liefert dunklen Text auf hellem Hintergrund", () => {
@@ -65,5 +65,47 @@ describe("sanitizeUrl", () => {
     expect(sanitizeUrl("   ")).toBe("");
     expect(sanitizeUrl(null)).toBe("");
     expect(sanitizeUrl(undefined)).toBe("");
+  });
+});
+
+describe("remapElementIds", () => {
+  const pages = [
+    {
+      id: "page-1",
+      type: "question" as const,
+      title: "Frage 1",
+      elements: [{ id: "el-1", type: "radio" as const, options: ["A", "B"] }],
+      conditions: [{ id: "c1", elementId: "el-1", operator: "equals" as const, value: "A", targetPageId: "page-2" }],
+    },
+    {
+      id: "page-2",
+      type: "contact" as const,
+      title: "Kontakt",
+      elements: [
+        { id: "el-1", type: "input" as const, placeholder: "Name" },
+        { id: "el-2", type: "input" as const, placeholder: "E-Mail" },
+      ],
+    },
+  ];
+
+  it("vergibt funnel-weit eindeutige Element-IDs", () => {
+    const result = remapElementIds(pages);
+    const ids = result.flatMap((p) => p.elements.map((e) => e.id));
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).not.toContain("el-1");
+  });
+
+  it("remappt conditions[].elementId auf die neue ID", () => {
+    const result = remapElementIds(pages);
+    expect(result[0].conditions?.[0].elementId).toBe(result[0].elements[0].id);
+    // Seiten-Verweis bleibt unangetastet
+    expect(result[0].conditions?.[0].targetPageId).toBe("page-2");
+  });
+
+  it("lässt Element-Inhalte und Seiten unverändert", () => {
+    const result = remapElementIds(pages);
+    expect(result[0].elements[0].options).toEqual(["A", "B"]);
+    expect(result[1].elements.map((e) => e.placeholder)).toEqual(["Name", "E-Mail"]);
+    expect(result.map((p) => p.id)).toEqual(["page-1", "page-2"]);
   });
 });

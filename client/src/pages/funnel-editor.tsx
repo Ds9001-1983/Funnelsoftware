@@ -687,15 +687,20 @@ export default function FunnelEditor() {
 
   const addPage = useCallback((type: PageType) => {
     if (localFunnel) {
+      // Eindeutige Element-IDs: formValues ist funnel-weit nach element.id
+      // gekeyt — feste IDs ("el-1") kollidieren über Seiten hinweg und
+      // überschreiben sich gegenseitig die Antworten.
+      const newElementId = () =>
+        `el-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
       const newPage: FunnelPage = {
         id: `page-${Date.now()}`,
         type,
         title: pageTypeLabels[type],
         elements: type === "contact" ? [
-          { id: "el-1", type: "input", placeholder: "Dein Name", required: true },
-          { id: "el-2", type: "input", placeholder: "Deine E-Mail", required: true },
+          { id: newElementId(), type: "input", placeholder: "Dein Name", required: true, mapToLeadField: "name" },
+          { id: newElementId(), type: "input", placeholder: "Deine E-Mail", required: true, mapToLeadField: "email" },
         ] : type === "multiChoice" || type === "question" ? [
-          { id: "el-1", type: "radio", options: ["Option 1", "Option 2", "Option 3"] },
+          { id: newElementId(), type: "radio", options: ["Option 1", "Option 2", "Option 3"] },
         ] : [],
         buttonText: type === "thankyou" ? undefined : "Weiter",
         backgroundColor: type === "welcome" || type === "thankyou" ? localFunnel.theme.primaryColor : undefined,

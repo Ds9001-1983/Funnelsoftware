@@ -25,6 +25,7 @@ import { loadFont } from "@/lib/font-loader";
 import { getMutedContrastColor } from "@/lib/utils";
 import { getNextPageIndex } from "@/lib/funnel-logic";
 import { ElementPreviewRenderer } from "@/components/funnel-editor/ElementPreviewRenderer";
+import { validateField } from "@/components/funnel-editor/FormFieldWithValidation";
 import { FunnelProgress } from "@/components/funnel-editor/FunnelProgress";
 import type { FunnelPage, Theme, PageElement, ABTest } from "@shared/schema";
 
@@ -311,15 +312,29 @@ export default function PublicFunnelView() {
     const errors: Record<string, string> = {};
 
     for (const el of page.elements) {
-      if (el.required && !formValues[el.id]?.trim()) {
-        errors[el.id] = "Dieses Feld ist erforderlich";
-      }
-      // Email-Format prüfen
-      const label = (el.label || el.placeholder || "").toLowerCase();
-      if (el.type === "input" && (label.includes("email") || label.includes("e-mail")) && formValues[el.id]) {
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formValues[el.id])) {
+      const value = formValues[el.id] || "";
+
+      if (el.type === "input" || el.type === "textarea") {
+        // Konfigurierte Validierungsregeln (required, min/max, Typ, Pattern)
+        // durchsetzen — vorher wurden sie beim Weiter/Absenden ignoriert.
+        const result = validateField(el, value);
+        if (!result.isValid) {
+          errors[el.id] = result.errorMessage || "Ungültige Eingabe";
+          continue;
+        }
+        // Fallback-Heuristik für Alt-Funnels ohne validation.type:
+        // Felder, die nach E-Mail aussehen, müssen eine valide E-Mail enthalten.
+        const label = (el.label || el.placeholder || "").toLowerCase();
+        if (
+          value &&
+          !el.validation?.type &&
+          (label.includes("email") || label.includes("e-mail")) &&
+          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+        ) {
           errors[el.id] = "Bitte gib eine gültige E-Mail-Adresse ein";
         }
+      } else if (el.required && !value.trim()) {
+        errors[el.id] = "Dieses Feld ist erforderlich";
       }
     }
 

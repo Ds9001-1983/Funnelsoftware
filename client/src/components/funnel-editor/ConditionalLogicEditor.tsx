@@ -106,14 +106,20 @@ export function ConditionalLogicEditor({
     });
   };
 
-  // Simple routing update (for option-based)
-  const updateSimpleRouting = (key: string, value: string) => {
-    onUpdate({
-      conditionalRouting: {
-        ...page.conditionalRouting,
-        [key]: value,
-      },
-    });
+  // Einfache Weiterleitung: Die Runtime (getNextPageIndex) matcht den
+  // ANTWORT-TEXT des Besuchers gegen die Keys von conditionalRouting.
+  // Der Key muss daher der Optionstext sein — vorher wurde
+  // `${elementId}-${optIdx}` geschrieben, das nie matchen konnte
+  // (Weiterleitung war im Live-Funnel komplett wirkungslos).
+  // "next" (= Standard: nächste Seite) wird nicht persistiert.
+  const updateSimpleRouting = (optionText: string, value: string) => {
+    const next = { ...page.conditionalRouting };
+    if (value === "next") {
+      delete next[optionText];
+    } else {
+      next[optionText] = value;
+    }
+    onUpdate({ conditionalRouting: next });
   };
 
   if (!hasElements) {
@@ -163,8 +169,8 @@ export function ConditionalLogicEditor({
                     </div>
                     <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
                     <Select
-                      value={page.conditionalRouting?.[`${element.id}-${optIdx}`] || "next"}
-                      onValueChange={(value) => updateSimpleRouting(`${element.id}-${optIdx}`, value)}
+                      value={page.conditionalRouting?.[option] || "next"}
+                      onValueChange={(value) => updateSimpleRouting(option, value)}
                     >
                       <SelectTrigger className="w-28 h-7 text-xs">
                         <SelectValue />
