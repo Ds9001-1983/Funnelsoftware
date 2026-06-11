@@ -15,6 +15,8 @@ import {
   createCheckoutSession,
   createPortalSession,
   constructWebhookEvent,
+  findBlockingSubscription,
+  cancelAllSubscriptions,
 } from "./stripe";
 import { sendWebhook, buildWebhookPayload, generateWebhookSecret } from "./webhooks";
 import { sendCapiEvent } from "./capi";
@@ -110,7 +112,7 @@ export async function registerRoutes(
               process.env.STRIPE_PRICE_ID,
               `${appUrl}/?registered=true`,
               `${appUrl}/?registered=true`,
-              14
+              { trialDays: 14, clientReferenceId: String(user.id) }
             );
             checkoutUrl = session.url;
           } catch (stripeErr) {
@@ -1247,18 +1249,35 @@ export async function registerRoutes(
       const priceId = process.env.STRIPE_PRICE_ID;
       if (!priceId) return res.status(500).json({ error: "Preis nicht konfiguriert" });
 
-      // Get or create Stripe customer
+      // Get or create Stripe customer — Customer-ID VOR der Session-Erstellung
+      // persistieren, damit der Webhook den User sicher findet.
       const customerId = await getOrCreateStripeCustomer(user);
       if (!user.stripeCustomerId) {
         await storage.updateStripeCustomerId(userId, customerId);
       }
+
+      // Doppel-Abos verhindern: Die Registrierung erzeugt bereits eine 24h
+      // gültige Checkout-Session. Ohne diesen Guard kann derselbe Customer
+      // zwei Subscriptions abschließen und wird doppelt abgebucht.
+      const existing = await findBlockingSubscription(customerId);
+      if (existing) {
+        return res.status(400).json({
+          error: "Du hast bereits ein aktives Abo. Verwalte es über das Kundenportal in den Einstellungen.",
+        });
+      }
+
+      // Versprochenen Trial beim Upgrade übernehmen: "Zahlungsdaten hinterlegen"
+      // darf laufende Gratis-Tage nicht verfallen lassen (sofortige Abbuchung).
+      const trialEnd =
+        user.trialEndsAt && user.trialEndsAt.getTime() > Date.now() ? user.trialEndsAt : null;
 
       const appUrl = `${req.protocol}://${req.get("host")}`;
       const session = await createCheckoutSession(
         customerId,
         priceId,
         `${appUrl}/settings?tab=billing&upgraded=true`,
-        `${appUrl}/settings?tab=billing&cancelled=true`
+        `${appUrl}/settings?tab=billing&cancelled=true`,
+        { trialEnd, clientReferenceId: String(userId) }
       );
 
       res.json({ url: session.url });
@@ -1310,19 +1329,32 @@ export async function registerRoutes(
         case "checkout.session.completed": {
           const session = event.data.object as any;
           const customerId = session.customer as string;
-          const subscriptionId = session.subscription as string;
+          const subscriptionId = (session.subscription as string) || null;
 
-          const user = await storage.getUserByStripeCustomerId(customerId);
-          if (user) {
-            // Check if subscription has a trial (registration flow)
-            const isTrial = session.subscription
-              ? (await (async () => {
-                  try {
-                    const sub = await stripe!.subscriptions.retrieve(subscriptionId);
-                    return sub.status === "trialing";
-                  } catch { return false; }
-                })())
-              : false;
+          let user = await storage.getUserByStripeCustomerId(customerId);
+          // Fallback: Falls die Customer-ID (noch) nicht am User hängt
+          // (Race bei der Anlage), trägt die Session unsere User-ID.
+          if (!user && session.client_reference_id) {
+            const refId = parseInt(String(session.client_reference_id), 10);
+            if (!isNaN(refId)) {
+              user = await storage.getUser(refId);
+              if (user) {
+                await storage.updateStripeCustomerId(user.id, customerId);
+              }
+            }
+          }
+
+          if (user && subscriptionId) {
+            // Trial-Status und -Ende frisch von Stripe lesen
+            let isTrial = false;
+            let trialEndsAt: Date | null = null;
+            try {
+              const sub = await stripe!.subscriptions.retrieve(subscriptionId);
+              isTrial = sub.status === "trialing";
+              trialEndsAt = sub.trial_end ? new Date(sub.trial_end * 1000) : null;
+            } catch {
+              // Fallback: ohne Stripe-Antwort als aktiv behandeln
+            }
 
             await storage.updateSubscriptionFromStripe(user.id, {
               isPro: true,
@@ -1330,57 +1362,96 @@ export async function registerRoutes(
               subscriptionPlan: "pro",
               stripeSubscriptionId: subscriptionId,
               subscriptionStartedAt: new Date(),
+              ...(trialEndsAt ? { trialEndsAt } : {}),
             });
           }
           break;
         }
 
-        case "customer.subscription.updated": {
-          const subscription = event.data.object as any;
-          const customerId = subscription.customer as string;
-
-          const user = await storage.getUserByStripeCustomerId(customerId);
-          if (user) {
-            const status = subscription.status as string;
-            const mappedStatus =
-              status === "active" ? "active" :
-              status === "trialing" ? "trial" :
-              status === "past_due" ? "past_due" :
-              status === "canceled" ? "cancelled" :
-              status === "unpaid" ? "expired" : "active";
-
-            await storage.updateSubscriptionFromStripe(user.id, {
-              isPro: status === "active" || status === "past_due" || status === "trialing",
-              subscriptionStatus: mappedStatus,
-            });
-          }
-          break;
-        }
-
+        case "customer.subscription.updated":
         case "customer.subscription.deleted": {
           const subscription = event.data.object as any;
           const customerId = subscription.customer as string;
 
           const user = await storage.getUserByStripeCustomerId(customerId);
-          if (user) {
-            await storage.updateSubscriptionFromStripe(user.id, {
-              isPro: false,
-              subscriptionStatus: "cancelled",
-              stripeSubscriptionId: null,
-            });
+          if (!user) break;
+
+          // Nur Events der hinterlegten Subscription wirken auf den Account.
+          // Sonst setzt z.B. die Kündigung einer verwaisten Zweit-Subscription
+          // (Doppel-Checkout) den zahlenden Account auf "cancelled".
+          if (user.stripeSubscriptionId && user.stripeSubscriptionId !== subscription.id) {
+            console.warn(
+              `Stripe-Webhook: Event ${event.type} für fremde Subscription ${subscription.id} ignoriert (User ${user.id} hat ${user.stripeSubscriptionId})`
+            );
+            break;
           }
+
+          // Verspätete/umsortierte Events: maßgeblich ist der aktuelle Zustand
+          // bei Stripe, nicht der Payload-Schnappschuss.
+          let status = subscription.status as string;
+          let trialEnd: number | null = subscription.trial_end ?? null;
+          try {
+            const fresh = await stripe!.subscriptions.retrieve(subscription.id);
+            status = fresh.status;
+            trialEnd = fresh.trial_end;
+          } catch {
+            // Vollständig gelöschte Subscriptions: Payload-Daten verwenden
+          }
+
+          const mappedStatus =
+            status === "active" ? "active" :
+            status === "trialing" ? "trial" :
+            status === "past_due" ? "past_due" :
+            status === "canceled" ? "cancelled" :
+            "expired"; // unpaid, incomplete, incomplete_expired, paused, unbekannt
+
+          const hasAccess =
+            status === "active" || status === "trialing" || status === "past_due";
+
+          await storage.updateSubscriptionFromStripe(user.id, {
+            isPro: hasAccess,
+            subscriptionStatus: mappedStatus,
+            stripeSubscriptionId: status === "canceled" ? null : (user.stripeSubscriptionId ?? subscription.id),
+            ...(trialEnd ? { trialEndsAt: new Date(trialEnd * 1000) } : {}),
+          });
           break;
         }
 
         case "invoice.payment_failed": {
           const invoice = event.data.object as any;
           const customerId = invoice.customer as string;
+          const invoiceSubId = (invoice.subscription as string) || null;
 
           const user = await storage.getUserByStripeCustomerId(customerId);
-          if (user) {
+          if (user && (!invoiceSubId || !user.stripeSubscriptionId || invoiceSubId === user.stripeSubscriptionId)) {
             await storage.updateSubscriptionFromStripe(user.id, {
               subscriptionStatus: "past_due",
             });
+          }
+          break;
+        }
+
+        case "charge.dispute.created": {
+          // Chargeback: Zugriff sperren, bis der Fall geklärt ist.
+          const dispute = event.data.object as any;
+          let customerId: string | null = null;
+          try {
+            const charge = await stripe!.charges.retrieve(dispute.charge as string);
+            customerId = (charge.customer as string) || null;
+          } catch (chargeErr) {
+            console.error("Stripe-Webhook: Charge zum Dispute nicht ladbar:", chargeErr);
+          }
+          if (customerId) {
+            const user = await storage.getUserByStripeCustomerId(customerId);
+            if (user) {
+              console.error(
+                `⚠️ CHARGEBACK: Dispute über ${dispute.amount} ${dispute.currency} für User ${user.id} (${user.email}) — Zugriff gesperrt`
+              );
+              await storage.updateSubscriptionFromStripe(user.id, {
+                isPro: false,
+                subscriptionStatus: "expired",
+              });
+            }
           }
           break;
         }
@@ -1585,6 +1656,25 @@ export async function registerRoutes(
       // Prevent deleting yourself
       if (userId === req.user?.id) {
         return res.status(400).json({ error: "Du kannst dich nicht selbst löschen" });
+      }
+
+      // Aktive Stripe-Abos zuerst kündigen — nach dem Löschen der DB-Zeile
+      // finden Webhooks keinen User mehr und Stripe würde dauerhaft weiter
+      // abbuchen, ohne dass es auffällt.
+      const userToDelete = await storage.getUser(userId);
+      if (!userToDelete) {
+        return res.status(404).json({ error: "Benutzer nicht gefunden" });
+      }
+      if (userToDelete.stripeCustomerId && isStripeConfigured()) {
+        try {
+          await cancelAllSubscriptions(userToDelete.stripeCustomerId);
+        } catch (stripeErr) {
+          console.error("Stripe-Kündigung vor User-Löschung fehlgeschlagen:", stripeErr);
+          return res.status(409).json({
+            error:
+              "Stripe-Abo konnte nicht gekündigt werden — Benutzer NICHT gelöscht. Bitte erneut versuchen oder das Abo im Stripe-Dashboard kündigen.",
+          });
+        }
       }
 
       const deleted = await storage.deleteUserAdmin(userId);
