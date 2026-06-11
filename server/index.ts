@@ -34,7 +34,7 @@ app.use(
         fontSrc: ["'self'"],
         imgSrc: ["'self'", "data:", "https:", "blob:"],
         connectSrc: ["'self'", "https://www.google-analytics.com", "https://api.stripe.com"],
-        frameSrc: ["'self'", "https://js.stripe.com", "https://www.youtube.com", "https://player.vimeo.com", "https://calendly.com"],
+        frameSrc: ["'self'", "https://js.stripe.com", "https://www.youtube.com", "https://www.youtube-nocookie.com", "https://player.vimeo.com", "https://calendly.com"],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],
         formAction: ["'self'"],

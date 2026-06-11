@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest, ApiError } from "@/lib/queryClient";
 import { visibleTemplates, createBlankFunnel, type ClientTemplate } from "@/lib/templates";
+import { remapElementIds } from "@/lib/utils";
 import type { InsertFunnel } from "@shared/schema";
 
 type Step = "template" | "details";
@@ -138,10 +139,12 @@ export default function NewFunnel() {
         setName(selectedTemplate.name);
       }
     } else if (step === "details" && name.trim()) {
-      const templateData = useBlank 
-        ? createBlankFunnel() 
-        : selectedTemplate 
-          ? { pages: selectedTemplate.pages, theme: selectedTemplate.theme }
+      // remapElementIds: Templates nutzen feste Element-IDs ("el-1"), die über
+      // Seiten hinweg kollidieren → Antworten überschreiben sich im Funnel.
+      const templateData = useBlank
+        ? createBlankFunnel()
+        : selectedTemplate
+          ? { pages: remapElementIds(selectedTemplate.pages), theme: selectedTemplate.theme }
           : createBlankFunnel();
 
       createMutation.mutate({
