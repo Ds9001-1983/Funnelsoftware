@@ -167,6 +167,29 @@ export function requireVerifiedEmail(
   return next();
 }
 
+/**
+ * Grace-Period für die ÖFFENTLICHE Auslieferung publizierter Funnels nach
+ * Trial-/Abo-Ende: Live-Kampagnen brechen nicht zur Sekunde des Ablaufs ab,
+ * der Account selbst (Editor/Erstellen) ist aber sofort gesperrt.
+ */
+export const PUBLIC_GRACE_PERIOD_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Prüft, ob ein Account einen aktiven Plan hat (Abo, Admin oder laufender
+ * Trial). Gemeinsame Logik für requireActivePlan (eingeloggte Nutzer) und
+ * die Public-Routen (Owner-Check bei anonymer Funnel-Auslieferung).
+ */
+export function hasActivePlan(
+  user: { isAdmin: boolean; isPro: boolean; trialEndsAt: Date | string | null },
+  graceMs = 0
+): boolean {
+  if (user.isAdmin || user.isPro) return true;
+  if (user.trialEndsAt) {
+    return new Date(user.trialEndsAt).getTime() + graceMs > Date.now();
+  }
+  return false;
+}
+
 // Trial-Enforcement: Blockiert schreibende Aktionen wenn Trial abgelaufen
 export function requireActivePlan(
   req: import("express").Request,
@@ -177,22 +200,8 @@ export function requireActivePlan(
     return res.status(401).json({ error: "Nicht autorisiert." });
   }
 
-  // Admins sind immer freigeschaltet
-  if (req.user.isAdmin) {
+  if (hasActivePlan(req.user)) {
     return next();
-  }
-
-  // Pro-User sind freigeschaltet
-  if (req.user.isPro) {
-    return next();
-  }
-
-  // Trial prüfen
-  if (req.user.trialEndsAt) {
-    const trialEnd = new Date(req.user.trialEndsAt);
-    if (trialEnd > new Date()) {
-      return next();
-    }
   }
 
   return res.status(403).json({

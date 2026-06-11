@@ -230,8 +230,8 @@ export class DatabaseStorage implements IStorage {
     if (updates.capiEnabled !== undefined) updateData.capiEnabled = updates.capiEnabled;
     if (updates.impressumUrl !== undefined) updateData.impressumUrl = updates.impressumUrl;
     if (updates.datenschutzUrl !== undefined) updateData.datenschutzUrl = updates.datenschutzUrl;
-    if (updates.views !== undefined) updateData.views = updates.views;
-    if (updates.leads !== undefined) updateData.leads = updates.leads;
+    // views/leads bewusst NICHT übernehmbar: server-verwaltete Zähler,
+    // werden ausschließlich intern per SQL-Inkrement geschrieben.
 
     updateData.updatedAt = new Date();
 
