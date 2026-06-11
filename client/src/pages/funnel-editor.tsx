@@ -217,6 +217,7 @@ export default function FunnelEditor() {
     lastSavedAt,
     saveMutation,
     saveStatus,
+    noteServerUpdate,
     updateLocalFunnel,
     updatePage,
   } = useFunnelEditor(params?.id);
@@ -296,6 +297,7 @@ export default function FunnelEditor() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
+      noteServerUpdate(data);
       if (localFunnel) {
         setLocalFunnel({ ...localFunnel, status: "published", slug: data.slug });
       }
@@ -310,6 +312,15 @@ export default function FunnelEditor() {
         origin: { y: 0.6 }
       });
     },
+    // Fehler dürfen nicht stumm bleiben — sonst glaubt der Nutzer, der Funnel
+    // sei live, obwohl z.B. der Slug vergeben oder die Session abgelaufen ist.
+    onError: (error) => {
+      toast({
+        title: "Veröffentlichen fehlgeschlagen",
+        description: error instanceof Error ? error.message : "Bitte versuche es erneut.",
+        variant: "destructive",
+      });
+    },
   });
 
   const updateSlugMutation = useMutation({
@@ -319,11 +330,19 @@ export default function FunnelEditor() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
+      noteServerUpdate(data);
       if (localFunnel) {
         setLocalFunnel({ ...localFunnel, slug: data.slug });
       }
       setShowPublishDialog(false);
       toast({ title: "Slug aktualisiert", description: "Die URL wurde geändert." });
+    },
+    onError: (error) => {
+      toast({
+        title: "URL konnte nicht geändert werden",
+        description: error instanceof Error ? error.message : "Bitte versuche es erneut.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -525,12 +544,9 @@ export default function FunnelEditor() {
       } else if (modKey && e.key === "v") {
         e.preventDefault();
         pasteFromClipboard();
-      } else if (modKey && e.key === "z" && !e.shiftKey) {
-        e.preventDefault();
-        undo();
-      } else if (modKey && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
-        e.preventDefault();
-        redo();
+        // Undo/Redo behandelt AUSSCHLIESSLICH der zweite Shortcut-Handler
+        // (weiter unten) — beide Handler laufen bei jedem keydown, eine
+        // doppelte Behandlung führte pro Ctrl+Z ZWEI Undo-Schritte aus.
       } else if (e.key === "Delete" || e.key === "Backspace") {
         if (selectedElementId) {
           e.preventDefault();
@@ -546,7 +562,7 @@ export default function FunnelEditor() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedElementId, copySelectedElement, copyCurrentPage, pasteFromClipboard, undo, redo, deleteSelectedElement, duplicateSelectedElement]);
+  }, [selectedElementId, copySelectedElement, copyCurrentPage, pasteFromClipboard, deleteSelectedElement, duplicateSelectedElement]);
 
   const moveElementUp = useCallback(() => {
     if (!localFunnel || !selectedElementId) return;
@@ -571,9 +587,11 @@ export default function FunnelEditor() {
   // Add element to current page from Design tab - Extended with OpenFunnels block types
   const addElementToPage = useCallback((type: PageElement["type"]) => {
     if (!localFunnel) return;
+    // Nach Undo (Seite gelöscht) kann selectedPageIndex out-of-range sein
     const page = localFunnel.pages[selectedPageIndex];
+    if (!page) return;
     const newElement: PageElement = {
-      id: `el-${Date.now()}`,
+      id: `el-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       type,
       // Form placeholders
       placeholder:
@@ -841,6 +859,31 @@ export default function FunnelEditor() {
     }
   }, [localFunnel, saveMutation]);
 
+  // Beim Verlassen ungespeicherte Änderungen sichern — der Unmount verwarf
+  // sonst den anstehenden Autosave kommentarlos (Datenverlust bei "Zurück").
+  // Der Request läuft nach der Navigation weiter (fire-and-forget).
+  const handleBackToFunnels = useCallback(() => {
+    if (localFunnel && hasChanges && !saveMutation.isPending) {
+      saveMutation.mutate({ ...buildSavePayload(localFunnel), status: localFunnel.status });
+    }
+    navigate("/funnels");
+  }, [localFunnel, hasChanges, saveMutation, navigate]);
+
+  // Undo/Redo überall mit Dirty-Flag — Toolbar und CommandPalette riefen
+  // bisher das rohe undo()/redo() auf: Der zurückgesetzte Stand galt als
+  // gespeichert und ging beim Schließen verloren.
+  const handleUndo = useCallback(() => {
+    if (!canUndo) return;
+    undo();
+    setHasChanges(true);
+  }, [canUndo, undo, setHasChanges]);
+
+  const handleRedo = useCallback(() => {
+    if (!canRedo) return;
+    redo();
+    setHasChanges(true);
+  }, [canRedo, redo, setHasChanges]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -864,19 +907,13 @@ export default function FunnelEditor() {
       // Undo: Ctrl+Z
       if (modKey && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
-        if (canUndo) {
-          undo();
-          setHasChanges(true);
-        }
+        handleUndo();
         return;
       }
       // Redo: Ctrl+Y or Ctrl+Shift+Z
       if (modKey && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
         e.preventDefault();
-        if (canRedo) {
-          redo();
-          setHasChanges(true);
-        }
+        handleRedo();
         return;
       }
       // Move selected element up/down: Ctrl+ArrowUp / ArrowDown
@@ -898,7 +935,7 @@ export default function FunnelEditor() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [hasChanges, canUndo, canRedo, undo, redo, handleSave, moveElementUp, moveElementDown, selectedElementId]);
+  }, [hasChanges, handleUndo, handleRedo, handleSave, moveElementUp, moveElementDown, selectedElementId]);
 
   // Der Builder ist für kleine Viewports nicht bedienbar — statt einer kaputten
   // Oberfläche einen klaren Hinweis zeigen (Desktop-Editor bleibt unverändert).
@@ -989,8 +1026,8 @@ export default function FunnelEditor() {
         setPreviewMode={setPreviewMode}
         canUndo={canUndo}
         canRedo={canRedo}
-        onUndo={undo}
-        onRedo={redo}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
         historyLength={historyLength}
         autoSaveEnabled={autoSaveEnabled}
         setAutoSaveEnabled={setAutoSaveEnabled}
@@ -998,7 +1035,7 @@ export default function FunnelEditor() {
         isMobile={isMobile}
         showLeftSidebar={showLeftSidebar}
         setShowLeftSidebar={setShowLeftSidebar}
-        onBack={() => navigate("/funnels")}
+        onBack={handleBackToFunnels}
         onSave={handleSave}
         onOpenLogicFlow={() => setShowLogicFlow(true)}
         onOpenABTests={() => setShowABTests(true)}
@@ -1310,9 +1347,9 @@ export default function FunnelEditor() {
             "_blank",
           )
         }
-        onUndo={undo}
+        onUndo={handleUndo}
         canUndo={canUndo}
-        onRedo={redo}
+        onRedo={handleRedo}
         canRedo={canRedo}
         onOpenSettings={() => setShowSettings(true)}
         onOpenABTests={() => setShowABTests(true)}
