@@ -27,11 +27,12 @@ verifiziert — offen sind nur noch die vier Punkte unter „Offen".
 
 ## Offen ⚠️ (braucht Dennis)
 
-1. **STRIPE_SECRET_KEY rollen** (einzige technisch nicht per API mögliche Rotation):
-   https://dashboard.stripe.com/acct_1TFYnAALTQRcr9ei/apikeys → „Roll key" →
-   neuen Key in `~/Desktop/stripe-key.txt` legen → Claude Bescheid sagen
-   (liest die Datei, schreibt sie in die Server-.env, verifiziert, löscht die Datei).
-   Danach: `~/Desktop/TRICHTERWERK-SECRETS-TO-ROTATE.md` löschen.
+1. ~~STRIPE_SECRET_KEY rollen~~ ✅ **erledigt 11.06.2026**: Key im Dashboard
+   gerollt, alter Key verifiziert ungültig (401), neuer Key auf dem Server,
+   Checkout-Dry-Run mit USt grün. Damit sind ALLE am 25.05. geleakten
+   Secrets rotiert; die Rotations-Anleitung auf dem Desktop wurde gelöscht.
+   (Hinweis: Der versehentlich erstellte `rk_live_…`-Restricted-Key kann im
+   Dashboard gelöscht werden — er wird nirgends verwendet.)
 2. **Echter Kauf-Test** (empfohlen): einmal Live-Checkout mit echter Karte —
    Claude überwacht den Webhook, refundiert sofort und kündigt die Test-Subscription.
 3. **Meta-CAPI-Field-Test** (optional, CAPI bleibt bis dahin für Kunden aus):
