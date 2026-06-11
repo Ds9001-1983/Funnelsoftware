@@ -63,6 +63,8 @@ export const users = pgTable("users", {
   lastLoginAt: timestamp("last_login_at"),
   emailVerifiedAt: timestamp("email_verified_at"),
   emailVerificationToken: text("email_verification_token"),
+  // Lead-Benachrichtigungs-Mails abbestellbar (Settings → Benachrichtigungen)
+  leadNotificationsEnabled: boolean("lead_notifications_enabled").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
@@ -832,14 +834,18 @@ export const loginSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 
+// Eine Passwort-Policy für ALLE Pfade (Registrierung, Reset, Ändern) —
+// vorher akzeptierte der Reset schwächere Passwörter als die Registrierung.
+export const passwordSchema = z
+  .string()
+  .min(8, "Passwort muss mindestens 8 Zeichen haben")
+  .regex(/[A-Z]/, "Passwort muss mindestens einen Großbuchstaben enthalten")
+  .regex(/[0-9]/, "Passwort muss mindestens eine Zahl enthalten");
+
 export const registerSchema = z.object({
   username: z.string().min(3, "Benutzername muss mindestens 3 Zeichen haben"),
   email: z.string().email("Ungültige E-Mail-Adresse"),
-  password: z
-    .string()
-    .min(8, "Passwort muss mindestens 8 Zeichen haben")
-    .regex(/[A-Z]/, "Passwort muss mindestens einen Großbuchstaben enthalten")
-    .regex(/[0-9]/, "Passwort muss mindestens eine Zahl enthalten"),
+  password: passwordSchema,
   displayName: z.string().optional(),
 });
 

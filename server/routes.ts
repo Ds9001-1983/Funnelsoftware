@@ -5,7 +5,7 @@ import rateLimit from "express-rate-limit";
 import sharp from "sharp";
 import path from "path";
 import fs from "fs";
-import { storage, hashPassword } from "./storage";
+import { storage, hashPassword, comparePasswords } from "./storage";
 import { randomBytes, randomUUID } from "crypto";
 import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail, sendLeadNotificationEmail } from "./email";
 import {
@@ -23,7 +23,7 @@ import { sendCapiEvent } from "./capi";
 import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan, requireVerifiedEmail } from "./auth";
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema, insertDomainSchema,
-  loginSchema, registerSchema, slugSchema,
+  loginSchema, registerSchema, slugSchema, passwordSchema,
   MAX_IMAGE_UPLOAD_BYTES, MAX_AUDIO_UPLOAD_BYTES
 } from "@shared/schema";
 import { z } from "zod";
@@ -57,7 +57,10 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Ungültige Registrierungsdaten", details: result.error.errors });
       }
 
-      const { username, email, password, displayName } = result.data;
+      const { username, password, displayName } = result.data;
+      // E-Mail normalisieren — sonst existieren "Max@Web.de" und "max@web.de"
+      // als zwei Accounts und Login/Reset scheitern an der Schreibweise.
+      const email = result.data.email.toLowerCase();
 
       // Parallel uniqueness checks
       const [existingUsername, existingEmail] = await Promise.all([
@@ -190,6 +193,12 @@ export async function registerRoutes(
 
       const user = await storage.verifyEmail(token);
       if (!user) {
+        // Idempotenz: Doppelklick auf den Mail-Link (Token schon verbraucht)
+        // ist KEIN Fehler, wenn der eingeloggte Nutzer längst verifiziert ist —
+        // vorher endete das in der Sackgasse "Verifizierung fehlgeschlagen".
+        if (req.isAuthenticated() && req.user?.emailVerifiedAt) {
+          return res.json({ message: "Deine E-Mail ist bereits bestätigt." });
+        }
         return res.status(400).json({ error: "Token ungültig oder bereits verwendet" });
       }
 
@@ -253,8 +262,10 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Token und Passwort sind erforderlich" });
       }
 
-      if (password.length < 8) {
-        return res.status(400).json({ error: "Passwort muss mindestens 8 Zeichen haben" });
+      // Gleiche Policy wie bei der Registrierung (vorher reichten 8 Zeichen)
+      const passwordCheck = passwordSchema.safeParse(password);
+      if (!passwordCheck.success) {
+        return res.status(400).json({ error: passwordCheck.error.errors[0]?.message || "Passwort zu schwach" });
       }
 
       const userId = await storage.validatePasswordResetToken(token);
@@ -265,6 +276,9 @@ export async function registerRoutes(
       const hashedPassword = await hashPassword(password);
       await storage.updateUserPassword(userId, hashedPassword);
       await storage.markTokenUsed(token);
+      // Bestehende Sessions invalidieren — gestohlene Sessions überleben
+      // den Reset sonst.
+      await storage.deleteUserSessions(userId);
 
       res.json({ message: "Passwort wurde erfolgreich zurückgesetzt" });
     } catch (error) {
@@ -282,7 +296,7 @@ export async function registerRoutes(
       const updateSchema = z.object({
         displayName: z.string().max(100).optional(),
         email: z.string().email("Ungültige E-Mail-Adresse").optional(),
-        company: z.string().max(200).optional(),
+        leadNotificationsEnabled: z.boolean().optional(),
       });
 
       const result = updateSchema.safeParse(req.body);
@@ -290,24 +304,126 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Ungültige Daten", details: result.error.errors });
       }
 
-      // Check if email is already taken by another user
-      if (result.data.email) {
-        const existing = await storage.getUserByEmail(result.data.email);
-        if (existing && existing.id !== userId) {
-          return res.status(400).json({ error: "Diese E-Mail wird bereits verwendet" });
-        }
-      }
+      const { email, ...profileUpdates } = result.data;
 
-      const user = await storage.updateUserProfile(userId, result.data);
+      let user = await storage.updateUserProfile(userId, profileUpdates);
       if (!user) {
         return res.status(404).json({ error: "Benutzer nicht gefunden" });
       }
 
+      // E-Mail-Änderung: Duplikat-Check, Verifikation zurücksetzen, neue
+      // Bestätigungs-Mail, Stripe-Customer synchronisieren (Rechnungen!).
+      let emailChanged = false;
+      if (email && email.toLowerCase() !== user.email.toLowerCase()) {
+        const existing = await storage.getUserByEmail(email);
+        if (existing && existing.id !== userId) {
+          return res.status(400).json({ error: "Diese E-Mail wird bereits verwendet" });
+        }
+
+        const verificationToken = randomBytes(32).toString("hex");
+        user = await storage.changeUserEmail(userId, email, verificationToken);
+        if (!user) {
+          return res.status(404).json({ error: "Benutzer nicht gefunden" });
+        }
+        emailChanged = true;
+
+        sendVerificationEmail(user.email, verificationToken).catch((err) =>
+          console.error("[Email] Verification send failed:", err)
+        );
+
+        if (user.stripeCustomerId && isStripeConfigured()) {
+          stripe!.customers
+            .update(user.stripeCustomerId, { email: user.email })
+            .catch((err) => console.error("Stripe-Customer-E-Mail-Sync fehlgeschlagen:", err));
+        }
+      }
+
       const { password: _, ...userWithoutPassword } = user;
-      res.json({ user: userWithoutPassword });
+      res.json({
+        user: userWithoutPassword,
+        ...(emailChanged
+          ? { message: "Bitte bestätige deine neue E-Mail-Adresse über den zugesendeten Link." }
+          : {}),
+      });
     } catch (error) {
       console.error("Profile update error:", error);
       res.status(500).json({ error: "Profil-Update fehlgeschlagen" });
+    }
+  });
+
+  // Passwort ändern (eingeloggt)
+  app.post("/api/auth/change-password", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const { currentPassword, newPassword } = req.body as {
+        currentPassword?: string;
+        newPassword?: string;
+      };
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: "Aktuelles und neues Passwort sind erforderlich" });
+      }
+
+      const passwordCheck = passwordSchema.safeParse(newPassword);
+      if (!passwordCheck.success) {
+        return res.status(400).json({ error: passwordCheck.error.errors[0]?.message || "Passwort zu schwach" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user || !(await comparePasswords(currentPassword, user.password))) {
+        return res.status(400).json({ error: "Aktuelles Passwort ist falsch" });
+      }
+
+      await storage.updateUserPassword(userId, await hashPassword(newPassword));
+
+      res.json({ message: "Passwort wurde geändert" });
+    } catch (error) {
+      console.error("Change password error:", error);
+      res.status(500).json({ error: "Passwort konnte nicht geändert werden" });
+    }
+  });
+
+  // Account löschen (Self-Service, Art. 17 DSGVO)
+  app.delete("/api/auth/account", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const { password } = req.body as { password?: string };
+      if (!password) {
+        return res.status(400).json({ error: "Passwort-Bestätigung erforderlich" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user || !(await comparePasswords(password, user.password))) {
+        return res.status(400).json({ error: "Passwort ist falsch" });
+      }
+
+      // Stripe-Abos ZUERST kündigen — nach dem Löschen findet kein Webhook
+      // mehr einen User und Stripe würde dauerhaft weiter abbuchen.
+      if (user.stripeCustomerId && isStripeConfigured()) {
+        try {
+          await cancelAllSubscriptions(user.stripeCustomerId);
+        } catch (stripeErr) {
+          console.error("Stripe-Kündigung bei Account-Löschung fehlgeschlagen:", stripeErr);
+          return res.status(409).json({
+            error:
+              "Dein Abo konnte nicht gekündigt werden. Bitte versuche es erneut oder kontaktiere den Support.",
+          });
+        }
+      }
+
+      await storage.deleteUserAdmin(userId);
+
+      req.logout(() => {
+        req.session?.destroy(() => {
+          res.json({ success: true, message: "Dein Konto wurde gelöscht." });
+        });
+      });
+    } catch (error) {
+      console.error("Delete account error:", error);
+      res.status(500).json({ error: "Konto konnte nicht gelöscht werden" });
     }
   });
 
@@ -915,9 +1031,9 @@ export async function registerRoutes(
         sendWebhook(funnel.webhookUrl, payload, funnel.webhookSecret).catch(() => {});
       }
 
-      // E-Mail an Funnel-Owner
+      // E-Mail an Funnel-Owner — abbestellbar über Settings → Benachrichtigungen
       const owner = await storage.getUser(funnel.userId);
-      if (owner?.email) {
+      if (owner?.email && owner.leadNotificationsEnabled !== false) {
         sendLeadNotificationEmail(owner.email, lead, funnel.name).catch(() => {});
       }
 

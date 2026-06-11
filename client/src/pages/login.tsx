@@ -31,7 +31,7 @@ export default function Login() {
     const result = await login(username, password);
 
     if (result.success) {
-      setLocation("/");
+      setLocation("/dashboard");
     } else {
       setError(result.error || "Login fehlgeschlagen");
     }

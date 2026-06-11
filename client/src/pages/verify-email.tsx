@@ -10,6 +10,31 @@ export default function VerifyEmail() {
 
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
+  const [resending, setResending] = useState(false);
+
+  // Sackgassen-Ausweg: neuen Link anfordern (erfordert eingeloggte Session —
+  // direkt nach der Registrierung ist der Nutzer eingeloggt).
+  const handleResend = async () => {
+    setResending(true);
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMessage(data.message || "Neuer Bestätigungslink wurde gesendet — prüfe dein Postfach.");
+      } else if (res.status === 401) {
+        setMessage("Bitte logge dich zuerst ein, dann senden wir dir einen neuen Link.");
+      } else {
+        setMessage(data.error || "Link konnte nicht gesendet werden.");
+      }
+    } catch {
+      setMessage("Verbindungsfehler. Bitte versuche es später erneut.");
+    } finally {
+      setResending(false);
+    }
+  };
 
   useEffect(() => {
     if (!token) {
@@ -81,7 +106,23 @@ export default function VerifyEmail() {
               </>
             )}
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
+            {status === "error" && (
+              <>
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  disabled={resending}
+                  onClick={handleResend}
+                >
+                  {resending ? "Wird gesendet…" : "Neuen Bestätigungslink anfordern"}
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  Der Link ist nur einmal gültig. Wenn du deine E-Mail bereits
+                  bestätigt hast, kannst du dich einfach einloggen.
+                </p>
+              </>
+            )}
             {status !== "loading" && (
               <Link href="/login">
                 <Button className="w-full">
