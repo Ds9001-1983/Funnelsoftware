@@ -50,7 +50,7 @@ cat > ${APP_DIR}/ecosystem.config.js <<'EOF'
 module.exports = {
   apps: [{
     name: 'funnelflow',
-    script: 'dist/index.js',
+    script: 'dist/index.cjs',
     instances: 1,
     autorestart: true,
     watch: false,

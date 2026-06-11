@@ -50,9 +50,14 @@ jobs:
               exit 1
             fi
 
-            # Run database migrations (without --force to preserve data)
-            # Only run if schema changed, skip errors for existing tables
-            npx drizzle-kit push 2>/dev/null || echo "Schema already up to date"
+            # Run database migrations (without --force to preserve data).
+            # GATE: Ein fehlgeschlagener Schema-Push bricht den Deploy ab —
+            # vorher wurden Fehler verschluckt (2>/dev/null || echo) und der
+            # neue Code lief gegen ein altes Schema (Schema-Drift → 500er).
+            if ! npx drizzle-kit push; then
+              echo "DB-MIGRATION FAILED - aborting deployment (Code nicht neu gestartet)!"
+              exit 1
+            fi
 
             # Restart PM2 (only after successful build)
             pm2 restart funnelflow || pm2 start dist/index.cjs --name funnelflow
@@ -60,10 +65,12 @@ jobs:
             # Save PM2 config
             pm2 save
 
-            # Health check: wait for server to respond
+            # Health check gegen /api/health (prüft DB-Verbindung).
+            # Timeout ist jetzt ein ECHTER Fehler — der alte Check gegen
+            # statisches HTML konnte nie fehlschlagen.
             echo "Running health check..."
             for i in $(seq 1 30); do
-              if curl -sf http://localhost:5000 > /dev/null 2>&1; then
+              if curl -sf http://localhost:5000/api/health > /dev/null 2>&1; then
                 echo "Health check passed! Deployment successful."
                 exit 0
               fi
@@ -71,5 +78,6 @@ jobs:
               sleep 2
             done
 
-            echo "WARNING: Health check timed out after 60s"
-            echo "Server may still be starting up - check manually"
+            echo "ERROR: Health check timed out after 60s - deployment FAILED"
+            pm2 logs funnelflow --lines 50 --nostream || true
+            exit 1
