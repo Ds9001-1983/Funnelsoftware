@@ -168,95 +168,66 @@ function SourceCard({ source, count, total }: { source: string; count: number; t
 }
 
 /**
- * Conversion Funnel Visualization
- * Shows drop-off at each step of the funnel
+ * Conversion Funnel Visualization — zeigt ECHTE Seiten-Besucherzahlen aus
+ * den Analytics-Events (Metrics-Endpoint). Die alte Version simulierte
+ * Drop-off-Raten mit erfundenen Prozentwerten pro Seitentyp.
  */
-function ConversionFunnelChart({
-  funnel,
-  views,
-  leads,
-}: {
-  funnel: Funnel;
-  views: number;
-  leads: number;
-}) {
-  // Simulate page-level data (in real implementation, this would come from analytics events)
-  const steps = useMemo(() => {
-    const pageCount = funnel.pages.length;
-    if (pageCount === 0 || views === 0) return [];
-
-    // Calculate estimated drop-off rates per step
-    // This simulates realistic user behavior patterns
-    const result: Array<{
-      page: FunnelPage;
+function ConversionFunnelChart({ funnel }: { funnel: Funnel }) {
+  const { data: metrics, isLoading } = useQuery<{
+    stepConversion: Array<{
+      pageId: string;
+      title: string;
+      stepNumber: number;
       visitors: number;
-      dropOff: number;
-      dropOffRate: number;
-    }> = [];
+    }>;
+  }>({
+    queryKey: [`/api/funnels/${funnel.id}/metrics`],
+  });
 
-    let currentVisitors = views;
+  const steps = metrics?.stepConversion ?? [];
+  const hasData = steps.some((s) => s.visitors > 0);
 
-    funnel.pages.forEach((page, index) => {
-      // Calculate typical drop-off based on page type and position
-      let dropOffRate: number;
-      if (index === 0) {
-        dropOffRate = 0.15; // 15% leave on first page
-      } else if (page.type === "contact") {
-        dropOffRate = 0.35; // Contact pages have higher drop-off
-      } else if (page.type === "calendar") {
-        dropOffRate = 0.4; // Calendar booking has highest drop-off
-      } else if (page.type === "thankyou") {
-        dropOffRate = 0; // No drop-off on thank you
-      } else {
-        dropOffRate = 0.2 + index * 0.05; // Gradually increasing drop-off
-      }
-
-      // Ensure we end up with the actual lead count
-      if (index === pageCount - 1) {
-        currentVisitors = leads;
-        dropOffRate = 0;
-      }
-
-      const dropOff = Math.round(currentVisitors * dropOffRate);
-
-      result.push({
-        page,
-        visitors: currentVisitors,
-        dropOff,
-        dropOffRate: dropOffRate * 100,
-      });
-
-      currentVisitors = currentVisitors - dropOff;
-    });
-
-    return result;
-  }, [funnel, views, leads]);
-
-  if (steps.length === 0) {
+  if (isLoading) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
-        <p>Keine Funnel-Daten verfügbar</p>
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-12 w-full" />
+        ))}
       </div>
     );
   }
 
-  const maxVisitors = steps[0]?.visitors || 1;
+  if (steps.length === 0 || !hasData) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
+        <p>Noch keine Seiten-Tracking-Daten</p>
+        <p className="text-xs mt-1">
+          Daten erscheinen, sobald Besucher den veröffentlichten Funnel durchlaufen.
+        </p>
+      </div>
+    );
+  }
+
+  const maxVisitors = Math.max(steps[0]?.visitors || 0, 1);
 
   return (
     <div className="space-y-3">
       {steps.map((step, index) => {
         const widthPercent = (step.visitors / maxVisitors) * 100;
-        const isLastStep = index === steps.length - 1;
+        const prev = index > 0 ? steps[index - 1] : null;
+        const dropOff = prev ? Math.max(0, prev.visitors - step.visitors) : 0;
+        const dropOffRate =
+          prev && prev.visitors > 0 ? (dropOff / prev.visitors) * 100 : 0;
 
         return (
-          <div key={step.page.id}>
+          <div key={step.pageId}>
             <div className="flex items-center gap-3 mb-1">
               <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary">
-                {index + 1}
+                {step.stepNumber}
               </div>
               <span className="text-sm font-medium flex-1 truncate">
-                {step.page.title || step.page.type}
+                {step.title || `Seite ${step.stepNumber}`}
               </span>
               <Tooltip>
                 <TooltipTrigger>
@@ -280,10 +251,12 @@ function ConversionFunnelChart({
                   </span>
                 </div>
               </div>
-              {!isLastStep && step.dropOff > 0 && (
+              {dropOff > 0 && (
                 <div className="flex items-center gap-1 mt-1 text-xs text-red-500">
                   <ArrowDownRight className="h-3 w-3" />
-                  <span>-{step.dropOff.toLocaleString("de-DE")} ({step.dropOffRate.toFixed(0)}% Abbruch)</span>
+                  <span>
+                    -{dropOff.toLocaleString("de-DE")} ({dropOffRate.toFixed(0)}% Abbruch)
+                  </span>
                 </div>
               )}
             </div>
@@ -498,29 +471,47 @@ export default function Analytics() {
 
   const isLoading = funnelsLoading || leadsLoading;
 
-  // Get selected funnel for conversion funnel visualization
+  // Get selected funnel for conversion funnel visualization.
+  // Fallback = bester publizierter Funnel — exakt derselbe, den auch das
+  // Select anzeigt (vorher zeigten Select und Chart verschiedene Funnels).
   const selectedFunnel = useMemo(() => {
     if (!funnels) return null;
-    const id = selectedFunnelId || funnels.find(f => f.status === "published")?.id.toString();
-    return funnels.find(f => f.id.toString() === id) || null;
+    if (selectedFunnelId) {
+      return funnels.find((f) => f.id.toString() === selectedFunnelId) || null;
+    }
+    return (
+      [...funnels]
+        .filter((f) => f.status === "published")
+        .sort((a, b) => b.leads - a.leads)[0] || null
+    );
   }, [funnels, selectedFunnelId]);
+
+  // Zeitraumfilter: wirkt auf alle Lead-basierten Metriken. Views sind
+  // All-Time-Zähler ohne Zeitstempel im Client — sie bleiben "gesamt".
+  const filteredLeads = useMemo(() => {
+    if (!leads) return [];
+    if (timeRange === "all") return leads;
+    const days = timeRange === "7d" ? 7 : timeRange === "90d" ? 90 : 30;
+    const since = Date.now() - days * 24 * 60 * 60 * 1000;
+    return leads.filter((l) => new Date(l.createdAt).getTime() >= since);
+  }, [leads, timeRange]);
 
   // Calculate metrics
   const totalViews = funnels?.reduce((sum, f) => sum + f.views, 0) || 0;
-  const totalLeads = leads?.length || 0;
-  const avgConversion =
-    funnels && funnels.length > 0
-      ? (
-          funnels.reduce(
-            (sum, f) => sum + (f.views > 0 ? (f.leads / f.views) * 100 : 0),
-            0
-          ) / funnels.length
-        ).toFixed(1)
-      : "0.0";
+  const totalLeads = filteredLeads.length;
+  // Gewichtete Gesamt-Conversion über publizierte Funnels mit Traffic —
+  // der alte ungewichtete Schnitt wurde von Entwürfen und 0-View-Funnels
+  // systematisch nach unten verzerrt.
+  const avgConversion = useMemo(() => {
+    const published = (funnels || []).filter((f) => f.status === "published" && f.views > 0);
+    const views = published.reduce((sum, f) => sum + f.views, 0);
+    const leadsSum = published.reduce((sum, f) => sum + f.leads, 0);
+    return views > 0 ? ((leadsSum / views) * 100).toFixed(1) : "0.0";
+  }, [funnels]);
 
   // Calculate sources
   const sourceCounts =
-    leads?.reduce((acc, lead) => {
+    filteredLeads.reduce((acc, lead) => {
       const source = lead.source || "Direkt";
       acc[source] = (acc[source] || 0) + 1;
       return acc;
@@ -539,7 +530,7 @@ export default function Analytics() {
 
   // Status distribution
   const statusCounts =
-    leads?.reduce((acc, lead) => {
+    filteredLeads.reduce((acc, lead) => {
       acc[lead.status] = (acc[lead.status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>) || {};
@@ -584,13 +575,13 @@ export default function Analytics() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Gesamte Views"
+          title="Views (gesamt)"
           value={totalViews.toLocaleString("de-DE")}
           icon={Eye}
           loading={isLoading}
         />
         <StatCard
-          title="Gesammelte Leads"
+          title={timeRange === "all" ? "Gesammelte Leads" : "Leads im Zeitraum"}
           value={totalLeads}
           icon={Users}
           loading={isLoading}
@@ -736,11 +727,11 @@ export default function Analytics() {
                     Conversion Funnel
                   </CardTitle>
                   <CardDescription>
-                    Geschätzter Besucherfluss basierend auf Views und Leads
+                    Echte Besucherzahlen pro Funnel-Seite
                   </CardDescription>
                 </div>
                 <Select
-                  value={selectedFunnelId || topFunnels[0]?.id.toString()}
+                  value={selectedFunnel?.id.toString()}
                   onValueChange={setSelectedFunnelId}
                 >
                   <SelectTrigger className="w-[180px]">
@@ -768,11 +759,7 @@ export default function Analytics() {
                   ))}
                 </div>
               ) : selectedFunnel ? (
-                <ConversionFunnelChart
-                  funnel={selectedFunnel}
-                  views={selectedFunnel.views}
-                  leads={selectedFunnel.leads}
-                />
+                <ConversionFunnelChart funnel={selectedFunnel} />
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   Wähle einen Funnel aus

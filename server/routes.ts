@@ -842,7 +842,10 @@ export async function registerRoutes(
         }
       }
 
-      // Views over time (last 14 days)
+      // Views over time (last 14 days).
+      // toDayKey normalisiert Date UND ISO-String auf "YYYY-MM-DD" —
+      // Date.toString() ("Wed Jun 11 …") matchte nie, der Chart war immer leer.
+      const toDayKey = (d: Date | string) => new Date(d).toISOString().split("T")[0];
       const now = new Date();
       const viewsOverTime: Array<{ date: string; views: number; leads: number }> = [];
       for (let i = 13; i >= 0; i--) {
@@ -850,11 +853,9 @@ export async function registerRoutes(
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split("T")[0];
         const dayViews = analytics.filter(e =>
-          e.eventType === "view" && e.timestamp.toString().startsWith(dateStr)
+          e.eventType === "view" && toDayKey(e.timestamp) === dateStr
         ).length;
-        const dayLeads = leads.filter(l =>
-          l.createdAt.toString().startsWith(dateStr)
-        ).length;
+        const dayLeads = leads.filter(l => toDayKey(l.createdAt) === dateStr).length;
         viewsOverTime.push({ date: dateStr, views: dayViews, leads: dayLeads });
       }
 
@@ -1625,24 +1626,39 @@ export async function registerRoutes(
   // ============ ANALYTICS ============
 
   // Track analytics event (public, for funnel tracking)
+  // Striktes Schema: Vorher waren beliebige eventTypes und unbegrenzte
+  // metadata-Blobs möglich (Datenmüll + Metrik-Inflation per curl).
+  const publicAnalyticsSchema = z.object({
+    funnelUuid: z.string().min(1).max(100),
+    eventType: z.enum(["view", "pageView", "submit", "complete"]),
+    pageId: z.string().max(100).optional(),
+    metadata: z
+      .object({
+        abVariants: z.record(z.string().max(100), z.string().max(100)).optional(),
+      })
+      .optional(),
+  });
+
   app.post("/api/public/analytics", async (req, res) => {
     try {
-      const { funnelUuid, eventType, pageId, metadata } = req.body;
-
-      if (!funnelUuid || !eventType) {
-        return res.status(400).json({ error: "Funnel-UUID und Event-Typ erforderlich" });
+      const parsed = publicAnalyticsSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Ungültige Analytics-Daten" });
       }
+      const { funnelUuid, eventType, pageId, metadata } = parsed.data;
 
       const funnel = await storage.getFunnelBySlugOrUuid(funnelUuid);
-      if (!funnel) {
+      // Nur publizierte Funnels tracken — Draft-Views verfälschen sonst die
+      // Statistiken (und der Public-Funnel liefert Drafts ohnehin nicht aus).
+      if (!funnel || funnel.status !== "published") {
         return res.status(404).json({ error: "Funnel nicht gefunden" });
       }
 
-      const event = await storage.createAnalyticsEvent({
+      await storage.createAnalyticsEvent({
         funnelId: funnel.id,
         eventType,
-        pageId,
-        metadata,
+        pageId: pageId ?? null,
+        metadata: metadata ?? null,
       });
 
       res.status(201).json({ success: true });
