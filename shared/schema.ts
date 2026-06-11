@@ -647,6 +647,29 @@ export function generateSlug(name: string): string {
     .slice(0, 60);
 }
 
+// SSRF-Schutz: Webhook-URLs dürfen nur auf öffentliche http(s)-Ziele zeigen.
+// Private/interne Hosts (localhost, RFC-1918-Ranges, Link-Local, .local,
+// hostnamen ohne Punkt, IPv6) würden dem Server erlauben, interne Dienste
+// anzusprechen — der Lead-Webhook feuert serverseitig.
+const privateHostPattern =
+  /^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.0\.0\.0$|172\.(1[6-9]|2\d|3[01])\.)/i;
+
+export function isSafeWebhookUrl(value: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  const host = url.hostname.toLowerCase();
+  if (privateHostPattern.test(host)) return false;
+  // Bare Hostnames (intranet) und IPv6-Adressen (enthalten ":") ablehnen
+  if (!host.includes(".") || host.includes(":")) return false;
+  if (host.endsWith(".local") || host.endsWith(".internal") || host.endsWith(".lan")) return false;
+  return true;
+}
+
 // Funnel schema (for API responses)
 export const funnelSchema = z.object({
   id: z.number(),
@@ -661,10 +684,25 @@ export const funnelSchema = z.object({
   // A/B Tests
   abTests: z.array(abTestSchema).optional(),
   // Integrations
-  webhookUrl: z.string().nullable().optional(),
+  // Leer/null erlaubt (zum Deaktivieren/Leeren) — gesetzte Werte werden validiert.
+  webhookUrl: z
+    .string()
+    .nullable()
+    .optional()
+    .refine((v) => !v || isSafeWebhookUrl(v), {
+      message: "Webhook-URL muss eine öffentliche http(s)-Adresse sein",
+    }),
   webhookEnabled: z.boolean().optional(),
   webhookSecret: z.string().nullable().optional(),
-  gtmId: z.string().nullable().optional(),
+  // GTM-Container-ID wird im Public-Funnel in ein <script> interpoliert —
+  // striktes Format verhindert Script-Injection über dieses Feld.
+  gtmId: z
+    .string()
+    .nullable()
+    .optional()
+    .refine((v) => !v || /^GTM-[A-Z0-9]{4,16}$/.test(v), {
+      message: "Ungültige GTM-Container-ID (Format: GTM-XXXXXXX)",
+    }),
   // Format-Validierung: Pixel-ID ist numerisch, Token ausreichend lang.
   // Leer/null erlaubt (zum Deaktivieren/Leeren).
   metaPixelId: z

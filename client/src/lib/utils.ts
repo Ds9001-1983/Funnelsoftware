@@ -1,9 +1,42 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { isSafeUrl } from "@shared/schema"
+import { isSafeUrl, type FunnelPage } from "@shared/schema"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+/**
+ * Vergibt funnel-weit eindeutige Element-IDs für Seiten aus Templates.
+ *
+ * Die Templates verwenden feste IDs ("el-1", "el-2", …), die sich über
+ * Seiten hinweg wiederholen. `formValues` im Public-Funnel ist aber global
+ * nach element.id gekeyt — kollidierende IDs überschreiben sich gegenseitig
+ * die Antworten und Conditions lesen den Wert der falschen Seite.
+ *
+ * Sicher, weil Routing-Daten (optionRouting/conditionalRouting) nach
+ * Options-TEXT gekeyt sind und Seiten-Verweise (buttonNextPageId,
+ * targetPageId) auf page.id zeigen — keine Referenz auf element.id.
+ * `conditions[].elementId` (gleiche Seite) wird mitremappt.
+ */
+export function remapElementIds(pages: FunnelPage[]): FunnelPage[] {
+  let counter = 0;
+  const newId = () =>
+    `el-${Date.now().toString(36)}-${(counter++).toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+
+  return pages.map((page) => {
+    const idMap: Record<string, string> = {};
+    const elements = page.elements.map((el) => {
+      const id = newId();
+      idMap[el.id] = id;
+      return { ...el, id };
+    });
+    const conditions = page.conditions?.map((cond) => ({
+      ...cond,
+      elementId: idMap[cond.elementId] ?? cond.elementId,
+    }));
+    return { ...page, elements, ...(conditions ? { conditions } : {}) };
+  });
 }
 
 /**
