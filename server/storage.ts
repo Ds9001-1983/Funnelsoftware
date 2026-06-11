@@ -43,6 +43,7 @@ export interface IStorage {
     subscriptionPlan?: string;
     stripeSubscriptionId?: string | null;
     subscriptionStartedAt?: Date | null;
+    trialEndsAt?: Date | null;
   }): Promise<void>;
 
   // Funnels
@@ -129,6 +130,7 @@ export class DatabaseStorage implements IStorage {
     subscriptionPlan?: string;
     stripeSubscriptionId?: string | null;
     subscriptionStartedAt?: Date | null;
+    trialEndsAt?: Date | null;
   }): Promise<void> {
     await db.update(users)
       .set({ ...updates, updatedAt: new Date() })
@@ -225,8 +227,8 @@ export class DatabaseStorage implements IStorage {
     if (updates.capiEnabled !== undefined) updateData.capiEnabled = updates.capiEnabled;
     if (updates.impressumUrl !== undefined) updateData.impressumUrl = updates.impressumUrl;
     if (updates.datenschutzUrl !== undefined) updateData.datenschutzUrl = updates.datenschutzUrl;
-    if (updates.views !== undefined) updateData.views = updates.views;
-    if (updates.leads !== undefined) updateData.leads = updates.leads;
+    // views/leads bewusst NICHT übernehmbar: server-verwaltete Zähler,
+    // werden ausschließlich intern per SQL-Inkrement geschrieben.
 
     updateData.updatedAt = new Date();
 

@@ -56,6 +56,23 @@ const authLimiter = rateLimit({
 });
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
+// Admin-Login/-Init nutzen dieselbe Passwort-Prüfung wie /api/auth/login und
+// wären sonst eine ungedrosselte Brute-Force-Fläche fürs Admin-Konto.
+app.use("/api/admin/login", authLimiter);
+app.use("/api/admin/init", authLimiter);
+// Reset-Token-Raten ebenfalls drosseln
+app.use("/api/auth/reset-password", authLimiter);
+
+// E-Mail-versendende Endpunkte strenger drosseln (E-Mail-Bombing/SMTP-Flut)
+const emailFlowLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: "Zu viele Anfragen. Bitte versuche es in 15 Minuten erneut." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api/auth/forgot-password", emailFlowLimiter);
+app.use("/api/auth/resend-verification", emailFlowLimiter);
 
 // Rate Limiting - Public Endpoints (Leads, Analytics)
 const publicLimiter = rateLimit({
@@ -149,24 +166,13 @@ app.use("/api", (req: Request, res: Response, next: NextFunction) => {
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
+  // Bewusst KEINE Response-Bodies loggen: Lead-PII, CAPI-Tokens und
+  // Webhook-Secrets landen sonst dauerhaft in den PM2-Logs (DSGVO + Security).
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      // Keine Response-Bodies für sensitive Pfade loggen
-      if (capturedJsonResponse && !path.startsWith("/api/auth")) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      log(logLine);
+      log(`${req.method} ${path} ${res.statusCode} in ${duration}ms`);
     }
   });
 
