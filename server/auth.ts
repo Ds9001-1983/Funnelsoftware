@@ -23,6 +23,7 @@ declare global {
       stripeCustomerId: string | null;
       stripeSubscriptionId: string | null;
       emailVerifiedAt: Date | null;
+      leadNotificationsEnabled: boolean;
       createdAt: Date;
       updatedAt: Date;
     }

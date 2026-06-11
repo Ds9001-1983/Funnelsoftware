@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import type { Team, TeamMember, ApiKey } from "@shared/schema";
 import {
   User,
@@ -42,7 +43,6 @@ function ProfileSettings() {
   const { user, refetchUser } = useAuth();
   const [name, setName] = useState(user?.displayName || "");
   const [email, setEmail] = useState(user?.email || "");
-  const [company, setCompany] = useState(user?.company || "");
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
@@ -63,7 +63,6 @@ function ProfileSettings() {
         body: JSON.stringify({
           displayName: name,
           email,
-          company,
         }),
       });
 
@@ -81,7 +80,8 @@ function ProfileSettings() {
       await refetchUser();
       toast({
         title: "Profil aktualisiert",
-        description: "Deine Profiländerungen wurden gespeichert.",
+        // Bei E-Mail-Änderung weist der Server auf die Re-Verifizierung hin
+        description: data.message || "Deine Profiländerungen wurden gespeichert.",
       });
     } catch (error) {
       toast({
@@ -134,16 +134,9 @@ function ProfileSettings() {
                 onChange={(e) => setEmail(e.target.value)}
                 data-testid="input-settings-email"
               />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="company">Unternehmen</Label>
-              <Input
-                id="company"
-                value={company}
-                onChange={(e) => setCompany(e.target.value)}
-                placeholder="Name deines Unternehmens"
-                data-testid="input-settings-company"
-              />
+              <p className="text-xs text-muted-foreground">
+                Eine Änderung erfordert die erneute Bestätigung der neuen Adresse.
+              </p>
             </div>
           </div>
 
@@ -155,15 +148,215 @@ function ProfileSettings() {
           </div>
         </CardContent>
       </Card>
+
+      <ChangePasswordCard />
+      <DeleteAccountCard />
     </div>
   );
 }
 
+function ChangePasswordCard() {
+  const { toast } = useToast();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Fehler", description: "Die Passwörter stimmen nicht überein.", variant: "destructive" });
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        toast({ title: "Fehler", description: data.error || "Passwort konnte nicht geändert werden.", variant: "destructive" });
+        return;
+      }
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast({ title: "Passwort geändert", description: "Dein neues Passwort ist ab sofort gültig." });
+    } catch {
+      toast({ title: "Fehler", description: "Netzwerkfehler beim Ändern des Passworts.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Passwort ändern</CardTitle>
+        <CardDescription>
+          Mindestens 8 Zeichen, ein Großbuchstabe und eine Zahl
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="current-password">Aktuelles Passwort</Label>
+            <Input
+              id="current-password"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="new-password">Neues Passwort</Label>
+            <Input
+              id="new-password"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm-password">Wiederholen</Label>
+            <Input
+              id="confirm-password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <Button
+            onClick={handleChangePassword}
+            disabled={isSaving || !currentPassword || !newPassword || !confirmPassword}
+          >
+            {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Passwort ändern
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DeleteAccountCard() {
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const [password, setPassword] = useState("");
+  const [confirmText, setConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch("/api/auth/account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ password }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        toast({ title: "Fehler", description: data.error || "Konto konnte nicht gelöscht werden.", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Konto gelöscht", description: "Alle Daten wurden entfernt. Ein laufendes Abo wurde gekündigt." });
+      navigate("/");
+      window.location.reload();
+    } catch {
+      toast({ title: "Fehler", description: "Netzwerkfehler beim Löschen des Kontos.", variant: "destructive" });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  return (
+    <Card className="border-destructive/40">
+      <CardHeader>
+        <CardTitle className="text-destructive">Konto löschen</CardTitle>
+        <CardDescription>
+          Löscht dein Konto endgültig — inklusive aller Funnels, Leads und
+          Uploads (Art. 17 DSGVO). Ein laufendes Abo wird automatisch gekündigt.
+          Diese Aktion kann nicht rückgängig gemacht werden.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="delete-password">Passwort zur Bestätigung</Label>
+            <Input
+              id="delete-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="delete-confirm">Tippe LÖSCHEN zur Bestätigung</Label>
+            <Input
+              id="delete-confirm"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="LÖSCHEN"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={isDeleting || !password || confirmText !== "LÖSCHEN"}
+          >
+            {isDeleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Konto endgültig löschen
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function NotificationSettings() {
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [leadAlerts, setLeadAlerts] = useState(true);
-  const [weeklyReport, setWeeklyReport] = useState(false);
-  const [marketingEmails, setMarketingEmails] = useState(false);
+  const { user, refetchUser } = useAuth();
+  const { toast } = useToast();
+  // Einziger ECHTER Schalter — die früheren Attrappen (Updates, Wochenreport,
+  // Marketing) wurden entfernt, bis es die Funktionen wirklich gibt.
+  const [leadAlerts, setLeadAlerts] = useState(
+    (user as { leadNotificationsEnabled?: boolean } | null)?.leadNotificationsEnabled !== false
+  );
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleToggle = async (enabled: boolean) => {
+    setLeadAlerts(enabled);
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ leadNotificationsEnabled: enabled }),
+      });
+      if (!response.ok) {
+        setLeadAlerts(!enabled);
+        toast({ title: "Fehler", description: "Einstellung konnte nicht gespeichert werden.", variant: "destructive" });
+        return;
+      }
+      await refetchUser();
+    } catch {
+      setLeadAlerts(!enabled);
+      toast({ title: "Fehler", description: "Netzwerkfehler beim Speichern.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -175,57 +368,16 @@ function NotificationSettings() {
         <CardContent className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-medium">E-Mail-Benachrichtigungen</div>
-              <div className="text-sm text-muted-foreground">
-                Erhalte wichtige Updates per E-Mail
-              </div>
-            </div>
-            <Switch
-              checked={emailNotifications}
-              onCheckedChange={setEmailNotifications}
-              data-testid="switch-email-notifications"
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
               <div className="font-medium">Lead-Benachrichtigungen</div>
               <div className="text-sm text-muted-foreground">
-                Sofortige Benachrichtigung bei neuen Leads
+                E-Mail bei jedem neuen Lead in deinen Funnels
               </div>
             </div>
             <Switch
               checked={leadAlerts}
-              onCheckedChange={setLeadAlerts}
+              onCheckedChange={handleToggle}
+              disabled={isSaving}
               data-testid="switch-lead-alerts"
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium">Wöchentlicher Report</div>
-              <div className="text-sm text-muted-foreground">
-                Erhalte jeden Montag eine Zusammenfassung
-              </div>
-            </div>
-            <Switch
-              checked={weeklyReport}
-              onCheckedChange={setWeeklyReport}
-              data-testid="switch-weekly-report"
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium">Marketing-E-Mails</div>
-              <div className="text-sm text-muted-foreground">
-                News, Tipps und Updates von Trichterwerk
-              </div>
-            </div>
-            <Switch
-              checked={marketingEmails}
-              onCheckedChange={setMarketingEmails}
-              data-testid="switch-marketing-emails"
             />
           </div>
         </CardContent>
@@ -236,7 +388,6 @@ function NotificationSettings() {
 
 function AppearanceSettings() {
   const { theme, setTheme } = useTheme();
-  const [language, setLanguage] = useState("de");
 
   return (
     <div className="space-y-6">
@@ -279,20 +430,8 @@ function AppearanceSettings() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="language">Sprache</Label>
-            <Select value={language} onValueChange={setLanguage}>
-              <SelectTrigger id="language" data-testid="select-language">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="de">Deutsch</SelectItem>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="fr">Français</SelectItem>
-                <SelectItem value="es">Español</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Sprachauswahl entfernt: Es gibt keine i18n — der Select war eine
+              Attrappe ohne Funktion. Wieder einbauen, wenn Übersetzungen existieren. */}
         </CardContent>
       </Card>
     </div>
@@ -800,8 +939,42 @@ function ApiKeySettings() {
   );
 }
 
+const SETTINGS_TABS = ["profile", "notifications", "appearance", "billing", "api"];
+
 export default function Settings() {
   useDocumentTitle("Einstellungen");
+  const { toast } = useToast();
+
+  // Tab aus URL übernehmen: Stripe-Redirects (?tab=billing) und interne
+  // Links (/settings#billing) landeten vorher immer auf "Profil".
+  const [activeTab, setActiveTab] = useState(() => {
+    const fromQuery = new URLSearchParams(window.location.search).get("tab");
+    const fromHash = window.location.hash.replace("#", "");
+    const requested = fromQuery || fromHash;
+    return requested && SETTINGS_TABS.includes(requested) ? requested : "profile";
+  });
+
+  // Erfolgs-/Abbruch-Feedback nach Rückkehr aus dem Stripe-Checkout
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("upgraded") === "true") {
+      toast({
+        title: "Willkommen an Bord! 🎉",
+        description:
+          "Dein Abo ist eingerichtet. Die Aktivierung kann einen Moment dauern — lade die Seite ggf. neu.",
+      });
+    } else if (params.get("cancelled") === "true") {
+      toast({
+        title: "Checkout abgebrochen",
+        description: "Du kannst das Upgrade jederzeit hier abschließen.",
+      });
+    }
+    if (params.has("upgraded") || params.has("cancelled")) {
+      // Query bereinigen, damit der Toast bei Reload nicht erneut erscheint
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -810,7 +983,7 @@ export default function Settings() {
         <p className="text-muted-foreground">Verwalte dein Konto und deine Präferenzen</p>
       </div>
 
-      <Tabs defaultValue="profile" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="flex w-full max-w-2xl overflow-x-auto">
           <TabsTrigger value="profile" className="gap-2" data-testid="tab-profile">
             <User className="h-4 w-4" />

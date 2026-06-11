@@ -100,7 +100,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
+    // Case-insensitiv: "Max@Web.de" und "max@web.de" sind dieselbe Adresse —
+    // sonst scheitern Login/Reset/Duplikat-Check an der Schreibweise.
+    const [user] = await db.select().from(users)
+      .where(sql`lower(${users.email}) = ${email.toLowerCase()}`);
     return user;
   }
 
@@ -751,8 +754,7 @@ export class DatabaseStorage implements IStorage {
   // Update user profile (self-service)
   async updateUserProfile(userId: number, updates: {
     displayName?: string;
-    email?: string;
-    company?: string;
+    leadNotificationsEnabled?: boolean;
   }): Promise<User | undefined> {
     const [user] = await db.update(users)
       .set({
@@ -763,6 +765,34 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     return user;
+  }
+
+  /**
+   * E-Mail-Änderung: setzt die neue Adresse (normalisiert) und SETZT DIE
+   * VERIFIKATION ZURÜCK — sonst ließe sich die Verifizierungspflicht durch
+   * nachträgliches Ändern auf eine fremde Adresse umgehen.
+   */
+  async changeUserEmail(userId: number, email: string, verificationToken: string): Promise<User | undefined> {
+    const [user] = await db.update(users)
+      .set({
+        email: email.toLowerCase(),
+        emailVerifiedAt: null,
+        emailVerificationToken: verificationToken,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  /**
+   * Alle Sessions eines Users invalidieren (Passwort-Reset/-Änderung) —
+   * gestohlene Sessions überleben den Reset sonst.
+   */
+  async deleteUserSessions(userId: number): Promise<void> {
+    await db.execute(
+      sql`DELETE FROM "session" WHERE sess->'passport'->>'user' = ${String(userId)}`
+    );
   }
 
   // Delete user (admin only)

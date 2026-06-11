@@ -27,6 +27,7 @@ import AVV from "@/pages/avv";
 import { CookieConsent } from "@/components/cookie-consent";
 
 // Lazy-loaded pages for code-splitting
+const Dashboard = lazy(() => import("@/pages/dashboard"));
 const NewFunnel = lazy(() => import("@/pages/new-funnel"));
 const FunnelEditor = lazy(() => import("@/pages/funnel-editor"));
 const FunnelMetrics = lazy(() => import("@/pages/funnel-metrics"));
@@ -168,9 +169,11 @@ function Router() {
           <Funnels />
         </SidebarPage>
       </Route>
+      {/* Echte Dashboard-Seite (Onboarding-Checkliste, Trial-Hinweis) —
+          rendert NICHT mehr fälschlich die Funnel-Liste */}
       <Route path="/dashboard">
         <SidebarPage>
-          <Funnels />
+          <Dashboard />
         </SidebarPage>
       </Route>
       <Route path="/leads">
