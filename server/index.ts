@@ -187,6 +187,15 @@ app.use("/api", (req: Request, res: Response, next: NextFunction) => {
   if (req.path.startsWith("/auth/")) {
     return next();
   }
+  // Skip admin login: Login-Endpunkte tragen die Credentials im Body und
+  // brauchen kein CSRF (gleiche Klasse wie /auth/login). Anonyme Besucher
+  // haben mangels gespeicherter Session ohnehin nie ein gültiges Token —
+  // der Admin-Login war dadurch im Browser komplett blockiert. Brute-Force
+  // ist über den authLimiter gedrosselt; /admin/init bleibt CSRF-frei aus
+  // demselben Grund (eigene Credential-Prüfung + Limiter).
+  if (req.path === "/admin/login" || req.path === "/admin/init") {
+    return next();
+  }
   // Skip API-Key authenticated requests (Bearer token replaces CSRF)
   if (req.headers.authorization?.startsWith("Bearer tw_")) {
     return next();
