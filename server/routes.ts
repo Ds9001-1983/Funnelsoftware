@@ -438,6 +438,31 @@ export async function registerRoutes(
     }
   });
 
+  // Check slug availability — MUSS vor /api/funnels/:id registriert sein,
+  // sonst verschattet die Param-Route den Pfad ("check-slug" wird als :id
+  // geparst → immer 400, die Verfügbarkeitsprüfung im Publish-Flow war defekt).
+  app.get("/api/funnels/check-slug", isAuthenticated, async (req, res) => {
+    try {
+      const slug = req.query.slug as string;
+      const funnelId = req.query.funnelId ? parseInt(String(req.query.funnelId)) : undefined;
+
+      if (!slug) {
+        return res.status(400).json({ error: "Slug erforderlich" });
+      }
+
+      const slugResult = slugSchema.safeParse(slug);
+      if (!slugResult.success) {
+        return res.json({ available: false, error: "Ungültiges Format" });
+      }
+
+      const available = await storage.isSlugAvailable(slug, funnelId);
+      res.json({ available });
+    } catch (error) {
+      console.error("Check slug error:", error);
+      res.status(500).json({ error: "Slug-Prüfung fehlgeschlagen" });
+    }
+  });
+
   // Get single funnel
   app.get("/api/funnels/:id", isAuthenticated, async (req, res) => {
     try {
@@ -493,6 +518,26 @@ export async function registerRoutes(
       const result = updateFunnelSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ error: "Ungültige Update-Daten", details: result.error.errors });
+      }
+
+      // Konfliktschutz (zwei Tabs/Geräte): Schickt der Client den ihm
+      // bekannten Stand mit und der Server hat inzwischen einen neueren,
+      // würde Last-Write-Wins die fremden Änderungen still überschreiben.
+      const expectedUpdatedAt =
+        typeof req.body.expectedUpdatedAt === "string" ? req.body.expectedUpdatedAt : null;
+      if (expectedUpdatedAt) {
+        const current = await storage.getFunnel(funnelId, userId);
+        if (!current) {
+          return res.status(404).json({ error: "Funnel nicht gefunden" });
+        }
+        const serverTime = new Date(String(current.updatedAt)).getTime();
+        const clientTime = new Date(expectedUpdatedAt).getTime();
+        if (!isNaN(clientTime) && serverTime !== clientTime) {
+          return res.status(409).json({
+            error: "Der Funnel wurde zwischenzeitlich in einer anderen Sitzung geändert.",
+            code: "EDIT_CONFLICT",
+          });
+        }
       }
 
       // Auto-generate webhook secret when enabling webhook
@@ -607,29 +652,6 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Clone funnel error:", error);
       res.status(500).json({ error: "Funnel konnte nicht dupliziert werden" });
-    }
-  });
-
-  // Check slug availability
-  app.get("/api/funnels/check-slug", isAuthenticated, async (req, res) => {
-    try {
-      const slug = req.query.slug as string;
-      const funnelId = req.query.funnelId ? parseInt(String(req.query.funnelId)) : undefined;
-
-      if (!slug) {
-        return res.status(400).json({ error: "Slug erforderlich" });
-      }
-
-      const slugResult = slugSchema.safeParse(slug);
-      if (!slugResult.success) {
-        return res.json({ available: false, error: "Ungültiges Format" });
-      }
-
-      const available = await storage.isSlugAvailable(slug, funnelId);
-      res.json({ available });
-    } catch (error) {
-      console.error("Check slug error:", error);
-      res.status(500).json({ error: "Slug-Prüfung fehlgeschlagen" });
     }
   });
 
