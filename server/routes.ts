@@ -6,7 +6,7 @@ import sharp from "sharp";
 import path from "path";
 import fs from "fs";
 import { storage, hashPassword, comparePasswords } from "./storage";
-import { randomBytes, randomUUID } from "crypto";
+import { randomBytes, randomUUID, createHash, timingSafeEqual } from "crypto";
 import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail, sendLeadNotificationEmail } from "./email";
 import {
   stripe,
@@ -20,7 +20,7 @@ import {
 } from "./stripe";
 import { sendWebhook, buildWebhookPayload, generateWebhookSecret } from "./webhooks";
 import { sendCapiEvent } from "./capi";
-import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan, requireVerifiedEmail } from "./auth";
+import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan, requireVerifiedEmail, hasActivePlan, PUBLIC_GRACE_PERIOD_MS } from "./auth";
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema, insertDomainSchema,
   loginSchema, registerSchema, slugSchema, passwordSchema,
@@ -29,7 +29,8 @@ import {
 import { z } from "zod";
 
 // Partial update schemas for PATCH endpoints
-const updateFunnelSchema = funnelSchema.partial().omit({ id: true, uuid: true, userId: true, createdAt: true, updatedAt: true });
+// views/leads sind server-verwaltete Zähler — nicht vom Client setzbar (Mass-Assignment)
+const updateFunnelSchema = funnelSchema.partial().omit({ id: true, uuid: true, userId: true, createdAt: true, updatedAt: true, views: true, leads: true });
 
 // Rate-Limit für die DNS-Verifikation: begrenzt DNS-Lookup-Floods.
 // Route-Level statt app.use, weil der Pfad einen :id-Parameter hat.
@@ -912,6 +913,14 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Funnel nicht gefunden oder nicht veröffentlicht" });
       }
 
+      // Trial-Enforcement: Funnels von Accounts ohne aktiven Plan werden nach
+      // einer Grace-Period nicht mehr ausgeliefert — sonst liefe der Kern-
+      // Geschäftswert (Funnel live + Leads sammeln) nach Trial-Ende ewig gratis.
+      const owner = await storage.getUser(funnel.userId);
+      if (!owner || !hasActivePlan(owner, PUBLIC_GRACE_PERIOD_MS)) {
+        return res.status(410).json({ error: "Dieser Funnel ist derzeit pausiert.", code: "FUNNEL_PAUSED" });
+      }
+
       // Return only necessary public data (including A/B tests for traffic splitting)
       const abTests = Array.isArray(funnel.abTests) ? funnel.abTests : [];
       const activeTests = abTests.filter((t: any) => t.status === "running");
@@ -1002,6 +1011,13 @@ export async function registerRoutes(
       const funnel = await storage.getFunnelBySlugOrUuid(funnelId.toString());
       if (!funnel || funnel.status !== "published") {
         return res.status(404).json({ error: "Funnel nicht gefunden" });
+      }
+
+      // Trial-Enforcement: Kein Lead-Capture für Funnels von Accounts ohne
+      // aktiven Plan (gleiche Grace-Period wie bei der Auslieferung).
+      const funnelOwner = await storage.getUser(funnel.userId);
+      if (!funnelOwner || !hasActivePlan(funnelOwner, PUBLIC_GRACE_PERIOD_MS)) {
+        return res.status(410).json({ error: "Dieser Funnel ist derzeit pausiert.", code: "FUNNEL_PAUSED" });
       }
 
       const result = insertLeadSchema.safeParse({
@@ -1675,13 +1691,15 @@ export async function registerRoutes(
         return res.status(500).json({ error: "Login fehlgeschlagen" });
       }
       if (!user) {
-        return res.status(401).json({ error: info?.message || "Ungültige Anmeldedaten" });
+        return res.status(401).json({ error: "Ungültige Anmeldedaten" });
       }
 
-      // Check if user is admin
+      // Check if user is admin — identische Antwort wie bei falschem Passwort,
+      // sonst entsteht ein Credential-Orakel (401 vs. 403 verrät, dass das
+      // Passwort eines Nicht-Admin-Accounts korrekt war).
       const fullUser = await storage.getUser(user.id);
       if (!fullUser?.isAdmin) {
-        return res.status(403).json({ error: "Kein Admin-Zugang" });
+        return res.status(401).json({ error: "Ungültige Anmeldedaten" });
       }
 
       req.login(user, async (loginErr) => {
@@ -1844,7 +1862,13 @@ export async function registerRoutes(
         return res.status(500).json({ error: "ADMIN_PASSWORD Umgebungsvariable nicht gesetzt" });
       }
 
-      if (username !== adminUser || password !== adminPass) {
+      // Konstantzeit-Vergleich gegen Timing-Angriffe auf das Admin-Passwort
+      const safeEqual = (a: unknown, b: string) => {
+        const ha = createHash("sha256").update(String(a ?? "")).digest();
+        const hb = createHash("sha256").update(b).digest();
+        return timingSafeEqual(ha, hb);
+      };
+      if (!safeEqual(username, adminUser) || !safeEqual(password, adminPass)) {
         return res.status(403).json({ error: "Ungültige Initialisierungsdaten" });
       }
 
@@ -1977,6 +2001,12 @@ export async function registerRoutes(
       const funnel = await storage.getFunnel(domain.funnelId, domain.userId);
       if (!funnel || funnel.status !== "published") {
         return res.status(404).json({ error: "Funnel nicht verfügbar" });
+      }
+
+      // Trial-Enforcement (siehe /api/public/funnels/:identifier)
+      const owner = await storage.getUser(domain.userId);
+      if (!owner || !hasActivePlan(owner, PUBLIC_GRACE_PERIOD_MS)) {
+        return res.status(410).json({ error: "Dieser Funnel ist derzeit pausiert.", code: "FUNNEL_PAUSED" });
       }
 
       // Reduzierter Payload (öffentliche Sicht — Sensitive Felder weglassen)
