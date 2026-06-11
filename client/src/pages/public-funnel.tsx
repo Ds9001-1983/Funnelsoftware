@@ -175,6 +175,8 @@ export default function PublicFunnelView() {
                 ? "Funnel nicht gefunden — bitte prüfe die ID."
                 : "Dieser Funnel existiert nicht oder ist nicht veröffentlicht.",
             );
+          } else if (res.status === 410) {
+            setError("Dieser Funnel ist derzeit pausiert.");
           } else {
             setError("Funnel konnte nicht geladen werden.");
           }

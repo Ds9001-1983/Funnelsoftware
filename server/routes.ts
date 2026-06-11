@@ -20,7 +20,7 @@ import {
 } from "./stripe";
 import { sendWebhook, buildWebhookPayload, generateWebhookSecret } from "./webhooks";
 import { sendCapiEvent } from "./capi";
-import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan, requireVerifiedEmail } from "./auth";
+import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan, requireVerifiedEmail, hasActivePlan, PUBLIC_GRACE_PERIOD_MS } from "./auth";
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema, insertDomainSchema,
   loginSchema, registerSchema, slugSchema,
@@ -773,6 +773,14 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Funnel nicht gefunden oder nicht veröffentlicht" });
       }
 
+      // Trial-Enforcement: Funnels von Accounts ohne aktiven Plan werden nach
+      // einer Grace-Period nicht mehr ausgeliefert — sonst liefe der Kern-
+      // Geschäftswert (Funnel live + Leads sammeln) nach Trial-Ende ewig gratis.
+      const owner = await storage.getUser(funnel.userId);
+      if (!owner || !hasActivePlan(owner, PUBLIC_GRACE_PERIOD_MS)) {
+        return res.status(410).json({ error: "Dieser Funnel ist derzeit pausiert.", code: "FUNNEL_PAUSED" });
+      }
+
       // Return only necessary public data (including A/B tests for traffic splitting)
       const abTests = Array.isArray(funnel.abTests) ? funnel.abTests : [];
       const activeTests = abTests.filter((t: any) => t.status === "running");
@@ -861,6 +869,13 @@ export async function registerRoutes(
       const funnel = await storage.getFunnelBySlugOrUuid(funnelId.toString());
       if (!funnel || funnel.status !== "published") {
         return res.status(404).json({ error: "Funnel nicht gefunden" });
+      }
+
+      // Trial-Enforcement: Kein Lead-Capture für Funnels von Accounts ohne
+      // aktiven Plan (gleiche Grace-Period wie bei der Auslieferung).
+      const funnelOwner = await storage.getUser(funnel.userId);
+      if (!funnelOwner || !hasActivePlan(funnelOwner, PUBLIC_GRACE_PERIOD_MS)) {
+        return res.status(410).json({ error: "Dieser Funnel ist derzeit pausiert.", code: "FUNNEL_PAUSED" });
       }
 
       const result = insertLeadSchema.safeParse({
@@ -1844,6 +1859,12 @@ export async function registerRoutes(
       const funnel = await storage.getFunnel(domain.funnelId, domain.userId);
       if (!funnel || funnel.status !== "published") {
         return res.status(404).json({ error: "Funnel nicht verfügbar" });
+      }
+
+      // Trial-Enforcement (siehe /api/public/funnels/:identifier)
+      const owner = await storage.getUser(domain.userId);
+      if (!owner || !hasActivePlan(owner, PUBLIC_GRACE_PERIOD_MS)) {
+        return res.status(410).json({ error: "Dieser Funnel ist derzeit pausiert.", code: "FUNNEL_PAUSED" });
       }
 
       // Reduzierter Payload (öffentliche Sicht — Sensitive Felder weglassen)
