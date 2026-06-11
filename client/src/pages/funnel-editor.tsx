@@ -142,7 +142,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useHistory, useAutoSave } from "@/hooks/use-history";
 import { useBeforeUnload } from "@/hooks/use-before-unload";
-import { useFunnelEditor } from "@/hooks/use-funnel-editor";
+import { useFunnelEditor, buildSavePayload } from "@/hooks/use-funnel-editor";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Funnel, FunnelPage, PageElement, PageAnimation, Section, Column } from "@shared/schema";
 import confetti from "canvas-confetti";
@@ -832,17 +832,11 @@ export default function FunnelEditor() {
 
   const handleSave = useCallback(() => {
     if (localFunnel) {
+      // Gemeinsamer Payload mit dem Autosave (buildSavePayload) — plus status,
+      // der nur beim expliziten Speichern mitgeht (Autosave-Race vermeiden).
       saveMutation.mutate({
-        name: localFunnel.name,
-        description: localFunnel.description,
-        pages: localFunnel.pages,
-        theme: localFunnel.theme,
+        ...buildSavePayload(localFunnel),
         status: localFunnel.status,
-        abTests: localFunnel.abTests,
-        // CAPI-Einstellungen wurden bisher nicht mitgesendet → CAPI feuerte nie.
-        metaPixelId: localFunnel.metaPixelId,
-        metaCapiToken: localFunnel.metaCapiToken,
-        capiEnabled: localFunnel.capiEnabled,
       });
     }
   }, [localFunnel, saveMutation]);
@@ -1535,6 +1529,36 @@ export default function FunnelEditor() {
                   <SelectItem value="archived">Archiviert</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Rechtliches — Pflicht für veröffentlichte Funnels */}
+            <div className="pt-4 border-t">
+              <h3 className="font-medium text-sm mb-3">Rechtliches</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm">Impressum-URL</Label>
+                  <Input
+                    value={localFunnel.impressumUrl || ""}
+                    onChange={(e) => updateLocalFunnel({ impressumUrl: e.target.value || null })}
+                    placeholder="https://deine-website.de/impressum"
+                    className="text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Datenschutzerklärung-URL</Label>
+                  <Input
+                    value={localFunnel.datenschutzUrl || ""}
+                    onChange={(e) => updateLocalFunnel({ datenschutzUrl: e.target.value || null })}
+                    placeholder="https://deine-website.de/datenschutz"
+                    className="text-sm"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Wird im Footer deines veröffentlichten Funnels verlinkt. Du erhebst
+                  über den Funnel personenbezogene Daten — Impressum und
+                  Datenschutzerklärung sind Pflicht (§ 5 DDG, Art. 13 DSGVO).
+                </p>
+              </div>
             </div>
 
             {/* Integrationen */}

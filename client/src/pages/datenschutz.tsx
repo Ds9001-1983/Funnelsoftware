@@ -188,10 +188,105 @@ export default function Datenschutz() {
               </p>
             </section>
 
-            {/* 6. Ihre Rechte */}
+            {/* 6. Registrierung und Vertragsdaten */}
             <section className="mb-8">
               <h2 className="text-xl font-semibold text-slate-800 mb-4">
-                6. Ihre Rechte
+                6. Registrierung und Vertragsdaten
+              </h2>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                Bei der Registrierung eines Kontos verarbeiten wir die von Ihnen angegebenen
+                Daten (Benutzername, E-Mail-Adresse, Anzeigename, Passwort in verschlüsselter
+                Form) zur Bereitstellung des Dienstes. Rechtsgrundlage ist Art. 6 Abs. 1
+                lit. b DSGVO (Vertragserfüllung). Zur Verifizierung Ihrer E-Mail-Adresse und
+                für transaktionale Nachrichten (z.B. Passwort-Zurücksetzen, Lead-Benachrichtigungen)
+                versenden wir E-Mails über unseren E-Mail-Dienstleister (Alfahosting GmbH,
+                Deutschland). Die Daten werden gelöscht, wenn Sie Ihr Konto löschen und keine
+                gesetzlichen Aufbewahrungspflichten entgegenstehen.
+              </p>
+            </section>
+
+            {/* 7. Zahlungsabwicklung (Stripe) */}
+            <section className="mb-8">
+              <h2 className="text-xl font-semibold text-slate-800 mb-4">
+                7. Zahlungsabwicklung (Stripe)
+              </h2>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                Für die Abwicklung von Zahlungen nutzen wir den Zahlungsdienstleister Stripe
+                (Stripe Payments Europe, Ltd., 1 Grand Canal Street Lower, Grand Canal Dock,
+                Dublin, Irland). Beim Abschluss eines Abonnements werden Zahlungsdaten
+                (z.B. Name, E-Mail-Adresse, Rechnungsadresse, Zahlungsmittel) direkt von
+                Stripe erhoben und verarbeitet; wir selbst speichern keine vollständigen
+                Zahlungsdaten. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO. Stripe kann
+                Daten in die USA übermitteln; Stripe ist nach dem EU-US Data Privacy
+                Framework zertifiziert. Weitere Informationen:{" "}
+                <a href="https://stripe.com/de/privacy" target="_blank" rel="noopener noreferrer" className="text-purple-600 underline">
+                  stripe.com/de/privacy
+                </a>
+              </p>
+            </section>
+
+            {/* 8. Tracking auf veröffentlichten Funnel-Seiten */}
+            <section className="mb-8">
+              <h2 className="text-xl font-semibold text-slate-800 mb-4">
+                8. Tracking auf veröffentlichten Funnel-Seiten
+              </h2>
+              <h3 className="text-lg font-medium text-slate-700 mb-2">Google Tag Manager</h3>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                Betreiber von Funnels können den Google Tag Manager (Google Ireland Limited,
+                Gordon House, Barrow Street, Dublin 4, Irland) einbinden. Der Tag Manager
+                wird ausschließlich geladen, wenn Sie über den Cookie-Banner in Analyse-
+                oder Marketing-Cookies eingewilligt haben (Art. 6 Abs. 1 lit. a DSGVO,
+                § 25 Abs. 1 TDDDG). Ihre Einwilligung können Sie jederzeit über den Link
+                „Cookie-Einstellungen" im Seitenfuß widerrufen.
+              </p>
+              <h3 className="text-lg font-medium text-slate-700 mb-2">Meta Conversions API</h3>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                Sofern der Betreiber eines Funnels die Meta Conversions API aktiviert hat
+                und Sie in Marketing-Cookies eingewilligt haben, übermitteln wir bei einer
+                Formular-Übermittlung Ereignisdaten (E-Mail-Adresse, Telefonnummer, Name —
+                jeweils SHA-256-gehasht — sowie IP-Adresse und User-Agent) serverseitig an
+                Meta Platforms Ireland Limited (Merrion Road, Dublin 4, Irland) zur
+                Messung und Optimierung von Werbekampagnen. Rechtsgrundlage ist Ihre
+                Einwilligung (Art. 6 Abs. 1 lit. a DSGVO). Ohne Einwilligung findet keine
+                Übermittlung statt; die erteilte Einwilligung wird zum Nachweis gespeichert.
+              </p>
+            </section>
+
+            {/* 9. Funnel-Formulare (Lead-Daten) */}
+            <section className="mb-8">
+              <h2 className="text-xl font-semibold text-slate-800 mb-4">
+                9. Funnel-Formulare (Lead-Daten)
+              </h2>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                Wenn Sie auf einer mit Trichterwerk erstellten Funnel-Seite ein Formular
+                ausfüllen, werden die eingegebenen Daten (z.B. Name, E-Mail-Adresse,
+                Telefonnummer, Antworten) an den jeweiligen Betreiber des Funnels
+                übermittelt. Verantwortlicher im Sinne der DSGVO ist der im Impressum
+                der Funnel-Seite genannte Betreiber; Trichterwerk verarbeitet diese
+                Daten als Auftragsverarbeiter (Art. 28 DSGVO) im Auftrag des Betreibers.
+              </p>
+            </section>
+
+            {/* 10. Auftragsverarbeitung */}
+            <section className="mb-8">
+              <h2 className="text-xl font-semibold text-slate-800 mb-4">
+                10. Auftragsverarbeitung (für Trichterwerk-Kunden)
+              </h2>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                Wenn Sie als Kunde über Ihre Funnels personenbezogene Daten Dritter
+                (Leads) erheben, verarbeiten wir diese Daten in Ihrem Auftrag. Hierfür
+                stellen wir einen Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO
+                inklusive der Liste unserer Subunternehmer bereit:{" "}
+                <Link href="/avv" className="text-purple-600 underline">
+                  Auftragsverarbeitungsvertrag (AVV)
+                </Link>
+              </p>
+            </section>
+
+            {/* 11. Ihre Rechte */}
+            <section className="mb-8">
+              <h2 className="text-xl font-semibold text-slate-800 mb-4">
+                11. Ihre Rechte
               </h2>
               <p className="text-slate-600 text-sm leading-relaxed mb-4">
                 Sie haben jederzeit das Recht:

@@ -22,7 +22,8 @@ if (!document.getElementById("funnel-slide-styles")) {
   document.head.appendChild(slideStyles);
 }
 import { loadFont } from "@/lib/font-loader";
-import { getMutedContrastColor } from "@/lib/utils";
+import { getMutedContrastColor, sanitizeUrl } from "@/lib/utils";
+import { useCookieConsent, resetCookieConsent } from "@/components/cookie-consent";
 import { getNextPageIndex } from "@/lib/funnel-logic";
 import { ElementPreviewRenderer } from "@/components/funnel-editor/ElementPreviewRenderer";
 import { FunnelProgress } from "@/components/funnel-editor/FunnelProgress";
@@ -41,6 +42,18 @@ interface PublicFunnel {
   theme: Theme;
   gtmId?: string | null;
   abTests?: ABTest[];
+  impressumUrl?: string | null;
+  datenschutzUrl?: string | null;
+}
+
+/** Analytics-Consent direkt aus dem gespeicherten Banner-Stand lesen (default-deny). */
+function hasAnalyticsConsent(): boolean {
+  try {
+    const prefs = localStorage.getItem("trichterwerk-cookie-preferences");
+    return prefs ? !!JSON.parse(prefs)?.analytics : false;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -48,18 +61,22 @@ interface PublicFunnel {
  * Gibt für jeden aktiven Test die zugewiesene Variante zurück.
  */
 function getVariantAssignments(funnelUuid: string, abTests: ABTest[]): Record<string, string> {
-  const cookieKey = `tw_ab_${funnelUuid}`;
-  const existing = document.cookie
-    .split("; ")
-    .find((c) => c.startsWith(cookieKey + "="));
+  const storageKey = `tw_ab_${funnelUuid}`;
 
+  // Bestehende Zuweisung lesen: Cookie (mit Consent gesetzt) vor sessionStorage
   let assignments: Record<string, string> = {};
-  if (existing) {
-    try {
-      assignments = JSON.parse(decodeURIComponent(existing.split("=")[1]));
-    } catch {
-      assignments = {};
+  const existingCookie = document.cookie
+    .split("; ")
+    .find((c) => c.startsWith(storageKey + "="));
+  try {
+    if (existingCookie) {
+      assignments = JSON.parse(decodeURIComponent(existingCookie.split("=")[1]));
+    } else {
+      const fromSession = sessionStorage.getItem(storageKey);
+      if (fromSession) assignments = JSON.parse(fromSession);
     }
+  } catch {
+    assignments = {};
   }
 
   let changed = false;
@@ -81,9 +98,17 @@ function getVariantAssignments(funnelUuid: string, abTests: ABTest[]): Record<st
   }
 
   if (changed) {
-    // Cookie für 30 Tage setzen
-    const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toUTCString();
-    document.cookie = `${cookieKey}=${encodeURIComponent(JSON.stringify(assignments))}; expires=${expires}; path=/; SameSite=Lax`;
+    // § 25 TDDDG: sessionStorage (Session-Konsistenz, technisch erforderlich)
+    // immer; das 30-Tage-Cookie nur mit Analytics-Consent des Besuchers.
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(assignments));
+    } catch {
+      // Storage voll/blockiert → Zuweisung gilt nur für diesen Seitenaufruf
+    }
+    if (hasAnalyticsConsent()) {
+      const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toUTCString();
+      document.cookie = `${storageKey}=${encodeURIComponent(JSON.stringify(assignments))}; expires=${expires}; path=/; SameSite=Lax`;
+    }
   }
 
   return assignments;
@@ -229,21 +254,42 @@ export default function PublicFunnelView() {
     return () => { document.title = "Trichterwerk"; };
   }, [funnel]);
 
-  // Load GTM script if configured
+  // Cookie-Consent des Besuchers — gated GTM (§ 25 TDDDG / DSGVO)
+  const { allowsAnalytics, allowsMarketing } = useCookieConsent();
+  const gtmAllowed = allowsAnalytics || allowsMarketing;
+
+  // Load GTM script — NUR mit Consent. Vorher lud der Container (inkl. der
+  // darüber konfigurierten Tracking-Tags) unbedingt bei Seitenaufruf, auch
+  // nach "Nur Notwendige" — abmahnfähig auf jedem Kunden-Funnel.
   useEffect(() => {
-    if (!funnel?.gtmId) return;
+    if (!funnel?.gtmId || !gtmAllowed) return;
     const gtmId = funnel.gtmId;
 
     // Initialize dataLayer
     window.dataLayer = window.dataLayer || [];
+
+    // Consent Mode v2: Granulare Freigabe VOR dem Laden des Containers melden
+    // (GTM erwartet das arguments-Objekt, kein Array).
+    function gtag(..._args: unknown[]) {
+      // eslint-disable-next-line prefer-rest-params
+      (window.dataLayer as unknown[]).push(arguments);
+    }
+    gtag("consent", "default", {
+      ad_storage: allowsMarketing ? "granted" : "denied",
+      ad_user_data: allowsMarketing ? "granted" : "denied",
+      ad_personalization: allowsMarketing ? "granted" : "denied",
+      analytics_storage: allowsAnalytics ? "granted" : "denied",
+    });
 
     // Inject GTM script
     const script = document.createElement("script");
     script.innerHTML = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${gtmId}');`;
     document.head.appendChild(script);
 
+    // Bei Widerruf führt resetCookieConsent() einen Reload aus —
+    // ein geladener Container lässt sich nicht sauber entladen.
     return () => { script.remove(); };
-  }, [funnel?.gtmId]);
+  }, [funnel?.gtmId, gtmAllowed, allowsAnalytics, allowsMarketing]);
 
   // Push GTM dataLayer event helper
   const pushDataLayer = useCallback((eventData: Record<string, unknown>) => {
@@ -718,12 +764,41 @@ export default function PublicFunnelView() {
         </div>
       </div>
 
-      {/* Branding footer */}
+      {/* Footer: Rechtslinks des Funnel-Owners + Consent-Widerruf + Branding */}
       <div
-        className="text-center py-4 text-xs"
+        className="text-center py-4 text-xs space-y-1.5"
         style={{ color: getMutedContrastColor(currentPage.backgroundColor || theme.backgroundColor) }}
       >
-        Erstellt mit Trichterwerk
+        <div className="flex items-center justify-center gap-4 flex-wrap">
+          {sanitizeUrl(funnel.impressumUrl) && (
+            <a
+              href={sanitizeUrl(funnel.impressumUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:opacity-80"
+            >
+              Impressum
+            </a>
+          )}
+          {sanitizeUrl(funnel.datenschutzUrl) && (
+            <a
+              href={sanitizeUrl(funnel.datenschutzUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:opacity-80"
+            >
+              Datenschutz
+            </a>
+          )}
+          {/* Art. 7 Abs. 3 DSGVO: Widerruf so einfach wie die Erteilung */}
+          <button
+            onClick={resetCookieConsent}
+            className="underline underline-offset-2 hover:opacity-80"
+          >
+            Cookie-Einstellungen
+          </button>
+        </div>
+        <div>Erstellt mit Trichterwerk</div>
       </div>
     </div>
   );

@@ -21,6 +21,20 @@ const transporter = isConfigured
     })
   : null;
 
+/**
+ * HTML-Escaping für nutzer-/besuchergesteuerte Werte in E-Mail-Templates.
+ * Lead-Felder kommen ungefiltert vom öffentlichen Funnel-Formular — ohne
+ * Escaping kann ein Besucher HTML/Links in die Owner-Mail injizieren (Phishing).
+ */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function baseTemplate(content: string): string {
   return `
 <!DOCTYPE html>
@@ -160,21 +174,27 @@ export async function sendLeadNotificationEmail(
   },
   funnelName: string
 ): Promise<boolean> {
-  const leadName = leadData.name || "Unbekannt";
   const leadsLink = `${APP_URL}/leads`;
 
+  // Besucher-Eingaben escapen — sonst HTML-/Link-Injection in die Owner-Mail
+  const name = leadData.name && escapeHtml(leadData.name);
+  const email = leadData.email && escapeHtml(leadData.email);
+  const phone = leadData.phone && escapeHtml(leadData.phone);
+  const company = leadData.company && escapeHtml(leadData.company);
+  const message = leadData.message && escapeHtml(leadData.message);
+
   const fieldsHtml = [
-    leadData.name && `<tr><td style="padding:8px 12px;color:#52525b;font-size:14px;border-bottom:1px solid #f4f4f5;"><strong>Name:</strong></td><td style="padding:8px 12px;color:#18181b;font-size:14px;border-bottom:1px solid #f4f4f5;">${leadData.name}</td></tr>`,
-    leadData.email && `<tr><td style="padding:8px 12px;color:#52525b;font-size:14px;border-bottom:1px solid #f4f4f5;"><strong>E-Mail:</strong></td><td style="padding:8px 12px;color:#18181b;font-size:14px;border-bottom:1px solid #f4f4f5;"><a href="mailto:${leadData.email}">${leadData.email}</a></td></tr>`,
-    leadData.phone && `<tr><td style="padding:8px 12px;color:#52525b;font-size:14px;border-bottom:1px solid #f4f4f5;"><strong>Telefon:</strong></td><td style="padding:8px 12px;color:#18181b;font-size:14px;border-bottom:1px solid #f4f4f5;"><a href="tel:${leadData.phone}">${leadData.phone}</a></td></tr>`,
-    leadData.company && `<tr><td style="padding:8px 12px;color:#52525b;font-size:14px;border-bottom:1px solid #f4f4f5;"><strong>Firma:</strong></td><td style="padding:8px 12px;color:#18181b;font-size:14px;border-bottom:1px solid #f4f4f5;">${leadData.company}</td></tr>`,
-    leadData.message && `<tr><td style="padding:8px 12px;color:#52525b;font-size:14px;border-bottom:1px solid #f4f4f5;"><strong>Nachricht:</strong></td><td style="padding:8px 12px;color:#18181b;font-size:14px;border-bottom:1px solid #f4f4f5;">${leadData.message}</td></tr>`,
+    name && `<tr><td style="padding:8px 12px;color:#52525b;font-size:14px;border-bottom:1px solid #f4f4f5;"><strong>Name:</strong></td><td style="padding:8px 12px;color:#18181b;font-size:14px;border-bottom:1px solid #f4f4f5;">${name}</td></tr>`,
+    email && `<tr><td style="padding:8px 12px;color:#52525b;font-size:14px;border-bottom:1px solid #f4f4f5;"><strong>E-Mail:</strong></td><td style="padding:8px 12px;color:#18181b;font-size:14px;border-bottom:1px solid #f4f4f5;"><a href="mailto:${email}">${email}</a></td></tr>`,
+    phone && `<tr><td style="padding:8px 12px;color:#52525b;font-size:14px;border-bottom:1px solid #f4f4f5;"><strong>Telefon:</strong></td><td style="padding:8px 12px;color:#18181b;font-size:14px;border-bottom:1px solid #f4f4f5;"><a href="tel:${phone}">${phone}</a></td></tr>`,
+    company && `<tr><td style="padding:8px 12px;color:#52525b;font-size:14px;border-bottom:1px solid #f4f4f5;"><strong>Firma:</strong></td><td style="padding:8px 12px;color:#18181b;font-size:14px;border-bottom:1px solid #f4f4f5;">${company}</td></tr>`,
+    message && `<tr><td style="padding:8px 12px;color:#52525b;font-size:14px;border-bottom:1px solid #f4f4f5;"><strong>Nachricht:</strong></td><td style="padding:8px 12px;color:#18181b;font-size:14px;border-bottom:1px solid #f4f4f5;">${message}</td></tr>`,
   ].filter(Boolean).join("");
 
   const html = baseTemplate(`
     <h2 style="margin:0 0 16px;color:#18181b;font-size:20px;">Neuer Lead eingegangen!</h2>
     <p style="margin:0 0 24px;color:#52525b;font-size:15px;line-height:1.6;">
-      Über deinen Funnel <strong>"${funnelName}"</strong> ist ein neuer Lead eingegangen.
+      Über deinen Funnel <strong>"${escapeHtml(funnelName)}"</strong> ist ein neuer Lead eingegangen.
     </p>
     <table style="width:100%;border-collapse:collapse;background:#f9fafb;border-radius:8px;overflow:hidden;margin:0 0 24px;">
       ${fieldsHtml}
@@ -186,5 +206,5 @@ export async function sendLeadNotificationEmail(
     </div>
   `);
 
-  return sendEmail(ownerEmail, `Neuer Lead: ${leadName} via ${funnelName}`, html);
+  return sendEmail(ownerEmail, `Neuer Lead: ${leadData.name || "Unbekannt"} via ${funnelName}`, html);
 }

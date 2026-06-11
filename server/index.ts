@@ -28,10 +28,12 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'", "https://www.googletagmanager.com", "https://js.stripe.com"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        // Fonts werden selbst gehostet (@fontsource) — Google-Font-Hosts
+        // bewusst NICHT mehr erlaubt, damit kein Pre-Consent-Leak zurückkommt.
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        fontSrc: ["'self'"],
         imgSrc: ["'self'", "data:", "https:", "blob:"],
-        connectSrc: ["'self'", "https://www.google-analytics.com", "https://api.stripe.com", "https://fonts.googleapis.com"],
+        connectSrc: ["'self'", "https://www.google-analytics.com", "https://api.stripe.com"],
         frameSrc: ["'self'", "https://js.stripe.com", "https://www.youtube.com", "https://player.vimeo.com", "https://calendly.com"],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],

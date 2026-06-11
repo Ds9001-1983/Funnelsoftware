@@ -8,6 +8,31 @@ import { loadFont } from "@/lib/font-loader";
 import type { Funnel, FunnelPage } from "@shared/schema";
 
 /**
+ * Persistierbare Funnel-Felder für PATCH-Saves. Gemeinsame Quelle für
+ * Autosave und manuelles Speichern — vorher gingen Felder verloren, die
+ * nur einer der beiden Pfade kannte (Webhook/GTM wurden NIE gesendet,
+ * CAPI nur beim manuellen Save). Bewusst ohne `status` (siehe Autosave)
+ * und ohne `webhookSecret` (server-verwaltet).
+ */
+export function buildSavePayload(funnel: Funnel): Partial<Funnel> {
+  return {
+    name: funnel.name,
+    description: funnel.description,
+    pages: funnel.pages,
+    theme: funnel.theme,
+    abTests: funnel.abTests,
+    webhookUrl: funnel.webhookUrl,
+    webhookEnabled: funnel.webhookEnabled,
+    gtmId: funnel.gtmId,
+    metaPixelId: funnel.metaPixelId,
+    metaCapiToken: funnel.metaCapiToken,
+    capiEnabled: funnel.capiEnabled,
+    impressumUrl: funnel.impressumUrl,
+    datenschutzUrl: funnel.datenschutzUrl,
+  };
+}
+
+/**
  * Daten-/Persistenz-Layer des Funnel-Editors: Funnel-Query, History (Undo/Redo),
  * Auto-Save mit Retry, sowie generische Update-Helfer für Funnel und einzelne
  * Seiten. Aus dem 1800-Zeilen-Monolithen extrahiert (Verhalten 1:1).
@@ -99,14 +124,10 @@ export function useFunnelEditor(id: string | undefined) {
   // Auto-save functionality
   const performAutoSave = useCallback(() => {
     if (localFunnel && hasChanges && autoSaveEnabled) {
-      saveMutation.mutate({
-        name: localFunnel.name,
-        description: localFunnel.description,
-        pages: localFunnel.pages,
-        theme: localFunnel.theme,
-        status: localFunnel.status,
-        abTests: localFunnel.abTests,
-      });
+      // KEIN status im Autosave: Ein im Hintergrund laufender Autosave mit
+      // lokalem (altem) Status könnte einen frisch veröffentlichten Funnel
+      // wieder auf "draft" setzen. Status wird nur explizit gespeichert.
+      saveMutation.mutate(buildSavePayload(localFunnel));
       setLastAutoSave(new Date());
     }
     // saveMutation absichtlich nicht in den Deps — sonst läuft der Effekt zu oft;
