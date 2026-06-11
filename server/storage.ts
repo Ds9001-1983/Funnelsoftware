@@ -43,6 +43,7 @@ export interface IStorage {
     subscriptionPlan?: string;
     stripeSubscriptionId?: string | null;
     subscriptionStartedAt?: Date | null;
+    trialEndsAt?: Date | null;
   }): Promise<void>;
 
   // Funnels
@@ -129,6 +130,7 @@ export class DatabaseStorage implements IStorage {
     subscriptionPlan?: string;
     stripeSubscriptionId?: string | null;
     subscriptionStartedAt?: Date | null;
+    trialEndsAt?: Date | null;
   }): Promise<void> {
     await db.update(users)
       .set({ ...updates, updatedAt: new Date() })
