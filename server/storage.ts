@@ -223,8 +223,8 @@ export class DatabaseStorage implements IStorage {
     if (updates.metaPixelId !== undefined) updateData.metaPixelId = updates.metaPixelId;
     if (updates.metaCapiToken !== undefined) updateData.metaCapiToken = updates.metaCapiToken;
     if (updates.capiEnabled !== undefined) updateData.capiEnabled = updates.capiEnabled;
-    if (updates.views !== undefined) updateData.views = updates.views;
-    if (updates.leads !== undefined) updateData.leads = updates.leads;
+    // views/leads bewusst NICHT übernehmbar: server-verwaltete Zähler,
+    // werden ausschließlich intern per SQL-Inkrement geschrieben.
 
     updateData.updatedAt = new Date();
 

@@ -6,7 +6,7 @@ import sharp from "sharp";
 import path from "path";
 import fs from "fs";
 import { storage, hashPassword } from "./storage";
-import { randomBytes, randomUUID } from "crypto";
+import { randomBytes, randomUUID, createHash, timingSafeEqual } from "crypto";
 import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail, sendLeadNotificationEmail } from "./email";
 import {
   stripe,
@@ -27,7 +27,8 @@ import {
 import { z } from "zod";
 
 // Partial update schemas for PATCH endpoints
-const updateFunnelSchema = funnelSchema.partial().omit({ id: true, uuid: true, userId: true, createdAt: true, updatedAt: true });
+// views/leads sind server-verwaltete Zähler — nicht vom Client setzbar (Mass-Assignment)
+const updateFunnelSchema = funnelSchema.partial().omit({ id: true, uuid: true, userId: true, createdAt: true, updatedAt: true, views: true, leads: true });
 
 // Rate-Limit für die DNS-Verifikation: begrenzt DNS-Lookup-Floods.
 // Route-Level statt app.use, weil der Pfad einen :id-Parameter hat.
@@ -1462,13 +1463,15 @@ export async function registerRoutes(
         return res.status(500).json({ error: "Login fehlgeschlagen" });
       }
       if (!user) {
-        return res.status(401).json({ error: info?.message || "Ungültige Anmeldedaten" });
+        return res.status(401).json({ error: "Ungültige Anmeldedaten" });
       }
 
-      // Check if user is admin
+      // Check if user is admin — identische Antwort wie bei falschem Passwort,
+      // sonst entsteht ein Credential-Orakel (401 vs. 403 verrät, dass das
+      // Passwort eines Nicht-Admin-Accounts korrekt war).
       const fullUser = await storage.getUser(user.id);
       if (!fullUser?.isAdmin) {
-        return res.status(403).json({ error: "Kein Admin-Zugang" });
+        return res.status(401).json({ error: "Ungültige Anmeldedaten" });
       }
 
       req.login(user, async (loginErr) => {
@@ -1612,7 +1615,13 @@ export async function registerRoutes(
         return res.status(500).json({ error: "ADMIN_PASSWORD Umgebungsvariable nicht gesetzt" });
       }
 
-      if (username !== adminUser || password !== adminPass) {
+      // Konstantzeit-Vergleich gegen Timing-Angriffe auf das Admin-Passwort
+      const safeEqual = (a: unknown, b: string) => {
+        const ha = createHash("sha256").update(String(a ?? "")).digest();
+        const hb = createHash("sha256").update(b).digest();
+        return timingSafeEqual(ha, hb);
+      };
+      if (!safeEqual(username, adminUser) || !safeEqual(password, adminPass)) {
         return res.status(403).json({ error: "Ungültige Initialisierungsdaten" });
       }
 
