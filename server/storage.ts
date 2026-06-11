@@ -390,6 +390,12 @@ export class DatabaseStorage implements IStorage {
     if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.source !== undefined) updateData.source = updates.source;
 
+    // Leerer Body: Drizzle wirft bei .set({}) "No values to set" (500er) —
+    // stattdessen den unveränderten Lead zurückgeben.
+    if (Object.keys(updateData).length === 0) {
+      return this.getLead(id, userId);
+    }
+
     const [lead] = await db.update(leads)
       .set(updateData)
       .where(and(eq(leads.id, id), eq(leads.userId, userId)))

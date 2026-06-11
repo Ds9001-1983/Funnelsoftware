@@ -47,12 +47,23 @@ function hashPii(value: string | null | undefined): string | undefined {
 }
 
 /**
- * Telefonnummer für Hashing normalisieren: nur Ziffern, führende 00/+ entfernen.
- * Meta erwartet das so für maximales Match-Quality.
+ * Telefonnummer für Hashing normalisieren: Meta erwartet Ziffern MIT
+ * Ländervorwahl. "+49 171 234" → "49171234", "0049…" → "49…".
+ * Nationale Schreibweise ("0171 234…") bekommt die deutsche Vorwahl —
+ * das frühere pauschale Entfernen führender Nullen erzeugte Nummern ohne
+ * Ländercode, die bei Meta nie matchen.
  */
 function normalizePhone(phone: string | null | undefined): string | undefined {
   if (!phone) return undefined;
-  const digits = phone.replace(/\D/g, "").replace(/^0+/, "");
+  const trimmed = phone.trim();
+  let digits = trimmed.replace(/\D/g, "");
+  if (trimmed.startsWith("+")) {
+    // "+49…" → Ziffern enthalten die Vorwahl bereits
+  } else if (digits.startsWith("00")) {
+    digits = digits.slice(2); // internationales 00-Präfix
+  } else if (digits.startsWith("0")) {
+    digits = `49${digits.slice(1)}`; // nationale Trunk-0 → DE-Vorwahl
+  }
   return digits || undefined;
 }
 
@@ -97,11 +108,21 @@ export async function sendCapiEvent(args: SendCapiEventArgs): Promise<void> {
   // access_token gehört in den POST-Body, NICHT in den Query-String — sonst
   // landet das Secret in Server-/Proxy-/Access-Logs.
   const url = `https://graph.facebook.com/${META_GRAPH_API_VERSION}/${encodeURIComponent(pixelId)}/events`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...body, access_token: accessToken }),
-  });
+  // Timeout: Ohne AbortController hält eine hängende Meta-Verbindung den
+  // Socket (und den Event-Loop-Slot) unbegrenzt offen.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...body, access_token: accessToken }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
