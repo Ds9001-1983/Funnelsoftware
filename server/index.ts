@@ -6,11 +6,43 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { doubleCsrf } from "csrf-csrf";
 import cookieParser from "cookie-parser";
+import * as Sentry from "@sentry/node";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { setupAuth, apiKeyAuth } from "./auth";
 import { storage } from "./storage";
+import { pool } from "./db";
+
+// ============ ENV-VALIDIERUNG ============
+// Fail-fast statt "gesund booten ohne DB/Session": Ein Server ohne diese
+// Variablen nimmt Requests an und wirft bei jedem Zugriff 500er.
+function validateEnv() {
+  const isProd = process.env.NODE_ENV === "production";
+  const required = isProd ? ["DATABASE_URL", "SESSION_SECRET"] : ["DATABASE_URL"];
+  const missing = required.filter((name) => !process.env[name]);
+  if (missing.length > 0) {
+    console.error(`FATAL: Fehlende Umgebungsvariablen: ${missing.join(", ")}`);
+    process.exit(1);
+  }
+  // Optionale Integrationen: laut warnen, aber nicht abbrechen
+  const optional = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PRICE_ID", "SMTP_HOST"];
+  for (const name of optional.filter((n) => !process.env[n])) {
+    console.warn(`WARNUNG: ${name} nicht gesetzt — zugehörige Funktion ist deaktiviert.`);
+  }
+}
+validateEnv();
+
+// ============ ERROR-TRACKING (Sentry) ============
+// Nur aktiv, wenn SENTRY_DSN gesetzt ist — lokal/dev bleibt alles still.
+const sentryEnabled = !!process.env.SENTRY_DSN;
+if (sentryEnabled) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || "development",
+    tracesSampleRate: 0,
+  });
+}
 
 const app = express();
 const httpServer = createServer(app);
@@ -173,6 +205,18 @@ app.use((req, res, next) => {
   next();
 });
 
+// Health-Check für Uptime-Monitoring und Deploy-Verifikation: prüft die
+// DB-Verbindung — der alte Check gegen statisches HTML konnte nie fehlschlagen.
+app.get("/api/health", async (_req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.json({ status: "ok" });
+  } catch (error) {
+    console.error("Health check failed:", error);
+    res.status(503).json({ status: "error", reason: "database" });
+  }
+});
+
 (async () => {
   // Initialize database (seed templates)
   try {
@@ -190,6 +234,9 @@ app.use((req, res, next) => {
 
     // Stack Traces nur intern loggen, nie an Client senden
     console.error("Internal Server Error:", err);
+    if (sentryEnabled && status >= 500) {
+      Sentry.captureException(err);
+    }
 
     if (res.headersSent) {
       return next(err);
@@ -229,4 +276,33 @@ app.use((req, res, next) => {
       log(`serving on port ${port}`);
     },
   );
+
+  // Graceful Shutdown: Deploys/Restarts kappen laufende Requests nicht mehr
+  // hart — Server schließt, offene Verbindungen laufen aus, DB-Pool endet.
+  let shuttingDown = false;
+  const shutdown = (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    log(`${signal} empfangen — fahre sauber herunter…`);
+    httpServer.close(async () => {
+      try {
+        await pool.end();
+      } catch {
+        // Pool war ggf. schon zu
+      }
+      process.exit(0);
+    });
+    // Fallback: nach 10s hart beenden (hängende Keep-Alive-Verbindungen)
+    setTimeout(() => process.exit(1), 10_000).unref();
+  };
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
+
+  // Unhandled Rejections dürfen den Prozess nicht crashen — loggen + melden.
+  process.on("unhandledRejection", (reason) => {
+    console.error("Unhandled Rejection:", reason);
+    if (sentryEnabled) {
+      Sentry.captureException(reason instanceof Error ? reason : new Error(String(reason)));
+    }
+  });
 })();

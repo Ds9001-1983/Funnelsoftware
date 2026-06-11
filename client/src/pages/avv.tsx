@@ -112,8 +112,13 @@ export default function AVV() {
                   </thead>
                   <tbody>
                     <tr>
+                      <td className="px-3 py-2 border-b">Hetzner Online GmbH</td>
+                      <td className="px-3 py-2 border-b">Server-Hosting</td>
+                      <td className="px-3 py-2 border-b">Deutschland</td>
+                    </tr>
+                    <tr>
                       <td className="px-3 py-2 border-b">Alfahosting GmbH</td>
-                      <td className="px-3 py-2 border-b">Hosting, E-Mail-Versand (SMTP)</td>
+                      <td className="px-3 py-2 border-b">E-Mail-Versand (SMTP)</td>
                       <td className="px-3 py-2 border-b">Deutschland</td>
                     </tr>
                     <tr>
