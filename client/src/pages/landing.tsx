@@ -57,11 +57,14 @@ const templatePreviews = [
     image: "/templates/webinar.webp",
   },
   {
-    name: "Interaktives Quiz",
-    category: "Quiz",
+    // Quiz-Template ist deaktiviert, solange das interaktive Quiz nicht
+    // gebaut ist — hier stattdessen die Kundenumfrage bewerben (UWG:
+    // keine Features versprechen, die es nicht gibt).
+    name: "Kundenumfrage",
+    category: "Survey",
     color: "#10B981",
-    description: "Leads unterhaltsam qualifizieren",
-    image: "/templates/quiz.webp",
+    description: "Feedback strukturiert einsammeln",
+    image: "/templates/umfrage.webp",
   },
   {
     name: "Schnell-Bewerbung",
@@ -95,7 +98,7 @@ const features = [
   {
     icon: PenTool,
     title: "20+ Elemente",
-    description: "Texte, Videos, Formulare, Countdowns, Quizze, Slider — alles für hohe Conversion.",
+    description: "Texte, Videos, Formulare, Countdowns, Umfragen, Slider — alles für hohe Conversion.",
   },
   {
     icon: Palette,
@@ -119,7 +122,7 @@ const personas = [
   {
     icon: GraduationCap,
     title: "Coaches & Berater",
-    description: "Qualifiziere Interessenten mit Quiz-Funnels und verkaufe deine Programme ohne Sales-Call-Marathon.",
+    description: "Qualifiziere Interessenten mit smarten Frage-Funnels und verkaufe deine Programme ohne Sales-Call-Marathon.",
   },
   {
     icon: Briefcase,

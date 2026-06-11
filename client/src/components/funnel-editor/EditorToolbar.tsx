@@ -49,7 +49,8 @@ interface EditorToolbarProps {
   onBack: () => void;
   onSave: () => void;
   onOpenLogicFlow: () => void;
-  onOpenABTests: () => void;
+  /** Optional — ohne Handler wird der A/B-Test-Button nicht gerendert (Feature deaktiviert). */
+  onOpenABTests?: () => void;
   onOpenSettings: () => void;
   onOpenPublish: () => void;
   onOpenPreview: () => void;
@@ -199,24 +200,26 @@ export function EditorToolbar({
           </TooltipTrigger>
           <TooltipContent>Flow-Ansicht</TooltipContent>
         </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 relative"
-              aria-label="A/B-Tests öffnen"
-              onClick={onOpenABTests}
-              data-testid="button-abtests"
-            >
-              <FlaskConical className="h-4 w-4" />
-              {hasRunningABTest && (
-                <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-green-500" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>A/B-Tests</TooltipContent>
-        </Tooltip>
+        {onOpenABTests && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 relative"
+                aria-label="A/B-Tests öffnen"
+                onClick={onOpenABTests}
+                data-testid="button-abtests"
+              >
+                <FlaskConical className="h-4 w-4" />
+                {hasRunningABTest && (
+                  <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-green-500" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>A/B-Tests</TooltipContent>
+          </Tooltip>
+        )}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

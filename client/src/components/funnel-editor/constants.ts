@@ -244,9 +244,10 @@ export const elementCategories: ElementCategory[] = [
   {
     name: "Erweitert",
     elements: [
-      { type: "chart", label: "Diagramm", icon: BarChart2, description: "Daten-Visualisierung" },
+      // "chart" und "embed" sind bewusst NICHT in der Palette: beide sind im
+      // Public-Funnel nicht fertig gebaut (Platzhalter) — wieder aufnehmen,
+      // sobald echtes Rendering existiert. Bestehende Elemente bleiben editierbar.
       { type: "code", label: "Code", icon: Code, description: "Code-Snippet" },
-      { type: "embed", label: "Einbetten", icon: Link, description: "Externe Inhalte" },
     ],
   },
   {
