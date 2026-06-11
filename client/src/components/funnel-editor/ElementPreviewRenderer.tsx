@@ -28,6 +28,29 @@ import { FormFieldWithValidation } from "./FormFieldWithValidation";
 import { InlineEditable } from "./InlineEditable";
 import { sanitizeUrl } from "@/lib/utils";
 
+/**
+ * Wandelt eine YouTube-/Vimeo-URL in eine Embed-URL um (Allowlist-Ansatz:
+ * nur bekannte Hosts, ID wird extrahiert statt die URL durchzureichen).
+ * Gibt null zurück, wenn keine sichere Embed-URL ableitbar ist.
+ */
+export function getVideoEmbedUrl(
+  videoType: string | undefined,
+  videoUrl: string | undefined
+): string | null {
+  if (!videoUrl) return null;
+  if (videoType === "youtube" || /youtu\.?be/.test(videoUrl)) {
+    const m = videoUrl.match(
+      /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{6,20})/
+    );
+    return m ? `https://www.youtube-nocookie.com/embed/${m[1]}` : null;
+  }
+  if (videoType === "vimeo" || /vimeo\.com/.test(videoUrl)) {
+    const m = videoUrl.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    return m ? `https://player.vimeo.com/video/${m[1]}` : null;
+  }
+  return null;
+}
+
 export interface ElementActions {
   onCopy?: () => void;
   onCut?: () => void;
@@ -131,7 +154,40 @@ function ElementPreviewRendererBase({
         </ElementWrapper>
       );
 
-    case "select":
+    case "select": {
+      // Interaktiv, sobald updateFormValue verfügbar ist (Public + Editor-
+      // Vorschau) — sonst landet die Auswahl nie in formValues: kein Lead-Wert,
+      // kein optionRouting, required blockiert die Navigation dauerhaft.
+      if (updateFormValue) {
+        return (
+          <ElementWrapper {...wrapperProps}>
+            <div className="space-y-2">
+              {el.label && (
+                <p className="text-sm font-medium text-left" style={{ color: textColor }}>
+                  {el.label}
+                </p>
+              )}
+              <div className="relative">
+                <select
+                  value={formValues[el.id] || ""}
+                  onChange={(e) => updateFormValue(el.id, e.target.value)}
+                  className="w-full appearance-none px-4 py-3 pr-10 rounded-lg border border-gray-200 text-sm bg-white shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-gray-900"
+                >
+                  <option value="" disabled>
+                    {el.placeholder || "Option wählen..."}
+                  </option>
+                  {el.options?.map((option, idx) => (
+                    <option key={idx} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              </div>
+            </div>
+          </ElementWrapper>
+        );
+      }
       return (
         <ElementWrapper {...wrapperProps}>
           <div className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm bg-white flex items-center justify-between shadow-sm">
@@ -142,6 +198,7 @@ function ElementPreviewRendererBase({
           </div>
         </ElementWrapper>
       );
+    }
 
     case "radio":
       return (
@@ -152,20 +209,80 @@ function ElementPreviewRendererBase({
                 {el.label}
               </p>
             )}
-            {el.options?.map((option, idx) => (
-              <div
-                key={idx}
-                className="flex items-center gap-3 px-4 py-2 bg-white rounded-lg border border-gray-200 text-sm shadow-sm"
-              >
-                <div className="w-4 h-4 rounded-full border-2 border-gray-300" />
-                <span>{option}</span>
-              </div>
-            ))}
+            {el.options?.map((option, idx) => {
+              if (updateFormValue) {
+                const checked = formValues[el.id] === option;
+                return (
+                  <label
+                    key={idx}
+                    className={`flex items-center gap-3 px-4 py-2.5 bg-white rounded-lg border text-sm shadow-sm cursor-pointer transition-colors ${
+                      checked ? "" : "border-gray-200 hover:border-gray-300"
+                    }`}
+                    style={checked ? { borderColor: primaryColor } : undefined}
+                  >
+                    <input
+                      type="radio"
+                      name={el.id}
+                      value={option}
+                      checked={checked}
+                      onChange={() => updateFormValue(el.id, option)}
+                      className="sr-only"
+                    />
+                    <span
+                      className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0"
+                      style={{ borderColor: checked ? primaryColor : "#d1d5db" }}
+                    >
+                      {checked && (
+                        <span
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: primaryColor }}
+                        />
+                      )}
+                    </span>
+                    <span className="text-gray-900">{option}</span>
+                  </label>
+                );
+              }
+              return (
+                <div
+                  key={idx}
+                  className="flex items-center gap-3 px-4 py-2 bg-white rounded-lg border border-gray-200 text-sm shadow-sm"
+                >
+                  <div className="w-4 h-4 rounded-full border-2 border-gray-300" />
+                  <span>{option}</span>
+                </div>
+              );
+            })}
           </div>
         </ElementWrapper>
       );
 
-    case "checkbox":
+    case "checkbox": {
+      if (updateFormValue) {
+        const checked = !!formValues[el.id];
+        return (
+          <ElementWrapper {...wrapperProps}>
+            <label className="flex items-center gap-3 px-4 py-3 bg-white rounded-lg border border-gray-200 text-sm shadow-sm cursor-pointer hover:border-gray-300 transition-colors">
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={(e) => updateFormValue(el.id, e.target.checked ? "Ja" : "")}
+                className="sr-only"
+              />
+              <span
+                className="w-4 h-4 rounded border-2 flex items-center justify-center shrink-0"
+                style={{
+                  borderColor: checked ? primaryColor : "#d1d5db",
+                  backgroundColor: checked ? primaryColor : "transparent",
+                }}
+              >
+                {checked && <Check className="h-3 w-3 text-white" />}
+              </span>
+              <span className="text-gray-900">{el.label || "Checkbox"}</span>
+            </label>
+          </ElementWrapper>
+        );
+      }
       return (
         <ElementWrapper {...wrapperProps}>
           <div className="flex items-center gap-3 px-4 py-3 bg-white rounded-lg border border-gray-200 text-sm shadow-sm">
@@ -174,8 +291,28 @@ function ElementPreviewRendererBase({
           </div>
         </ElementWrapper>
       );
+    }
 
     case "date":
+      if (updateFormValue) {
+        return (
+          <ElementWrapper {...wrapperProps}>
+            <div className="space-y-2">
+              {el.label && (
+                <p className="text-sm font-medium text-left" style={{ color: textColor }}>
+                  {el.label}
+                </p>
+              )}
+              <input
+                type="date"
+                value={formValues[el.id] || ""}
+                onChange={(e) => updateFormValue(el.id, e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm bg-white shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-gray-900"
+              />
+            </div>
+          </ElementWrapper>
+        );
+      }
       return (
         <ElementWrapper {...wrapperProps}>
           <div className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm bg-white flex items-center gap-2 shadow-sm">
@@ -202,16 +339,55 @@ function ElementPreviewRendererBase({
         </ElementWrapper>
       );
 
-    case "video":
+    case "video": {
+      // Public-Funnel (kein onContentCommit): echten Player rendern — das
+      // statische Play-Symbol machte VSL-/Video-Funnels funktionslos.
+      if (!onContentCommit) {
+        if (el.videoType === "upload" && el.videoUrl) {
+          return (
+            <ElementWrapper {...wrapperProps}>
+              <video
+                controls
+                playsInline
+                src={el.videoUrl}
+                className="w-full aspect-video rounded-lg bg-black shadow-md"
+              />
+            </ElementWrapper>
+          );
+        }
+        const embedUrl = getVideoEmbedUrl(el.videoType, el.videoUrl);
+        if (embedUrl) {
+          return (
+            <ElementWrapper {...wrapperProps}>
+              <div className="w-full aspect-video rounded-lg overflow-hidden shadow-md bg-black">
+                <iframe
+                  src={embedUrl}
+                  title="Video"
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              </div>
+            </ElementWrapper>
+          );
+        }
+        // Keine (sichere) Video-URL konfiguriert → für Besucher nichts rendern
+        return null;
+      }
+      // Editor-Vorschau: Mockup mit Hinweis, ob eine URL hinterlegt ist
       return (
         <ElementWrapper {...wrapperProps}>
-          <div className="w-full aspect-video rounded-lg bg-gray-900 flex items-center justify-center shadow-md">
+          <div className="w-full aspect-video rounded-lg bg-gray-900 flex flex-col items-center justify-center shadow-md gap-2">
             <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
               <Play className="h-7 w-7 text-white ml-1" />
             </div>
+            {!el.videoUrl && (
+              <p className="text-xs text-white/60">Keine Video-URL hinterlegt</p>
+            )}
           </div>
         </ElementWrapper>
       );
+    }
 
     case "audio":
       return (
