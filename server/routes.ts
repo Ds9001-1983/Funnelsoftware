@@ -1589,6 +1589,23 @@ export async function registerRoutes(
             await storage.updateSubscriptionFromStripe(user.id, {
               subscriptionStatus: "past_due",
             });
+
+            // Dunning-Fallback: Nach dem 4. Fehlversuch (letzte Smart-Retry-
+            // Stufe) das Abo serverseitig kündigen — sonst hängt der Account
+            // je nach Dashboard-Einstellung unbegrenzt in past_due mit
+            // Vollzugriff. Die Kündigung löst customer.subscription.deleted
+            // aus, das isPro/Status über den bestehenden Handler zurücksetzt.
+            const attemptCount = Number(invoice.attempt_count || 0);
+            if (attemptCount >= 4 && invoiceSubId) {
+              try {
+                await stripe!.subscriptions.cancel(invoiceSubId);
+                console.warn(
+                  `Dunning: Subscription ${invoiceSubId} nach ${attemptCount} Fehlversuchen gekündigt (User ${user.id})`
+                );
+              } catch (cancelErr) {
+                console.error("Dunning-Kündigung fehlgeschlagen:", cancelErr);
+              }
+            }
           }
           break;
         }

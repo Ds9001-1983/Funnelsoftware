@@ -1,0 +1,27 @@
+# Uptime-Wächter ohne externen Dienst: prüft alle 5 Minuten /api/health
+# (DB-Ping). Schlägt der Lauf fehl, schickt GitHub automatisch eine
+# Benachrichtigungs-Mail an den Repo-Owner (Standard bei scheduled Workflows).
+name: Uptime-Check
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: /api/health prüfen
+        run: |
+          # 3 Versuche mit Abstand — kurze Netz-Hiccups sollen nicht alarmieren
+          for i in 1 2 3; do
+            if curl -fsS --max-time 15 https://trichterwerk.de/api/health > /dev/null; then
+              echo "Health OK (Versuch $i)"
+              exit 0
+            fi
+            echo "Versuch $i fehlgeschlagen"
+            sleep 20
+          done
+          echo "::error::trichterwerk.de/api/health antwortet nicht — Seite vermutlich down oder DB-Verbindung gestört!"
+          exit 1
