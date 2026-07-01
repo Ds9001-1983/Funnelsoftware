@@ -12,6 +12,8 @@ import { UpgradeBanner } from "@/components/upgrade-banner";
 import { AuthProvider, RequireAuth, useAuth } from "@/hooks/use-auth";
 import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
 import { useGlobalBodyLockGuard } from "@/hooks/use-ensure-body-unlocked";
+import { useToast } from "@/hooks/use-toast";
+import { trackPageview } from "@/lib/platform-tracker";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Funnels from "@/pages/funnels";
@@ -263,14 +265,66 @@ function useCustomDomainResolver() {
   }, [location, setLocation]);
 }
 
+/**
+ * Zeigt nach der Rückkehr vom Stripe-Checkout (bzw. bei fehlgeschlagener
+ * Weiterleitung aus der Registrierung) eine verständliche Rückmeldung an.
+ * Der Register-Flow leitet auf `/?checkout=success|cancelled|error`.
+ * Ohne diese Rückmeldung landete der Nutzer stumm im leeren Dashboard.
+ */
+function useCheckoutResultToast() {
+  const { toast } = useToast();
+  const { refetchUser } = useAuth();
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get("checkout");
+    if (!checkout) return;
+
+    if (checkout === "success") {
+      toast({
+        title: "Willkommen bei Pro! 🎉",
+        description: "Deine Zahlungsmethode ist hinterlegt. Nach der Testphase geht es nahtlos weiter.",
+      });
+      // isPro/Status kann sich durch den Stripe-Webhook geändert haben.
+      refetchUser().catch(() => {});
+    } else if (checkout === "cancelled") {
+      toast({
+        title: "Checkout abgebrochen",
+        description: "Kein Problem — du kannst die Zahlung jederzeit in den Einstellungen nachholen.",
+      });
+    } else if (checkout === "error") {
+      toast({
+        variant: "destructive",
+        title: "Weiterleitung zur Zahlung fehlgeschlagen",
+        description: "Dein Konto wurde erstellt. Du kannst die Zahlungsmethode jederzeit in den Einstellungen hinterlegen.",
+      });
+    }
+
+    // Query-Parameter entfernen, damit der Toast bei Reload/Navigation nicht erneut feuert.
+    params.delete("checkout");
+    const query = params.toString();
+    window.history.replaceState({}, "", window.location.pathname + (query ? `?${query}` : ""));
+  }, [toast, refetchUser]);
+}
+
 function AppShell() {
   // Globale Bremse gegen hängengebliebene Radix-Body-Locks
   // (pointer-events:none / overflow:hidden / data-scroll-locked).
   useGlobalBodyLockGuard();
   useCustomDomainResolver();
+  useCheckoutResultToast();
   const [location] = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const showCookieConsent = isPublicRoute(location, isAuthenticated);
+
+  // Cookieless Reichweitenmessung: nur ANONYME Besucher zählen (echte Akquise —
+  // nicht eingeloggte Owner, die die App unter "/" nutzen). Erst tracken, wenn
+  // der Auth-Status feststeht, sonst würde ein kurz als anonym geltender Owner
+  // fälschlich einen Landing-Besuch auslösen.
+  useEffect(() => {
+    if (isLoading || isAuthenticated) return;
+    trackPageview(location);
+  }, [location, isAuthenticated, isLoading]);
 
   return (
     <ErrorBoundary fallbackTitle="Ein unerwarteter Fehler ist aufgetreten">

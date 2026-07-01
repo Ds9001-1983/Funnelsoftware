@@ -1,9 +1,16 @@
 import { Link } from "wouter";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
+import { usePageMeta } from "@/hooks/use-document-title";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function AGB() {
+  usePageMeta({
+    title: "AGB",
+    description: "Allgemeine Geschäftsbedingungen von Trichterwerk (SUPERBRAND.marketing).",
+    canonical: "/agb",
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
@@ -32,21 +39,6 @@ export default function AGB() {
                 year: "numeric",
               })}
             </p>
-
-            {/* Disclaimer */}
-            <section className="mb-8 p-4 bg-amber-50 rounded-lg border border-amber-200 flex gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-              <div className="text-sm text-amber-900 leading-relaxed">
-                <strong>Entwurfsstand.</strong> Diese AGB sind ein inhaltlicher Entwurf und
-                ersetzen keine anwaltliche Prüfung. Vor der Anwendung im produktiven
-                Vertragsgeschäft werden sie durch einen Rechtsbeistand finalisiert.
-                Bei Fragen:{" "}
-                <a href="mailto:info@superbrand.marketing" className="underline">
-                  info@superbrand.marketing
-                </a>
-                .
-              </div>
-            </section>
 
             {/* Produkt-Info */}
             <section className="mb-8 p-4 bg-purple-50 rounded-lg border border-purple-100">

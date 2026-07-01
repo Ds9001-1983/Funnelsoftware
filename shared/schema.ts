@@ -105,6 +105,9 @@ export const funnels = pgTable("funnels", {
   // (§ 5 DDG, Art. 13 DSGVO). URLs zeigen auf die Seiten des Kunden.
   impressumUrl: text("impressum_url"),
   datenschutzUrl: text("datenschutz_url"),
+  // Optionales Vorschaubild fürs Teilen (Open Graph). Fällt serverseitig auf das
+  // generische Trichterwerk-OG-Bild zurück, wenn nicht gesetzt.
+  ogImageUrl: text("og_image_url"),
   views: integer("views").notNull().default(0),
   leads: integer("leads_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -183,6 +186,31 @@ export const analyticsEvents = pgTable("analytics_events", {
   index("analytics_events_funnel_id_idx").on(table.funnelId),
   index("analytics_events_funnel_event_idx").on(table.funnelId, table.eventType),
   index("analytics_events_timestamp_idx").on(table.timestamp),
+]);
+
+// Plattform-Besuche (Reichweitenmessung für trichterwerk.de selbst) — BEWUSST
+// getrennt von analytics_events (das an Kunden-Funnels hängt). Cookieless &
+// datensparsam: KEINE Roh-IP, KEIN User-Agent, KEINE Cookie-Kennung gespeichert.
+// Der visitorHash ist ein tages-rotierender, serverseitig gesalzener Einweg-Hash
+// (siehe server/tracking.ts) — nicht auf die Person rückrechenbar, kein
+// tagesübergreifendes Wiedererkennen. Rechtsgrundlage: Art. 6 (1) f DSGVO,
+// § 25 (2) Nr. 2 TDDDG (kein Zugriff auf Endgeräte-Infos → keine Einwilligung).
+export const platformVisits = pgTable("platform_visits", {
+  id: serial("id").primaryKey(),
+  visitorHash: text("visitor_hash").notNull(),
+  path: text("path").notNull(),
+  referrerHost: text("referrer_host"),
+  utmSource: text("utm_source"),
+  utmMedium: text("utm_medium"),
+  utmCampaign: text("utm_campaign"),
+  deviceClass: text("device_class"), // mobile | tablet | desktop
+  country: text("country"), // grober 2-stelliger Ländercode, falls ermittelbar
+  eventType: text("event_type").notNull().default("pageview"), // pageview | register
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+}, (table) => [
+  index("platform_visits_timestamp_idx").on(table.timestamp),
+  index("platform_visits_visitor_idx").on(table.visitorHash, table.timestamp),
+  index("platform_visits_event_idx").on(table.eventType),
 ]);
 
 // Password reset tokens
@@ -738,6 +766,11 @@ export const funnelSchema = z.object({
     .nullable()
     .optional()
     .refine((v) => !v || isSafeUrl(v), { message: "Unerlaubtes URL-Protokoll" }),
+  ogImageUrl: z
+    .string()
+    .nullable()
+    .optional()
+    .refine((v) => !v || isSafeUrl(v), { message: "Unerlaubtes URL-Protokoll" }),
   views: z.number(),
   leads: z.number(),
   createdAt: z.string().or(z.date()),
@@ -856,6 +889,22 @@ export const insertAnalyticsSchema = z.object({
 });
 
 export type InsertAnalytics = z.infer<typeof insertAnalyticsSchema>;
+
+// Plattform-Tracking: was der Client-Beacon senden DARF. visitorHash, country
+// und deviceClass werden ausschließlich serverseitig gesetzt (nicht vom Client).
+export const trackEventSchema = z.object({
+  path: z.string().min(1).max(200),
+  referrer: z.string().max(500).optional(),
+  utmSource: z.string().max(100).optional(),
+  utmMedium: z.string().max(100).optional(),
+  utmCampaign: z.string().max(100).optional(),
+  eventType: z.enum(["pageview", "register"]).default("pageview"),
+});
+
+export type TrackEvent = z.infer<typeof trackEventSchema>;
+
+// Was in platform_visits geschrieben wird (Server-intern, nach Ableitung).
+export type InsertPlatformVisit = typeof platformVisits.$inferInsert;
 
 // Template schema (for API responses)
 export const templateSchema = z.object({

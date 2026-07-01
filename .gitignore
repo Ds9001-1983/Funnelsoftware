@@ -17,3 +17,6 @@ lighthouse-report.html
 test-results/
 playwright-report/
 playwright/.cache/
+
+# Test-Coverage (lokal generiert)
+coverage/

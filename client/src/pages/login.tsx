@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { usePageMeta } from "@/hooks/use-document-title";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,12 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  usePageMeta({
+    title: "Anmelden",
+    description: "Melde dich in deinem Trichterwerk-Konto an.",
+    canonical: "/login",
+  });
 
   // Redirect if already authenticated
   useEffect(() => {

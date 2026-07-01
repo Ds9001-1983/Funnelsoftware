@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <!-- maximum-scale entfernt: Pinch-Zoom muss für Barrierefreiheit (WCAG 1.4.4) möglich bleiben -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- SSR-META: Für öffentliche Funnels (/f/:id) ersetzt der Server (server/static.ts)
+         diesen Block durch funnel-spezifische Meta-Tags. Marker bitte nicht entfernen. -->
+    <!--SSR-META-->
     <meta name="description" content="Trichterwerk - Erstelle mobile-optimierte Marketing-Funnels für Lead-Generierung, höhere Conversions und mehr Kunden." />
     <link rel="canonical" href="https://trichterwerk.de/" />
 
@@ -20,8 +23,9 @@
     <meta name="twitter:title" content="Trichterwerk - Funnel Builder" />
     <meta name="twitter:description" content="Erstelle mobile-optimierte Marketing-Funnels für Lead-Generierung, höhere Conversions und mehr Kunden." />
     <meta name="twitter:image" content="https://trichterwerk.de/images/og-image.png" />
-    
+
     <title>Trichterwerk - Funnel Builder</title>
+    <!--/SSR-META-->
     
     <!-- Favicons -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />

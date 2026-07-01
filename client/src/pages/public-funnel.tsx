@@ -422,6 +422,11 @@ export default function PublicFunnelView() {
     }
   }, [currentPageIndex, navigateToPage]);
 
+  // Honeypot gegen Bot-Submissions: für Menschen unsichtbar (siehe Render unten),
+  // nur Bots füllen es aus. Der Server (POST /api/public/leads) verwirft solche
+  // Übermittlungen stumm.
+  const honeypotRef = useRef<HTMLInputElement>(null);
+
   const handleSubmit = useCallback(async () => {
     if (!funnel || isSubmitting) return;
 
@@ -489,6 +494,8 @@ export default function PublicFunnelView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           funnelId: funnel.uuid,
+          // Honeypot: bei Menschen immer leer; nur Bots befüllen es.
+          website: honeypotRef.current?.value || undefined,
           name: name || undefined,
           email: email || undefined,
           phone: phone || undefined,
@@ -706,6 +713,18 @@ export default function PublicFunnelView() {
               </div>
             ))}
           </div>
+
+          {/* Honeypot: für Menschen unsichtbar (aria-hidden, tabindex -1, off-screen).
+              Bots füllen es aus → der Server verwirft die Übermittlung stumm. */}
+          <input
+            ref={honeypotRef}
+            type="text"
+            name="website"
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden="true"
+            style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+          />
 
           {/* Submit error */}
           {submitError && (

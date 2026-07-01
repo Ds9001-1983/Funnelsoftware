@@ -2,12 +2,12 @@ import { eq, desc, and, sql, gte } from "drizzle-orm";
 import { db } from "./db";
 import {
   users, funnels, leads, templates, analyticsEvents, passwordResetTokens,
-  teams, teamMembers, apiKeys, domains,
+  teams, teamMembers, apiKeys, domains, platformVisits,
   type User, type InsertUser, type Funnel, type InsertFunnel,
   type Lead, type InsertLead, type AnalyticsEvent, type Template,
   type FunnelPage, type Theme, type ABTest,
   type Team, type InsertTeam, type TeamMember, type ApiKey, type InsertApiKey,
-  type Domain,
+  type Domain, type InsertPlatformVisit,
 } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
@@ -26,6 +26,15 @@ export async function comparePasswords(supplied: string, stored: string): Promis
   const hashedPasswordBuf = Buffer.from(hashedPassword, "hex");
   const suppliedPasswordBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
   return timingSafeEqual(hashedPasswordBuf, suppliedPasswordBuf);
+}
+
+// Aggregierte Reichweiten-Statistik für das Betreiber-Dashboard.
+export interface PlatformStats {
+  totals: { visitors: number; pageviews: number; registrations: number };
+  visitorsByDay: { day: string; visitors: number; pageviews: number }[];
+  topPaths: { path: string; count: number }[];
+  topReferrers: { host: string; count: number }[];
+  topUtmSources: { source: string; count: number }[];
 }
 
 // Storage interface
@@ -52,6 +61,7 @@ export interface IStorage {
   getFunnelByUuid(uuid: string): Promise<Funnel | undefined>;
   getFunnelBySlug(slug: string): Promise<Funnel | undefined>;
   getFunnelBySlugOrUuid(identifier: string): Promise<Funnel | undefined>;
+  getPublishedFunnelsForSitemap(): Promise<{ slug: string | null; uuid: string; updatedAt: Date }[]>;
   isSlugAvailable(slug: string, excludeFunnelId?: number): Promise<boolean>;
   createFunnel(funnel: InsertFunnel, userId: number): Promise<Funnel>;
   updateFunnel(id: number, userId: number, funnel: Partial<Funnel>): Promise<Funnel | undefined>;
@@ -70,6 +80,10 @@ export interface IStorage {
   // Analytics
   getAnalytics(funnelId: number): Promise<AnalyticsEvent[]>;
   createAnalyticsEvent(event: Omit<AnalyticsEvent, "id" | "timestamp">): Promise<AnalyticsEvent>;
+
+  // Plattform-Reichweite (trichterwerk.de selbst, cookieless)
+  createPlatformVisit(visit: InsertPlatformVisit): Promise<void>;
+  getPlatformStats(days: number): Promise<PlatformStats>;
 
   // Templates
   getTemplates(): Promise<Template[]>;
@@ -181,6 +195,12 @@ export class DatabaseStorage implements IStorage {
     return this.getFunnelByUuid(identifier);
   }
 
+  async getPublishedFunnelsForSitemap(): Promise<{ slug: string | null; uuid: string; updatedAt: Date }[]> {
+    return db.select({ slug: funnels.slug, uuid: funnels.uuid, updatedAt: funnels.updatedAt })
+      .from(funnels)
+      .where(and(eq(funnels.status, "published"), sql`${funnels.deletedAt} IS NULL`));
+  }
+
   async isSlugAvailable(slug: string, excludeFunnelId?: number): Promise<boolean> {
     const conditions = [eq(funnels.slug, slug), sql`${funnels.deletedAt} IS NULL`];
     if (excludeFunnelId) {
@@ -290,6 +310,7 @@ export class DatabaseStorage implements IStorage {
       capiLastErrorAt: funnel.capiLastErrorAt ? funnel.capiLastErrorAt.toISOString() : null,
       impressumUrl: funnel.impressumUrl,
       datenschutzUrl: funnel.datenschutzUrl,
+      ogImageUrl: funnel.ogImageUrl,
       views: funnel.views,
       leads: funnel.leads,
       createdAt: funnel.createdAt.toISOString(),
@@ -487,6 +508,71 @@ export class DatabaseStorage implements IStorage {
       pageId: result.pageId,
       metadata: result.metadata as Record<string, any> | null,
       timestamp: result.timestamp.toISOString(),
+    };
+  }
+
+  // ============ PLATTFORM-REICHWEITE (cookieless) ============
+
+  async createPlatformVisit(visit: InsertPlatformVisit): Promise<void> {
+    await db.insert(platformVisits).values(visit);
+  }
+
+  async getPlatformStats(days: number): Promise<PlatformStats> {
+    // Zeitfenster in JS berechnen (kein SQL-Interval-String → keine Injektion).
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const [totals] = await db.select({
+      visitors: sql<number>`count(DISTINCT ${platformVisits.visitorHash})`,
+      pageviews: sql<number>`count(*) FILTER (WHERE ${platformVisits.eventType} = 'pageview')`,
+      registrations: sql<number>`count(*) FILTER (WHERE ${platformVisits.eventType} = 'register')`,
+    }).from(platformVisits).where(gte(platformVisits.timestamp, since));
+
+    const byDay = await db.select({
+      day: sql<string>`to_char(date_trunc('day', ${platformVisits.timestamp}), 'YYYY-MM-DD')`,
+      visitors: sql<number>`count(DISTINCT ${platformVisits.visitorHash})`,
+      pageviews: sql<number>`count(*) FILTER (WHERE ${platformVisits.eventType} = 'pageview')`,
+    }).from(platformVisits)
+      .where(gte(platformVisits.timestamp, since))
+      .groupBy(sql`date_trunc('day', ${platformVisits.timestamp})`)
+      .orderBy(sql`date_trunc('day', ${platformVisits.timestamp})`);
+
+    const topPaths = await db.select({
+      path: platformVisits.path,
+      count: sql<number>`count(*)`,
+    }).from(platformVisits)
+      .where(and(eq(platformVisits.eventType, "pageview"), gte(platformVisits.timestamp, since)))
+      .groupBy(platformVisits.path)
+      .orderBy(desc(sql`count(*)`))
+      .limit(10);
+
+    const topReferrers = await db.select({
+      host: sql<string>`${platformVisits.referrerHost}`,
+      count: sql<number>`count(*)`,
+    }).from(platformVisits)
+      .where(and(sql`${platformVisits.referrerHost} IS NOT NULL`, gte(platformVisits.timestamp, since)))
+      .groupBy(platformVisits.referrerHost)
+      .orderBy(desc(sql`count(*)`))
+      .limit(10);
+
+    const topUtmSources = await db.select({
+      source: sql<string>`${platformVisits.utmSource}`,
+      count: sql<number>`count(*)`,
+    }).from(platformVisits)
+      .where(and(sql`${platformVisits.utmSource} IS NOT NULL`, gte(platformVisits.timestamp, since)))
+      .groupBy(platformVisits.utmSource)
+      .orderBy(desc(sql`count(*)`))
+      .limit(10);
+
+    return {
+      totals: {
+        visitors: Number(totals?.visitors || 0),
+        pageviews: Number(totals?.pageviews || 0),
+        registrations: Number(totals?.registrations || 0),
+      },
+      visitorsByDay: byDay.map(r => ({ day: String(r.day), visitors: Number(r.visitors), pageviews: Number(r.pageviews) })),
+      topPaths: topPaths.map(r => ({ path: String(r.path), count: Number(r.count) })),
+      topReferrers: topReferrers.map(r => ({ host: String(r.host), count: Number(r.count) })),
+      topUtmSources: topUtmSources.map(r => ({ source: String(r.source), count: Number(r.count) })),
     };
   }
 

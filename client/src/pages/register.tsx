@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { usePageMeta } from "@/hooks/use-document-title";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Zap, AlertCircle, Check, Sparkles } from "lucide-react";
+import { Loader2, Zap, AlertCircle, Check, Sparkles, Lock } from "lucide-react";
 
 export default function Register() {
   const { register, isAuthenticated } = useAuth();
@@ -21,6 +22,12 @@ export default function Register() {
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  usePageMeta({
+    title: "Kostenlos starten",
+    description: "Erstelle deinen Trichterwerk-Account und teste 14 Tage kostenlos — ohne Code, DSGVO-konform.",
+    canonical: "/register",
+  });
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -76,10 +83,15 @@ export default function Register() {
     });
 
     if (result.success) {
-      // Redirect to Stripe Checkout if available, otherwise dashboard
       if (result.checkoutUrl) {
+        // Zahlung hinterlegen: Weiterleitung zu Stripe Checkout.
         window.location.href = result.checkoutUrl;
+      } else if (result.checkoutError) {
+        // Account erstellt, aber die Weiterleitung zur Zahlung schlug fehl —
+        // sichtbar machen (Toast im Dashboard) statt den Nutzer stumm abzulegen.
+        setLocation("/?checkout=error");
       } else {
+        // Stripe (bewusst) nicht konfiguriert: klassischer Trial ohne Karte.
         setLocation("/");
       }
     } else {
@@ -264,12 +276,18 @@ export default function Register() {
                   "14 Tage kostenlos testen"
                 )}
               </Button>
-              <div className="flex items-center justify-center gap-3 mt-2">
-                <span className="text-xs text-muted-foreground">Zahlung mit</span>
-                <div className="flex items-center gap-2 opacity-50">
-                  <span className="text-xs font-semibold">PayPal</span>
-                  <span className="text-xs">Visa</span>
-                  <span className="text-xs">MC</span>
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-muted-foreground text-center leading-relaxed">
+                  Im nächsten Schritt hinterlegst du sicher über Stripe deine
+                  Zahlungsmethode. Die erste Belastung erfolgt erst nach 14 Tagen —
+                  vorher jederzeit kostenlos kündbar.
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-muted-foreground">
+                  <span className="flex items-center gap-1 text-xs">
+                    <Lock className="h-3.5 w-3.5" /> SSL-verschlüsselt · Stripe
+                  </span>
+                  <span className="text-xs">·</span>
+                  <span className="text-xs">PayPal · Visa · Mastercard · SEPA</span>
                 </div>
               </div>
             </form>
