@@ -18,6 +18,7 @@ import {
   Copy,
   Check,
   AlertTriangle,
+  Sparkles,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useTheme } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
+import { AiConnectionSettings } from "@/components/settings/AiConnectionSettings";
 
 function ProfileSettings() {
   const { user, refetchUser } = useAuth();
@@ -939,7 +941,7 @@ function ApiKeySettings() {
   );
 }
 
-const SETTINGS_TABS = ["profile", "notifications", "appearance", "billing", "api"];
+const SETTINGS_TABS = ["profile", "notifications", "appearance", "billing", "ai", "api"];
 
 export default function Settings() {
   useDocumentTitle("Einstellungen");
@@ -1011,6 +1013,10 @@ export default function Settings() {
               <span className="hidden sm:inline">Team</span>
             </TabsTrigger>
           )}
+          <TabsTrigger value="ai" className="gap-2" data-testid="tab-ai">
+            <Sparkles className="h-4 w-4" />
+            <span className="hidden sm:inline">KI</span>
+          </TabsTrigger>
           <TabsTrigger value="api" className="gap-2" data-testid="tab-api">
             <Key className="h-4 w-4" />
             <span className="hidden sm:inline">API</span>
@@ -1034,6 +1040,9 @@ export default function Settings() {
             <TeamSettings />
           </TabsContent>
         )}
+        <TabsContent value="ai">
+          <AiConnectionSettings />
+        </TabsContent>
         <TabsContent value="api">
           <ApiKeySettings />
         </TabsContent>
