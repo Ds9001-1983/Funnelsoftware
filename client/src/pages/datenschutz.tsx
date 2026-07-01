@@ -1,9 +1,16 @@
 import { Link } from "wouter";
+import { usePageMeta } from "@/hooks/use-document-title";
 import { ArrowLeft, Mail, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function Datenschutz() {
+  usePageMeta({
+    title: "Datenschutzerklärung",
+    description: "Datenschutzerklärung von Trichterwerk — DSGVO-konform, cookieless Reichweitenmessung, Hosting in der EU.",
+    canonical: "/datenschutz",
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
@@ -185,6 +192,35 @@ export default function Datenschutz() {
               </ul>
               <p className="text-slate-600 text-sm leading-relaxed">
                 Eine Zusammenführung dieser Daten mit anderen Datenquellen wird nicht vorgenommen.
+              </p>
+
+              <h3 className="text-lg font-medium text-slate-700 mb-2 mt-6">
+                Reichweitenmessung (cookieless, ohne Einwilligung)
+              </h3>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                Zur statistischen Auswertung, wie unsere Marketing- und Rechtsseiten genutzt werden,
+                setzen wir eine eigene, besonders datensparsame Reichweitenmessung ein. Dabei werden
+                <strong> keine Cookies gesetzt</strong>, kein „Local Storage" verwendet und
+                <strong> kein Fingerprinting</strong> betrieben. Es findet also kein Zugriff auf
+                Informationen in Ihrem Endgerät statt (§ 25 Abs. 2 Nr. 2 TDDDG), weshalb hierfür
+                keine Einwilligung erforderlich ist.
+              </p>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                Ihre IP-Adresse wird <strong>nicht gespeichert</strong>. Sie wird ausschließlich
+                flüchtig verwendet, um zusammen mit dem Datum und einem geheimen Server-Schlüssel
+                einen <strong>tages-rotierenden, anonymen Einweg-Hash</strong> zu bilden. Dieser Hash
+                ist nicht auf Ihre Person rückrechenbar, erlaubt kein tagesübergreifendes
+                Wiedererkennen und kein seitenübergreifendes Tracking. Gespeichert werden lediglich
+                der aufgerufene Pfad, der Host der Referrer-Seite (nicht die vollständige URL),
+                etwaige UTM-Kampagnenparameter, eine grobe Geräteklasse (Mobil/Tablet/Desktop) und
+                ein grober Ländercode.
+              </p>
+              <p className="text-slate-600 text-sm leading-relaxed">
+                Rechtsgrundlage ist unser berechtigtes Interesse an einer datensparsamen
+                Reichweitenmessung (Art. 6 Abs. 1 lit. f DSGVO). Es erfolgt keine Weitergabe an
+                Dritte und keine Nutzung von Google Analytics o. Ä.; die Verarbeitung findet auf
+                unseren Servern in der EU statt. Sie können dieser Verarbeitung jederzeit nach
+                Art. 21 DSGVO über die im Impressum genannten Kontaktdaten widersprechen.
               </p>
             </section>
 

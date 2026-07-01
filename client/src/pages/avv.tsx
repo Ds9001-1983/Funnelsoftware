@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { usePageMeta } from "@/hooks/use-document-title";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +12,12 @@ const STAND = "11. Juni 2026";
  * inkl. öffentlicher Subunternehmer-Liste.
  */
 export default function AVV() {
+  usePageMeta({
+    title: "Auftragsverarbeitungsvertrag (AVV)",
+    description: "Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO für Trichterwerk-Kunden, inkl. Subunternehmer-Liste.",
+    canonical: "/avv",
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">

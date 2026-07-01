@@ -26,7 +26,7 @@ const transporter = isConfigured
  * Lead-Felder kommen ungefiltert vom öffentlichen Funnel-Formular — ohne
  * Escaping kann ein Besucher HTML/Links in die Owner-Mail injizieren (Phishing).
  */
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

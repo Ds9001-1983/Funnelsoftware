@@ -61,6 +61,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useEnsureBodyUnlocked } from "@/hooks/use-ensure-body-unlocked";
 import { apiRequest } from "@/lib/queryClient";
+import { PlatformStats } from "@/components/admin/PlatformStats";
 
 interface AdminUser {
   id: number;
@@ -429,6 +430,9 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Cookieless Reichweitenmessung für trichterwerk.de */}
+        <PlatformStats />
 
         {/* Users Table */}
         <Card>

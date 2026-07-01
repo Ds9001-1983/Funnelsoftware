@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { usePageMeta } from "@/hooks/use-document-title";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -312,6 +313,13 @@ const faqs = [
 ];
 
 export default function Landing() {
+  usePageMeta({
+    title: "Funnel-Builder aus Deutschland — ohne Code, DSGVO-konform",
+    description:
+      "Erstelle mobile-optimierte Marketing-Funnels & Landingpages in Minuten — ohne Code, ohne Agentur. DSGVO-konform, Hosting in der EU. 14 Tage kostenlos testen.",
+    canonical: "/",
+  });
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -398,8 +406,9 @@ export default function Landing() {
             Ohne Code. Ohne Agentur.
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-            Der deutsche Funnel-Builder für Coaches, Berater und Agenturen —
-            mobile-optimierte Landingpages und Lead-Funnels in Minuten live.
+            Eine Agentur nimmt für einen Funnel schnell 2.000–5.000&nbsp;€ und
+            mehrere Wochen. Mit Trichterwerk baust du ihn selbst — mobile-optimiert,
+            in unter einer Stunde live. Ohne Code, DSGVO-konform aus Deutschland.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/register">
@@ -417,6 +426,11 @@ export default function Landing() {
               </Button>
             </a>
           </div>
+
+          {/* Risiko-Reduktion direkt unter dem CTA */}
+          <p className="text-sm text-muted-foreground mt-4">
+            14 Tage kostenlos · erste Belastung erst nach der Testphase · monatlich kündbar
+          </p>
 
           {/* Trust-Leiste */}
           <div className="flex flex-wrap items-center justify-center gap-3 mt-12">
@@ -754,8 +768,11 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-            {pricingPlans.map((plan) => (
+          {/* Nur kaufbare Pläne in der Kaufreihe — der noch nicht buchbare
+              Agency-Plan wandert als Teaser in den Footer, damit der Blick
+              auf dem sofort buchbaren Pro-Plan bleibt (keine Friktion am CTA). */}
+          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            {pricingPlans.filter((plan) => !plan.comingSoon).map((plan) => (
               <Card
                 key={plan.name}
                 className={`relative flex flex-col ${
@@ -828,6 +845,17 @@ export default function Landing() {
           <div className="max-w-3xl mx-auto mt-10 text-center space-y-2 text-sm text-muted-foreground">
             <p>
               Alle Preise netto zzgl. 19&nbsp;% MwSt. · Monatlich kündbar · Keine Setup-Gebühr
+            </p>
+            <p>
+              <span className="font-medium text-foreground">Agency</span> mit Team-Seats,
+              White-Label &amp; API kommt 2026 —{" "}
+              <a
+                href={`mailto:${CONTACT_EMAIL}?subject=Agency-Plan%20Fr%C3%BChzugang%20(2026)`}
+                className="underline hover:text-foreground"
+              >
+                Frühzugang sichern
+              </a>
+              .
             </p>
             <p>
               Unsicher, welcher Plan passt?{" "}
@@ -928,11 +956,16 @@ export default function Landing() {
         <div className="container mx-auto max-w-4xl">
           <Card className="bg-primary text-primary-foreground overflow-hidden">
             <CardContent className="p-12 text-center">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/15 px-3 py-1 text-sm font-medium mb-5">
+                <Sparkles className="h-3.5 w-3.5" />
+                Early Access · Gründungsphase
+              </div>
               <h2 className="text-3xl md:text-4xl font-bold mb-4">
                 Bereit für deinen nächsten Funnel?
               </h2>
               <p className="text-primary-foreground/85 max-w-2xl mx-auto mb-8">
-                Starte jetzt mit 14 Tagen Pro-Zugang. Keine Mindestlaufzeit. Kündigung mit zwei Klicks.
+                Sei einer der Ersten auf Trichterwerk: 14 Tage Pro-Zugang, direkter Draht
+                zum Team, keine Mindestlaufzeit. Kündigung mit zwei Klicks.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link href="/register">

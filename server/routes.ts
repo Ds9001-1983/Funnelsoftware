@@ -23,9 +23,10 @@ import { sendCapiEvent } from "./capi";
 import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan, requireVerifiedEmail, hasActivePlan, PUBLIC_GRACE_PERIOD_MS } from "./auth";
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema, insertDomainSchema,
-  loginSchema, registerSchema, slugSchema, passwordSchema,
+  loginSchema, registerSchema, slugSchema, passwordSchema, trackEventSchema,
   MAX_IMAGE_UPLOAD_BYTES, MAX_AUDIO_UPLOAD_BYTES
 } from "@shared/schema";
+import { dailyVisitorHash, deriveReferrerHost, deriveDeviceClass, deriveCountry, isTrackablePath } from "./tracking";
 import { z } from "zod";
 
 // Partial update schemas for PATCH endpoints
@@ -41,12 +42,47 @@ const domainVerifyLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Zusätzlich zum globalen publicLimiter (60/min/IP über alle /api/public/*):
+// engeres Limit speziell fürs Lead-Anlegen, um Bot-/Spam-Submissions auf einem
+// veröffentlichten Funnel zu bremsen. Echte Nutzer füllen selten >12 Formulare/Min.
+const leadCreateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 Minute
+  max: 12,
+  message: { error: "Zu viele Übermittlungen. Bitte einen Moment warten." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 const updateLeadSchema = leadSchema.partial().omit({ id: true, uuid: true, funnelId: true, userId: true, createdAt: true, funnelName: true });
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  // ============ SEO ============
+
+  // Dynamische Sitemap: statische Marketing-/Legal-Seiten + alle veröffentlichten
+  // Funnels. Wird vor der statischen Auslieferung registriert und ersetzt die alte
+  // statische sitemap.xml. robots.txt verweist bereits hierauf.
+  app.get("/sitemap.xml", async (_req, res) => {
+    try {
+      const funnelRows = await storage.getPublishedFunnelsForSitemap();
+      const staticPaths = ["/", "/impressum", "/datenschutz", "/agb", "/avv", "/login", "/register"];
+      const entries = [
+        ...staticPaths.map((p) => `  <url><loc>https://trichterwerk.de${p}</loc></url>`),
+        ...funnelRows.map(
+          (f) =>
+            `  <url><loc>https://trichterwerk.de/f/${encodeURIComponent(f.slug || f.uuid)}</loc><lastmod>${new Date(f.updatedAt).toISOString().slice(0, 10)}</lastmod></url>`,
+        ),
+      ];
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.join("\n")}\n</urlset>\n`;
+      res.set("Content-Type", "application/xml; charset=utf-8").send(xml);
+    } catch (error) {
+      console.error("Sitemap error:", error);
+      res.status(500).send("");
+    }
+  });
 
   // ============ AUTH ROUTES ============
 
@@ -96,6 +132,18 @@ export async function registerRoutes(
       sendVerificationEmail(email, emailVerificationToken).catch((err) => console.error("[Email] Verification send failed:", err));
       sendWelcomeEmail(email, displayName).catch((err) => console.error("[Email] Welcome send failed:", err));
 
+      // Reichweiten-Conversion (serverseitig, nicht manipulierbar): jede
+      // Registrierung als 'register'-Event in der cookieless Plattform-Statistik →
+      // erlaubt die Auswertung Landing-Besuche → Registrierungen.
+      storage.createPlatformVisit({
+        visitorHash: dailyVisitorHash(req.ip || req.socket.remoteAddress || "", req.get("user-agent") || ""),
+        path: "/register",
+        referrerHost: deriveReferrerHost(req.get("referer")),
+        deviceClass: deriveDeviceClass(req.get("user-agent")),
+        country: deriveCountry(req.headers),
+        eventType: "register",
+      }).catch((err) => console.error("[Track] register event failed:", err));
+
       // Log user in automatically
       req.login({ ...user, password: undefined } as any, async (err) => {
         if (err) {
@@ -104,8 +152,11 @@ export async function registerRoutes(
 
         const { password: _, ...userWithoutPassword } = user;
 
-        // Create Stripe Checkout Session with 14-day trial
+        // Create Stripe Checkout Session with 14-day trial.
+        // success_url/cancel_url MÜSSEN sich unterscheiden — sonst kann der Client
+        // eine erfolgreiche Zahlung nicht von einem Abbruch trennen.
         let checkoutUrl: string | null = null;
+        let checkoutError = false;
         if (isStripeConfigured() && process.env.STRIPE_PRICE_ID) {
           try {
             const customerId = await getOrCreateStripeCustomer(user);
@@ -114,18 +165,22 @@ export async function registerRoutes(
             const session = await createCheckoutSession(
               customerId,
               process.env.STRIPE_PRICE_ID,
-              `${appUrl}/?registered=true`,
-              `${appUrl}/?registered=true`,
+              `${appUrl}/?checkout=success`,
+              `${appUrl}/?checkout=cancelled`,
               { trialDays: 14, clientReferenceId: String(user.id) }
             );
             checkoutUrl = session.url;
           } catch (stripeErr) {
             console.error("Stripe checkout creation during registration failed:", stripeErr);
-            // Registration still succeeds, user just won't be redirected to Stripe
+            // Registrierung ist trotzdem erfolgreich — aber die Weiterleitung zur
+            // Zahlung schlug fehl. Das signalisieren wir dem Client (checkoutError),
+            // damit der Nutzer nicht stumm ohne hinterlegte Zahlungsart im Dashboard
+            // landet und glaubt, alles sei in Ordnung.
+            checkoutError = true;
           }
         }
 
-        res.status(201).json({ user: userWithoutPassword, checkoutUrl });
+        res.status(201).json({ user: userWithoutPassword, checkoutUrl, checkoutError });
       });
     } catch (error) {
       console.error("Registration error:", error);
@@ -1003,8 +1058,16 @@ export async function registerRoutes(
   });
 
   // Create lead (public, for funnel submissions)
-  app.post("/api/public/leads", async (req, res) => {
+  app.post("/api/public/leads", leadCreateLimiter, async (req, res) => {
     try {
+      // Honeypot: Bots füllen typischerweise alle Felder aus. Ein für Menschen
+      // unsichtbares Feld (website) wird nur von Bots befüllt → wir tun so, als
+      // wäre alles ok (200), legen aber keinen Lead an. Das verrät dem Bot nicht,
+      // dass er erkannt wurde.
+      if (typeof req.body.website === "string" && req.body.website.trim() !== "") {
+        return res.status(200).json({ success: true, id: randomUUID() });
+      }
+
       // Get funnel to find owner
       const funnelId = req.body.funnelId;
       if (!funnelId) {
@@ -1688,6 +1751,42 @@ export async function registerRoutes(
     }
   });
 
+  // Cookieless Reichweitenmessung für trichterwerk.de selbst (getrennt von der
+  // Funnel-Analytics oben). Liegt unter /api/public/ → erbt automatisch
+  // publicLimiter (60/min/IP) und CSRF-Freiheit. IP + User-Agent werden NUR zur
+  // Bildung des tages-rotierenden Anonym-Hashes genutzt und NICHT gespeichert.
+  app.post("/api/public/track", async (req, res) => {
+    try {
+      const parsed = trackEventSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(204).end();
+
+      const { path, referrer, utmSource, utmMedium, utmCampaign, eventType } = parsed.data;
+      // Nur Marketing-/Legal-/Auth-Pfade zählen (Whitelist) — sonst still verwerfen.
+      if (!isTrackablePath(path)) return res.status(204).end();
+
+      const ip = req.ip || req.socket.remoteAddress || "";
+      const userAgent = req.get("user-agent") || "";
+
+      await storage.createPlatformVisit({
+        visitorHash: dailyVisitorHash(ip, userAgent),
+        path: (path.split(/[?#]/)[0] || "/").slice(0, 200),
+        referrerHost: deriveReferrerHost(referrer),
+        utmSource: utmSource ?? null,
+        utmMedium: utmMedium ?? null,
+        utmCampaign: utmCampaign ?? null,
+        deviceClass: deriveDeviceClass(userAgent),
+        country: deriveCountry(req.headers),
+        eventType,
+      });
+
+      res.status(204).end();
+    } catch (error) {
+      // Tracking darf den Besucher nie stören → still schlucken, nur loggen.
+      console.error("Platform track error:", error);
+      res.status(204).end();
+    }
+  });
+
   // Get analytics for funnel (protected)
   app.get("/api/funnels/:funnelId/analytics", isAuthenticated, async (req, res) => {
     try {
@@ -1757,6 +1856,18 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Get admin stats error:", error);
       res.status(500).json({ error: "Statistiken konnten nicht geladen werden" });
+    }
+  });
+
+  // Cookieless Plattform-Reichweite (wer besucht trichterwerk.de) — nur Betreiber.
+  app.get("/api/admin/platform-stats", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const days = Math.min(Math.max(parseInt(String(req.query.days)) || 30, 1), 365);
+      const stats = await storage.getPlatformStats(days);
+      res.json({ days, ...stats });
+    } catch (error) {
+      console.error("Get platform stats error:", error);
+      res.status(500).json({ error: "Plattform-Statistiken konnten nicht geladen werden" });
     }
   });
 

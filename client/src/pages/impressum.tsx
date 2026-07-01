@@ -1,9 +1,16 @@
 import { Link } from "wouter";
+import { usePageMeta } from "@/hooks/use-document-title";
 import { ArrowLeft, Mail, Phone, MessageCircle, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function Impressum() {
+  usePageMeta({
+    title: "Impressum",
+    description: "Impressum und Anbieterkennzeichnung von Trichterwerk — ein Produkt von SUPERBRAND.marketing.",
+    canonical: "/impressum",
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
