@@ -285,7 +285,9 @@ app.get("/api/health", async (_req, res) => {
     {
       port,
       host: "0.0.0.0",
-      reusePort: true,
+      // SO_REUSEPORT gibt es nur auf Linux — macOS (lokale Entwicklung,
+      // Playwright-E2E) wirft sonst ENOTSUP beim listen().
+      reusePort: process.platform === "linux",
     },
     () => {
       log(`serving on port ${port}`);

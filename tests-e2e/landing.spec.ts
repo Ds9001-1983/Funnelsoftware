@@ -2,8 +2,8 @@ import { test, expect } from "@playwright/test";
 
 /**
  * Smoke-Test: Lädt die Landing-Page und prüft die wichtigsten sichtbaren
- * Bausteine (Headline, primärer CTA, Login-Link). Ersetzt keinen vollen
- * Register-zu-Publish-Flow — das ist ein Folge-Schritt mit Test-DB.
+ * Bausteine (Headline, primärer CTA, Login-Link). Den vollen
+ * Register-zu-Publish-Flow deckt funnel-lifecycle.spec.ts ab.
  */
 test.describe("Landing Page", () => {
   test("rendert Hero, CTA und Login-Link", async ({ page }) => {

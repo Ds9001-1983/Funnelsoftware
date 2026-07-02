@@ -739,6 +739,7 @@ export default function PublicFunnelView() {
               {!isFirstPage && (
                 <button
                   onClick={handlePrevPage}
+                  data-testid="button-funnel-back"
                   className="flex items-center gap-1 px-5 py-3 rounded-xl text-sm font-medium opacity-70 hover:opacity-100 transition-opacity"
                   style={{ color: theme.textColor }}
                 >
@@ -751,6 +752,7 @@ export default function PublicFunnelView() {
                 onClick={
                   isContactPage || isLastPage ? handleSubmit : handleNextPage
                 }
+                data-testid={isContactPage || isLastPage ? "button-funnel-submit" : "button-funnel-next"}
                 disabled={isSubmitting}
                 className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
                 style={{ backgroundColor: theme.primaryColor }}
