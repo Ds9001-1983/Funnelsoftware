@@ -16,6 +16,7 @@ import {
   FileSpreadsheet,
   FileText,
   CalendarRange,
+  ShieldCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { GdprRequestDialog } from "@/components/leads/GdprRequestDialog";
 import type { Lead, Funnel } from "@shared/schema";
 
 type StatusFilter = "all" | Lead["status"];
@@ -597,6 +599,7 @@ export default function Leads() {
   const [funnelFilter, setFunnelFilter] = useState<string>("all");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showGdprDialog, setShowGdprDialog] = useState(false);
   const { toast } = useToast();
 
   const { data: leads, isLoading: leadsLoading } = useQuery<Lead[]>({
@@ -672,16 +675,27 @@ export default function Leads() {
             Verwalte und qualifiziere deine Leads
           </p>
         </div>
-        <Button
-          variant="outline"
-          className="gap-2"
-          data-testid="button-export"
-          onClick={() => setShowExportDialog(true)}
-          disabled={!filteredLeads.length}
-        >
-          <Download className="h-4 w-4" />
-          Exportieren
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            data-testid="button-gdpr"
+            onClick={() => setShowGdprDialog(true)}
+          >
+            <ShieldCheck className="h-4 w-4" />
+            <span className="hidden sm:inline">DSGVO</span>
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2"
+            data-testid="button-export"
+            onClick={() => setShowExportDialog(true)}
+            disabled={!filteredLeads.length}
+          >
+            <Download className="h-4 w-4" />
+            Exportieren
+          </Button>
+        </div>
       </div>
 
       {/* Kanban Board */}
@@ -868,6 +882,8 @@ export default function Leads() {
         funnelFilter={funnelFilter}
         funnelName={funnels?.find(f => String(f.id) === funnelFilter)?.name}
       />
+
+      <GdprRequestDialog open={showGdprDialog} onOpenChange={setShowGdprDialog} />
     </div>
   );
 }

@@ -1057,6 +1057,38 @@ export async function registerRoutes(
     }
   });
 
+  // ---- DSGVO-Betroffenenrechte (Owner-getrieben) ----
+  // MÜSSEN vor "/api/leads/:id" stehen, sonst matcht die GET-Route den :id-Handler.
+  const gdprEmailSchema = z.object({ email: z.string().email().max(254) });
+
+  // Art. 20 (Datenportabilität): Export aller Lead-Daten zu einer E-Mail als JSON.
+  app.get("/api/leads/gdpr-export", isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+    const parsed = gdprEmailSchema.safeParse({ email: req.query.email });
+    if (!parsed.success) return res.status(400).json({ error: "Gültige E-Mail-Adresse erforderlich" });
+    const rows = await storage.getLeadsByEmail(userId, parsed.data.email);
+    const safeName = parsed.data.email.replace(/[^a-z0-9._@-]/gi, "_");
+    res.setHeader("Content-Disposition", `attachment; filename="dsgvo-export-${safeName}.json"`);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.send(JSON.stringify(
+      { email: parsed.data.email, exportedAt: new Date().toISOString(), count: rows.length, leads: rows },
+      null,
+      2,
+    ));
+  });
+
+  // Art. 17 (Löschung): alle Lead-Daten zu einer E-Mail löschen. Idempotent,
+  // gibt die Anzahl gelöschter Datensätze als Nachweis zurück.
+  app.post("/api/leads/gdpr-erasure", isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+    const parsed = gdprEmailSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Gültige E-Mail-Adresse erforderlich" });
+    const deletedCount = await storage.deleteLeadsByEmail(userId, parsed.data.email);
+    res.json({ email: parsed.data.email, deletedCount });
+  });
+
   // Get single lead
   app.get("/api/leads/:id", isAuthenticated, async (req, res) => {
     try {
