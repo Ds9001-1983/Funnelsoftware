@@ -5,6 +5,8 @@
 // Der Server (POST /api/public/track) leitet aus IP + User-Agent nur einen
 // tages-rotierenden Anonym-Hash ab und speichert keine Roh-IP.
 
+import { comparisonLinks, funnelBuilderPage } from "@shared/seo-links";
+
 // Muss zur Server-Whitelist (server/tracking.ts) passen.
 const TRACKABLE = new Set([
   "/",
@@ -15,6 +17,10 @@ const TRACKABLE = new Set([
   "/nutzungsbedingungen",
   "/login",
   "/register",
+  // SEO-Marketing-Seiten — genau deren Reichweite soll gemessen werden.
+  funnelBuilderPage.path,
+  "/vergleich",
+  ...comparisonLinks.map((l) => l.path),
 ]);
 
 function isTrackable(path: string): boolean {

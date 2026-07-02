@@ -27,6 +27,7 @@ import {
   aiCredentialInputSchema, generateFunnelInputSchema,
   MAX_IMAGE_UPLOAD_BYTES, MAX_AUDIO_UPLOAD_BYTES
 } from "@shared/schema";
+import { seoStaticPages } from "@shared/seo-content";
 import { dailyVisitorHash, deriveReferrerHost, deriveDeviceClass, deriveCountry, isTrackablePath } from "./tracking";
 import { encryptSecret, decryptSecret, last4 } from "./crypto";
 import { generateFunnel, testConnection, AiError, type DecryptedCredential } from "./ai";
@@ -90,7 +91,10 @@ export async function registerRoutes(
   app.get("/sitemap.xml", async (_req, res) => {
     try {
       const funnelRows = await storage.getPublishedFunnelsForSitemap();
-      const staticPaths = ["/", "/impressum", "/datenschutz", "/agb", "/avv", "/login", "/register"];
+      const staticPaths = [
+        "/", "/impressum", "/datenschutz", "/agb", "/avv", "/login", "/register",
+        ...seoStaticPages.map((p) => p.path),
+      ];
       const entries = [
         ...staticPaths.map((p) => `  <url><loc>https://trichterwerk.de${p}</loc></url>`),
         ...funnelRows.map(

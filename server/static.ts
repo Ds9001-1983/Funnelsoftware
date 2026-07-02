@@ -4,35 +4,70 @@ import path from "path";
 import { storage } from "./storage";
 import { escapeHtml } from "./email";
 import type { Funnel } from "@shared/schema";
+import { seoStaticPages } from "@shared/seo-content";
+import { SITE_ORIGIN } from "@shared/seo-links";
 
-const SITE_ORIGIN = "https://trichterwerk.de";
 const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/images/og-image.png`;
 // Wird im Prod-Build durch server-seitige Injektion für /f/:id ersetzt.
 const META_MARKER = /<!--SSR-META-->[\s\S]*?<!--\/SSR-META-->/;
 
-/** Baut den funnel-spezifischen Meta-Block (ersetzt den <!--SSR-META-->-Bereich). */
-function buildFunnelMeta(funnel: Funnel): string {
-  const desc = escapeHtml(
-    (funnel.description?.trim() || `${funnel.name} — jetzt starten.`).slice(0, 200),
-  );
-  const name = escapeHtml(funnel.name);
-  const canonical = `${SITE_ORIGIN}/f/${encodeURIComponent(funnel.slug || funnel.uuid)}`;
-  const ogImage = escapeHtml(funnel.ogImageUrl || DEFAULT_OG_IMAGE);
+interface MetaBlockInput {
+  /** Kompletter Titel inkl. Suffix. */
+  title: string;
+  description: string;
+  canonical: string;
+  ogImage?: string;
+  /** Zusätzliche Tags (z. B. noindex für 404-Seiten). */
+  extra?: string[];
+}
+
+/** Gemeinsamer Meta-Block für Funnel- und Marketing-Seiten (ersetzt <!--SSR-META-->). */
+function buildMetaBlock({ title, description, canonical, ogImage = DEFAULT_OG_IMAGE, extra = [] }: MetaBlockInput): string {
+  const t = escapeHtml(title);
+  const desc = escapeHtml(description);
+  const img = escapeHtml(ogImage);
   return [
     `<meta name="description" content="${desc}" />`,
     `<link rel="canonical" href="${canonical}" />`,
     `<meta property="og:type" content="website" />`,
-    `<meta property="og:title" content="${name}" />`,
+    `<meta property="og:title" content="${t}" />`,
     `<meta property="og:description" content="${desc}" />`,
-    `<meta property="og:image" content="${ogImage}" />`,
+    `<meta property="og:image" content="${img}" />`,
     `<meta property="og:image:width" content="1200" />`,
     `<meta property="og:image:height" content="630" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
-    `<meta name="twitter:title" content="${name}" />`,
+    `<meta name="twitter:title" content="${t}" />`,
     `<meta name="twitter:description" content="${desc}" />`,
-    `<meta name="twitter:image" content="${ogImage}" />`,
-    `<title>${name} | Trichterwerk</title>`,
+    `<meta name="twitter:image" content="${img}" />`,
+    ...extra,
+    `<title>${t}</title>`,
   ].join("\n    ");
+}
+
+/** Baut den funnel-spezifischen Meta-Block (ersetzt den <!--SSR-META-->-Bereich). */
+function buildFunnelMeta(funnel: Funnel): string {
+  return buildMetaBlock({
+    title: `${funnel.name} | Trichterwerk`,
+    description: (funnel.description?.trim() || `${funnel.name} — jetzt starten.`).slice(0, 200),
+    canonical: `${SITE_ORIGIN}/f/${encodeURIComponent(funnel.slug || funnel.uuid)}`,
+    ogImage: funnel.ogImageUrl || DEFAULT_OG_IMAGE,
+  });
+}
+
+/**
+ * Request-Pfad für den Marketing-Meta-Lookup normalisieren: Express 5 matcht
+ * Routen non-strict, req.path behält aber Trailing-Slash und Percent-Encoding —
+ * ohne Normalisierung bekämen /vergleich/typeform-alternative/ oder
+ * /vergleich/typeform%2Dalternative die generische Homepage-Meta.
+ */
+function normalizeMarketingPath(reqPath: string): string {
+  let p = reqPath;
+  try {
+    p = decodeURIComponent(p);
+  } catch {
+    // ungültiges Encoding → unverändert weiter (führt zum 404-Fallback)
+  }
+  return p.replace(/\/+$/, "") || "/";
 }
 
 export function serveStatic(app: Express) {
@@ -64,6 +99,41 @@ export function serveStatic(app: Express) {
     }
     // Fallback: unveränderte SPA (Client setzt Titel selbst).
     res.set("Content-Type", "text/html; charset=utf-8").send(indexHtml);
+  });
+
+  // SEO-Marketing-Seiten: Title/Description/OG server-seitig injizieren (Share-Bots,
+  // Bing, schnellere Indexierung). Die HTML-Varianten sind statisch → einmal beim
+  // Start vorberechnen statt pro Request Regex+Replace zu fahren.
+  const marketingHtmlByPath = new Map(
+    seoStaticPages.map((p) => [
+      p.path,
+      indexHtml.replace(
+        META_MARKER,
+        buildMetaBlock({
+          title: `${p.metaTitle} | Trichterwerk`,
+          description: p.metaDescription,
+          canonical: `${SITE_ORIGIN}${p.path}`,
+        }),
+      ),
+    ]),
+  );
+  // Unbekannte /vergleich/-Slugs: echter 404-Status + noindex, damit Crawler
+  // keine Soft-404 mit Homepage-Canonical indexieren (Client rendert seine
+  // öffentliche 404-Ansicht).
+  const notFoundHtml = indexHtml.replace(
+    META_MARKER,
+    [
+      `<meta name="robots" content="noindex" />`,
+      `<title>Seite nicht gefunden | Trichterwerk</title>`,
+    ].join("\n    "),
+  );
+
+  app.get(["/funnel-builder", "/vergleich/:slug"], (req: Request, res: Response) => {
+    const html = marketingHtmlByPath.get(normalizeMarketingPath(req.path));
+    if (html) {
+      return res.set("Content-Type", "text/html; charset=utf-8").send(html);
+    }
+    res.status(404).set("Content-Type", "text/html; charset=utf-8").send(notFoundHtml);
   });
 
   // fall through to index.html if the file doesn't exist
