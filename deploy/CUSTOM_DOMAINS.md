@@ -1,81 +1,89 @@
-# Custom Domains — Setup-Anleitung
+# Custom Domains — vollautomatisches SSL
 
-Kunden können ihre Funnels statt unter `trichterwerk.de/f/<uuid>` auch unter einer eigenen Domain ausliefern (z. B. `funnel.deine-firma.de`).
+Kunden können ihre Funnels statt unter `trichterwerk.de/f/<uuid>` unter einer eigenen Domain ausliefern (z. B. `funnel.deine-firma.de`) — **mit nur einem DNS-Eintrag**, SSL wird automatisch ausgestellt (Perspective-UX).
 
-Dieser erste Wurf ist bewusst einfach gehalten: **CNAME + TXT-Verifikation, manuelles SSL via Let's-Encrypt**. Vollautomatisches On-Demand-TLS (z. B. via Caddy) ist ein optionaler Folgeschritt.
+## Funktionsweise
 
----
-
-## 1. Im Trichterwerk-Editor
-
-Im Funnel-Editor → **Einstellungen → Eigene Domain**:
-
-1. Hostname eintragen (z. B. `funnel.deine-firma.de`) und „Hinzufügen".
-2. Der Editor zeigt einen **Verifikations-Token** an.
-
-## 2. Beim DNS-Anbieter des Kunden
-
-Zwei Records anlegen:
-
-| Typ   | Name                              | Wert                                 |
-|-------|-----------------------------------|---------------------------------------|
-| CNAME | `funnel`                          | `trichterwerk.de`                     |
-| TXT   | `_trichterwerk-verify.funnel`     | `<Token aus dem Editor>`              |
-
-DNS-Propagation: meist < 5 Minuten, kann aber bis zu 24 h dauern.
-
-## 3. Im Editor verifizieren
-
-Zurück im Editor → „Jetzt verifizieren". Der Server prüft den TXT-Record per DNS-Lookup. Bei Erfolg wird die Domain auf `verified` gesetzt.
-
-## 4. Auf dem Server (nginx + certbot)
-
-Sobald die Domain verifiziert ist, muss der Server die Domain bedienen — **das geschieht aktuell noch manuell**:
-
-```bash
-# certbot-Zertifikat für die neue Domain ausstellen
-sudo certbot certonly --nginx -d funnel.deine-firma.de
-
-# nginx-Server-Block ergänzen
-sudo tee /etc/nginx/sites-available/funnel.deine-firma.de.conf <<'EOF'
-server {
-  listen 443 ssl http2;
-  server_name funnel.deine-firma.de;
-
-  ssl_certificate     /etc/letsencrypt/live/funnel.deine-firma.de/fullchain.pem;
-  ssl_certificate_key /etc/letsencrypt/live/funnel.deine-firma.de/privkey.pem;
-
-  # An die laufende Trichterwerk-App weiterleiten
-  location / {
-    proxy_pass http://127.0.0.1:5000;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-  }
-}
-
-server {
-  listen 80;
-  server_name funnel.deine-firma.de;
-  return 301 https://$host$request_uri;
-}
-EOF
-
-sudo ln -s /etc/nginx/sites-available/funnel.deine-firma.de.conf /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
+```
+Kunde setzt CNAME → App verifiziert per DNS (CNAME/A, TXT-Legacy-Fallback)
+                  → domains.verified = true, ssl_status = 'pending'
+                              │
+systemd-Timer (minütlich) → domain-provisioner.sh (root):
+  psql SELECT pending → Preflight-DNS (dig @1.1.1.1)
+  → certbot certonly --webroot → vhost aus Template
+  → nginx -t && reload → ssl_status = 'active'
+                              │
+Editor-Panel pollt /api/domains alle 10 s solange pending → Badge „Aktiv"
 ```
 
-Die SPA erkennt anhand des `Host`-Headers (`window.location.hostname`), dass es sich um eine Custom-Domain handelt, ruft `/api/public/funnel-by-host` auf und routet automatisch zur `/f/<uuid>`-Ansicht.
+## Kundensicht
 
-## Folgeschritt: vollautomatisches SSL
+1. Im Funnel-Editor → **Eigene Domain**: Hostname eintragen, „Hinzufügen".
+2. Beim DNS-Anbieter **einen** Record anlegen:
 
-Für viele Custom-Domains ohne manuelles certbot-Aufrufen:
+   | Fall | Typ | Wert |
+   |------|-----|------|
+   | Subdomain (empfohlen), z. B. `funnel.firma.de` | CNAME | `trichterwerk.de` |
+   | Root-Domain, z. B. `firma.de` | A | `116.203.40.49` |
 
-- **Caddy** als Reverse-Proxy davor — `on_demand_tls` mit `ask`-Endpoint, der gegen `/api/public/funnel-by-host` prüft, ob die Domain verifiziert ist. Caddy holt Let's-Encrypt-Zertifikate dann automatisch beim ersten Aufruf.
-- Alternativ: nginx + Lua/cert-manager-Sidecar.
+3. Im Editor „Jetzt verifizieren" → Badge „SSL wird eingerichtet" → nach 1–2 Minuten „Aktiv".
 
-Beides ist deutlich mehr Setup — Empfehlung: erst aktivieren, sobald mehrere zahlende Kunden Custom Domains nutzen.
+Der alte TXT-Record-Flow (`_trichterwerk-verify.<host>`) funktioniert serverseitig weiter als Fallback für Bestandsdomains, wird aber nicht mehr angezeigt.
+
+## Installation auf dem Server (einmalig, als root)
+
+Der Deploy-Workflow kopiert **nichts** nach `/etc` — nach Änderungen an den `deploy/`-Dateien müssen die cp-Schritte wiederholt werden.
+
+```bash
+mkdir -p /var/www/letsencrypt /etc/nginx/customer-domains /var/lib/domain-provisioner
+
+cp /var/www/funnelflow/deploy/domain-provisioner.sh /usr/local/bin/
+chmod 755 /usr/local/bin/domain-provisioner.sh
+
+cp /var/www/funnelflow/deploy/custom-domain-vhost.template /etc/nginx/
+cp /var/www/funnelflow/deploy/domain-provisioner.service /etc/systemd/system/
+cp /var/www/funnelflow/deploy/domain-provisioner.timer /etc/systemd/system/
+
+cp /var/www/funnelflow/deploy/letsencrypt-reload-nginx.sh /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+
+# nginx-Config aktualisieren (Achtung: Live-Datei heißt "funnelflow", nicht "trichterwerk")
+cp /var/www/funnelflow/deploy/nginx-trichterwerk.conf /etc/nginx/sites-available/funnelflow
+nginx -t && systemctl reload nginx
+
+systemctl daemon-reload
+systemctl enable --now domain-provisioner.timer
+```
+
+Erster Test ohne Seiteneffekte:
+
+```bash
+DRY_RUN=1 /usr/local/bin/domain-provisioner.sh
+```
+
+Für Experimente gegen das Let's-Encrypt-Staging (zählt nicht in die Rate-Limits):
+
+```bash
+CERTBOT_EXTRA_ARGS=--staging /usr/local/bin/domain-provisioner.sh
+# danach: certbot delete --cert-name <host>  (Staging-Zert wieder entfernen)
+```
+
+## Troubleshooting
+
+| Symptom | Diagnose |
+|---------|----------|
+| Domain hängt in „SSL wird eingerichtet" | `journalctl -u domain-provisioner.service -n 100` — meist DNS noch nicht propagiert (10 min Toleranz, danach `error`) |
+| Badge „SSL-Fehler" | Kunde klickt „Erneut prüfen" (setzt `pending` zurück). Vorher DNS prüfen: `dig +short CNAME <host> @1.1.1.1` |
+| certbot-Fehler | `/var/log/letsencrypt/letsencrypt.log`; Let's-Encrypt-Limit: 5 Fehlversuche/Stunde/Hostname |
+| AAAA-Falle | Hat die Domain einen IPv6-Record, validiert Let's Encrypt dort — der Server lauscht nur auf IPv4. Kunde muss den AAAA-Record entfernen. Der Provisioner loggt eine Warnung. |
+| Timer läuft nicht | `systemctl list-timers domain-provisioner.timer`, `systemctl status domain-provisioner.service` |
+| Zertifikats-Renewals | macht `certbot.timer` automatisch (webroot bleibt über den :80-Catch-all erreichbar); Reload via `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh` |
+| Domain gelöscht, vhost noch da? | Der Cleanup-Pass des nächsten Provisioner-Laufs entfernt vhost + Zertifikat automatisch |
+
+Alle generierten vhosts liegen in `/etc/nginx/customer-domains/<host>.conf` — nicht von Hand editieren (der Cleanup-Pass löscht/erzeugt sie).
+
+**Optionaler Folgeschritt** (nginx ≥ 1.19.4): `listen 443 ssl default_server; ssl_reject_handshake on;` — sauberer Handshake-Abbruch für unbekannte Hosts statt Zertifikats-Warnung mit dem trichterwerk.de-Zert.
 
 ## DSGVO-Hinweis
 
-Wenn der Kunde die Domain nutzt, läuft Traffic erst durch dessen DNS und dann durch deinen Server. Datenschutzerklärung & AVV sollten das abdecken (subprocessor-Klausel: Trichterwerk hostet den Funnel; SUPERBRAND.marketing als Betreiber).
+Wenn der Kunde die Domain nutzt, läuft Traffic erst durch dessen DNS und dann durch deinen Server. Datenschutzerklärung & AVV sollten das abdecken (Subprocessor-Klausel: Trichterwerk hostet den Funnel; SUPERBRAND.marketing als Betreiber).

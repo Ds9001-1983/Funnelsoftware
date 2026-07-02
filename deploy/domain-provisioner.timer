@@ -1,0 +1,12 @@
+[Unit]
+Description=Minütlicher Lauf des Trichterwerk Custom-Domain-Provisioners
+
+[Timer]
+OnCalendar=minutely
+# Nach einem Reboot verpasste Läufe direkt nachholen, statt bis zur nächsten
+# vollen Minute zu warten.
+Persistent=true
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target
