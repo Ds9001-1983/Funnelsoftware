@@ -78,6 +78,9 @@ export interface IStorage {
   findRecentLead(funnelId: number, email: string, withinMs: number): Promise<Lead | undefined>;
   updateLead(id: number, userId: number, lead: Partial<Lead>): Promise<Lead | undefined>;
   deleteLead(id: number, userId: number): Promise<boolean>;
+  // DSGVO-Betroffenenrechte (nach E-Mail, über alle Funnels des Owners)
+  getLeadsByEmail(userId: number, email: string): Promise<Lead[]>;
+  deleteLeadsByEmail(userId: number, email: string): Promise<number>;
 
   // Analytics
   getAnalytics(funnelId: number): Promise<AnalyticsEvent[]>;
@@ -453,6 +456,37 @@ export class DatabaseStorage implements IStorage {
         .where(eq(funnels.id, result[0].funnelId));
 
       return true;
+    });
+  }
+
+  // DSGVO Art. 20 (Datenportabilität): alle Lead-Daten zu einer E-Mail des Owners.
+  async getLeadsByEmail(userId: number, email: string): Promise<Lead[]> {
+    const result = await db
+      .select({ lead: leads, funnelName: funnels.name })
+      .from(leads)
+      .leftJoin(funnels, eq(leads.funnelId, funnels.id))
+      .where(and(eq(leads.userId, userId), sql`lower(${leads.email}) = lower(${email})`))
+      .orderBy(desc(leads.createdAt));
+    return result.map(r => this.mapLeadToResponse(r.lead, r.funnelName));
+  }
+
+  // DSGVO Art. 17 (Löschung): alle Leads zu einer E-Mail löschen. Idempotent
+  // (0 = auch Erfolg), transaktional, korrigiert die Funnel-Lead-Zähler.
+  async deleteLeadsByEmail(userId: number, email: string): Promise<number> {
+    return await db.transaction(async (tx) => {
+      const deleted = await tx.delete(leads)
+        .where(and(eq(leads.userId, userId), sql`lower(${leads.email}) = lower(${email})`))
+        .returning({ funnelId: leads.funnelId });
+      if (deleted.length === 0) return 0;
+
+      const perFunnel = new Map<number, number>();
+      for (const r of deleted) perFunnel.set(r.funnelId, (perFunnel.get(r.funnelId) ?? 0) + 1);
+      for (const [funnelId, count] of Array.from(perFunnel.entries())) {
+        await tx.update(funnels)
+          .set({ leads: sql`GREATEST(${funnels.leads} - ${count}, 0)` })
+          .where(eq(funnels.id, funnelId));
+      }
+      return deleted.length;
     });
   }
 
