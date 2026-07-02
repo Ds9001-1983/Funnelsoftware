@@ -174,6 +174,7 @@ import {
   ElementPropertiesPanel,
 } from "@/components/funnel-editor";
 import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
+import { defaultQuizConfig } from "@/components/funnel-editor/QuizElement";
 
 import { HistoryIndicator } from "@/components/funnel-editor/HistoryIndicator";
 import { SaveStatusIndicator } from "@/components/funnel-editor/SaveStatusIndicator";
@@ -692,6 +693,9 @@ export default function FunnelEditor() {
         { id: "tm1", name: "Max Mustermann", role: "CEO", image: "", bio: "Gründer und Visionär" },
         { id: "tm2", name: "Erika Musterfrau", role: "CTO", image: "", bio: "Technische Leitung" },
       ] : undefined,
+      // Quiz — Deep-Clone zwingend, sonst teilen sich mehrere Quiz-Elemente
+      // dasselbe Config-Objekt (Aliasing über structuredClone verhindert).
+      quizConfig: type === "quiz" ? structuredClone(defaultQuizConfig) : undefined,
       // Button (new)
       buttonUrl: type === "button" ? "" : undefined,
       buttonTarget: type === "button" ? "_self" : undefined,

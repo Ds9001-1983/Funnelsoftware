@@ -1,4 +1,5 @@
 import { eq, desc, and, sql, gte } from "drizzle-orm";
+import { quizTemplateElement } from "@shared/quiz-template";
 import { db } from "./db";
 import {
   users, funnels, leads, templates, analyticsEvents, passwordResetTokens,
@@ -782,12 +783,13 @@ export class DatabaseStorage implements IStorage {
         description: "Qualifiziere Leads mit einem unterhaltsamen Quiz",
         category: "quiz",
         thumbnail: "/templates/quiz.png",
+        // Quiz-Element aus shared/quiz-template.ts — eine Quelle für Client-
+        // Templates und diesen Seed, damit Fragen/Scoring nicht driften.
         pages: [
           { id: "page-1", type: "welcome", title: "Finde heraus, welcher Typ du bist!", subtitle: "Beantworte 3 kurze Fragen", elements: [], buttonText: "Quiz starten", backgroundColor: "#10B981" },
-          { id: "page-2", type: "multiChoice", title: "Was beschreibt dich am besten?", elements: [{ id: "el-1", type: "radio", options: ["Kreativ", "Analytisch", "Teamplayer", "Führungspersönlichkeit"] }], buttonText: "Weiter" },
-          { id: "page-3", type: "multiChoice", title: "Wie triffst du Entscheidungen?", elements: [{ id: "el-1", type: "radio", options: ["Mit dem Bauch", "Datenbasiert", "Im Team", "Spontan"] }], buttonText: "Weiter" },
-          { id: "page-4", type: "contact", title: "Fast geschafft!", subtitle: "Wohin sollen wir dein Ergebnis senden?", elements: [{ id: "el-1", type: "input", placeholder: "Deine E-Mail", required: true }], buttonText: "Ergebnis anzeigen" },
-          { id: "page-5", type: "thankyou", title: "Du bist ein Innovator!", subtitle: "Check deine E-Mail für mehr Details", elements: [] },
+          { id: "page-2", type: "question", title: "Das Persönlichkeits-Quiz", elements: [quizTemplateElement], buttonText: "Weiter" },
+          { id: "page-3", type: "contact", title: "Fast geschafft!", subtitle: "Wohin sollen wir dein Ergebnis senden?", elements: [{ id: "el-1", type: "input", placeholder: "Deine E-Mail", required: true }], buttonText: "Ergebnis anzeigen" },
+          { id: "page-4", type: "thankyou", title: "Dein Ergebnis ist da!", subtitle: "Wir senden dir die Details per E-Mail", elements: [] },
         ],
         theme: { primaryColor: "#10B981", backgroundColor: "#ffffff", textColor: "#1a1a1a", fontFamily: "Inter" },
       },

@@ -62,12 +62,13 @@ describe("funnel-templates", () => {
       });
     });
 
-    it("sollte keine leeren Kategorien anzeigen (z. B. ausgeblendetes Quiz)", () => {
+    it("sollte keine leeren Kategorien anzeigen und die Quiz-Kategorie wieder führen", () => {
       templateCategories.forEach((category) => {
         if (category.id === "all") return;
         expect(category.count).toBeGreaterThan(0);
       });
-      expect(templateCategories.find((c) => c.id === "quiz")).toBeUndefined();
+      // Quiz ist seit dem Public-Rendering wieder sichtbar.
+      expect(templateCategories.find((c) => c.id === "quiz")).toBeDefined();
     });
   });
 
@@ -115,11 +116,22 @@ describe("funnel-templates", () => {
       expect(templates.length).toBeGreaterThan(0);
     });
 
-    it("sollte das Quiz vorerst ausblenden (WIP, nicht im Public-Funnel funktionsfähig)", () => {
+    it("sollte das Quiz-Template wieder anzeigen — mit echtem Quiz-Element", () => {
       const templates = getTemplatesByCategory("quiz");
-      expect(templates.length).toBe(0);
-      // Definition bleibt aber für eine spätere Reaktivierung erhalten:
-      expect(getTemplateById("template-quiz")).toBeDefined();
+      expect(templates.length).toBe(1);
+
+      const quizTemplate = getTemplateById("template-quiz");
+      expect(quizTemplate).toBeDefined();
+      expect(quizTemplate?.hidden).toBeFalsy();
+
+      // Das Template zeigt das Feature wirklich: mindestens eine Seite
+      // enthält ein konfiguriertes quiz-Element.
+      const quizElement = quizTemplate?.pages
+        .flatMap((p) => p.elements)
+        .find((el) => el.type === "quiz");
+      expect(quizElement).toBeDefined();
+      expect(quizElement?.quizConfig?.questions.length).toBeGreaterThan(0);
+      expect(quizElement?.quizConfig?.results.length).toBeGreaterThan(0);
     });
   });
 });

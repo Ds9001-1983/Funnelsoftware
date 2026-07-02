@@ -230,6 +230,7 @@ export const elementCategories: ElementCategory[] = [
     name: "Interaktiv",
     elements: [
       { type: "button", label: "Button", icon: MousePointer2, description: "Klickbarer Button" },
+      { type: "quiz", label: "Quiz", icon: Award, description: "Quiz mit Ergebnis" },
       { type: "timer", label: "Timer", icon: Clock, description: "Countdown Timer" },
       { type: "countdown", label: "Countdown", icon: Timer, description: "Ablauf-Counter" },
       { type: "progressBar", label: "Fortschritt", icon: BarChart3, description: "Fortschrittsbalken" },
