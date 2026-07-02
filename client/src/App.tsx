@@ -135,10 +135,17 @@ function Router() {
       <Route path="/nutzungsbedingungen" component={AGB} />
 
       {/* SEO-Content-Seiten (öffentlich, ohne Auth) — MÜSSEN vor dem
-          Catch-all stehen, sonst greift dessen RequireAuth-Redirect. */}
+          Catch-all stehen, sonst greift dessen RequireAuth-Redirect.
+          /vergleich ohne Slug rendert eine Übersicht, unbekannte Slugs
+          eine öffentliche 404 (beides in vergleich.tsx). */}
       <Route path="/funnel-builder">
         <Suspense fallback={<PageLoader />}>
           <FunnelBuilderGuide />
+        </Suspense>
+      </Route>
+      <Route path="/vergleich">
+        <Suspense fallback={<PageLoader />}>
+          <Vergleich />
         </Suspense>
       </Route>
       <Route path="/vergleich/:slug">
@@ -227,7 +234,8 @@ function Router() {
 function isPublicRoute(location: string, isAuthenticated: boolean): boolean {
   if (location.startsWith("/f/")) return true; // öffentliche Funnel-Ansicht
   if (location.startsWith("/preview/")) return false; // Owner-Vorschau (eingeloggt)
-  if (location.startsWith("/vergleich/")) return true; // SEO-Vergleichsseiten
+  // SEO-Vergleichsseiten inkl. Übersicht /vergleich
+  if (location === "/vergleich" || location.startsWith("/vergleich/")) return true;
   const publicExact = [
     "/login",
     "/register",

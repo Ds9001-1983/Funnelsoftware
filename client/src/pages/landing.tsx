@@ -36,9 +36,11 @@ import {
   Webhook,
   Send,
 } from "lucide-react";
-import { MarketingHeader } from "@/components/marketing/marketing-header";
-import { MarketingFooter } from "@/components/marketing/marketing-footer";
+import { useEffect } from "react";
+import { MarketingHeader } from "@/components/marketing/MarketingHeader";
+import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { CONTACT_EMAIL } from "@/components/marketing/constants";
+import { comparisonLinks } from "@shared/seo-links";
 
 const templatePreviews = [
   {
@@ -317,6 +319,16 @@ export default function Landing() {
       "Erstelle mobile-optimierte Marketing-Funnels & Landingpages in Minuten — ohne Code, ohne Agentur. DSGVO-konform, Hosting in der EU. 14 Tage kostenlos testen.",
     canonical: "/",
   });
+
+  // Anker-Navigation von Unterseiten (/#features): Der Browser scrollt beim
+  // Laden nicht selbst, weil die Landing erst nach dem Auth-Check rendert —
+  // deshalb hier einmalig nach dem Mount zum Fragment scrollen.
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash) {
+      document.querySelector(hash)?.scrollIntoView();
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -637,17 +649,14 @@ export default function Landing() {
 
           <p className="text-sm text-muted-foreground text-center mt-6">
             Ausführliche Vergleiche:{" "}
-            <Link href="/vergleich/typeform-alternative" className="underline hover:text-foreground">
-              Trichterwerk vs. Typeform
-            </Link>
-            {" · "}
-            <Link href="/vergleich/perspective-alternative" className="underline hover:text-foreground">
-              vs. Perspective
-            </Link>
-            {" · "}
-            <Link href="/vergleich/clickfunnels-alternative" className="underline hover:text-foreground">
-              vs. ClickFunnels
-            </Link>
+            {comparisonLinks.map((link, idx) => (
+              <span key={link.path}>
+                {idx > 0 && " · "}
+                <Link href={link.path} className="underline hover:text-foreground">
+                  {idx === 0 ? `Trichterwerk vs. ${link.competitor}` : `vs. ${link.competitor}`}
+                </Link>
+              </span>
+            ))}
           </p>
         </div>
       </section>

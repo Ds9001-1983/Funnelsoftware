@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, useRoute } from "wouter";
 import { usePageMeta } from "@/hooks/use-document-title";
 import { Button } from "@/components/ui/button";
@@ -9,26 +10,29 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Check, X as XIcon, ArrowRight, Zap, Sparkles } from "lucide-react";
-import { MarketingHeader } from "@/components/marketing/marketing-header";
-import { MarketingFooter } from "@/components/marketing/marketing-footer";
-import { comparisonPages, type ComparisonPageContent } from "@shared/seo-content";
+import { Check, X as XIcon, ArrowRight, Zap } from "lucide-react";
+import { MarketingHeader } from "@/components/marketing/MarketingHeader";
+import { MarketingFooter } from "@/components/marketing/MarketingFooter";
+import { MarketingCta } from "@/components/marketing/MarketingCta";
+import {
+  getComparisonPage,
+  faqPageJsonLd,
+  type ComparisonPageContent,
+} from "@shared/seo-content";
+import { SITE_ORIGIN, comparisonLinks, funnelBuilderPage } from "@shared/seo-links";
 
-const SITE_ORIGIN = "https://trichterwerk.de";
+// Einmal pro Seiten-Load statt pro Render (Disclaimer unter der Tabelle).
+const COMPETITOR_DATA_DATE = new Date().toLocaleDateString("de-DE", {
+  month: "long",
+  year: "numeric",
+});
 
 /** FAQPage + BreadcrumbList als JSON-LD (Google liest das auch client-gerendert). */
 function buildJsonLd(c: ComparisonPageContent): string {
   return JSON.stringify({
     "@context": "https://schema.org",
     "@graph": [
-      {
-        "@type": "FAQPage",
-        mainEntity: c.faqs.map((f) => ({
-          "@type": "Question",
-          name: f.q,
-          acceptedAnswer: { "@type": "Answer", text: f.a },
-        })),
-      },
+      faqPageJsonLd(c.faqs),
       {
         "@type": "BreadcrumbList",
         itemListElement: [
@@ -73,7 +77,7 @@ function IntroParagraph({ text }: { text: string }) {
     <p>
       {text.slice(0, idx)}
       <Link
-        href="/funnel-builder"
+        href={funnelBuilderPage.path}
         className="text-foreground underline underline-offset-4 decoration-primary/40 hover:decoration-primary"
       >
         {term}
@@ -83,38 +87,68 @@ function IntroParagraph({ text }: { text: string }) {
   );
 }
 
-function CtaBanner({ competitorName }: { competitorName: string }) {
+/** Buttons zu allen Vergleichsseiten (Übersicht + 404-Vorschläge). */
+function ComparisonLinkButtons() {
   return (
-    <section className="py-20 px-4 bg-muted/30 border-t">
-      <div className="container mx-auto max-w-4xl">
-        <Card className="bg-primary text-primary-foreground overflow-hidden">
-          <CardContent className="p-12 text-center">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/15 px-3 py-1 text-sm font-medium mb-5">
-              <Sparkles className="h-3.5 w-3.5" />
-              14 Tage gratis · Monatlich kündbar
-            </div>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Bereit für die {competitorName}-Alternative aus Deutschland?
-            </h2>
-            <p className="text-primary-foreground/85 max-w-2xl mx-auto mb-8">
-              Teste Trichterwerk 14 Tage kostenlos mit vollem Funktionsumfang —
-              erste Belastung erst nach der Testphase, Kündigung mit zwei Klicks.
-            </p>
-            <Link href="/register">
-              <Button size="lg" variant="secondary" className="gap-2 text-lg px-8">
-                14 Tage kostenlos testen
-                <ArrowRight className="h-5 w-5" />
+    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+      {comparisonLinks.map((link) => (
+        <Link key={link.path} href={link.path}>
+          <Button variant="outline">{link.competitor}-Alternative</Button>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+/** Übersichtsseite für /vergleich ohne Slug. */
+function ComparisonIndex() {
+  usePageMeta({
+    title: "Trichterwerk im Vergleich",
+    description:
+      "Trichterwerk ehrlich verglichen mit Typeform, Perspective und ClickFunnels — Features, Preise, DSGVO. Finde heraus, welcher Funnel-Builder zu dir passt.",
+    canonical: "/vergleich",
+  });
+
+  return (
+    <div className="min-h-screen bg-background">
+      <MarketingHeader />
+      <section className="pt-32 pb-24 px-4 text-center">
+        <div className="container mx-auto max-w-2xl">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">Trichterwerk im Vergleich</h1>
+          <p className="text-lg text-muted-foreground mb-10">
+            Ehrlich verglichen mit den bekanntesten Alternativen — Features,
+            Preise und DSGVO im Detail:
+          </p>
+          <ComparisonLinkButtons />
+          <div className="mt-10">
+            <Link href={funnelBuilderPage.path}>
+              <Button variant="ghost" className="gap-2">
+                Was ist ein Funnel-Builder?
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-          </CardContent>
-        </Card>
-      </div>
-    </section>
+          </div>
+        </div>
+      </section>
+      <MarketingFooter />
+    </div>
   );
 }
 
 /** Öffentliche 404 für unbekannte Vergleichs-Slugs — darf NICHT in den auth-Catch-all fallen. */
 function PublicNotFound() {
+  // Soft-404-Hygiene: Crawler sollen diese URL nicht indexieren (der Server
+  // antwortet in Prod zusätzlich mit echtem 404-Status, siehe server/static.ts).
+  useEffect(() => {
+    const meta = document.createElement("meta");
+    meta.setAttribute("name", "robots");
+    meta.setAttribute("content", "noindex");
+    document.head.appendChild(meta);
+    return () => meta.remove();
+  }, []);
+
+  usePageMeta({ title: "Seite nicht gefunden" });
+
   return (
     <div className="min-h-screen bg-background">
       <MarketingHeader />
@@ -124,12 +158,8 @@ function PublicNotFound() {
           <p className="text-muted-foreground mb-8">
             Diesen Vergleich gibt es (noch) nicht. Vielleicht interessiert dich einer davon:
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-10">
-            {Object.values(comparisonPages).map((c) => (
-              <Link key={c.slug} href={`/vergleich/${c.slug}`}>
-                <Button variant="outline">{c.competitorName}-Alternative</Button>
-              </Link>
-            ))}
+          <div className="mb-10">
+            <ComparisonLinkButtons />
           </div>
           <Link href="/">
             <Button className="gap-2">
@@ -147,21 +177,37 @@ function PublicNotFound() {
 /**
  * Daten-getriebene Vergleichsseite (/vergleich/:slug) — Content kommt aus
  * shared/seo-content.ts, damit Sitemap und Server-Meta dieselbe Quelle nutzen.
+ * Ohne Slug (/vergleich) wird eine Übersicht gerendert; usePageMeta lebt in
+ * den Blatt-Komponenten (Parent-Effekte liefen sonst NACH den Kind-Effekten
+ * und würden deren Meta überschreiben).
  */
 export default function Vergleich() {
-  const [, params] = useRoute("/vergleich/:slug");
-  const content = params?.slug ? comparisonPages[params.slug] : undefined;
+  const [matchesSlug, params] = useRoute("/vergleich/:slug");
+  const content = getComparisonPage(params?.slug);
 
-  usePageMeta({
-    title: content?.metaTitle ?? "Seite nicht gefunden",
-    description: content?.metaDescription,
-    canonical: content ? `/vergleich/${content.slug}` : undefined,
-  });
+  // Interne wouter-Navigation ersetzt das Dokument nicht — ohne Reset landet
+  // der Besucher auf der Zielseite dort, wo er auf der Quellseite stand
+  // (die Querverweise liegen alle am Seitenende).
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [params?.slug]);
 
+  if (!matchesSlug) {
+    return <ComparisonIndex />;
+  }
   if (!content) {
     return <PublicNotFound />;
   }
-  const c = content;
+  return <ComparisonContent c={content} />;
+}
+
+/** Ausgerenderte Vergleichsseite für einen bekannten Registry-Eintrag. */
+function ComparisonContent({ c }: { c: ComparisonPageContent }) {
+  usePageMeta({
+    title: c.metaTitle,
+    description: c.metaDescription,
+    canonical: `/vergleich/${c.slug}`,
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -246,8 +292,7 @@ export default function Vergleich() {
             </table>
           </div>
           <p className="text-xs text-muted-foreground text-center mt-4">
-            Preise und Features von {c.competitorName}: Stand{" "}
-            {new Date().toLocaleDateString("de-DE", { month: "long", year: "numeric" })}.
+            Preise und Features von {c.competitorName}: Stand {COMPETITOR_DATA_DATE}.
             Ohne Gewähr — aktuelle Details auf der Anbieter-Website.
           </p>
         </div>
@@ -351,7 +396,10 @@ export default function Vergleich() {
         </div>
       </section>
 
-      <CtaBanner competitorName={c.competitorName} />
+      <MarketingCta
+        title={`Bereit für die ${c.competitorName}-Alternative aus Deutschland?`}
+        text="Teste Trichterwerk 14 Tage kostenlos mit vollem Funktionsumfang — erste Belastung erst nach der Testphase, Kündigung mit zwei Klicks."
+      />
 
       {/* Weitere Vergleiche (interne Verlinkung) */}
       <section className="py-16 px-4">
@@ -359,8 +407,8 @@ export default function Vergleich() {
           <h2 className="text-2xl font-bold mb-6">Weitere Vergleiche</h2>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             {c.relatedSlugs
-              .map((slug) => comparisonPages[slug])
-              .filter(Boolean)
+              .map((slug) => getComparisonPage(slug))
+              .filter((related): related is ComparisonPageContent => !!related)
               .map((related) => (
                 <Link key={related.slug} href={`/vergleich/${related.slug}`}>
                   <Button variant="outline">
@@ -368,7 +416,7 @@ export default function Vergleich() {
                   </Button>
                 </Link>
               ))}
-            <Link href="/funnel-builder">
+            <Link href={funnelBuilderPage.path}>
               <Button variant="outline">Was ist ein Funnel-Builder?</Button>
             </Link>
           </div>

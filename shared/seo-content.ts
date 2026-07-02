@@ -4,14 +4,15 @@
  * (Lazy-Page client/src/pages/vergleich.tsx) als auch vom Server genutzt
  * (Sitemap in server/routes.ts, SSR-Meta-Injektion in server/static.ts).
  *
- * WICHTIG: client/src/App.tsx darf diese Datei NICHT importieren, sonst
- * landet der gesamte Content im Haupt-Bundle statt im Lazy-Chunk.
+ * WICHTIG: Haupt-Bundle-Code (App.tsx, MarketingFooter, Landing) darf diese
+ * Datei NICHT importieren, sonst landet der gesamte Content im Haupt-Bundle
+ * statt im Lazy-Chunk — dafür gibt es das leichte shared/seo-links.ts.
  */
 
-export interface SeoFaq {
-  q: string;
-  a: string;
-}
+import { funnelBuilderPage, type SeoFaq, type SeoStaticPage } from "./seo-links";
+
+export { faqPageJsonLd } from "./seo-links";
+export type { SeoFaq, SeoStaticPage } from "./seo-links";
 
 export interface SeoComparisonRow {
   label: string;
@@ -381,28 +382,22 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
   },
 };
 
-export interface SeoStaticPage {
-  path: string;
-  /** Ohne Suffix — Server hängt " | Trichterwerk" an. */
-  metaTitle: string;
-  metaDescription: string;
-}
-
 /**
  * Alle statischen SEO-Seiten (für Sitemap + SSR-Meta-Injektion).
  * Vergleichsseiten werden aus comparisonPages abgeleitet, damit Routen,
  * Sitemap und Server-Meta nicht auseinanderlaufen.
  */
 export const seoStaticPages: SeoStaticPage[] = [
-  {
-    path: "/funnel-builder",
-    metaTitle: "Funnel-Builder: Marketing-Funnels ohne Code erstellen",
-    metaDescription:
-      "Was ist ein Funnel-Builder und wie erstellst du damit Funnels ohne Code? Der Guide aus Deutschland — DSGVO-konform, ab 49 €/Monat, 14 Tage kostenlos testen.",
-  },
+  funnelBuilderPage,
   ...Object.values(comparisonPages).map((c) => ({
     path: `/vergleich/${c.slug}`,
     metaTitle: c.metaTitle,
     metaDescription: c.metaDescription,
   })),
 ];
+
+/** Registry-Lookup, gehärtet gegen Prototype-Keys ("constructor", "__proto__", …). */
+export function getComparisonPage(slug: string | undefined): ComparisonPageContent | undefined {
+  if (!slug || !Object.hasOwn(comparisonPages, slug)) return undefined;
+  return comparisonPages[slug];
+}

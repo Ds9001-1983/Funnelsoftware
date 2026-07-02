@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "wouter";
 import { usePageMeta } from "@/hooks/use-document-title";
 import { Button } from "@/components/ui/button";
@@ -21,11 +22,12 @@ import {
   Zap,
   GitCompare,
 } from "lucide-react";
-import { MarketingHeader } from "@/components/marketing/marketing-header";
-import { MarketingFooter } from "@/components/marketing/marketing-footer";
-import { comparisonPages, seoStaticPages } from "@shared/seo-content";
-
-const PAGE_META = seoStaticPages.find((p) => p.path === "/funnel-builder")!;
+import { MarketingHeader } from "@/components/marketing/MarketingHeader";
+import { MarketingFooter } from "@/components/marketing/MarketingFooter";
+import { MarketingCta } from "@/components/marketing/MarketingCta";
+// Bewusst NUR das leichte seo-links-Modul — die große Content-Registry
+// (shared/seo-content.ts) bleibt dem Vergleichsseiten-Chunk vorbehalten.
+import { comparisonLinks, funnelBuilderPage, faqPageJsonLd } from "@shared/seo-links";
 
 const buildingBlocks = [
   {
@@ -102,17 +104,8 @@ const faqs = [
   },
 ];
 
-function buildJsonLd(): string {
-  return JSON.stringify({
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: faqs.map((f) => ({
-      "@type": "Question",
-      name: f.q,
-      acceptedAnswer: { "@type": "Answer", text: f.a },
-    })),
-  });
-}
+// Statischer Inhalt → einmal pro Modul-Load statt pro Render.
+const JSON_LD = JSON.stringify({ "@context": "https://schema.org", ...faqPageJsonLd(faqs) });
 
 /**
  * Pillar-Page für „Funnel-Builder" — erklärt die Tool-Kategorie und verlinkt
@@ -120,15 +113,20 @@ function buildJsonLd(): string {
  */
 export default function FunnelBuilder() {
   usePageMeta({
-    title: PAGE_META.metaTitle,
-    description: PAGE_META.metaDescription,
-    canonical: "/funnel-builder",
+    title: funnelBuilderPage.metaTitle,
+    description: funnelBuilderPage.metaDescription,
+    canonical: funnelBuilderPage.path,
   });
+
+  // Scroll-Reset bei interner wouter-Navigation (Querverweise liegen am Seitenende).
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
       <MarketingHeader />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: buildJsonLd() }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON_LD }} />
 
       {/* Hero */}
       <section className="pt-32 pb-16 px-4">
@@ -304,11 +302,11 @@ export default function FunnelBuilder() {
             die bekanntesten Alternativen ehrlich gegenübergestellt:
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            {Object.values(comparisonPages).map((c) => (
-              <Link key={c.slug} href={`/vergleich/${c.slug}`}>
+            {comparisonLinks.map((link) => (
+              <Link key={link.path} href={link.path}>
                 <Button variant="outline" className="gap-2">
                   <Zap className="h-4 w-4 text-primary" />
-                  vs. {c.competitorName}
+                  vs. {link.competitor}
                 </Button>
               </Link>
             ))}
@@ -333,31 +331,10 @@ export default function FunnelBuilder() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto max-w-4xl">
-          <Card className="bg-primary text-primary-foreground overflow-hidden">
-            <CardContent className="p-12 text-center">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                Bau deinen ersten Funnel — heute noch
-              </h2>
-              <p className="text-primary-foreground/85 max-w-2xl mx-auto mb-8">
-                Vom Signup zum ersten Lead in unter einer Stunde: Template
-                wählen, anpassen, veröffentlichen. 14 Tage kostenlos, monatlich
-                kündbar.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Link href="/register">
-                  <Button size="lg" variant="secondary" className="gap-2 text-lg px-8">
-                    14 Tage kostenlos testen
-                    <ArrowRight className="h-5 w-5" />
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+      <MarketingCta
+        title="Bau deinen ersten Funnel — heute noch"
+        text="Vom Signup zum ersten Lead in unter einer Stunde: Template wählen, anpassen, veröffentlichen. 14 Tage kostenlos, monatlich kündbar."
+      />
 
       <MarketingFooter />
     </div>

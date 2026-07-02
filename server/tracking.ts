@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import { comparisonLinks, funnelBuilderPage } from "@shared/seo-links";
 
 // Reichweitenmessung für trichterwerk.de — cookieless & datensparsam.
 //
@@ -80,6 +81,10 @@ const TRACKABLE_PATHS = new Set([
   "/nutzungsbedingungen",
   "/login",
   "/register",
+  // SEO-Marketing-Seiten — genau deren Reichweite soll gemessen werden.
+  funnelBuilderPage.path,
+  "/vergleich",
+  ...comparisonLinks.map((l) => l.path),
 ]);
 
 /** True, wenn der Pfad zur Reichweiten-Whitelist gehört. */

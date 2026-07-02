@@ -2,12 +2,13 @@ import { Link } from "wouter";
 import { Zap, Mail, Cookie } from "lucide-react";
 import { resetCookieConsent } from "@/components/cookie-consent";
 import { CONTACT_EMAIL } from "./constants";
+import { comparisonLinks, funnelBuilderPage } from "@shared/seo-links";
 
 /**
  * Footer für alle öffentlichen Marketing-Seiten. Die „Vergleiche"-Spalte ist das
- * interne Link-Rückgrat der SEO-Seiten — Links hier bewusst hart codiert (kein
- * Import der Registry aus shared/seo-content.ts, damit der Content nicht im
- * Haupt-Bundle landet).
+ * interne Link-Rückgrat der SEO-Seiten — gespeist aus dem leichten
+ * shared/seo-links.ts (NICHT aus der großen Content-Registry, die bleibt im
+ * Lazy-Chunk der Vergleichsseiten).
  */
 export function MarketingFooter() {
   return (
@@ -46,10 +47,18 @@ export function MarketingFooter() {
           <div>
             <h4 className="font-semibold mb-4">Vergleiche</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="/funnel-builder" className="hover:text-foreground">Funnel-Builder</Link></li>
-              <li><Link href="/vergleich/typeform-alternative" className="hover:text-foreground">Typeform-Alternative</Link></li>
-              <li><Link href="/vergleich/perspective-alternative" className="hover:text-foreground">Perspective-Alternative</Link></li>
-              <li><Link href="/vergleich/clickfunnels-alternative" className="hover:text-foreground">ClickFunnels-Alternative</Link></li>
+              <li>
+                <Link href={funnelBuilderPage.path} className="hover:text-foreground">
+                  Funnel-Builder
+                </Link>
+              </li>
+              {comparisonLinks.map((link) => (
+                <li key={link.path}>
+                  <Link href={link.path} className="hover:text-foreground">
+                    {link.competitor}-Alternative
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
           <div>

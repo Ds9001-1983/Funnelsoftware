@@ -1,8 +1,8 @@
 import { useEffect } from "react";
+import { SITE_ORIGIN } from "@shared/seo-links";
 
 const SUFFIX = "Trichterwerk";
 const DEFAULT_TITLE = "Trichterwerk - Funnel Builder";
-const SITE_ORIGIN = "https://trichterwerk.de";
 
 /** Setzt nur den Dokumenttitel (Bestands-API, weiterhin von vielen Seiten genutzt). */
 export function useDocumentTitle(title: string) {
