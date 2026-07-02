@@ -266,7 +266,7 @@ export default function Register() {
                 />
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading} size="lg">
+              <Button type="submit" className="w-full" disabled={isLoading} size="lg" data-testid="button-register-submit">
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

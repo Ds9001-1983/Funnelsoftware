@@ -52,5 +52,9 @@ Läuft auf **http://localhost:5000**.
 - **Admin-Panel:** `/admin`, Login mit `ADMIN_USERNAME` / `ADMIN_PASSWORD` aus der `.env`.
 - **TypeScript-Check:** `npm run check`
 - **Tests:** `npm run test:run` (CI führt sie zuverlässig aus; lokal kann der Vitest-Worker je nach Umgebung Probleme beim Forken haben — dann auf `npm run check` stützen).
-- **End-to-End-Tests (Playwright):** einmalig `npm run test:e2e:install` (Browser herunterladen), dann `npm run test:e2e`. Startet automatisch den Dev-Server auf Port 5000 und führt die Smoke-Tests in `tests-e2e/` aus.
+- **End-to-End-Tests (Playwright):** einmalig `npm run test:e2e:install` (Browser herunterladen), dann `npm run test:e2e`.
+  - **Voraussetzung:** ein lokal laufendes PostgreSQL (z. B. `brew services start postgresql@16`). Die Tests nutzen eine eigene Wegwerf-Datenbank `funnelsoftware_e2e`, die automatisch angelegt und migriert wird — die eigene Dev-DB wird nie angefasst. Abweichende Verbindung per `E2E_DATABASE_URL` setzen.
+  - Der Dev-Server wird automatisch auf **Port 5137** gestartet (nicht 5000 — den belegt auf macOS der AirPlay-Receiver), mit deaktiviertem Stripe/SMTP: Registrierung bleibt in der App, der E-Mail-Verifikations-Token wird direkt aus der Test-DB gelesen.
+  - `PLAYWRIGHT_NO_SERVER=1` überspringt den verwalteten Server. Dann muss der Zielserver mit **derselben** Datenbank wie `E2E_DATABASE_URL` und ohne Stripe-Keys laufen, sonst lesen die DB-Helper die falsche Datenbank bzw. /register leitet zu Stripe um.
+  - Die Suite deckt den kompletten Lebenszyklus ab: Registrieren → E-Mail verifizieren → Funnel erstellen → publizieren → als Besucher ausfüllen → Lead-Persistenz; dazu Lead-Schutz (Honeypot, Dedup) und die Landing-Smoke-Tests.
 - **Produktions-Build:** `npm run build`, Start mit `npm start`.

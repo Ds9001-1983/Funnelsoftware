@@ -231,6 +231,7 @@ export function PublishDialog({
                     onChange={(e) => handleSlugChange(e.target.value)}
                     placeholder="mein-funnel"
                     className="pr-8"
+                    data-testid="input-publish-slug"
                   />
                   <div className="absolute right-2 top-1/2 -translate-y-1/2">
                     {isChecking && (
@@ -282,6 +283,7 @@ export function PublishDialog({
                 size="sm"
                 className="gap-1.5"
                 onClick={handleSubmit}
+                data-testid="button-confirm-publish"
                 disabled={
                   isSubmitting ||
                   !isSlugValid ||
