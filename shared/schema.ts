@@ -213,6 +213,28 @@ export const platformVisits = pgTable("platform_visits", {
   index("platform_visits_event_idx").on(table.eventType),
 ]);
 
+// KI-Zugangsdaten pro User (Bring-Your-Own-Key): Der Kunde hinterlegt seinen
+// EIGENEN Provider + API-Key → Trichterwerk trägt keine KI-Kosten. Bewusst eine
+// eigene Tabelle (nicht in `users`), damit der verschlüsselte Key NICHT über die
+// Session-Deserialisierung / GET /api/auth/user nach außen gelangt.
+export const aiCredentials = pgTable("ai_credentials", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull(), // anthropic | openai | openai-compatible
+  model: text("model").notNull(),
+  baseUrl: text("base_url"), // nur bei openai-compatible
+  // AES-256-GCM: "iv:authTag:ciphertext" (hex) — siehe server/crypto.ts.
+  keyCiphertext: text("key_ciphertext").notNull(),
+  keyLast4: text("key_last4").notNull(), // nur für die maskierte Anzeige, NIE der Key
+  testedAt: timestamp("tested_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("ai_credentials_user_id_idx").on(table.userId),
+]);
+
+export type InsertAiCredential = typeof aiCredentials.$inferInsert;
+
 // Password reset tokens
 export const passwordResetTokens = pgTable("password_reset_tokens", {
   id: serial("id").primaryKey(),
@@ -662,6 +684,54 @@ export const themeSchema = z.object({
   textColor: z.string(),
   fontFamily: z.string(),
 });
+
+// ===== KI-Funnel-Erstellung (Bring-Your-Own-Key) =====
+
+export const aiProviderEnum = z.enum(["anthropic", "openai", "openai-compatible"]);
+export type AiProvider = z.infer<typeof aiProviderEnum>;
+
+/** Was der Client beim Speichern der KI-Zugangsdaten senden darf. */
+export const aiCredentialInputSchema = z
+  .object({
+    provider: aiProviderEnum,
+    model: z.string().min(1).max(100),
+    apiKey: z.string().min(20).max(400),
+    // Nur für openai-compatible (Groq/Together/OpenRouter/self-hosted). Muss https sein.
+    baseUrl: z.string().url().max(300).refine((v) => v.startsWith("https://"), {
+      message: "Base-URL muss mit https:// beginnen",
+    }).optional().nullable(),
+  })
+  .refine((d) => d.provider !== "openai-compatible" || !!d.baseUrl, {
+    message: "Base-URL ist für OpenAI-kompatible Anbieter erforderlich.",
+    path: ["baseUrl"],
+  });
+export type AiCredentialInput = z.infer<typeof aiCredentialInputSchema>;
+
+/** Was der Server an den Client zurückgibt — NIE der Key selbst. */
+export const aiCredentialStatusSchema = z.object({
+  configured: z.boolean(),
+  provider: aiProviderEnum.optional(),
+  model: z.string().optional(),
+  baseUrl: z.string().nullable().optional(),
+  keyLast4: z.string().optional(),
+  testedAt: z.string().nullable().optional(),
+});
+export type AiCredentialStatus = z.infer<typeof aiCredentialStatusSchema>;
+
+/** Eingabe für die KI-Funnel-Generierung. */
+export const generateFunnelInputSchema = z.object({
+  description: z.string().min(10).max(2000),
+  audience: z.string().max(500).optional(),
+  pageCount: z.number().int().min(3).max(10).default(5),
+});
+export type GenerateFunnelInput = z.infer<typeof generateFunnelInputSchema>;
+
+/** Striktes Ziel-Schema für den KI-Output — nur schema-konformes JSON kommt durch. */
+export const aiFunnelOutputSchema = z.object({
+  pages: z.array(funnelPageSchema).min(2).max(12),
+  theme: themeSchema,
+});
+export type AiFunnelOutput = z.infer<typeof aiFunnelOutputSchema>;
 
 export type Theme = z.infer<typeof themeSchema>;
 

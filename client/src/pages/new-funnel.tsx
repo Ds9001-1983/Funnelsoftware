@@ -11,6 +11,7 @@ import {
   ShoppingCart,
   Sparkles,
   ClipboardList,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,9 +22,9 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest, ApiError } from "@/lib/queryClient";
 import { visibleTemplates, createBlankFunnel, type ClientTemplate } from "@/lib/templates";
 import { remapElementIds } from "@/lib/utils";
-import type { InsertFunnel } from "@shared/schema";
+import type { InsertFunnel, FunnelPage, Theme } from "@shared/schema";
 
-type Step = "template" | "details";
+type Step = "template" | "ai" | "details";
 
 const categoryIcons: Record<ClientTemplate["category"], React.ElementType> = {
   leads: Users,
@@ -102,8 +103,13 @@ export default function NewFunnel() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [selectedTemplate, setSelectedTemplate] = useState<ClientTemplate | null>(null);
   const [useBlank, setUseBlank] = useState(false);
+  const [useAi, setUseAi] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  // KI-Erstellung
+  const [aiDescription, setAiDescription] = useState("");
+  const [aiAudience, setAiAudience] = useState("");
+  const [aiPageCount, setAiPageCount] = useState(5);
   const { toast } = useToast();
 
   const createMutation = useMutation({
@@ -132,8 +138,52 @@ export default function NewFunnel() {
     },
   });
 
+  const aiGenerateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/ai/generate-funnel", {
+        description: aiDescription.trim(),
+        audience: aiAudience.trim() || undefined,
+        pageCount: aiPageCount,
+      });
+      return res.json() as Promise<{ pages: FunnelPage[]; theme: Theme }>;
+    },
+    onSuccess: (funnel) => {
+      // KI liefert feste String-IDs → remapElementIds macht sie funnel-weit eindeutig,
+      // dann läuft der Funnel über denselben POST /api/funnels-Pfad wie Templates.
+      createMutation.mutate({
+        name: name.trim() || "Neuer KI-Funnel",
+        description: aiDescription.trim().slice(0, 200) || undefined,
+        status: "draft",
+        pages: remapElementIds(funnel.pages),
+        theme: funnel.theme,
+      });
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.code === "AI_NO_KEY") {
+        toast({
+          title: "Keine KI verbunden",
+          description: "Bitte zuerst in den Einstellungen einen KI-Anbieter verbinden.",
+        });
+        navigate("/settings?tab=ai");
+        return;
+      }
+      if (error instanceof ApiError && (error.code === "TRIAL_EXPIRED" || error.code === "EMAIL_NOT_VERIFIED")) {
+        return;
+      }
+      toast({
+        variant: "destructive",
+        title: "Generierung fehlgeschlagen",
+        description: error instanceof Error ? error.message : "Bitte Beschreibung anpassen und erneut versuchen.",
+      });
+    },
+  });
+
+  const aiBusy = aiGenerateMutation.isPending || createMutation.isPending;
+
   const handleContinue = () => {
-    if (step === "template" && (selectedTemplate || useBlank)) {
+    if (step === "template" && useAi) {
+      setStep("ai");
+    } else if (step === "template" && (selectedTemplate || useBlank)) {
       setStep("details");
       if (selectedTemplate) {
         setName(selectedTemplate.name);
@@ -158,7 +208,7 @@ export default function NewFunnel() {
   };
 
   const handleBack = () => {
-    if (step === "details") {
+    if (step === "details" || step === "ai") {
       setStep("template");
     } else {
       navigate("/funnels");
@@ -182,8 +232,10 @@ export default function NewFunnel() {
               <h1 className="text-xl font-semibold">Neuen Funnel erstellen</h1>
               <p className="text-sm text-muted-foreground">
                 {step === "template"
-                  ? "Wähle eine Vorlage oder starte von Grund auf"
-                  : "Gib deinem Funnel einen Namen"}
+                  ? "Wähle eine Vorlage, lass die KI bauen oder starte von Grund auf"
+                  : step === "ai"
+                    ? "Beschreibe dein Angebot — deine KI baut den Funnel"
+                    : "Gib deinem Funnel einen Namen"}
               </p>
             </div>
           </div>
@@ -193,9 +245,40 @@ export default function NewFunnel() {
       <div className="max-w-4xl mx-auto px-6 py-8">
         {step === "template" ? (
           <div className="space-y-8">
+            {/* KI-Erstellung — Flaggschiff-Option, prominent oben */}
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <Sparkles className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-medium">Mit KI erstellen</h2>
+              </div>
+              <Card
+                className={`cursor-pointer transition-all hover-elevate border-primary/40 bg-primary/5 ${
+                  useAi ? "ring-2 ring-primary ring-offset-2" : ""
+                }`}
+                onClick={() => {
+                  setUseAi(true);
+                  setSelectedTemplate(null);
+                  setUseBlank(false);
+                }}
+                data-testid="template-ai"
+              >
+                <CardContent className="p-6 flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-md bg-primary/15 flex items-center justify-center">
+                    <Sparkles className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Funnel per KI generieren</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Beschreibe dein Angebot — deine verbundene KI baut Seiten, Fragen und Kontaktformular.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <ClipboardList className="h-5 w-5 text-muted-foreground" />
                 <h2 className="text-lg font-medium">Vorlagen</h2>
               </div>
 
@@ -272,11 +355,82 @@ export default function NewFunnel() {
             <div className="flex justify-end">
               <Button
                 onClick={handleContinue}
-                disabled={!selectedTemplate && !useBlank}
+                disabled={!selectedTemplate && !useBlank && !useAi}
                 className="min-w-[120px]"
                 data-testid="button-continue"
               >
                 Weiter
+              </Button>
+            </div>
+          </div>
+        ) : step === "ai" ? (
+          <div className="max-w-lg mx-auto space-y-6">
+            <Card>
+              <CardContent className="p-6 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ai-desc">Beschreibe dein Angebot / Ziel *</Label>
+                  <Textarea
+                    id="ai-desc"
+                    placeholder="z.B. Ich verkaufe Online-Kurse für Webdesign und möchte qualifizierte Leads für ein Erstgespräch sammeln."
+                    value={aiDescription}
+                    onChange={(e) => setAiDescription(e.target.value)}
+                    rows={4}
+                    data-testid="input-ai-description"
+                  />
+                  <p className="text-xs text-muted-foreground">Mindestens 10 Zeichen. Je konkreter, desto besser.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ai-aud">Zielgruppe (optional)</Label>
+                  <Input
+                    id="ai-aud"
+                    placeholder="z.B. Selbstständige & kleine Agenturen"
+                    value={aiAudience}
+                    onChange={(e) => setAiAudience(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ai-name">Funnel-Name (optional)</Label>
+                  <Input
+                    id="ai-name"
+                    placeholder="Neuer KI-Funnel"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ai-pages">Seitenzahl: {aiPageCount}</Label>
+                  <input
+                    id="ai-pages"
+                    type="range"
+                    min={3}
+                    max={10}
+                    value={aiPageCount}
+                    onChange={(e) => setAiPageCount(Number(e.target.value))}
+                    className="w-full accent-primary"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={handleBack} disabled={aiBusy} data-testid="button-back-ai">
+                Zurück
+              </Button>
+              <Button
+                onClick={() => aiGenerateMutation.mutate()}
+                disabled={aiDescription.trim().length < 10 || aiBusy}
+                className="min-w-[170px]"
+                data-testid="button-generate-ai"
+              >
+                {aiBusy ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> KI erstellt deinen Funnel…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" /> Funnel generieren
+                  </>
+                )}
               </Button>
             </div>
           </div>

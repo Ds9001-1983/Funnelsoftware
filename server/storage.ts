@@ -2,13 +2,15 @@ import { eq, desc, and, sql, gte } from "drizzle-orm";
 import { db } from "./db";
 import {
   users, funnels, leads, templates, analyticsEvents, passwordResetTokens,
-  teams, teamMembers, apiKeys, domains, platformVisits,
+  teams, teamMembers, apiKeys, domains, platformVisits, aiCredentials,
   type User, type InsertUser, type Funnel, type InsertFunnel,
   type Lead, type InsertLead, type AnalyticsEvent, type Template,
   type FunnelPage, type Theme, type ABTest,
   type Team, type InsertTeam, type TeamMember, type ApiKey, type InsertApiKey,
-  type Domain, type InsertPlatformVisit,
+  type Domain, type InsertPlatformVisit, type InsertAiCredential,
 } from "@shared/schema";
+
+type AiCredentialRow = typeof aiCredentials.$inferSelect;
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
@@ -84,6 +86,12 @@ export interface IStorage {
   // Plattform-Reichweite (trichterwerk.de selbst, cookieless)
   createPlatformVisit(visit: InsertPlatformVisit): Promise<void>;
   getPlatformStats(days: number): Promise<PlatformStats>;
+
+  // KI-Zugangsdaten (Bring-Your-Own-Key)
+  getAiCredential(userId: number): Promise<AiCredentialRow | undefined>;
+  upsertAiCredential(userId: number, data: Omit<InsertAiCredential, "userId">): Promise<void>;
+  deleteAiCredential(userId: number): Promise<void>;
+  touchAiCredentialTested(userId: number): Promise<void>;
 
   // Templates
   getTemplates(): Promise<Template[]>;
@@ -574,6 +582,31 @@ export class DatabaseStorage implements IStorage {
       topReferrers: topReferrers.map(r => ({ host: String(r.host), count: Number(r.count) })),
       topUtmSources: topUtmSources.map(r => ({ source: String(r.source), count: Number(r.count) })),
     };
+  }
+
+  // ============ KI-ZUGANGSDATEN (Bring-Your-Own-Key) ============
+
+  async getAiCredential(userId: number): Promise<AiCredentialRow | undefined> {
+    const [row] = await db.select().from(aiCredentials).where(eq(aiCredentials.userId, userId));
+    return row;
+  }
+
+  async upsertAiCredential(userId: number, data: Omit<InsertAiCredential, "userId">): Promise<void> {
+    await db.insert(aiCredentials)
+      .values({ userId, ...data })
+      .onConflictDoUpdate({
+        target: aiCredentials.userId,
+        // Key/Modell geändert → testedAt zurücksetzen (Verbindung neu prüfen).
+        set: { ...data, testedAt: null, updatedAt: new Date() },
+      });
+  }
+
+  async deleteAiCredential(userId: number): Promise<void> {
+    await db.delete(aiCredentials).where(eq(aiCredentials.userId, userId));
+  }
+
+  async touchAiCredentialTested(userId: number): Promise<void> {
+    await db.update(aiCredentials).set({ testedAt: new Date() }).where(eq(aiCredentials.userId, userId));
   }
 
   // ============ TEMPLATES ============

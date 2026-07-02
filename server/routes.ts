@@ -24,9 +24,12 @@ import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan, requi
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema, insertDomainSchema,
   loginSchema, registerSchema, slugSchema, passwordSchema, trackEventSchema,
+  aiCredentialInputSchema, generateFunnelInputSchema,
   MAX_IMAGE_UPLOAD_BYTES, MAX_AUDIO_UPLOAD_BYTES
 } from "@shared/schema";
 import { dailyVisitorHash, deriveReferrerHost, deriveDeviceClass, deriveCountry, isTrackablePath } from "./tracking";
+import { encryptSecret, decryptSecret, last4 } from "./crypto";
+import { generateFunnel, testConnection, AiError, type DecryptedCredential } from "./ai";
 import { z } from "zod";
 
 // Partial update schemas for PATCH endpoints
@@ -50,6 +53,25 @@ const leadCreateLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 Minute
   max: 12,
   message: { error: "Zu viele Übermittlungen. Bitte einen Moment warten." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// KI-Endpoints sind teuer beim Kunden-Provider → pro angemeldetem User drosseln.
+const aiUserKey = (req: Request) => String((req as any).user?.id ?? "anon");
+const aiGenerateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  keyGenerator: aiUserKey,
+  message: { error: "Zu viele KI-Anfragen. Bitte kurz warten." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const aiTestLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  keyGenerator: aiUserKey,
+  message: { error: "Zu viele Test-Anfragen. Bitte kurz warten." },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -1537,6 +1559,119 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Create portal error:", error);
       res.status(500).json({ error: "Portal konnte nicht geöffnet werden" });
+    }
+  });
+
+  // ============ KI (Bring-Your-Own-Key) ============
+
+  // Lädt + entschlüsselt die Kunden-Zugangsdaten (Key nur transient im RAM).
+  async function loadDecryptedCredential(userId: number): Promise<DecryptedCredential | null> {
+    const row = await storage.getAiCredential(userId);
+    if (!row) return null;
+    return {
+      provider: row.provider as DecryptedCredential["provider"],
+      model: row.model,
+      baseUrl: row.baseUrl,
+      apiKey: decryptSecret(row.keyCiphertext),
+    };
+  }
+
+  function handleAiError(e: unknown, res: Response) {
+    if (e instanceof AiError) {
+      const clientErrorCodes = ["AI_KEY_INVALID", "AI_PROVIDER_QUOTA", "AI_NO_KEY", "AI_INVALID_OUTPUT"];
+      const status = clientErrorCodes.includes(e.code) ? 400 : 502;
+      return res.status(status).json({ error: e.message, code: e.code });
+    }
+    // z. B. Entschlüsselungsfehler → Key ist beschädigt/nicht lesbar.
+    console.error("AI route error:", e);
+    return res.status(400).json({
+      error: "Der hinterlegte KI-Key konnte nicht gelesen werden. Bitte neu hinterlegen.",
+      code: "AI_KEY_CORRUPTED",
+    });
+  }
+
+  // Status (maskiert) — NIE der Key selbst.
+  app.get("/api/ai/credentials", isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+    const row = await storage.getAiCredential(userId);
+    if (!row) return res.json({ configured: false });
+    res.json({
+      configured: true,
+      provider: row.provider,
+      model: row.model,
+      baseUrl: row.baseUrl,
+      keyLast4: row.keyLast4,
+      testedAt: row.testedAt ? row.testedAt.toISOString() : null,
+    });
+  });
+
+  // Speichern (verschlüsselt at-rest).
+  app.put("/api/ai/credentials", isAuthenticated, requireVerifiedEmail, async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+    const parsed = aiCredentialInputSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Ungültige KI-Zugangsdaten", details: parsed.error.errors });
+    const { provider, model, apiKey, baseUrl } = parsed.data;
+    await storage.upsertAiCredential(userId, {
+      provider,
+      model,
+      baseUrl: provider === "openai-compatible" ? (baseUrl ?? null) : null,
+      keyCiphertext: encryptSecret(apiKey),
+      keyLast4: last4(apiKey),
+    });
+    res.json({
+      configured: true,
+      provider,
+      model,
+      baseUrl: provider === "openai-compatible" ? (baseUrl ?? null) : null,
+      keyLast4: last4(apiKey),
+      testedAt: null,
+    });
+  });
+
+  // Löschen.
+  app.delete("/api/ai/credentials", isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+    await storage.deleteAiCredential(userId);
+    res.json({ configured: false });
+  });
+
+  // Verbindung testen.
+  app.post("/api/ai/test-key", isAuthenticated, aiTestLimiter, async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+    try {
+      const cred = await loadDecryptedCredential(userId);
+      if (!cred) return res.status(400).json({ error: "Keine KI hinterlegt.", code: "AI_NO_KEY" });
+      await testConnection(cred);
+      await storage.touchAiCredentialTested(userId);
+      res.json({ ok: true });
+    } catch (e) {
+      handleAiError(e, res);
+    }
+  });
+
+  // Funnel per KI generieren — gibt { pages, theme } zurück. Der Client remappt die
+  // Element-IDs und legt den Funnel über den bestehenden POST /api/funnels-Pfad an.
+  app.post("/api/ai/generate-funnel", isAuthenticated, requireVerifiedEmail, requireActivePlan, aiGenerateLimiter, async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+    const parsed = generateFunnelInputSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Ungültige Eingabe", details: parsed.error.errors });
+    try {
+      const cred = await loadDecryptedCredential(userId);
+      if (!cred) {
+        return res.status(400).json({
+          error: "Keine KI hinterlegt. Bitte zuerst in den Einstellungen einen KI-Anbieter verbinden.",
+          code: "AI_NO_KEY",
+        });
+      }
+      const funnel = await generateFunnel(cred, parsed.data);
+      res.json(funnel);
+    } catch (e) {
+      handleAiError(e, res);
     }
   });
 
