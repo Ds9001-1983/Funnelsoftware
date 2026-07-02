@@ -25,11 +25,13 @@ import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema, insertDomainSchema,
   loginSchema, registerSchema, slugSchema, passwordSchema, trackEventSchema,
   aiCredentialInputSchema, generateFunnelInputSchema,
-  MAX_IMAGE_UPLOAD_BYTES, MAX_AUDIO_UPLOAD_BYTES
+  MAX_IMAGE_UPLOAD_BYTES, MAX_AUDIO_UPLOAD_BYTES,
+  type Domain,
 } from "@shared/schema";
 import { seoStaticPages } from "@shared/seo-content";
 import { dailyVisitorHash, deriveReferrerHost, deriveDeviceClass, deriveCountry, isTrackablePath } from "./tracking";
 import { encryptSecret, decryptSecret, last4 } from "./crypto";
+import { verifyDomainDns } from "./domain-verify";
 import { generateFunnel, testConnection, AiError, type DecryptedCredential } from "./ai";
 import { z } from "zod";
 
@@ -2205,12 +2207,17 @@ export async function registerRoutes(
 
   // ============ CUSTOM DOMAINS ============
 
+  // Der verificationToken ist ein serverseitiges Geheimnis für den
+  // Legacy-TXT-Fallback — die CNAME-UI braucht ihn nicht mehr, also geht
+  // er nicht mehr an den Client raus.
+  const toPublicDomain = ({ verificationToken: _token, ...rest }: Domain) => rest;
+
   app.get("/api/domains", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
       const list = await storage.listDomains(userId);
-      res.json(list);
+      res.json(list.map(toPublicDomain));
     } catch (error) {
       console.error("List domains error:", error);
       res.status(500).json({ error: "Domains konnten nicht geladen werden" });
@@ -2232,9 +2239,11 @@ export async function registerRoutes(
       if (!funnel) return res.status(404).json({ error: "Funnel nicht gefunden" });
 
       // Eigene Plattform-Hosts dürfen nicht claimbar sein (Squatting würde
-      // die Auflösung über funnel-by-host kapern)
-      const reservedHosts = ["trichterwerk.de", "www.trichterwerk.de", "localhost"];
-      if (reservedHosts.includes(result.data.hostname)) {
+      // die Auflösung über funnel-by-host kapern). Subdomains von
+      // trichterwerk.de MÜSSEN mit rein: Sie zeigen per DNS auf unsere IP
+      // und würden die A-Record-Verifizierung sonst automatisch bestehen.
+      const h = result.data.hostname;
+      if (h === "trichterwerk.de" || h.endsWith(".trichterwerk.de") || h === "localhost") {
         return res.status(400).json({ error: "Dieser Hostname ist reserviert" });
       }
 
@@ -2253,7 +2262,7 @@ export async function registerRoutes(
       if (existing) return res.status(409).json({ error: "Diese Domain ist bereits registriert" });
 
       const domain = await storage.createDomain(funnel.id, userId, result.data.hostname);
-      res.status(201).json(domain);
+      res.status(201).json(toPublicDomain(domain));
     } catch (error: any) {
       // Race-Condition: zwei parallele Requests passieren beide den Vorab-Check.
       // Der DB-Unique-Constraint auf hostname schlägt zu → sauberer 409 statt 500.
@@ -2275,30 +2284,28 @@ export async function registerRoutes(
 
       const domain = await storage.getDomain(id, userId);
       if (!domain) return res.status(404).json({ error: "Domain nicht gefunden" });
-      if (domain.verified) return res.json({ ...domain, alreadyVerified: true });
-
-      // DNS-TXT-Lookup an _trichterwerk-verify.<hostname>
-      const { promises: dns } = await import("dns");
-      let records: string[][] = [];
-      try {
-        records = await dns.resolveTxt(`_trichterwerk-verify.${domain.hostname}`);
-      } catch {
-        return res.status(400).json({
-          error: "DNS-TXT-Eintrag nicht gefunden. Bitte 1–5 Minuten warten und erneut versuchen.",
-        });
+      // Bereits verifiziert und SSL nicht fehlgeschlagen → nichts zu tun.
+      // Bei sslStatus "error" läuft der Check bewusst erneut: markDomainVerified
+      // setzt den Status zurück auf "pending", der Server-Provisioner versucht
+      // die Zertifikats-Ausstellung dann noch einmal.
+      if (domain.verified && domain.sslStatus !== "error") {
+        return res.json({ ...toPublicDomain(domain), alreadyVerified: true });
       }
 
-      const flat = records.map((parts) => parts.join("")).map((v) => v.trim());
-      if (!flat.includes(domain.verificationToken)) {
-        // Bewusst KEIN expected/found zurückgeben (Information Disclosure) —
-        // den erwarteten Token zeigt die UI ohnehin im Setup-Bereich.
+      // Perspective-UX: Es genügt, dass die Domain per CNAME (bzw. A-Record
+      // am Apex) auf trichterwerk.de zeigt. TXT bleibt Legacy-Fallback.
+      const result = await verifyDomainDns(domain.hostname, domain.verificationToken);
+      if (!result.ok) {
         return res.status(400).json({
-          error: "Verifikations-Token stimmt nicht überein. DNS-Eintrag prüfen und 1–5 Minuten warten.",
+          error:
+            result.reason === "nxdomain"
+              ? "Kein DNS-Eintrag gefunden. Bitte den CNAME auf trichterwerk.de setzen und 1–5 Minuten warten."
+              : "Die Domain zeigt noch nicht auf trichterwerk.de. Bitte den CNAME-Eintrag prüfen und 1–5 Minuten warten.",
         });
       }
 
       const verified = await storage.markDomainVerified(id, userId);
-      res.json(verified);
+      res.json(verified ? toPublicDomain(verified) : verified);
     } catch (error) {
       console.error("Verify domain error:", error);
       res.status(500).json({ error: "Domain konnte nicht verifiziert werden" });

@@ -1,0 +1,10 @@
+[Unit]
+Description=Trichterwerk Custom-Domain-Provisioner (certbot + nginx)
+After=network-online.target nginx.service postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/domain-provisioner.sh
+# Der Timer triggert nicht erneut, solange der oneshot läuft; das flock im
+# Skript schützt zusätzlich gegen manuelle Parallel-Starts.
