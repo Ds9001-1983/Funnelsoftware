@@ -93,7 +93,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
         text: "Mit Trichterwerk baust du die ganze Strecke: Landingpage mit Hero und Nutzenargumenten, mehrstufige Frage-Seiten, Kontaktformular, Danke-Seite. Alles in einem Editor, alles unter einer URL — ohne Einbettungs-Snippets oder Drittanbieter-Seiten.",
       },
       {
-        title: "Mobile-First Editor mit Drag & Drop",
+        title: "Mobile-First-Funnels mit Live-Handy-Vorschau",
         text: "Über 80 % der Funnel-Besucher kommen mobil. Jeder Trichterwerk-Funnel ist automatisch für Smartphones optimiert — du gestaltest per Drag & Drop und siehst live die Handy-Vorschau.",
       },
       {
@@ -106,7 +106,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         title: "Eigene Domain mit SSL inklusive",
-        text: "Statt typeform.com-Links läuft dein Funnel unter deiner Domain (z. B. funnel.deine-firma.de) — CNAME eintragen, SSL kommt automatisch. Das schafft Vertrauen und stärkt deine Marke.",
+        text: "Statt typeform.com-Links läuft dein Funnel unter deiner Domain (z. B. funnel.deine-firma.de) — CNAME eintragen, das SSL-Zertifikat richten wir für dich ein. Das schafft Vertrauen und stärkt deine Marke.",
       },
     ],
     pricingComparison: {
@@ -193,7 +193,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
     comparisonRows: [
       { label: "Deutsche Oberfläche & Support", trichterwerk: true, competitor: true },
       { label: "Hosting in der EU / DSGVO-konform", trichterwerk: true, competitor: true },
-      { label: "Mobile-First Editor", trichterwerk: true, competitor: true },
+      { label: "Live-Handy-Vorschau im Editor", trichterwerk: true, competitor: true },
       { label: "Conditional Logic & Quiz", trichterwerk: true, competitor: true },
       { label: "A/B-Tests", trichterwerk: true, competitor: false },
       { label: "Eigene Domain inklusive", trichterwerk: true, competitor: true },
@@ -238,7 +238,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         title: "Design & Domain anpassen",
-        text: "Farben und Logo hinterlegen, eigene Domain per CNAME verbinden — SSL kommt automatisch. Die Mobile-Vorschau zeigt dir sofort, wie der Funnel beim Besucher aussieht.",
+        text: "Farben und Logo hinterlegen, eigene Domain per CNAME verbinden — das SSL-Zertifikat richten wir für dich ein. Die Mobile-Vorschau zeigt dir sofort, wie der Funnel beim Besucher aussieht.",
       },
       {
         title: "Traffic umleiten & testen",
@@ -305,7 +305,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       { label: "Deutsche Oberfläche & Support", trichterwerk: true, competitor: false },
       { label: "Hosting in der EU / DSGVO-konform", trichterwerk: true, competitor: false },
       { label: "Abrechnung in Euro (inkl. MwSt.-Ausweis)", trichterwerk: true, competitor: false },
-      { label: "Mobile-First Editor", trichterwerk: true, competitor: "eingeschränkt" },
+      { label: "Live-Handy-Vorschau im Editor", trichterwerk: true, competitor: "eingeschränkt" },
       { label: "Conditional Logic & Quiz", trichterwerk: true, competitor: "eingeschränkt" },
       { label: "A/B-Tests", trichterwerk: true, competitor: true },
       { label: "Eigene Domain inklusive", trichterwerk: true, competitor: true },
@@ -349,7 +349,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         title: "Domain & Design umziehen",
-        text: "Deine Funnel-Domain per CNAME auf Trichterwerk zeigen lassen, Farben und Logo hinterlegen. SSL wird automatisch eingerichtet.",
+        text: "Deine Funnel-Domain per CNAME auf Trichterwerk zeigen lassen, Farben und Logo hinterlegen. Das SSL-Zertifikat richten wir für dich ein.",
       },
       {
         title: "Leads sichern & live gehen",

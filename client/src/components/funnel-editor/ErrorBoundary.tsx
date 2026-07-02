@@ -2,6 +2,11 @@ import React, { Component, ErrorInfo, ReactNode } from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  isAutoReloadPending,
+  isChunkLoadError,
+  tryRecoverFromChunkError,
+} from "@/lib/chunk-reload";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -13,6 +18,7 @@ interface ErrorBoundaryState {
   error: Error | null;
   errorInfo: ErrorInfo | null;
   showDetails: boolean;
+  isChunkError: boolean;
 }
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -23,20 +29,41 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       error: null,
       errorInfo: null,
       showDetails: false,
+      isChunkError: false,
     };
   }
 
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
-    return { hasError: true, error };
+    // Auch "Auto-Reload läuft bereits" als Chunk-Fall behandeln: Nach
+    // preventDefault() im vite:preloadError-Handler resolvet der Import mit
+    // undefined und React wirft kurz vor dem Reload einen Folgefehler, der
+    // die Chunk-Patterns nicht matcht — kein echter App-Bug.
+    const isChunkError = isChunkLoadError(error) || isAutoReloadPending();
+    return { hasError: true, error, isChunkError };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error("[ErrorBoundary] Caught error:", error);
     console.error("[ErrorBoundary] Component stack:", errorInfo.componentStack);
     this.setState({ errorInfo });
+
+    // Fehlgeschlagener Chunk-Import = veralteter Tab nach einem Deploy.
+    // React.lazy cached die Rejection dauerhaft, ein State-Reset kann das
+    // nie heilen — nur ein voller Reload holt den frischen Build. Greift
+    // der Guard (frisch neu geladen / offline), bleibt die Chunk-Fallback-UI
+    // mit manuellem Reload-Button stehen.
+    if (isChunkLoadError(error)) {
+      tryRecoverFromChunkError();
+    }
   }
 
   handleRetry = (): void => {
+    // Bei Chunk-Fehlern wäre ein State-Reset eine Sackgasse (s. o.) — hier
+    // hilft nur der echte Reload. Der explizite Klick darf den Guard umgehen.
+    if (this.state.isChunkError) {
+      window.location.reload();
+      return;
+    }
     this.setState({
       hasError: false,
       error: null,
@@ -47,8 +74,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   render(): ReactNode {
     if (this.state.hasError) {
-      const { error, errorInfo, showDetails } = this.state;
-      const title = this.props.fallbackTitle || "Etwas ist schiefgelaufen";
+      const { error, errorInfo, showDetails, isChunkError } = this.state;
+      const title = isChunkError
+        ? "Neue Version verfügbar"
+        : this.props.fallbackTitle || "Etwas ist schiefgelaufen";
+      const description = isChunkError
+        ? "Trichterwerk wurde gerade aktualisiert. Bitte lade die Seite neu, um die neue Version zu verwenden."
+        : "Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut oder lade die Seite neu.";
+      const buttonLabel = isChunkError ? "Seite neu laden" : "Erneut versuchen";
 
       return (
         <div className="flex items-center justify-center min-h-[300px] p-6">
@@ -61,15 +94,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
                 <div className="space-y-2">
                   <h3 className="text-lg font-semibold">{title}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es
-                    erneut oder lade die Seite neu.
-                  </p>
+                  <p className="text-sm text-muted-foreground">{description}</p>
                 </div>
 
                 <Button onClick={this.handleRetry} variant="outline" className="gap-2">
                   <RefreshCw className="h-4 w-4" />
-                  Erneut versuchen
+                  {buttonLabel}
                 </Button>
 
                 {error && (
