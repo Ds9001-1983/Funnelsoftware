@@ -53,7 +53,7 @@ const buildingBlocks = [
   {
     icon: Server,
     title: "Eigene Domain & Publishing",
-    text: "Ein Klick, und der Funnel ist live — unter deiner eigenen Domain mit automatischem SSL-Zertifikat. Kein Hosting-Setup, keine Server-Administration.",
+    text: "Ein Klick, und der Funnel ist live. Deine eigene Domain verbindest du per CNAME — das SSL-Zertifikat richten wir für dich ein. Kein Hosting-Setup, keine Server-Administration.",
   },
   {
     icon: ShieldCheck,

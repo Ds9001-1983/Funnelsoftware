@@ -269,7 +269,7 @@ interface ComparisonRow {
 const comparisonRows: ComparisonRow[] = [
   { label: "Deutsche Oberfläche & Support", trichterwerk: true, typeform: false, perspective: true, webflow: false },
   { label: "Hosting in der EU / DSGVO-konform", trichterwerk: true, typeform: false, perspective: true, webflow: "teilweise" },
-  { label: "Mobile-First Editor", trichterwerk: true, typeform: true, perspective: true, webflow: false },
+  { label: "Live-Handy-Vorschau im Editor", trichterwerk: true, typeform: true, perspective: true, webflow: false },
   { label: "Conditional Logic & Quiz", trichterwerk: true, typeform: true, perspective: true, webflow: false },
   { label: "Eigene Domain inklusive", trichterwerk: true, typeform: false, perspective: true, webflow: true },
   { label: "A/B-Tests", trichterwerk: true, typeform: false, perspective: false, webflow: "mit Add-on" },
@@ -300,7 +300,7 @@ const faqs = [
   },
   {
     q: "Wie funktioniert „Eigene Domain“?",
-    a: "Du hinterlegst deine Domain (z. B. funnel.deine-firma.de) in den Einstellungen, trägst einen CNAME bei deinem Provider ein — fertig. SSL-Zertifikat automatisch.",
+    a: "Du hinterlegst deine Domain (z. B. funnel.deine-firma.de) im Funnel-Editor und trägst einen CNAME- plus einen TXT-Eintrag bei deinem Provider ein. Das SSL-Zertifikat richten wir für dich ein — in der Regel innerhalb von 24 Stunden, ohne Aufpreis.",
   },
   {
     q: "Kann ich meinen Plan später wechseln?",
