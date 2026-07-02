@@ -70,6 +70,21 @@ function normalizeMarketingPath(reqPath: string): string {
   return p.replace(/\/+$/, "") || "/";
 }
 
+/**
+ * HTML nie cachen lassen: Ohne Cache-Control cachen Browser heuristisch
+ * (Last-Modified) — nach einem Deploy referenziert veraltetes HTML dann
+ * gelöschte Hash-Chunks (Chunk-404 → Fehlerseite). no-cache erlaubt Caching,
+ * erzwingt aber Revalidierung (ETag/304); die Hash-Assets bleiben unberührt
+ * (immutable via nginx bzw. express.static).
+ */
+function sendHtml(res: Response, html: string, status = 200): void {
+  res
+    .status(status)
+    .set("Content-Type", "text/html; charset=utf-8")
+    .set("Cache-Control", "no-cache")
+    .send(html);
+}
+
 export function serveStatic(app: Express) {
   const distPath = path.resolve(__dirname, "public");
   if (!fs.existsSync(distPath)) {
@@ -82,7 +97,16 @@ export function serveStatic(app: Express) {
   // index.html einmal lesen und cachen — der Prod-Build ändert sich zur Laufzeit nicht.
   const indexHtml = fs.readFileSync(indexPath, "utf-8");
 
-  app.use(express.static(distPath));
+  app.use(
+    express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        // Direkter Treffer auf /index.html (z. B. lokaler Prod-Test ohne nginx).
+        if (filePath.endsWith("index.html")) {
+          res.setHeader("Cache-Control", "no-cache");
+        }
+      },
+    }),
+  );
 
   // Öffentliche Funnels: funnel-spezifische Meta-Tags server-seitig injizieren,
   // damit Share-Bots (LinkedIn/WhatsApp/Google) korrekte Vorschauen sehen. Die SPA
@@ -92,13 +116,13 @@ export function serveStatic(app: Express) {
       const funnel = await storage.getFunnelBySlugOrUuid(String(req.params.identifier));
       if (funnel && funnel.status === "published" && META_MARKER.test(indexHtml)) {
         const html = indexHtml.replace(META_MARKER, buildFunnelMeta(funnel));
-        return res.set("Content-Type", "text/html; charset=utf-8").send(html);
+        return sendHtml(res, html);
       }
     } catch (error) {
       console.error("SSR-Meta injection failed:", error);
     }
     // Fallback: unveränderte SPA (Client setzt Titel selbst).
-    res.set("Content-Type", "text/html; charset=utf-8").send(indexHtml);
+    sendHtml(res, indexHtml);
   });
 
   // SEO-Marketing-Seiten: Title/Description/OG server-seitig injizieren (Share-Bots,
@@ -131,13 +155,14 @@ export function serveStatic(app: Express) {
   app.get(["/funnel-builder", "/vergleich/:slug"], (req: Request, res: Response) => {
     const html = marketingHtmlByPath.get(normalizeMarketingPath(req.path));
     if (html) {
-      return res.set("Content-Type", "text/html; charset=utf-8").send(html);
+      return sendHtml(res, html);
     }
-    res.status(404).set("Content-Type", "text/html; charset=utf-8").send(notFoundHtml);
+    sendHtml(res, notFoundHtml, 404);
   });
 
   // fall through to index.html if the file doesn't exist
   app.use("/{*path}", (_req, res) => {
+    res.set("Cache-Control", "no-cache");
     res.sendFile(indexPath);
   });
 }
