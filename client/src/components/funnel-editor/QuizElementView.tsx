@@ -66,38 +66,33 @@ export function QuizElementView({
   formValues,
   updateFormValue,
 }: QuizElementViewProps) {
-  // Reihenfolge einmal pro Mount mischen (stabil, solange das Quiz offen ist).
+  // Reihenfolge einmal pro Fragen-Set mischen (stabil, solange das Quiz offen ist).
   const orderedQuestions = useMemo(
     () => (config.shuffleQuestions ? shuffled(config.questions) : config.questions),
-    // Neu mischen nur, wenn sich die Fragen selbst ändern (Editor-Vorschau).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [config.questions, config.shuffleQuestions],
-  );
-  const orderedAnswersByQuestion = useMemo(
-    () =>
-      new Map(
-        orderedQuestions.map((q) => [
-          q.id,
-          config.shuffleAnswers ? shuffled(q.answers) : q.answers,
-        ]),
-      ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [orderedQuestions, config.shuffleAnswers],
   );
 
   const answers = getQuizAnswersFromFormValues(elementId, config.questions, formValues);
   const currentQuestion = orderedQuestions.find((q) => !answers[q.id]);
   const isComplete = !currentQuestion && orderedQuestions.length > 0;
+  // calculateQuizResult liefert eine Referenz auf das config-Objekt → stabile Identität.
   const result = isComplete ? calculateQuizResult(config, answers) : null;
+
+  const answerOptions = useMemo(() => {
+    if (!currentQuestion) return [];
+    return config.shuffleAnswers ? shuffled(currentQuestion.answers) : currentQuestion.answers;
+  }, [currentQuestion, config.shuffleAnswers]);
 
   // Nach Abschluss den Ergebnis-Titel unter dem Element-Key ablegen —
   // Guard gegen Endlos-Loop: nur schreiben, wenn sich der Wert ändert.
-  const completionValue = isComplete ? (result?.title ?? "Abgeschlossen") : "";
+  const storedValue = formValues[elementId];
   useEffect(() => {
-    if (isComplete && formValues[elementId] !== completionValue) {
-      updateFormValue(elementId, completionValue);
+    if (!isComplete) return;
+    const title = result?.title ?? "Abgeschlossen";
+    if (storedValue !== title) {
+      updateFormValue(elementId, title);
     }
-  }, [isComplete, completionValue, elementId, formValues, updateFormValue]);
+  }, [isComplete, result, storedValue, elementId, updateFormValue]);
 
   const restart = () => {
     for (const q of config.questions) {
@@ -144,7 +139,6 @@ export function QuizElementView({
   const currentIndex = orderedQuestions.findIndex((q) => q.id === currentQuestion!.id);
   const answeredCount = Object.keys(answers).length;
   const progress = (answeredCount / orderedQuestions.length) * 100;
-  const answerOptions = orderedAnswersByQuestion.get(currentQuestion!.id) ?? currentQuestion!.answers;
 
   return (
     <div className="space-y-3 text-left">

@@ -28,7 +28,6 @@ import { getNextPageIndex } from "@/lib/funnel-logic";
 import { ElementPreviewRenderer } from "@/components/funnel-editor/ElementPreviewRenderer";
 import { validateField } from "@/components/funnel-editor/FormFieldWithValidation";
 import { FunnelProgress } from "@/components/funnel-editor/FunnelProgress";
-import { calculateQuizResult } from "@/components/funnel-editor/QuizElement";
 import { getQuizAnswersFromFormValues } from "@/components/funnel-editor/QuizElementView";
 import type { FunnelPage, Theme, PageElement, ABTest } from "@shared/schema";
 
@@ -463,9 +462,9 @@ export default function PublicFunnelView() {
         for (const el of page.elements) {
           const value = formValues[el.id];
 
-          // Quiz: pro Frage die Antwort-Texte (statt IDs) + berechnetes Ergebnis
-          // menschenlesbar in die answers legen. Muss VOR dem !value-Guard laufen —
-          // die per-Frage-Keys existieren auch bei teilweise beantwortetem Quiz.
+          // Quiz: pro Frage die Antwort-Texte (statt IDs) + Ergebnis menschen-
+          // lesbar in die answers legen. Muss VOR dem !value-Guard laufen — die
+          // per-Frage-Keys existieren auch bei teilweise beantwortetem Quiz.
           if (el.type === "quiz" && el.quizConfig) {
             const quizAnswers = getQuizAnswersFromFormValues(el.id, el.quizConfig.questions, formValues);
             for (const q of el.quizConfig.questions) {
@@ -474,13 +473,12 @@ export default function PublicFunnelView() {
               const answerText = q.answers.find((a) => a.id === answerId)?.text ?? answerId;
               formData[q.question] = answerText;
             }
-            if (Object.keys(quizAnswers).length === el.quizConfig.questions.length) {
-              const result = calculateQuizResult(el.quizConfig, quizAnswers);
-              if (result) {
-                formData[el.label ? `${el.label} – Ergebnis` : "Quiz-Ergebnis"] = result.title;
-              }
+            // Der Ergebnis-Titel steht nach Abschluss unter el.id (QuizElementView
+            // ist die einzige Quelle dieser Ableitung — hier nicht neu berechnen).
+            if (value) {
+              formData[el.label ? `${el.label} – Ergebnis` : "Quiz-Ergebnis"] = value;
             }
-            // Ergebnis-Titel unter el.id nicht nochmal generisch mappen.
+            // …und den el.id-Wert nicht nochmal generisch mappen.
             continue;
           }
 
