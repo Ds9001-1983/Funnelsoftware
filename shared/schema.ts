@@ -920,11 +920,19 @@ export const domainSchema = z.object({
   hostname: z.string(),
   verified: z.boolean(),
   verificationToken: z.string(),
+  // pending: SSL-Ausstellung läuft (Server-Provisioner arbeitet die Domain ab),
+  // active: Zertifikat + nginx-vhost stehen, error: Ausstellung fehlgeschlagen.
+  // Wird von deploy/domain-provisioner.sh direkt per SQL fortgeschrieben —
+  // bei Umbenennung der Spalte das Skript mit anpassen.
   sslStatus: z.enum(["pending", "active", "error"]),
   createdAt: z.string().or(z.date()),
   verifiedAt: z.string().or(z.date()).nullable().optional(),
 });
 export type Domain = z.infer<typeof domainSchema>;
+
+// API-Antworten geben den verificationToken nicht mehr heraus (serverseitiges
+// Geheimnis für den Legacy-TXT-Fallback) — das Frontend arbeitet mit dieser Form.
+export type PublicDomain = Omit<Domain, "verificationToken">;
 
 export const insertDomainSchema = z.object({
   funnelId: z.number(),

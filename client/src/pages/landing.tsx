@@ -300,7 +300,7 @@ const faqs = [
   },
   {
     q: "Wie funktioniert „Eigene Domain“?",
-    a: "Du hinterlegst deine Domain (z. B. funnel.deine-firma.de) im Funnel-Editor und trägst einen CNAME- plus einen TXT-Eintrag bei deinem Provider ein. Das SSL-Zertifikat richten wir für dich ein — in der Regel innerhalb von 24 Stunden, ohne Aufpreis.",
+    a: "Du hinterlegst deine Domain (z. B. funnel.deine-firma.de) im Funnel-Editor und trägst einen einzigen CNAME-Eintrag bei deinem Provider ein. Nach der Verifizierung wird das SSL-Zertifikat automatisch ausgestellt — in der Regel innerhalb weniger Minuten, ohne Aufpreis.",
   },
   {
     q: "Kann ich meinen Plan später wechseln?",

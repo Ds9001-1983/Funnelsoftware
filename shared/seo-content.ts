@@ -106,7 +106,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         title: "Eigene Domain mit SSL inklusive",
-        text: "Statt typeform.com-Links läuft dein Funnel unter deiner Domain (z. B. funnel.deine-firma.de) — CNAME eintragen, das SSL-Zertifikat richten wir für dich ein. Das schafft Vertrauen und stärkt deine Marke.",
+        text: "Statt typeform.com-Links läuft dein Funnel unter deiner Domain (z. B. funnel.deine-firma.de) — CNAME eintragen, SSL wird automatisch eingerichtet. Das schafft Vertrauen und stärkt deine Marke.",
       },
     ],
     pricingComparison: {
@@ -238,7 +238,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         title: "Design & Domain anpassen",
-        text: "Farben und Logo hinterlegen, eigene Domain per CNAME verbinden — das SSL-Zertifikat richten wir für dich ein. Die Mobile-Vorschau zeigt dir sofort, wie der Funnel beim Besucher aussieht.",
+        text: "Farben und Logo hinterlegen, eigene Domain per CNAME verbinden — SSL wird automatisch eingerichtet. Die Mobile-Vorschau zeigt dir sofort, wie der Funnel beim Besucher aussieht.",
       },
       {
         title: "Traffic umleiten & testen",
@@ -349,7 +349,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         title: "Domain & Design umziehen",
-        text: "Deine Funnel-Domain per CNAME auf Trichterwerk zeigen lassen, Farben und Logo hinterlegen. Das SSL-Zertifikat richten wir für dich ein.",
+        text: "Deine Funnel-Domain per CNAME auf Trichterwerk zeigen lassen, Farben und Logo hinterlegen. SSL wird automatisch eingerichtet — meist in wenigen Minuten.",
       },
       {
         title: "Leads sichern & live gehen",
