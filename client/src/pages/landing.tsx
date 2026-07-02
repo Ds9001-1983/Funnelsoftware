@@ -22,14 +22,12 @@ import {
   PenTool,
   Palette,
   TrendingUp,
-  Cookie,
   ShieldCheck,
   Server,
   Lock,
   Briefcase,
   GraduationCap,
   UserSearch,
-  Mail,
   Headphones,
   Flag,
   Heart,
@@ -38,9 +36,9 @@ import {
   Webhook,
   Send,
 } from "lucide-react";
-import { resetCookieConsent } from "@/components/cookie-consent";
-
-const CONTACT_EMAIL = "info@superbrand.marketing";
+import { MarketingHeader } from "@/components/marketing/marketing-header";
+import { MarketingFooter } from "@/components/marketing/marketing-footer";
+import { CONTACT_EMAIL } from "@/components/marketing/constants";
 
 const templatePreviews = [
   {
@@ -322,48 +320,8 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <img
-              src="/images/logo-icon.webp"
-              alt="Trichterwerk Logo"
-              className="h-9 w-9 rounded-lg"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-                e.currentTarget.nextElementSibling?.classList.remove("hidden");
-              }}
-            />
-            <div className="hidden flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Zap className="h-5 w-5" />
-            </div>
-            <span className="text-xl font-bold">Trichterwerk</span>
-          </Link>
-          <nav className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">
-              Features
-            </a>
-            <a href="#templates" className="text-muted-foreground hover:text-foreground transition-colors">
-              Templates
-            </a>
-            <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors">
-              Preise
-            </a>
-            <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors">
-              FAQ
-            </a>
-          </nav>
-          <div className="flex items-center gap-3">
-            <Link href="/login">
-              <Button variant="ghost">Anmelden</Button>
-            </Link>
-            <Link href="/register">
-              <Button>14 Tage testen</Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      {/* Navigation (geteilt mit den SEO-Marketing-Seiten) */}
+      <MarketingHeader />
 
       {/* Hero Section mit Gradient-Backdrop */}
       <section className="relative pt-32 pb-20 px-4 overflow-hidden">
@@ -675,6 +633,21 @@ export default function Landing() {
           <p className="text-xs text-muted-foreground text-center mt-4">
             Preise und Features der Wettbewerber: Stand {new Date().toLocaleDateString("de-DE", { month: "long", year: "numeric" })}.
             Ohne Gewähr — aktuelle Details auf den Anbieter-Websites.
+          </p>
+
+          <p className="text-sm text-muted-foreground text-center mt-6">
+            Ausführliche Vergleiche:{" "}
+            <Link href="/vergleich/typeform-alternative" className="underline hover:text-foreground">
+              Trichterwerk vs. Typeform
+            </Link>
+            {" · "}
+            <Link href="/vergleich/perspective-alternative" className="underline hover:text-foreground">
+              vs. Perspective
+            </Link>
+            {" · "}
+            <Link href="/vergleich/clickfunnels-alternative" className="underline hover:text-foreground">
+              vs. ClickFunnels
+            </Link>
           </p>
         </div>
       </section>
@@ -990,85 +963,8 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 px-4 border-t">
-        <div className="container mx-auto">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <Link href="/" className="flex items-center gap-2 mb-4">
-                <img
-                  src="/images/logo-icon.webp"
-                  alt="Trichterwerk Logo"
-                  className="h-8 w-8 rounded-lg"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                    e.currentTarget.nextElementSibling?.classList.remove("hidden");
-                  }}
-                />
-                <div className="hidden flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Zap className="h-4 w-4" />
-                </div>
-                <span className="text-lg font-bold">Trichterwerk</span>
-              </Link>
-              <p className="text-sm text-muted-foreground">
-                Der deutsche Funnel-Builder für Coaches, Berater und Agenturen.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Produkt</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#features" className="hover:text-foreground">Features</a></li>
-                <li><a href="#templates" className="hover:text-foreground">Templates</a></li>
-                <li><a href="#pricing" className="hover:text-foreground">Preise</a></li>
-                <li><a href="#faq" className="hover:text-foreground">FAQ</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Account</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="/register" className="hover:text-foreground">Kostenlos testen</Link></li>
-                <li><Link href="/login" className="hover:text-foreground">Anmelden</Link></li>
-                <li>
-                  <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-foreground flex items-center gap-1">
-                    <Mail className="h-3 w-3" />
-                    Kontakt
-                  </a>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Rechtliches</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="/impressum" className="hover:text-foreground">Impressum</Link></li>
-                <li><Link href="/datenschutz" className="hover:text-foreground">Datenschutz</Link></li>
-                <li><Link href="/agb" className="hover:text-foreground">AGB</Link></li>
-                <li>
-                  <button
-                    onClick={resetCookieConsent}
-                    className="hover:text-foreground flex items-center gap-1"
-                  >
-                    <Cookie className="h-3 w-3" />
-                    Cookie-Einstellungen
-                  </button>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="pt-8 border-t text-center text-sm text-muted-foreground">
-            <p>
-              &copy; {new Date().getFullYear()} Trichterwerk · Ein Produkt von{" "}
-              <a
-                href="https://superbrand.marketing"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-foreground underline"
-              >
-                SUPERBRAND.marketing
-              </a>
-            </p>
-          </div>
-        </div>
-      </footer>
+      {/* Footer (geteilt mit den SEO-Marketing-Seiten, inkl. „Vergleiche"-Spalte) */}
+      <MarketingFooter />
     </div>
   );
 }

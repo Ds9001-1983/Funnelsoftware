@@ -38,6 +38,10 @@ const Analytics = lazy(() => import("@/pages/analytics"));
 const Settings = lazy(() => import("@/pages/settings"));
 const Admin = lazy(() => import("@/pages/admin"));
 const PublicFunnelView = lazy(() => import("@/pages/public-funnel"));
+// SEO-Content-Seiten: lazy, damit die Registry (shared/seo-content.ts) nicht
+// im Haupt-Bundle landet.
+const Vergleich = lazy(() => import("@/pages/vergleich"));
+const FunnelBuilderGuide = lazy(() => import("@/pages/funnel-builder"));
 
 // Loading spinner component for Suspense fallback
 function PageLoader() {
@@ -130,6 +134,19 @@ function Router() {
       <Route path="/avv" component={AVV} />
       <Route path="/nutzungsbedingungen" component={AGB} />
 
+      {/* SEO-Content-Seiten (öffentlich, ohne Auth) — MÜSSEN vor dem
+          Catch-all stehen, sonst greift dessen RequireAuth-Redirect. */}
+      <Route path="/funnel-builder">
+        <Suspense fallback={<PageLoader />}>
+          <FunnelBuilderGuide />
+        </Suspense>
+      </Route>
+      <Route path="/vergleich/:slug">
+        <Suspense fallback={<PageLoader />}>
+          <Vergleich />
+        </Suspense>
+      </Route>
+
       {/* Admin (geschützt, ohne Sidebar) */}
       <Route path="/admin">
         <ProtectedFull>
@@ -210,6 +227,7 @@ function Router() {
 function isPublicRoute(location: string, isAuthenticated: boolean): boolean {
   if (location.startsWith("/f/")) return true; // öffentliche Funnel-Ansicht
   if (location.startsWith("/preview/")) return false; // Owner-Vorschau (eingeloggt)
+  if (location.startsWith("/vergleich/")) return true; // SEO-Vergleichsseiten
   const publicExact = [
     "/login",
     "/register",
@@ -218,6 +236,7 @@ function isPublicRoute(location: string, isAuthenticated: boolean): boolean {
     "/datenschutz",
     "/agb",
     "/nutzungsbedingungen",
+    "/funnel-builder",
   ];
   if (publicExact.includes(location)) return true;
   if (location.startsWith("/reset-password")) return true;
