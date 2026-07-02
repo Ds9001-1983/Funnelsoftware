@@ -28,6 +28,8 @@ import { getNextPageIndex } from "@/lib/funnel-logic";
 import { ElementPreviewRenderer } from "@/components/funnel-editor/ElementPreviewRenderer";
 import { validateField } from "@/components/funnel-editor/FormFieldWithValidation";
 import { FunnelProgress } from "@/components/funnel-editor/FunnelProgress";
+import { calculateQuizResult } from "@/components/funnel-editor/QuizElement";
+import { getQuizAnswersFromFormValues } from "@/components/funnel-editor/QuizElementView";
 import type { FunnelPage, Theme, PageElement, ABTest } from "@shared/schema";
 
 declare global {
@@ -381,6 +383,9 @@ export default function PublicFunnelView() {
         ) {
           errors[el.id] = "Bitte gib eine gültige E-Mail-Adresse ein";
         }
+      } else if (el.type === "quiz" && el.required && !value.trim()) {
+        // Der el.id-Key wird erst nach Beantwortung aller Fragen befüllt.
+        errors[el.id] = "Bitte beantworte alle Quiz-Fragen";
       } else if (el.required && !value.trim()) {
         errors[el.id] = "Dieses Feld ist erforderlich";
       }
@@ -457,6 +462,28 @@ export default function PublicFunnelView() {
       for (const page of funnel.pages) {
         for (const el of page.elements) {
           const value = formValues[el.id];
+
+          // Quiz: pro Frage die Antwort-Texte (statt IDs) + berechnetes Ergebnis
+          // menschenlesbar in die answers legen. Muss VOR dem !value-Guard laufen —
+          // die per-Frage-Keys existieren auch bei teilweise beantwortetem Quiz.
+          if (el.type === "quiz" && el.quizConfig) {
+            const quizAnswers = getQuizAnswersFromFormValues(el.id, el.quizConfig.questions, formValues);
+            for (const q of el.quizConfig.questions) {
+              const answerId = quizAnswers[q.id];
+              if (!answerId) continue;
+              const answerText = q.answers.find((a) => a.id === answerId)?.text ?? answerId;
+              formData[q.question] = answerText;
+            }
+            if (Object.keys(quizAnswers).length === el.quizConfig.questions.length) {
+              const result = calculateQuizResult(el.quizConfig, quizAnswers);
+              if (result) {
+                formData[el.label ? `${el.label} – Ergebnis` : "Quiz-Ergebnis"] = result.title;
+              }
+            }
+            // Ergebnis-Titel unter el.id nicht nochmal generisch mappen.
+            continue;
+          }
+
           if (!value) continue;
 
           if (el.mapToLeadField) {

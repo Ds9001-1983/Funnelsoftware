@@ -495,7 +495,13 @@ export const defaultQuizConfig: QuizConfig = {
 };
 
 /**
- * Berechnet das Quiz-Ergebnis basierend auf den gegebenen Antworten
+ * Berechnet das Quiz-Ergebnis basierend auf den gegebenen Antworten.
+ *
+ * Hybrid-Scoring: Zuerst gewinnen Ergebnisse, deren Punktesumme in ihrem
+ * eigenen [minPoints, maxPoints]-Bereich liegt (die im Editor gepflegten
+ * Bereiche haben damit Bedeutung); liegt kein Ergebnis im Bereich, fällt die
+ * Auswahl auf die höchste Summe über alle zurück. Bei Gleichstand gewinnt die
+ * Definitionsreihenfolge (strikt größer).
  */
 export function calculateQuizResult(
   config: QuizConfig,
@@ -521,11 +527,17 @@ export function calculateQuizResult(
     });
   });
 
+  const inRange = config.results.filter((result) => {
+    const points = resultPoints[result.id] || 0;
+    return points >= result.minPoints && points <= result.maxPoints;
+  });
+  const candidates = inRange.length > 0 ? inRange : config.results;
+
   // Finde das Ergebnis mit den meisten Punkten
   let maxPoints = -1;
   let winningResult: QuizResult | null = null;
 
-  config.results.forEach((result) => {
+  candidates.forEach((result) => {
     const points = resultPoints[result.id] || 0;
     if (points > maxPoints) {
       maxPoints = points;

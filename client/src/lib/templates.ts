@@ -633,10 +633,6 @@ export const defaultTemplates: ClientTemplate[] = [
     description: "Qualifiziere Leads mit einem unterhaltsamen Quiz",
     category: "quiz",
     thumbnail: "/templates/quiz.webp",
-    // Vorerst ausgeblendet: das interaktive Quiz ist im öffentlichen Funnel noch
-    // nicht funktionsfähig (siehe ElementPreviewRenderer "quiz"-Case). Flag
-    // entfernen, sobald das Quiz richtig gebaut ist.
-    hidden: true,
     pages: [
       {
         id: "page-1",
@@ -649,24 +645,73 @@ export const defaultTemplates: ClientTemplate[] = [
       },
       {
         id: "page-2",
-        type: "multiChoice",
-        title: "Was beschreibt dich am besten?",
+        type: "question",
+        title: "Das Persönlichkeits-Quiz",
         elements: [
-          { id: "el-1", type: "radio", options: ["Kreativ", "Analytisch", "Teamplayer", "Führungspersönlichkeit"] },
+          {
+            id: "el-quiz-1",
+            type: "quiz",
+            required: true,
+            quizConfig: {
+              questions: [
+                {
+                  id: "q-1",
+                  question: "Was beschreibt dich am besten?",
+                  answers: [
+                    { id: "a-1-1", text: "Kreativ", points: { "r-1": 3, "r-2": 0 } },
+                    { id: "a-1-2", text: "Analytisch", points: { "r-1": 0, "r-2": 3 } },
+                    { id: "a-1-3", text: "Teamplayer", points: { "r-1": 2, "r-2": 1 } },
+                    { id: "a-1-4", text: "Führungspersönlichkeit", points: { "r-1": 1, "r-2": 2 } },
+                  ],
+                },
+                {
+                  id: "q-2",
+                  question: "Wie triffst du Entscheidungen?",
+                  answers: [
+                    { id: "a-2-1", text: "Mit dem Bauch", points: { "r-1": 3, "r-2": 0 } },
+                    { id: "a-2-2", text: "Datenbasiert", points: { "r-1": 0, "r-2": 3 } },
+                    { id: "a-2-3", text: "Im Team", points: { "r-1": 2, "r-2": 1 } },
+                    { id: "a-2-4", text: "Spontan", points: { "r-1": 3, "r-2": 0 } },
+                  ],
+                },
+                {
+                  id: "q-3",
+                  question: "Was motiviert dich am meisten?",
+                  answers: [
+                    { id: "a-3-1", text: "Neue Ideen umsetzen", points: { "r-1": 3, "r-2": 0 } },
+                    { id: "a-3-2", text: "Messbare Ergebnisse", points: { "r-1": 0, "r-2": 3 } },
+                    { id: "a-3-3", text: "Gemeinsame Erfolge", points: { "r-1": 2, "r-2": 2 } },
+                  ],
+                },
+              ],
+              results: [
+                {
+                  id: "r-1",
+                  title: "Der Innovator",
+                  description: "Du denkst groß, probierst Neues aus und findest kreative Lösungen.",
+                  minPoints: 5,
+                  maxPoints: 9,
+                  color: "#10B981",
+                },
+                {
+                  id: "r-2",
+                  title: "Der Stratege",
+                  description: "Du planst voraus, entscheidest faktenbasiert und behältst den Überblick.",
+                  minPoints: 5,
+                  maxPoints: 9,
+                  color: "#2563EB",
+                },
+              ],
+              showProgressBar: true,
+              shuffleQuestions: false,
+              shuffleAnswers: false,
+            },
+          },
         ],
         buttonText: "Weiter",
       },
       {
         id: "page-3",
-        type: "multiChoice",
-        title: "Wie triffst du Entscheidungen?",
-        elements: [
-          { id: "el-1", type: "radio", options: ["Mit dem Bauch", "Datenbasiert", "Im Team", "Spontan"] },
-        ],
-        buttonText: "Weiter",
-      },
-      {
-        id: "page-4",
         type: "contact",
         title: "Fast geschafft!",
         subtitle: "Wohin sollen wir dein Ergebnis senden?",
@@ -676,10 +721,10 @@ export const defaultTemplates: ClientTemplate[] = [
         buttonText: "Ergebnis anzeigen",
       },
       {
-        id: "page-5",
+        id: "page-4",
         type: "thankyou",
-        title: "Du bist ein Innovator!",
-        subtitle: "Check deine E-Mail für mehr Details",
+        title: "Dein Ergebnis ist da!",
+        subtitle: "Wir senden dir die Details per E-Mail",
         elements: [],
         showConfetti: true,
       },
@@ -844,11 +889,11 @@ export const defaultTemplates: ClientTemplate[] = [
 // Also export as funnelTemplates for backward compatibility
 export const funnelTemplates = defaultTemplates;
 
-// In der Auswahl sichtbare Templates (ohne `hidden`-Vorlagen wie das WIP-Quiz).
+// In der Auswahl sichtbare Templates (ohne `hidden`-Vorlagen — aktuell keine).
 export const visibleTemplates = defaultTemplates.filter((t) => !t.hidden);
 
 // Template categories for filtering UI — Zählungen basieren auf den SICHTBAREN
-// Templates; Kategorien ohne sichtbare Vorlage (z. B. Quiz) fallen automatisch raus.
+// Templates; Kategorien ohne sichtbare Vorlage fallen automatisch raus.
 export const templateCategories = [
   { id: "all", name: "Alle" },
   { id: "leads", name: "Lead-Generierung" },

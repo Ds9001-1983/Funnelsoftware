@@ -31,6 +31,7 @@ import type { PageElement, Section } from "@shared/schema";
 import { ElementWrapper, elementTypeLabels } from "./ElementWrapper";
 import { FormFieldWithValidation } from "./FormFieldWithValidation";
 import { InlineEditable } from "./InlineEditable";
+import { QuizElementView } from "./QuizElementView";
 import { sanitizeUrl } from "@/lib/utils";
 
 /**
@@ -1191,25 +1192,40 @@ function ElementPreviewRendererBase({
       );
 
     case "quiz": {
-      // Das interaktive Quiz ist im öffentlichen Funnel (noch) nicht funktionsfähig
-      // — es wurde nur statisch gerendert. Bis es richtig gebaut ist, blenden wir
-      // es für Besucher KOMPLETT aus (kein irreführender Klick-Schein) und zeigen
-      // im Editor nur einen klaren WIP-Platzhalter.
-      // Public-Render (kein onContentCommit) → nichts anzeigen.
-      if (!onContentCommit) return null;
       const config = el.quizConfig;
       const questionCount = config?.questions?.length ?? 0;
+      // Interaktiv, sobald updateFormValue verfügbar ist (Public + Editor-
+      // Vorschau) — gleiche Regel wie bei select/radio.
+      if (updateFormValue && config && questionCount > 0) {
+        return (
+          <ElementWrapper {...wrapperProps}>
+            <QuizElementView
+              elementId={el.id}
+              config={config}
+              textColor={textColor}
+              primaryColor={primaryColor}
+              formValues={formValues}
+              updateFormValue={updateFormValue}
+            />
+          </ElementWrapper>
+        );
+      }
+      // Public ohne Fragen/Interaktivität → nichts anzeigen (kein toter Klick-Schein).
+      if (!onContentCommit) return null;
+      // Editor-Canvas: neutrale Info-Karte (Interaktion läuft in der Vorschau).
       return (
         <ElementWrapper {...wrapperProps}>
-          <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 text-center">
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 text-center">
             <div className="flex items-center justify-center gap-2 mb-1">
-              <Award className="h-5 w-5 text-amber-600" />
-              <span className="font-semibold text-amber-900 text-sm">
+              <Award className="h-5 w-5 text-gray-400" />
+              <span className="font-semibold text-gray-700 text-sm">
                 Quiz ({questionCount} {questionCount === 1 ? "Frage" : "Fragen"})
               </span>
             </div>
-            <p className="text-xs text-amber-700">
-              Interaktive Funktion in Arbeit — für Besucher aktuell ausgeblendet.
+            <p className="text-xs text-gray-500">
+              {questionCount > 0
+                ? "Interaktiv in der Vorschau und im veröffentlichten Funnel."
+                : "Noch keine Fragen — im Eigenschaften-Panel konfigurieren."}
             </p>
           </div>
         </ElementWrapper>

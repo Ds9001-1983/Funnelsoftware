@@ -22,7 +22,9 @@ export class AiError extends Error {
 const GEN_TIMEOUT_MS = 45_000;
 const TEST_TIMEOUT_MS = 12_000;
 
-// Nur Element-Typen, die im öffentlichen Funnel zuverlässig rendern (kein "quiz" = WIP).
+// Nur Element-Typen, die die KI zuverlässig konfigurieren kann. "quiz" rendert
+// zwar öffentlich, braucht aber eine komplexe quizConfig (Punkte-Matrix je
+// Antwort/Ergebnis) — ohne dediziertes Prompt-Schema entstünden kaputte Elemente.
 const ALLOWED_ELEMENT_TYPES = new Set([
   "heading", "text", "image", "button", "input", "textarea", "radio", "select",
   "checkbox", "list", "video", "timer", "divider", "spacer", "progressBar",

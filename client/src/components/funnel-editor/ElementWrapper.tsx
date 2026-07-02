@@ -39,6 +39,7 @@ export const elementTypeLabels: Record<string, string> = {
   // Interactive
   list: "Liste",
   faq: "FAQ",
+  quiz: "Quiz",
   timer: "Timer",
   countdown: "Countdown",
   progressBar: "Fortschritt",

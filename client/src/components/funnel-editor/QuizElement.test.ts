@@ -113,6 +113,82 @@ describe("QuizElement", () => {
       expect(result?.id).toBe("r2");
     });
 
+    it("bevorzugt Ergebnisse, deren Summe im Punktebereich liegt", () => {
+      const config: QuizConfig = {
+        questions: [
+          {
+            id: "q1",
+            question: "Frage 1",
+            answers: [
+              // r1 bekommt 4 Punkte (außerhalb seines Bereichs 10-20),
+              // r2 bekommt 3 Punkte (innerhalb seines Bereichs 0-5).
+              { id: "a1", text: "Antwort 1", points: { r1: 4, r2: 3 } },
+            ],
+          },
+        ],
+        results: [
+          { id: "r1", title: "Außerhalb", description: "-", minPoints: 10, maxPoints: 20, color: "#FF0000" },
+          { id: "r2", title: "Innerhalb", description: "-", minPoints: 0, maxPoints: 5, color: "#00FF00" },
+        ],
+        showProgressBar: true,
+        shuffleQuestions: false,
+        shuffleAnswers: false,
+      };
+
+      // r2 gewinnt trotz niedrigerer Summe, weil nur r2 im eigenen Bereich liegt.
+      const result = calculateQuizResult(config, { q1: "a1" });
+      expect(result?.id).toBe("r2");
+    });
+
+    it("fällt auf die höchste Summe zurück, wenn kein Ergebnis im Bereich liegt", () => {
+      const config: QuizConfig = {
+        questions: [
+          {
+            id: "q1",
+            question: "Frage 1",
+            answers: [
+              { id: "a1", text: "Antwort 1", points: { r1: 4, r2: 2 } },
+            ],
+          },
+        ],
+        results: [
+          { id: "r1", title: "Ergebnis 1", description: "-", minPoints: 10, maxPoints: 20, color: "#FF0000" },
+          { id: "r2", title: "Ergebnis 2", description: "-", minPoints: 10, maxPoints: 20, color: "#00FF00" },
+        ],
+        showProgressBar: true,
+        shuffleQuestions: false,
+        shuffleAnswers: false,
+      };
+
+      // Beide außerhalb → bisheriges Verhalten (höchste Summe) greift.
+      const result = calculateQuizResult(config, { q1: "a1" });
+      expect(result?.id).toBe("r1");
+    });
+
+    it("bei mehreren Treffern im Bereich gewinnt die höchste Summe", () => {
+      const config: QuizConfig = {
+        questions: [
+          {
+            id: "q1",
+            question: "Frage 1",
+            answers: [
+              { id: "a1", text: "Antwort 1", points: { r1: 2, r2: 5 } },
+            ],
+          },
+        ],
+        results: [
+          { id: "r1", title: "Ergebnis 1", description: "-", minPoints: 0, maxPoints: 10, color: "#FF0000" },
+          { id: "r2", title: "Ergebnis 2", description: "-", minPoints: 0, maxPoints: 10, color: "#00FF00" },
+        ],
+        showProgressBar: true,
+        shuffleQuestions: false,
+        shuffleAnswers: false,
+      };
+
+      const result = calculateQuizResult(config, { q1: "a1" });
+      expect(result?.id).toBe("r2");
+    });
+
     it("sollte ungültige Antworten ignorieren", () => {
       const config: QuizConfig = {
         questions: [
