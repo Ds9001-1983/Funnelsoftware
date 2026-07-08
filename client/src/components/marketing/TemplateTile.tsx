@@ -17,6 +17,17 @@ function prefersReducedMotion(): boolean {
   );
 }
 
+/** Dezente Kategorie-Farbwelt hinter dem Phone-Mockup — Opacity-basierte
+ *  Tints, damit Light- und Dark-Theme gleichermaßen funktionieren. */
+export const categoryGlow: Record<TemplateMeta["category"], string> = {
+  leads: "from-violet-500/15 via-purple-500/5 to-fuchsia-500/10",
+  sales: "from-rose-500/15 via-red-500/5 to-orange-500/10",
+  recruiting: "from-emerald-500/15 via-green-500/5 to-teal-500/10",
+  webinar: "from-blue-500/15 via-sky-500/5 to-cyan-500/10",
+  quiz: "from-green-500/15 via-emerald-500/5 to-lime-500/10",
+  survey: "from-sky-500/15 via-blue-500/5 to-indigo-500/10",
+};
+
 interface TemplateTileProps {
   meta: TemplateMeta;
 }
@@ -63,9 +74,9 @@ export function TemplateTile({ meta }: TemplateTileProps) {
       <Link
         href={detailPath}
         aria-label={`Live-Vorschau: ${meta.name}`}
-        className="block transition-transform duration-300 group-hover:-translate-y-1"
+        className={`block rounded-[2rem] bg-gradient-to-br ${categoryGlow[meta.category]} px-8 pt-8 pb-0 overflow-hidden transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl group-hover:shadow-primary/10`}
       >
-        <PhoneFrame className="w-[240px]" screenClassName="h-[420px]" interactive={false}>
+        <PhoneFrame className="w-[240px] !rounded-b-none" screenClassName="h-[400px] !rounded-b-none" interactive={false}>
           {/* Poster (erste Funnel-Seite als Portrait-Screenshot) */}
           <picture>
             <source srcSet={poster} type="image/webp" />

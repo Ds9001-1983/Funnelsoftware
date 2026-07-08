@@ -8,7 +8,7 @@ import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { MarketingCta } from "@/components/marketing/MarketingCta";
 import { PhoneFrame } from "@/components/marketing/PhoneFrame";
-import { TemplateTile } from "@/components/marketing/TemplateTile";
+import { TemplateTile, categoryGlow } from "@/components/marketing/TemplateTile";
 import { FunnelRenderer } from "@/components/funnel-viewer/FunnelRenderer";
 import { getTemplateBySlug, type ClientTemplate } from "@/lib/templates";
 import {
@@ -85,21 +85,42 @@ function TemplateGallery() {
     <div className="min-h-screen bg-background">
       <MarketingHeader />
 
-      <section className="pt-32 pb-12 px-4 text-center">
+      <section className="relative pt-32 pb-12 px-4 text-center overflow-hidden">
+        {/* Dezenter Farbverlauf hinter dem Hero */}
+        <div
+          className="absolute inset-x-0 top-0 -z-10 h-[480px] bg-gradient-to-b from-primary/10 via-primary/5 to-transparent"
+          aria-hidden="true"
+        />
+        <div
+          className="absolute left-1/2 top-10 -z-10 h-72 w-[640px] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl"
+          aria-hidden="true"
+        />
         <div className="container mx-auto max-w-3xl">
           <Badge variant="secondary" className="mb-6">
             <Smartphone className="h-3 w-3 mr-1" />
             Jede Vorlage live durchklickbar
           </Badge>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
-            Funnel-Vorlagen zum Live-Ausprobieren
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-4">
+            Funnel-Vorlagen zum{" "}
+            <span className="text-primary">Live-Ausprobieren</span>
           </h1>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Fertige Funnels für Recruiting, Lead-Generierung und Verkauf — teste
             jede Vorlage direkt im Smartphone-Format, ohne Anmeldung. Gefällt sie
             dir, übernimmst du sie mit einem Klick und passt Farben, Texte und
             Logik an.
           </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-2 text-sm text-muted-foreground">
+            <span className="rounded-full border bg-background/60 px-3 py-1">
+              {templateMetas.length} Vorlagen
+            </span>
+            <span className="rounded-full border bg-background/60 px-3 py-1">
+              Ohne Anmeldung testen
+            </span>
+            <span className="rounded-full border bg-background/60 px-3 py-1">
+              DSGVO-konform · EU-Hosting
+            </span>
+          </div>
         </div>
       </section>
 
@@ -214,14 +235,18 @@ function TemplateDetail({
 
             {/* Live-Vorschau */}
             <div className="order-1 lg:order-2 flex flex-col items-center">
-              <PhoneFrame>
-                <FunnelRenderer
-                  key={template.slug}
-                  funnel={template}
-                  mode="preview"
-                  className="h-full"
-                />
-              </PhoneFrame>
+              <div
+                className={`rounded-[2.5rem] bg-gradient-to-br ${categoryGlow[meta.category]} p-6 sm:p-10`}
+              >
+                <PhoneFrame>
+                  <FunnelRenderer
+                    key={template.slug}
+                    funnel={template}
+                    mode="preview"
+                    className="h-full"
+                  />
+                </PhoneFrame>
+              </div>
               <p className="text-xs text-muted-foreground mt-4 text-center max-w-[320px]">
                 Die Vorschau ist voll interaktiv — klick dich durch. Es werden
                 keine Daten gespeichert.

@@ -36,6 +36,7 @@ export const defaultTemplates: ClientTemplate[] = [
         title: "Bereit für dein kostenloses Strategiegespräch?",
         subtitle: "In 30 Minuten zeigen wir dir, wie du deine Ziele erreichst",
         elements: [
+          { id: "el-hero", type: "image", imageUrl: "/templates/heroes/termin-buchen.webp", imageAlt: "Beraterin im Videocall am Schreibtisch" },
           { id: "el-1", type: "list", listStyle: "check", listItems: [
             { id: "li-1", text: "Individuelle Analyse deiner Situation" },
             { id: "li-2", text: "Konkrete Handlungsempfehlungen" },
@@ -43,7 +44,7 @@ export const defaultTemplates: ClientTemplate[] = [
           ]},
         ],
         buttonText: "Termin sichern",
-        backgroundColor: "#7C3AED",
+        backgroundColor: "#F5F3FF",
       },
       {
         id: "page-2",
@@ -127,6 +128,7 @@ export const defaultTemplates: ClientTemplate[] = [
         title: "Entdecke das Geheimnis erfolgreicher Unternehmer",
         subtitle: "Schau dir jetzt das kurze Video an",
         elements: [
+          { id: "el-hero", type: "image", imageUrl: "/templates/heroes/vsl.webp", imageAlt: "Unternehmer im Videostudio" },
           { id: "el-1", type: "video", videoUrl: "", videoType: "youtube" },
         ],
         buttonText: "Video ansehen",
@@ -200,6 +202,7 @@ export const defaultTemplates: ClientTemplate[] = [
         title: "Erlebe Arbeit in einem völlig neuen Gefühl",
         subtitle: "Werde Teil eines Teams, das Großes bewegt",
         elements: [
+          { id: "el-hero", type: "image", imageUrl: "/templates/heroes/recruiting.webp", imageAlt: "Team lacht gemeinsam im Büro" },
           { id: "el-1", type: "list", listStyle: "check", listItems: [
             { id: "li-1", text: "Flexible Arbeitszeiten" },
             { id: "li-2", text: "Remote Work möglich" },
@@ -208,7 +211,7 @@ export const defaultTemplates: ClientTemplate[] = [
           ]},
         ],
         buttonText: "Jetzt bewerben",
-        backgroundColor: "#059669",
+        backgroundColor: "#ECFDF5",
       },
       {
         id: "page-2",
@@ -302,6 +305,7 @@ export const defaultTemplates: ClientTemplate[] = [
         title: "In 2 Minuten bewerben — ohne Lebenslauf, ohne Anschreiben",
         subtitle: "Beantworte 3 kurze Fragen. Wir melden uns innerhalb von 24 Stunden.",
         elements: [
+          { id: "el-hero", type: "image", imageUrl: "/templates/heroes/express-bewerbung.webp", imageAlt: "Junger Mann bewirbt sich per Smartphone" },
           { id: "el-1", type: "list", listStyle: "check", listItems: [
             { id: "li-1", text: "Keine Unterlagen nötig — dein Handy reicht" },
             { id: "li-2", text: "Antwort garantiert innerhalb von 24 Stunden" },
@@ -309,7 +313,7 @@ export const defaultTemplates: ClientTemplate[] = [
           ]},
         ],
         buttonText: "Jetzt bewerben",
-        backgroundColor: "#F59E0B",
+        backgroundColor: "#FFFBEB",
       },
       {
         id: "page-2",
@@ -398,6 +402,7 @@ export const defaultTemplates: ClientTemplate[] = [
         title: "Pflege mit Dienstplan, auf den du dich verlassen kannst",
         subtitle: "Werde Teil unseres Teams — wertschätzend, fair bezahlt, wohnortnah",
         elements: [
+          { id: "el-hero", type: "image", imageUrl: "/templates/heroes/pflege-recruiting.webp", imageAlt: "Pflegekraft lächelt im Krankenhausflur" },
           { id: "el-1", type: "video", videoUrl: "", videoType: "youtube" },
           { id: "el-2", type: "list", listStyle: "check", listItems: [
             { id: "li-1", text: "Verlässliche Dienstpläne — Wunschfrei zählt" },
@@ -407,7 +412,7 @@ export const defaultTemplates: ClientTemplate[] = [
           ]},
         ],
         buttonText: "Jetzt Team kennenlernen",
-        backgroundColor: "#E11D48",
+        backgroundColor: "#FFF1F2",
       },
       {
         id: "page-2",
@@ -497,6 +502,7 @@ export const defaultTemplates: ClientTemplate[] = [
         title: "Dein Handwerk. Faires Geld. Feierabend, wenn Feierabend ist.",
         subtitle: "Anlagenmechaniker SHK und Elektroniker (m/w/d) gesucht — unbefristet, übertariflich, in deiner Region",
         elements: [
+          { id: "el-hero", type: "image", imageUrl: "/templates/heroes/handwerk-recruiting.webp", imageAlt: "Handwerker mit Werkzeuggürtel in der Werkstatt" },
           { id: "el-1", type: "list", listStyle: "check", listItems: [
             { id: "li-1", text: "Übertarifliches Gehalt + Auslöse" },
             { id: "li-2", text: "Baustellen in der Region — abends zu Hause" },
@@ -505,7 +511,7 @@ export const defaultTemplates: ClientTemplate[] = [
           ]},
         ],
         buttonText: "In 60 Sekunden bewerben",
-        backgroundColor: "#EA580C",
+        backgroundColor: "#FFF7ED",
       },
       {
         id: "page-2",
@@ -611,6 +617,7 @@ export const defaultTemplates: ClientTemplate[] = [
         title: "Erhalte kostenlosen Zugang zu unserem exklusiven Agentur-Bundle!",
         subtitle: "Bewährte Vorlagen, Checklisten und Strategien für dein Wachstum",
         elements: [
+          { id: "el-hero", type: "image", imageUrl: "/templates/heroes/lead-magnet.webp", imageAlt: "Checkliste auf Tablet neben Kaffee" },
           { id: "el-1", type: "list", listStyle: "check", listItems: [
             { id: "li-1", text: "10+ bewährte Vorlagen" },
             { id: "li-2", text: "Schritt-für-Schritt Anleitungen" },
@@ -618,7 +625,7 @@ export const defaultTemplates: ClientTemplate[] = [
           ]},
         ],
         buttonText: "Jetzt kostenlos herunterladen",
-        backgroundColor: "#2563EB",
+        backgroundColor: "#EFF6FF",
       },
       {
         id: "page-2",
@@ -689,6 +696,7 @@ export const defaultTemplates: ClientTemplate[] = [
         title: "Kostenlose Live Masterclass",
         subtitle: "Lerne in 60 Minuten, wie du dein Business auf das nächste Level bringst",
         elements: [
+          { id: "el-hero", type: "image", imageUrl: "/templates/heroes/masterclass.webp", imageAlt: "Präsentatorin im Studio-Setup" },
           { id: "el-1", type: "timer", timerStyle: "countdown", timerShowDays: true },
           { id: "el-2", type: "list", listStyle: "check", listItems: [
             { id: "li-1", text: "Live Q&A Session" },
@@ -697,7 +705,7 @@ export const defaultTemplates: ClientTemplate[] = [
           ]},
         ],
         buttonText: "Jetzt Platz sichern",
-        backgroundColor: "#7C3AED",
+        backgroundColor: "#F5F3FF",
       },
       {
         id: "page-2",
@@ -757,6 +765,7 @@ export const defaultTemplates: ClientTemplate[] = [
         title: "Was ist Ihre Immobilie wert?",
         subtitle: "Kostenlose Bewertung in nur 2 Minuten",
         elements: [
+          { id: "el-hero", type: "image", imageUrl: "/templates/heroes/immobilien-bewertung.webp", imageAlt: "Modernes Einfamilienhaus in der Abendsonne" },
           { id: "el-1", type: "list", listStyle: "check", listItems: [
             { id: "li-1", text: "Professionelle Marktanalyse" },
             { id: "li-2", text: "Aktuelle Vergleichspreise" },
@@ -764,7 +773,7 @@ export const defaultTemplates: ClientTemplate[] = [
           ]},
         ],
         buttonText: "Bewertung starten",
-        backgroundColor: "#0D9488",
+        backgroundColor: "#F0FDFA",
       },
       {
         id: "page-2",
@@ -869,13 +878,14 @@ export const defaultTemplates: ClientTemplate[] = [
         subtitle: "Beantworte ein paar kurze Fragen, damit wir optimal für dich vorbereitet sind",
         elements: [],
         buttonText: "Los geht's",
-        backgroundColor: "#8B5CF6",
+        backgroundColor: "#F5F3FF",
       },
       {
         id: "page-2",
         type: "question",
         title: "In welcher Branche bist du tätig?",
         elements: [
+          { id: "el-hero", type: "image", imageUrl: "/templates/heroes/agentur-onboarding.webp", imageAlt: "Handschlag im Meetingraum" },
           { id: "el-1", type: "radio", options: [
             "E-Commerce / Online-Shop",
             "Dienstleistung / Beratung",
@@ -962,7 +972,7 @@ export const defaultTemplates: ClientTemplate[] = [
         subtitle: "Beantworte 3 kurze Fragen",
         elements: [],
         buttonText: "Quiz starten",
-        backgroundColor: "#10B981",
+        backgroundColor: "#ECFDF5",
       },
       {
         id: "page-2",
@@ -979,6 +989,7 @@ export const defaultTemplates: ClientTemplate[] = [
         title: "Fast geschafft!",
         subtitle: "Wohin sollen wir dein Ergebnis senden?",
         elements: [
+          { id: "el-hero", type: "image", imageUrl: "/templates/heroes/quiz.webp", imageAlt: "Frau beantwortet Quiz am Smartphone" },
           { id: "el-1", type: "input", placeholder: "Deine E-Mail", required: true },
         ],
         buttonText: "Ergebnis anzeigen",
@@ -1013,6 +1024,7 @@ export const defaultTemplates: ClientTemplate[] = [
         title: "Erreiche deine Ziele mit persönlichem Coaching",
         subtitle: "1:1 Begleitung für deinen Erfolg",
         elements: [
+          { id: "el-hero", type: "image", imageUrl: "/templates/heroes/coaching-angebot.webp", imageAlt: "Business-Coach mit freundlichem Lächeln" },
           { id: "el-1", type: "list", listStyle: "check", listItems: [
             { id: "li-1", text: "Individuelle Strategien" },
             { id: "li-2", text: "Persönliche Betreuung" },
@@ -1020,7 +1032,7 @@ export const defaultTemplates: ClientTemplate[] = [
           ]},
         ],
         buttonText: "Mehr erfahren",
-        backgroundColor: "#DC2626",
+        backgroundColor: "#FEF2F2",
       },
       {
         id: "page-2",
@@ -1092,10 +1104,11 @@ export const defaultTemplates: ClientTemplate[] = [
         title: "Deine Meinung zählt!",
         subtitle: "Diese kurze Umfrage dauert nur 2 Minuten",
         elements: [
+          { id: "el-hero", type: "image", imageUrl: "/templates/heroes/umfrage.webp", imageAlt: "Kundin gibt Bewertung am Tablet" },
           { id: "el-1", type: "text", content: "Hilf uns, besser zu werden und teile deine Erfahrungen mit uns." },
         ],
         buttonText: "Umfrage starten",
-        backgroundColor: "#0EA5E9",
+        backgroundColor: "#F0F9FF",
       },
       {
         id: "page-2",
@@ -1200,7 +1213,7 @@ export function createBlankFunnel(): { pages: FunnelPage[], theme: ClientTemplat
         subtitle: "Füge hier deinen Untertitel ein",
         elements: [],
         buttonText: "Weiter",
-        backgroundColor: "#7C3AED",
+        backgroundColor: "#F5F3FF",
       },
     ],
     theme: {
