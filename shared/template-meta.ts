@@ -77,6 +77,36 @@ export const templateMetas: TemplateMeta[] = [
     videoAvailable: true,
   },
   {
+    slug: "express-bewerbung",
+    name: "Express-Bewerbung",
+    category: "recruiting",
+    benefit: "Schnell-Bewerbung ohne Lebenslauf — 3 Fragen, Kontakt, fertig.",
+    metaTitle: "Funnel-Vorlage: Express-Bewerbung ohne Lebenslauf",
+    metaDescription:
+      "Recruiting-Funnel als Vorlage: Schnell-Bewerbung ohne Lebenslauf — 3 Fragen, Kontakt, fertig. Mobil optimiert für Meta Ads und QR-Codes. Live ausprobieren.",
+    videoAvailable: true,
+  },
+  {
+    slug: "pflege-recruiting",
+    name: "Pflege-Recruiting",
+    category: "recruiting",
+    benefit: "Pflegekräfte gewinnen — mit Dienstplansicherheit statt Floskeln.",
+    metaTitle: "Funnel-Vorlage: Pflege-Recruiting",
+    metaDescription:
+      "Pflegekräfte gewinnen: Recruiting-Funnel mit echten Benefits, Qualifizierung und Kennenlern-Telefonat statt Bewerbungsmappe. DSGVO-konform — live ansehen.",
+    videoAvailable: true,
+  },
+  {
+    slug: "handwerk-recruiting",
+    name: "Handwerk-Recruiting",
+    category: "recruiting",
+    benefit: "60-Sekunden-Bewerbung für Monteure und Gesellen (SHK & Elektro).",
+    metaTitle: "Funnel-Vorlage: Handwerk-Recruiting (SHK/Elektro)",
+    metaDescription:
+      "Monteure und Gesellen gewinnen: 60-Sekunden-Kurzbewerbung mit Gewerk, Qualifikation und Gehaltsvorstellung — mobil optimiert. Jetzt live durchklicken.",
+    videoAvailable: true,
+  },
+  {
     slug: "lead-magnet",
     name: "Lead Magnet",
     category: "leads",

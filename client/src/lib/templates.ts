@@ -289,6 +289,315 @@ export const defaultTemplates: ClientTemplate[] = [
     },
   },
   {
+    id: "template-express-bewerbung",
+    slug: "express-bewerbung",
+    name: "Express-Bewerbung",
+    description: "Mobile Schnell-Bewerbung ohne Lebenslauf — 3 Fragen, Kontakt, fertig",
+    category: "recruiting",
+    thumbnail: "/templates/express-bewerbung.webp",
+    pages: [
+      {
+        id: "page-1",
+        type: "welcome",
+        title: "In 2 Minuten bewerben — ohne Lebenslauf, ohne Anschreiben",
+        subtitle: "Beantworte 3 kurze Fragen. Wir melden uns innerhalb von 24 Stunden.",
+        elements: [
+          { id: "el-1", type: "list", listStyle: "check", listItems: [
+            { id: "li-1", text: "Keine Unterlagen nötig — dein Handy reicht" },
+            { id: "li-2", text: "Antwort garantiert innerhalb von 24 Stunden" },
+            { id: "li-3", text: "100 % vertraulich — dein Arbeitgeber erfährt nichts" },
+          ]},
+        ],
+        buttonText: "Jetzt bewerben",
+        backgroundColor: "#F59E0B",
+      },
+      {
+        id: "page-2",
+        type: "question",
+        title: "Welche Erfahrung bringst du mit?",
+        elements: [
+          { id: "el-1", type: "radio", options: [
+            "Ausgelernt mit Berufserfahrung",
+            "Erste Erfahrung (1–3 Jahre)",
+            "Quereinsteiger:in mit Motivation",
+            "Noch in der Ausbildung"
+          ]},
+        ],
+        buttonText: "Weiter",
+      },
+      {
+        id: "page-3",
+        type: "question",
+        title: "Wann könntest du bei uns anfangen?",
+        elements: [
+          { id: "el-1", type: "radio", options: [
+            "Sofort",
+            "In 1–3 Monaten",
+            "In 3–6 Monaten",
+            "Ich schaue mich erst einmal um"
+          ]},
+        ],
+        buttonText: "Weiter",
+      },
+      {
+        id: "page-4",
+        type: "question",
+        title: "Was ist dir im neuen Job wichtig?",
+        subtitle: "Mehrfachauswahl möglich",
+        elements: [
+          { id: "el-1", type: "checkbox", label: "Faires Gehalt" },
+          { id: "el-2", type: "checkbox", label: "Geregelte Arbeitszeiten" },
+          { id: "el-3", type: "checkbox", label: "Ein Team, das zusammenhält" },
+          { id: "el-4", type: "checkbox", label: "Weiterbildung & Aufstieg" },
+          { id: "el-5", type: "checkbox", label: "Kurzer Arbeitsweg" },
+        ],
+        buttonText: "Weiter",
+      },
+      {
+        id: "page-5",
+        type: "contact",
+        title: "Fast geschafft! Wie erreichen wir dich?",
+        subtitle: "Kein Lebenslauf nötig — wir rufen dich einfach an",
+        elements: [
+          { id: "el-1", type: "input", placeholder: "Dein Vorname", required: true },
+          { id: "el-2", type: "input", placeholder: "Dein Nachname", required: true },
+          { id: "el-3", type: "input", placeholder: "Deine Telefonnummer", required: true },
+          { id: "el-4", type: "input", placeholder: "Deine E-Mail", required: true },
+        ],
+        buttonText: "Bewerbung absenden",
+      },
+      {
+        id: "page-6",
+        type: "thankyou",
+        title: "Deine Bewerbung ist da!",
+        subtitle: "Wir melden uns innerhalb von 24 Stunden telefonisch oder per E-Mail.",
+        elements: [
+          { id: "el-1", type: "text", content: "Tipp: Speichere dir unsere Nummer ein, damit du unseren Anruf nicht verpasst." },
+        ],
+        showConfetti: true,
+      },
+    ],
+    theme: {
+      primaryColor: "#F59E0B",
+      backgroundColor: "#ffffff",
+      textColor: "#1a1a1a",
+      fontFamily: "Inter",
+    },
+  },
+  {
+    id: "template-pflege-recruiting",
+    slug: "pflege-recruiting",
+    name: "Pflege-Recruiting",
+    description: "Gewinne Pflegekräfte mit Dienstplansicherheit, fairer Bezahlung und einem echten Team-Einblick",
+    category: "recruiting",
+    thumbnail: "/templates/pflege-recruiting.webp",
+    pages: [
+      {
+        id: "page-1",
+        type: "welcome",
+        title: "Pflege mit Dienstplan, auf den du dich verlassen kannst",
+        subtitle: "Werde Teil unseres Teams — wertschätzend, fair bezahlt, wohnortnah",
+        elements: [
+          { id: "el-1", type: "video", videoUrl: "", videoType: "youtube" },
+          { id: "el-2", type: "list", listStyle: "check", listItems: [
+            { id: "li-1", text: "Verlässliche Dienstpläne — Wunschfrei zählt" },
+            { id: "li-2", text: "Übertarifliche Bezahlung plus Zuschläge" },
+            { id: "li-3", text: "Feste Touren bzw. feste Wohnbereiche" },
+            { id: "li-4", text: "Kein Einspringen aus dem Frei" },
+          ]},
+        ],
+        buttonText: "Jetzt Team kennenlernen",
+        backgroundColor: "#E11D48",
+      },
+      {
+        id: "page-2",
+        type: "question",
+        title: "Welche Qualifikation bringst du mit?",
+        elements: [
+          { id: "el-1", type: "radio", options: [
+            "Examinierte Pflegefachkraft (3-jährig)",
+            "Pflegehelfer:in (1-jährig)",
+            "Pflegeassistenz / Erfahrung ohne Ausbildung",
+            "Ich möchte in die Pflege quereinsteigen"
+          ]},
+        ],
+        buttonText: "Weiter",
+      },
+      {
+        id: "page-3",
+        type: "question",
+        title: "In welchem Bereich möchtest du arbeiten?",
+        elements: [
+          { id: "el-1", type: "radio", options: [
+            "Stationäre Pflege",
+            "Ambulante Pflege",
+            "Tagespflege",
+            "Intensivpflege / Beatmung",
+            "Ich bin flexibel"
+          ]},
+        ],
+        buttonText: "Weiter",
+      },
+      {
+        id: "page-4",
+        type: "question",
+        title: "Wann und in welchem Umfang kannst du starten?",
+        elements: [
+          { id: "el-1", type: "radio", options: [
+            "Sofort — Vollzeit",
+            "Sofort — Teilzeit",
+            "Ich habe noch Kündigungsfrist (1–3 Monate)",
+            "Ich orientiere mich erst einmal"
+          ]},
+        ],
+        buttonText: "Weiter",
+      },
+      {
+        id: "page-5",
+        type: "contact",
+        title: "Lern uns unverbindlich kennen",
+        subtitle: "Wir melden uns für ein kurzes Kennenlern-Telefonat — 15 Minuten, ohne Bewerbungsdruck",
+        elements: [
+          { id: "el-1", type: "input", placeholder: "Dein Vorname", required: true },
+          { id: "el-2", type: "input", placeholder: "Deine Telefonnummer", required: true },
+          { id: "el-3", type: "input", placeholder: "Deine E-Mail", required: true },
+          { id: "el-4", type: "input", placeholder: "Deine PLZ oder dein Wohnort", required: true },
+        ],
+        buttonText: "Kennenlern-Gespräch anfordern",
+      },
+      {
+        id: "page-6",
+        type: "thankyou",
+        title: "Danke — wir freuen uns auf dich!",
+        subtitle: "Unsere Pflegedienstleitung meldet sich innerhalb von 24 Stunden bei dir.",
+        elements: [
+          { id: "el-1", type: "text", content: "Alles bleibt vertraulich — dein aktueller Arbeitgeber erfährt nichts von deiner Anfrage." },
+        ],
+        showConfetti: true,
+      },
+    ],
+    theme: {
+      primaryColor: "#E11D48",
+      backgroundColor: "#ffffff",
+      textColor: "#1a1a1a",
+      fontFamily: "Inter",
+    },
+  },
+  {
+    id: "template-handwerk-recruiting",
+    slug: "handwerk-recruiting",
+    name: "Handwerk-Recruiting",
+    description: "Monteure und Gesellen gewinnen — mit Gehalt, Region und 60-Sekunden-Bewerbung statt Bewerbungsmappe",
+    category: "recruiting",
+    thumbnail: "/templates/handwerk-recruiting.webp",
+    pages: [
+      {
+        id: "page-1",
+        type: "welcome",
+        title: "Dein Handwerk. Faires Geld. Feierabend, wenn Feierabend ist.",
+        subtitle: "Anlagenmechaniker SHK und Elektroniker (m/w/d) gesucht — unbefristet, übertariflich, in deiner Region",
+        elements: [
+          { id: "el-1", type: "list", listStyle: "check", listItems: [
+            { id: "li-1", text: "Übertarifliches Gehalt + Auslöse" },
+            { id: "li-2", text: "Baustellen in der Region — abends zu Hause" },
+            { id: "li-3", text: "Moderne Ausstattung, digitales Aufmaß" },
+            { id: "li-4", text: "Unbefristeter Vertrag ab Tag 1" },
+          ]},
+        ],
+        buttonText: "In 60 Sekunden bewerben",
+        backgroundColor: "#EA580C",
+      },
+      {
+        id: "page-2",
+        type: "question",
+        title: "Was ist dein Fachgebiet?",
+        elements: [
+          { id: "el-1", type: "radio", options: [
+            "Anlagenmechaniker SHK",
+            "Elektroniker / Elektriker",
+            "Kälte- und Klimatechnik",
+            "Helfer mit Baustellenerfahrung",
+            "Anderes Gewerk"
+          ]},
+        ],
+        buttonText: "Weiter",
+      },
+      {
+        id: "page-3",
+        type: "question",
+        title: "Welche Qualifikation bringst du mit?",
+        elements: [
+          { id: "el-1", type: "radio", options: [
+            "Meister / Techniker",
+            "Geselle mit mehrjähriger Erfahrung",
+            "Geselle, frisch ausgelernt",
+            "Quereinsteiger mit Praxiserfahrung"
+          ]},
+        ],
+        buttonText: "Weiter",
+      },
+      {
+        id: "page-4",
+        type: "question",
+        title: "Hast du einen Führerschein?",
+        elements: [
+          { id: "el-1", type: "radio", options: [
+            "Ja, Klasse B",
+            "Ja, B + Anhänger (BE)",
+            "Nein, aber in Planung",
+            "Nein"
+          ]},
+        ],
+        buttonText: "Weiter",
+      },
+      {
+        id: "page-5",
+        type: "question",
+        title: "Was ist deine Gehaltsvorstellung?",
+        subtitle: "Brutto pro Monat — hilft uns, dir ein faires Angebot zu machen",
+        elements: [
+          { id: "el-1", type: "radio", options: [
+            "Unter 3.000 €",
+            "3.000 – 3.500 €",
+            "3.500 – 4.000 €",
+            "Über 4.000 €",
+            "Sag ich lieber im Gespräch"
+          ]},
+        ],
+        buttonText: "Weiter",
+      },
+      {
+        id: "page-6",
+        type: "contact",
+        title: "Fast geschafft — wie erreichen wir dich?",
+        subtitle: "Kein Anschreiben, kein Lebenslauf — erst mal nur kurz telefonieren",
+        elements: [
+          { id: "el-1", type: "input", placeholder: "Dein Vorname", required: true },
+          { id: "el-2", type: "input", placeholder: "Deine Telefonnummer", required: true },
+          { id: "el-3", type: "input", placeholder: "Deine E-Mail" },
+          { id: "el-4", type: "input", placeholder: "Deine PLZ / Region", required: true },
+        ],
+        buttonText: "Kurzbewerbung abschicken",
+      },
+      {
+        id: "page-7",
+        type: "thankyou",
+        title: "Sauber! Deine Kurzbewerbung ist raus.",
+        subtitle: "Wir melden uns persönlich innerhalb von 24 Stunden — versprochen.",
+        elements: [
+          { id: "el-1", type: "text", content: "Bis gleich am Telefon — und keine Sorge: Alles bleibt unter uns." },
+        ],
+        showConfetti: true,
+      },
+    ],
+    theme: {
+      primaryColor: "#EA580C",
+      backgroundColor: "#ffffff",
+      textColor: "#1a1a1a",
+      fontFamily: "Inter",
+    },
+  },
+  {
     id: "template-leadmagnet",
     slug: "lead-magnet",
     name: "Lead Magnet",

@@ -37,6 +37,25 @@ export const comparisonLinks = [
   { path: "/vergleich/clickfunnels-alternative", competitor: "ClickFunnels" },
 ] as const;
 
+/** Zielgruppen-Landingpages — Meta hier (Server-Injektion + Footer-Links),
+ *  Inhalte in shared/seo-content.ts (audiencePagesContent, Lazy-Chunk). */
+export const audiencePages = [
+  {
+    path: "/recruiting-funnel",
+    label: "Recruiting-Funnel",
+    metaTitle: "Recruiting-Funnel: Bewerber gewinnen ohne Lebenslauf",
+    metaDescription:
+      "Recruiting-Funnel für Pflege, Handwerk, SHK und Gastro: mobile Express-Bewerbung ohne Lebenslauf, DSGVO-konform aus Deutschland. 14 Tage kostenlos testen.",
+  },
+  {
+    path: "/lead-funnel",
+    label: "Lead-Funnel",
+    metaTitle: "Lead-Funnel erstellen: mehr qualifizierte Anfragen",
+    metaDescription:
+      "Lead-Funnel statt Kontaktformular: Besucher Schritt für Schritt qualifizieren und konvertieren — DSGVO-konform ab 49 €/Monat. 14 Tage kostenlos testen.",
+  },
+] as const satisfies readonly (SeoStaticPage & { label: string })[];
+
 export interface SeoFaq {
   q: string;
   a: string;

@@ -153,7 +153,14 @@ export function serveStatic(app: Express) {
   );
 
   app.get(
-    ["/funnel-builder", "/vergleich/:slug", "/vorlagen", "/vorlagen/:slug"],
+    [
+      "/funnel-builder",
+      "/recruiting-funnel",
+      "/lead-funnel",
+      "/vergleich/:slug",
+      "/vorlagen",
+      "/vorlagen/:slug",
+    ],
     (req: Request, res: Response) => {
       const html = marketingHtmlByPath.get(normalizeMarketingPath(req.path));
       if (html) {
