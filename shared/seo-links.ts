@@ -8,6 +8,15 @@
 
 export const SITE_ORIGIN = "https://trichterwerk.de";
 
+/** Pfad der öffentlichen Template-Galerie — einziger Koordinationspunkt für
+ *  Header/Footer/Landing-Links (Detailseiten: `${TEMPLATE_GALLERY_PATH}/<slug>`). */
+export const TEMPLATE_GALLERY_PATH = "/vorlagen";
+
+/** localStorage-Key für die in der Galerie gewählte Vorlage: /register?template=<slug>
+ *  merkt sie sich hier, /funnels/new liest und löscht sie — überlebt so
+ *  Stripe-Checkout-Redirect und E-Mail-Verifizierung. */
+export const SIGNUP_TEMPLATE_STORAGE_KEY = "tw-signup-template";
+
 export interface SeoStaticPage {
   path: string;
   /** Ohne Suffix — Server/Hook hängen " | Trichterwerk" an. */

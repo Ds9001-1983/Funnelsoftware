@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Zap, AlertCircle, Check, Sparkles, Lock } from "lucide-react";
+import { SIGNUP_TEMPLATE_STORAGE_KEY } from "@shared/seo-links";
 
 export default function Register() {
   const { register, isAuthenticated } = useAuth();
@@ -33,6 +34,20 @@ export default function Register() {
   useEffect(() => {
     if (isAuthenticated) setLocation("/");
   }, [isAuthenticated, setLocation]);
+
+  // Aus der Template-Galerie gekommen (?template=<slug>)? Auswahl merken —
+  // localStorage überlebt Stripe-Checkout-Redirect und E-Mail-Verifizierung;
+  // /funnels/new liest den Key und wählt die Vorlage vor.
+  useEffect(() => {
+    const slug = new URLSearchParams(window.location.search).get("template");
+    if (slug && /^[a-z0-9-]+$/.test(slug)) {
+      try {
+        localStorage.setItem(SIGNUP_TEMPLATE_STORAGE_KEY, slug);
+      } catch {
+        // Storage blockiert → Auswahl geht verloren, Registrierung läuft normal
+      }
+    }
+  }, []);
 
   if (isAuthenticated) return null;
 

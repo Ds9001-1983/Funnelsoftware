@@ -152,13 +152,16 @@ export function serveStatic(app: Express) {
     ].join("\n    "),
   );
 
-  app.get(["/funnel-builder", "/vergleich/:slug"], (req: Request, res: Response) => {
-    const html = marketingHtmlByPath.get(normalizeMarketingPath(req.path));
-    if (html) {
-      return sendHtml(res, html);
-    }
-    sendHtml(res, notFoundHtml, 404);
-  });
+  app.get(
+    ["/funnel-builder", "/vergleich/:slug", "/vorlagen", "/vorlagen/:slug"],
+    (req: Request, res: Response) => {
+      const html = marketingHtmlByPath.get(normalizeMarketingPath(req.path));
+      if (html) {
+        return sendHtml(res, html);
+      }
+      sendHtml(res, notFoundHtml, 404);
+    },
+  );
 
   // fall through to index.html if the file doesn't exist
   app.use("/{*path}", (_req, res) => {

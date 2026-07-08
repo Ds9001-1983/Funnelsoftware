@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Zap } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
 
 /**
  * Fixierter Header für alle öffentlichen Marketing-Seiten (Landing, Vergleiche,
@@ -37,9 +38,9 @@ export function MarketingHeader() {
           <a href={anchor("features")} className="text-muted-foreground hover:text-foreground transition-colors">
             Features
           </a>
-          <a href={anchor("templates")} className="text-muted-foreground hover:text-foreground transition-colors">
+          <Link href={TEMPLATE_GALLERY_PATH} className="text-muted-foreground hover:text-foreground transition-colors">
             Templates
-          </a>
+          </Link>
           <a href={anchor("pricing")} className="text-muted-foreground hover:text-foreground transition-colors">
             Preise
           </a>

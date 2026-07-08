@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { Zap, Mail, Cookie } from "lucide-react";
 import { resetCookieConsent } from "@/components/cookie-consent";
 import { CONTACT_EMAIL } from "./constants";
-import { comparisonLinks, funnelBuilderPage } from "@shared/seo-links";
+import { comparisonLinks, funnelBuilderPage, TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
 
 /**
  * Footer für alle öffentlichen Marketing-Seiten. Die „Vergleiche"-Spalte ist das
@@ -39,7 +39,7 @@ export function MarketingFooter() {
             <h4 className="font-semibold mb-4">Produkt</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><a href="/#features" className="hover:text-foreground">Features</a></li>
-              <li><a href="/#templates" className="hover:text-foreground">Templates</a></li>
+              <li><Link href={TEMPLATE_GALLERY_PATH} className="hover:text-foreground">Vorlagen</Link></li>
               <li><a href="/#pricing" className="hover:text-foreground">Preise</a></li>
               <li><a href="/#faq" className="hover:text-foreground">FAQ</a></li>
             </ul>
