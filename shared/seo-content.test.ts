@@ -1,6 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { comparisonPages, seoStaticPages, getComparisonPage } from "./seo-content";
-import { comparisonLinks, funnelBuilderPage, TEMPLATE_GALLERY_PATH } from "./seo-links";
+import {
+  comparisonPages,
+  seoStaticPages,
+  getComparisonPage,
+  audiencePagesContent,
+  getAudiencePage,
+} from "./seo-content";
+import {
+  audiencePages,
+  comparisonLinks,
+  funnelBuilderPage,
+  TEMPLATE_GALLERY_PATH,
+} from "./seo-links";
 import { templateSeoPages, templateMetas, getTemplateMeta } from "./template-meta";
 
 describe("seo-content ↔ seo-links Konsistenz", () => {
@@ -20,19 +31,42 @@ describe("seo-content ↔ seo-links Konsistenz", () => {
     }
   });
 
-  it("seoStaticPages enthält Pillar-Seite, Vergleichsseiten und Template-Galerie", () => {
+  it("seoStaticPages enthält Pillar-, Vergleichs-, Zielgruppen- und Galerie-Seiten", () => {
     const paths = seoStaticPages.map((p) => p.path);
     expect(paths).toContain(funnelBuilderPage.path);
     for (const link of comparisonLinks) {
       expect(paths).toContain(link.path);
+    }
+    for (const page of audiencePages) {
+      expect(paths).toContain(page.path);
     }
     expect(paths).toContain(TEMPLATE_GALLERY_PATH);
     for (const meta of templateMetas) {
       expect(paths).toContain(`${TEMPLATE_GALLERY_PATH}/${meta.slug}`);
     }
     expect(seoStaticPages.length).toBe(
-      1 + Object.keys(comparisonPages).length + templateSeoPages.length,
+      1 +
+        Object.keys(comparisonPages).length +
+        audiencePages.length +
+        templateSeoPages.length,
     );
+  });
+
+  it("jede Zielgruppen-Seite hat Content, und jeder Content eine Seite", () => {
+    for (const page of audiencePages) {
+      const slug = page.path.replace(/^\//, "");
+      expect(getAudiencePage(slug), `Content fehlt für ${page.path}`).toBeDefined();
+    }
+    for (const content of Object.values(audiencePagesContent)) {
+      const page = audiencePages.find((p) => p.path === `/${content.slug}`);
+      expect(page, `seo-links-Eintrag fehlt für ${content.slug}`).toBeDefined();
+      // Showcase-Slugs müssen auf echte Template-Metas zeigen.
+      for (const slug of content.templateShowcase) {
+        expect(getTemplateMeta(slug), `Showcase-Slug "${slug}" existiert nicht`).toBeDefined();
+      }
+    }
+    expect(getAudiencePage("gibt-es-nicht")).toBeUndefined();
+    expect(getAudiencePage("__proto__")).toBeUndefined();
   });
 
   it("relatedSlugs verweisen nur auf existierende Registry-Einträge", () => {

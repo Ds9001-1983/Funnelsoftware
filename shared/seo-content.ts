@@ -9,7 +9,7 @@
  * statt im Lazy-Chunk — dafür gibt es das leichte shared/seo-links.ts.
  */
 
-import { funnelBuilderPage, type SeoFaq, type SeoStaticPage } from "./seo-links";
+import { audiencePages, funnelBuilderPage, type SeoFaq, type SeoStaticPage } from "./seo-links";
 import { templateSeoPages } from "./template-meta";
 
 export { faqPageJsonLd } from "./seo-links";
@@ -158,7 +158,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         q: "Welche Typeform-Alternativen gibt es noch?",
-        a: "Häufig verglichen werden Perspective (Mobile Funnels, ab 99 €/Monat) und ClickFunnels (US-Tool, englischsprachig). Beide haben wir in eigenen Vergleichen gegenübergestellt.",
+        a: "Häufig verglichen werden Perspective (Mobile Funnels, ab 59 €/Monat plus Add-ons) und ClickFunnels (US-Tool, englischsprachig). Beide haben wir in eigenen Vergleichen gegenübergestellt.",
       },
     ],
     relatedSlugs: ["perspective-alternative", "clickfunnels-alternative"],
@@ -167,28 +167,28 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
   "perspective-alternative": {
     slug: "perspective-alternative",
     competitorName: "Perspective",
-    metaTitle: "Perspective-Alternative: Funnels ab 49 € statt 99 €",
+    metaTitle: "Perspective-Alternative: alles inklusive für 49 €",
     metaDescription:
-      "Perspective-Alternative gesucht? Trichterwerk bietet Mobile-First-Funnels mit A/B-Tests und Analytics für 49 €/Monat — die Hälfte. 14 Tage kostenlos testen.",
-    h1: "Die Perspective-Alternative: gleiche Funnel-Power, halber Preis",
+      "Perspective-Alternative gesucht? Trichterwerk: Mobile-Funnels mit A/B-Tests für 49 €/Monat — ohne Add-ons, ohne Lead-Gebühren. 14 Tage kostenlos testen.",
+    h1: "Die Perspective-Alternative: alles inklusive statt modularer Add-ons",
     intro: [
-      "Perspective hat Mobile-Funnels im DACH-Raum populär gemacht — und ist ein gutes Tool. Aber ab 99 € pro Monat ist der Einstieg happig, gerade für Solo-Selbstständige, Coaches und kleine Agenturen, die gerade erst mit Funnels starten.",
+      "Perspective hat Mobile-Funnels im DACH-Raum populär gemacht — und ist ein gutes Tool. Aber das Preismodell ist modular: Der Base-Plan startet bei 59 € pro Monat (47 € bei Jahreszahlung), enthält aber nur 2 Live-Funnels und 100 Leads pro Monat. Zusatzfunktionen kommen als Add-on-Suiten für 67–84 € monatlich dazu, zusätzliche Leads kosten 0,25 € pro Kontakt — so wird aus dem Einstiegspreis schnell ein dreistelliger Monatsbetrag.",
       "Trichterwerk bietet als deutscher Funnel-Builder dieselbe Kernidee — mobile-optimierte, mehrstufige Funnels per Drag & Drop — für 49 € im Monat: mit unbegrenzten Funnels und Leads, A/B-Tests, eingebauten Analytics und eigener Domain. Ebenfalls DSGVO-konform mit EU-Hosting, ebenfalls auf Deutsch.",
     ],
     verdict:
-      "Kurz gesagt: Wer Mobile-First-Funnels wie bei Perspective will, aber keine 99 €+ im Monat zahlen möchte, bekommt mit Trichterwerk den vollen Funktionsumfang — inklusive A/B-Tests — für 49 €. 14 Tage kostenlos testen.",
+      "Kurz gesagt: Wer Mobile-First-Funnels wie bei Perspective will, aber einen kalkulierbaren Fixpreis statt Base-Plan plus Add-ons plus Lead-Gebühren, bekommt mit Trichterwerk alle Features — inklusive A/B-Tests und unbegrenzter Funnels — für 49 €. 14 Tage kostenlos testen.",
     painPoints: [
       {
-        title: "Einstiegspreis ab 99 € pro Monat",
-        text: "Perspective startet preislich deutlich höher — für viele Selbstständige und kleine Teams schwer zu rechtfertigen, bevor der Funnel überhaupt Leads bringt. Trichterwerk kostet 49 € mit allen Features und ist damit etwa halb so teuer.",
+        title: "Modulare Add-ons statt Festpreis",
+        text: "Der Base-Plan kostet 59 € pro Monat (47 € bei Jahreszahlung), deckt aber nur die Grundfunktionen ab: Erweiterungen wie Whitelabel oder Personalisierung gibt es als Add-on-Suiten für 67–84 € monatlich. Wer mehr will, landet im Grow-Plan für 184 €. Trichterwerk kostet 49 € — alle Features inklusive.",
       },
       {
-        title: "Funktionen hinter höheren Plänen",
-        text: "Wie bei vielen Funnel-Tools sind manche Funktionen und Limits an teurere Pläne gekoppelt. Bei Trichterwerk gibt es genau einen Pro-Plan: alle Features, unbegrenzte Funnels, unbegrenzte Leads — ohne Staffelung.",
+        title: "Funnel- und Lead-Limits je Plan",
+        text: "Base enthält 2 Live-Funnels und 100 Leads pro Monat; jeder weitere Lead kostet 0,25 €. Wer erfolgreich Kampagnen fährt, zahlt also pro Erfolg mit. Bei Trichterwerk sind Funnels und Leads unbegrenzt — der Preis bleibt gleich.",
       },
       {
-        title: "Keine A/B-Tests",
-        text: "Wer wissen will, welche Headline oder welches Angebot besser konvertiert, braucht A/B-Tests. Trichterwerk hat sie eingebaut: Zwei Seiten-Varianten gegeneinander testen und datenbasiert entscheiden.",
+        title: "A/B-Tests erst ab dem Grow-Plan",
+        text: "Wer wissen will, welche Headline oder welches Angebot besser konvertiert, braucht A/B-Tests — bei Perspective gibt es sie erst ab Grow (184 €/Monat). Trichterwerk hat sie im 49-€-Plan eingebaut: Zwei Seiten-Varianten gegeneinander testen und datenbasiert entscheiden.",
       },
     ],
     comparisonRows: [
@@ -196,12 +196,12 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       { label: "Hosting in der EU / DSGVO-konform", trichterwerk: true, competitor: true },
       { label: "Live-Handy-Vorschau im Editor", trichterwerk: true, competitor: true },
       { label: "Conditional Logic & Quiz", trichterwerk: true, competitor: true },
-      { label: "A/B-Tests", trichterwerk: true, competitor: false },
+      { label: "A/B-Tests", trichterwerk: true, competitor: "erst ab Grow (184 €)" },
       { label: "Eigene Domain inklusive", trichterwerk: true, competitor: true },
-      { label: "Unbegrenzte Funnels & Leads", trichterwerk: true, competitor: "je nach Plan" },
+      { label: "Unbegrenzte Funnels & Leads", trichterwerk: true, competitor: "2–20 Funnels, dann 0,25 €/Lead" },
       { label: "Analytics eingebaut (cookieless)", trichterwerk: true, competitor: true },
       { label: "Setup-Zeit bis Launch", trichterwerk: "< 1 h", competitor: "1–2 h" },
-      { label: "Monatspreis", trichterwerk: "49 €, alles inklusive", competitor: "ab ca. 99 €" },
+      { label: "Monatspreis", trichterwerk: "49 €, alles inklusive", competitor: "ab 59 € + Add-ons (67–84 €)" },
     ],
     featureSections: [
       {
@@ -209,8 +209,8 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
         text: "Trichterwerk ist von Grund auf für mobile Besucher gebaut: Jeder Funnel wird automatisch fürs Smartphone optimiert, der Editor zeigt dir die Handy-Vorschau live beim Bauen. Perfekt für Traffic aus Instagram, TikTok und Meta Ads.",
       },
       {
-        title: "A/B-Tests inklusive — der Unterschied",
-        text: "Der größte funktionale Unterschied: Trichterwerk bringt A/B-Tests mit. Teste zwei Varianten einer Seite gegeneinander und finde heraus, welche Headline, welches Bild oder welches Angebot mehr Leads bringt — ohne Zusatztool, ohne Aufpreis.",
+        title: "A/B-Tests inklusive — ohne Plan-Upgrade",
+        text: "Bei Perspective gibt es A/B-Testing erst ab dem Grow-Plan für 184 € pro Monat. Trichterwerk bringt A/B-Tests im 49-€-Plan mit: Teste zwei Varianten einer Seite gegeneinander und finde heraus, welche Headline, welches Bild oder welches Angebot mehr Leads bringt — ohne Aufpreis.",
       },
       {
         title: "Ein Plan, alle Features",
@@ -224,8 +224,8 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
     pricingComparison: {
       title: "Preisvergleich: Perspective vs. Trichterwerk",
       text: [
-        "Perspective startet bei rund 99 € pro Monat. Für Agenturen mit vielen Kundenprojekten mag sich das rechnen — für Solo-Selbstständige und kleine Teams ist es eine hohe Fixkostenhürde, bevor der erste Lead da ist.",
-        "Trichterwerk kostet 49 € pro Monat — alles inklusive, monatlich kündbar, 14 Tage kostenlos testbar. Aufs Jahr gerechnet sparst du gegenüber dem Perspective-Einstieg etwa 600 €.",
+        "Perspective startet mit dem Base-Plan bei 59 € pro Monat (47 € bei Jahreszahlung) — bewusst schlank: 2 Live-Funnels und 100 Leads pro Monat sind enthalten, jeder weitere Lead kostet 0,25 €. Erweiterungen gibt es als Add-on-Suiten für 67–84 € monatlich; die größeren Pläne Grow und Expand liegen bei 184 € bzw. 369 € pro Monat.",
+        "Trichterwerk kostet 49 € pro Monat — alles inklusive, monatlich kündbar, 14 Tage kostenlos testbar. Keine Add-ons, keine Lead-Gebühren, keine Funnel-Limits: Der Preis, den du siehst, ist der Preis, den du zahlst.",
       ],
     },
     honestSection: {
@@ -243,13 +243,13 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         title: "Traffic umleiten & testen",
-        text: "Ads auf die neue Funnel-URL zeigen lassen, Leads laufen ab sofort in Trichterwerk auf. Tipp: Direkt einen A/B-Test aufsetzen — das kann Perspective nicht.",
+        text: "Ads auf die neue Funnel-URL zeigen lassen, Leads laufen ab sofort in Trichterwerk auf. Tipp: Direkt einen A/B-Test aufsetzen — bei Trichterwerk ohne Plan-Upgrade inklusive.",
       },
     ],
     faqs: [
       {
         q: "Was kostet Perspective im Vergleich zu Trichterwerk?",
-        a: "Perspective startet bei rund 99 € pro Monat, Trichterwerk kostet 49 € pro Monat mit allen Features, unbegrenzten Funnels und Leads. Beide sind monatlich kündbar.",
+        a: "Perspective startet im Base-Plan bei 59 € pro Monat (47 € bei Jahreszahlung) mit 2 Live-Funnels und 100 Leads/Monat; zusätzliche Leads kosten 0,25 €, Add-on-Suiten 67–84 € monatlich, die Pläne Grow und Expand 184 € bzw. 369 €. Trichterwerk kostet 49 € pro Monat mit allen Features, unbegrenzten Funnels und Leads. Beide sind monatlich kündbar.",
       },
       {
         q: "Ist Trichterwerk wie Perspective DSGVO-konform?",
@@ -265,7 +265,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         q: "Was hat Trichterwerk, das Perspective nicht hat?",
-        a: "Vor allem A/B-Tests (bei Perspective nicht verfügbar) und einen einzigen All-inclusive-Plan für 49 € statt gestaffelter Pläne ab 99 €.",
+        a: "Vor allem einen einzigen All-inclusive-Plan für 49 € statt Base-Plan plus kostenpflichtiger Add-ons und Lead-Gebühren — mit unbegrenzten Funnels, unbegrenzten Leads und A/B-Tests, die es bei Perspective erst ab dem Grow-Plan (184 €) gibt.",
       },
     ],
     relatedSlugs: ["typeform-alternative", "clickfunnels-alternative"],
@@ -383,11 +383,184 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
   },
 };
 
+export interface AudiencePageContent {
+  /** = Pfad ohne führenden Slash (Konsistenz mit seo-links.audiencePages). */
+  slug: string;
+  badge: string;
+  h1: string;
+  intro: string[];
+  painPoints: { title: string; text: string }[];
+  /** Branchen-/Use-Case-Grid. */
+  industries: { title: string; text: string }[];
+  /** Slugs aus shared/template-meta.ts für den Vorlagen-Showcase. */
+  templateShowcase: string[];
+  steps: { title: string; text: string }[];
+  faqs: SeoFaq[];
+}
+
+export const audiencePagesContent: Record<string, AudiencePageContent> = {
+  "recruiting-funnel": {
+    slug: "recruiting-funnel",
+    badge: "Für Recruiter & HR-Teams",
+    h1: "Recruiting-Funnel: Bewerbungen statt Bewerbungsmappen",
+    intro: [
+      "Stellenanzeigen auf Jobportalen konvertieren mobil miserabel: Kandidaten scrollen abends auf dem Sofa durch Instagram — und brechen ab, sobald ein Lebenslauf-Upload verlangt wird. Ein Recruiting-Funnel dreht den Prozess um: erst Interesse wecken, dann in drei kurzen Fragen qualifizieren, zum Schluss nur Name und Telefonnummer.",
+      "Mit Trichterwerk baust du so einen Funnel aus einer fertigen Vorlage in unter einer Stunde — mobile-first, DSGVO-konform mit EU-Hosting, und mit Benachrichtigung in Echtzeit, sobald eine Bewerbung eingeht.",
+    ],
+    painPoints: [
+      {
+        title: "Keine Bewerbungen trotz Anzeigen-Budget",
+        text: "Wer Meta- oder Google-Ads auf eine klassische Karriereseite schickt, verliert die Mehrheit der Kandidaten beim ersten Klick. Ein mobiler Funnel mit 4–6 Schritten holt Bewerber dort ab, wo sie sind — auf dem Smartphone.",
+      },
+      {
+        title: "Abbruch beim Lebenslauf-Upload",
+        text: "Die Express-Bewerbung ohne Lebenslauf senkt die Hürde radikal: 3 Fragen, Kontaktdaten, fertig. Unterlagen kannst du später im Gespräch nachfordern — erst mal zählt der Kontakt.",
+      },
+      {
+        title: "Screening frisst Stunden",
+        text: "Qualifizierungsfragen im Funnel (Qualifikation, Verfügbarkeit, Region, Gehaltsvorstellung) filtern vor, bevor du telefonierst. Jede Bewerbung kommt mit allen Antworten in dein Dashboard und per E-Mail.",
+      },
+    ],
+    industries: [
+      {
+        title: "Pflege",
+        text: "Dienstplansicherheit, faire Bezahlung, kein Einspringen aus dem Frei — die Argumente, die Pflegekräfte wirklich bewegen, gehören in den ersten Schritt. Die Pflege-Recruiting-Vorlage bringt sie mit.",
+      },
+      {
+        title: "Handwerk, SHK & Elektro",
+        text: "Monteure bewerben sich nicht mit Anschreiben. Gewerk, Qualifikation, Führerschein, Gehaltsvorstellung — in 60 Sekunden vom Handy, gern auch über einen QR-Code auf dem Firmenwagen.",
+      },
+      {
+        title: "Gastro & Quereinstieg",
+        text: "Kurzfristige Starts, Schichtmodelle, keine formalen Hürden: Ein schlanker Funnel mit wenigen Fragen passt zu Jobs, bei denen Motivation mehr zählt als die Mappe.",
+      },
+    ],
+    templateShowcase: ["express-bewerbung", "pflege-recruiting", "handwerk-recruiting"],
+    steps: [
+      {
+        title: "Vorlage wählen",
+        text: "Express-Bewerbung, Pflege oder Handwerk — Vorlage übernehmen und Arbeitgeber-Benefits, Fragen und Farben anpassen.",
+      },
+      {
+        title: "Live schalten",
+        text: "Eigene Domain verbinden (SSL automatisch) oder den Trichterwerk-Link nutzen — auch als QR-Code auf Aushang, Flyer oder Fahrzeug.",
+      },
+      {
+        title: "Bewerber erreichen",
+        text: "Meta- oder Google-Ads auf den Funnel schicken. Jede Bewerbung landet sofort in deinem Postfach und im Dashboard — inklusive aller Qualifizierungs-Antworten.",
+      },
+    ],
+    faqs: [
+      {
+        q: "Was ist ein Recruiting-Funnel?",
+        a: "Ein mehrstufiger, mobiler Bewerbungsprozess: Statt Stellenanzeige plus Bewerbungsmappe führt er Kandidaten Schritt für Schritt — Benefits, 3–4 Qualifizierungsfragen, Kontaktdaten. Das senkt die Hürde und liefert vorqualifizierte Bewerbungen.",
+      },
+      {
+        q: "Funktioniert eine Bewerbung wirklich ohne Lebenslauf?",
+        a: "Ja — für die Erstansprache. Der Funnel sammelt Qualifikation, Verfügbarkeit und Kontakt; Unterlagen forderst du im Gespräch nach. Alle Daten werden DSGVO-konform in der EU gespeichert, mit dokumentiertem Consent.",
+      },
+      {
+        q: "Was kostet ein Recruiting-Funnel?",
+        a: "Bei Trichterwerk 49 € pro Monat — unbegrenzte Funnels und Bewerbungen, alle Vorlagen, A/B-Tests und eigene Domain inklusive. 14 Tage kostenlos testen, monatlich kündbar.",
+      },
+      {
+        q: "Wie kommen Bewerber in den Funnel?",
+        a: "Meist über Meta-Ads (Instagram/Facebook) oder Google-Ads auf die Funnel-URL — außerdem über QR-Codes auf Fahrzeugen, Aushängen und Flyern oder den Link in der Stellenanzeige.",
+      },
+      {
+        q: "Wie schnell ist ein Recruiting-Funnel live?",
+        a: "Mit einer fertigen Vorlage in unter einer Stunde: Vorlage übernehmen, Texte und Farben anpassen, veröffentlichen. Die Vorlagen kannst du vorher live durchklicken — ohne Anmeldung.",
+      },
+    ],
+  },
+
+  "lead-funnel": {
+    slug: "lead-funnel",
+    badge: "Für Dienstleister, Coaches & Agenturen",
+    h1: "Lead-Funnel: aus Besuchern qualifizierte Anfragen machen",
+    intro: [
+      "Ein Kontaktformular stellt alle Fragen auf einmal — und bekommt sie deshalb selten beantwortet. Ein Lead-Funnel zerlegt den Weg in kleine Schritte: eine Frage pro Seite, sichtbarer Fortschritt, am Ende die Kontaktdaten. Das Ergebnis sind mehr Anfragen und — durch die Qualifizierungsfragen — deutlich bessere.",
+      "Mit Trichterwerk baust du Lead-Funnels per Drag & Drop aus fertigen Vorlagen: mobile-first, mit Conditional Logic für individuelle Wege, eingebauten Analytics und Webhook-Anbindung an dein CRM.",
+    ],
+    painPoints: [
+      {
+        title: "Formulare konvertieren nicht",
+        text: "Zehn Felder auf einer Seite schrecken ab. Ein Funnel mit einer Frage pro Schritt fühlt sich leicht an — und mobile Besucher aus Social Ads bleiben dran.",
+      },
+      {
+        title: "Unqualifizierte Anfragen",
+        text: "Budget, Bedarf, Timing: Wer im Funnel qualifiziert, telefoniert nur noch mit passenden Interessenten. Mit Conditional Logic bekommen unterschiedliche Antworten unterschiedliche Wege.",
+      },
+      {
+        title: "Tool-Stack-Chaos",
+        text: "Landingpage-Baukasten plus Formular-Tool plus Analytics plus Kalender — vier Abos, vier Datenschutz-Prüfungen. Trichterwerk liefert den kompletten Funnel aus einem Guss, DSGVO-konform.",
+      },
+    ],
+    industries: [
+      {
+        title: "Coaches & Berater",
+        text: "Strategiegespräch-Funnel: Situation und Budget abfragen, dann direkt den Termin buchen lassen — die Termin-Vorlage bringt Kalender-Schritt und Qualifizierung mit.",
+      },
+      {
+        title: "Immobilien",
+        text: "Bewertungs-Funnel für Eigentümer: Objektdaten Schritt für Schritt abfragen, als Gegenwert gibt es die Einschätzung — eine der stärksten Lead-Mechaniken im Markt.",
+      },
+      {
+        title: "Agenturen & Dienstleister",
+        text: "Erstgespräch- und Onboarding-Funnels qualifizieren Neukunden, bevor das erste Meeting stattfindet — Ziel, Budget, Timing inklusive. Leads laufen per Webhook direkt ins CRM.",
+      },
+    ],
+    templateShowcase: ["termin-buchen", "lead-magnet", "immobilien-bewertung"],
+    steps: [
+      {
+        title: "Vorlage wählen",
+        text: "Termin-Funnel, Lead-Magnet oder Bewertungs-Funnel — übernehmen und Angebot, Fragen und Branding anpassen.",
+      },
+      {
+        title: "Qualifizierung einbauen",
+        text: "Fragen und Conditional Logic definieren: Wer passt, kommt zum Kalender oder Kontaktformular — wer nicht passt, bekommt einen alternativen Weg.",
+      },
+      {
+        title: "Messen & optimieren",
+        text: "Eingebaute Analytics zeigen Views, Conversions und Absprünge pro Schritt. Mit A/B-Tests findest du heraus, welche Headline mehr Anfragen bringt.",
+      },
+    ],
+    faqs: [
+      {
+        q: "Was ist ein Lead-Funnel?",
+        a: "Eine mehrstufige Strecke von der Landingpage bis zur qualifizierten Anfrage: Nutzenversprechen, Qualifizierungsfragen, Kontaktdaten, Danke-Seite — mit Logik und Tracking dazwischen. Er ersetzt das klassische Kontaktformular.",
+      },
+      {
+        q: "Warum konvertiert ein Funnel besser als ein Formular?",
+        a: "Weil er die Hürde zerlegt: eine Frage pro Schritt, sichtbarer Fortschritt, mobile Bedienung. Besucher investieren sich Schritt für Schritt — die Abschlussquote steigt spürbar gegenüber einem langen Formular.",
+      },
+      {
+        q: "Was kostet ein Lead-Funnel?",
+        a: "Bei Trichterwerk 49 € pro Monat — unbegrenzte Funnels und Leads, alle Vorlagen, A/B-Tests, Analytics und eigene Domain inklusive. 14 Tage kostenlos testen, monatlich kündbar.",
+      },
+      {
+        q: "Wie kommen die Leads in mein CRM?",
+        a: "Per signiertem Webhook in Echtzeit (kompatibel mit Zapier und Make), per CSV-Export oder direkt im Trichterwerk-Dashboard mit Kanban-Ansicht und E-Mail-Benachrichtigung.",
+      },
+      {
+        q: "Ist das DSGVO-konform?",
+        a: "Ja: Hosting ausschließlich in der EU, Cookie-Consent-Banner auf jedem veröffentlichten Funnel, AV-Vertrag inklusive und dokumentierter Marketing-Consent pro Lead.",
+      },
+    ],
+  },
+};
+
+/** Registry-Lookup, gehärtet gegen Prototype-Keys. */
+export function getAudiencePage(slug: string | undefined): AudiencePageContent | undefined {
+  if (!slug || !Object.hasOwn(audiencePagesContent, slug)) return undefined;
+  return audiencePagesContent[slug];
+}
+
 /**
  * Alle statischen SEO-Seiten (für Sitemap + SSR-Meta-Injektion).
  * Vergleichsseiten werden aus comparisonPages abgeleitet, die Galerie-Seiten
- * aus shared/template-meta.ts, damit Routen, Sitemap und Server-Meta nicht
- * auseinanderlaufen.
+ * aus shared/template-meta.ts, die Zielgruppen-Seiten aus seo-links, damit
+ * Routen, Sitemap und Server-Meta nicht auseinanderlaufen.
  */
 export const seoStaticPages: SeoStaticPage[] = [
   funnelBuilderPage,
@@ -396,6 +569,7 @@ export const seoStaticPages: SeoStaticPage[] = [
     metaTitle: c.metaTitle,
     metaDescription: c.metaDescription,
   })),
+  ...audiencePages,
   ...templateSeoPages,
 ];
 

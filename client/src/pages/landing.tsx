@@ -28,7 +28,7 @@ import {
   Briefcase,
   GraduationCap,
   UserSearch,
-  Headphones,
+  Play,
   Flag,
   Heart,
   CreditCard,
@@ -40,7 +40,7 @@ import { useEffect } from "react";
 import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { CONTACT_EMAIL } from "@/components/marketing/constants";
-import { comparisonLinks } from "@shared/seo-links";
+import { comparisonLinks, TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
 
 const templatePreviews = [
   {
@@ -68,11 +68,11 @@ const templatePreviews = [
     image: "/templates/umfrage.webp",
   },
   {
-    name: "Schnell-Bewerbung",
+    name: "Express-Bewerbung",
     category: "Recruiting",
     color: "#F59E0B",
-    description: "Top-Talente gewinnen",
-    image: "/templates/recruiting.webp",
+    description: "Bewerbungen ohne Lebenslauf",
+    image: "/templates/express-bewerbung.webp",
   },
   {
     name: "Produkt-Verkauf",
@@ -146,7 +146,7 @@ const steps = [
   {
     number: "02",
     title: "Template wählen",
-    description: "10 fertige, konversionsstarke Vorlagen — oder leer starten.",
+    description: "13 fertige, konversionsstarke Vorlagen — oder leer starten.",
   },
   {
     number: "03",
@@ -253,7 +253,7 @@ const heroTrust = [
 // Ehrliche, belegbare Produktfakten statt erfundener Kundenstimmen
 const proofStats = [
   { value: "< 1 Std.", label: "vom Signup zum ersten Funnel live" },
-  { value: "10", label: "fertige, konversionsstarke Templates" },
+  { value: "13", label: "fertige, konversionsstarke Templates" },
   { value: "20+", label: "Bausteine für jeden Funnel-Typ" },
   { value: "100 %", label: "DSGVO-konform, Hosting in der EU" },
 ];
@@ -272,9 +272,9 @@ const comparisonRows: ComparisonRow[] = [
   { label: "Live-Handy-Vorschau im Editor", trichterwerk: true, typeform: true, perspective: true, webflow: false },
   { label: "Conditional Logic & Quiz", trichterwerk: true, typeform: true, perspective: true, webflow: false },
   { label: "Eigene Domain inklusive", trichterwerk: true, typeform: false, perspective: true, webflow: true },
-  { label: "A/B-Tests", trichterwerk: true, typeform: false, perspective: false, webflow: "mit Add-on" },
+  { label: "A/B-Tests", trichterwerk: true, typeform: false, perspective: "ab 184 €-Plan", webflow: "mit Add-on" },
   { label: "Setup-Zeit bis Launch", trichterwerk: "< 1 h", typeform: "1–2 h", perspective: "2–4 h", webflow: "Tage" },
-  { label: "Monatspreis", trichterwerk: "49 €", typeform: "ab 25 $", perspective: "ab 99 €", webflow: "ab 29 $ + Design" },
+  { label: "Monatspreis", trichterwerk: "49 €", typeform: "ab 25 $", perspective: "ab 59 € + Add-ons", webflow: "ab 29 $ + Design" },
 ];
 
 const faqs = [
@@ -670,15 +670,15 @@ export default function Landing() {
               Starte mit bewährten Vorlagen
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              10 professionell gestaltete Templates — jedes auf Conversion optimiert. Einfach anpassen und launchen.
+              13 professionell gestaltete Templates — jedes auf Conversion optimiert und live durchklickbar. Einfach anpassen und launchen.
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4">
             {templatePreviews.map((template) => (
+              <Link key={template.name} href={TEMPLATE_GALLERY_PATH}>
               <Card
-                key={template.name}
-                className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer overflow-hidden"
+                className="group h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer overflow-hidden"
               >
                 <div
                   className="h-40 relative overflow-hidden"
@@ -705,13 +705,14 @@ export default function Landing() {
                   <p className="text-sm text-muted-foreground">{template.description}</p>
                 </CardContent>
               </Card>
+              </Link>
             ))}
           </div>
 
           <div className="text-center mt-10">
-            <Link href="/register">
+            <Link href={TEMPLATE_GALLERY_PATH}>
               <Button size="lg" className="gap-2">
-                Alle Templates entdecken
+                Alle Templates live ausprobieren
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </Link>
@@ -956,16 +957,16 @@ export default function Landing() {
                     <ArrowRight className="h-5 w-5" />
                   </Button>
                 </Link>
-                <a href={`mailto:${CONTACT_EMAIL}?subject=Demo-Anfrage`}>
+                <Link href={`${TEMPLATE_GALLERY_PATH}/express-bewerbung`}>
                   <Button
                     size="lg"
                     variant="outline"
                     className="gap-2 text-lg px-8 bg-transparent border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
                   >
-                    <Headphones className="h-5 w-5" />
-                    Demo anfragen
+                    <Play className="h-5 w-5" />
+                    Live-Demo ansehen
                   </Button>
-                </a>
+                </Link>
               </div>
             </CardContent>
           </Card>

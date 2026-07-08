@@ -92,7 +92,7 @@ const faqs = [
   },
   {
     q: "Was kostet ein Funnel-Builder?",
-    a: "Die Spanne reicht von ca. 25 $ (reine Formular-Tools wie Typeform) über 49 € (Trichterwerk, alles inklusive) bis 99 €+ pro Monat (Perspective) oder 97 $+ (ClickFunnels). Entscheidend ist, ob Leads, Funnels und Features unbegrenzt sind oder pro Plan limitiert.",
+    a: "Die Spanne reicht von ca. 25 $ (reine Formular-Tools wie Typeform) über 49 € (Trichterwerk, alles inklusive) bis 59–369 € pro Monat plus kostenpflichtiger Add-ons (Perspective) oder 97 $+ (ClickFunnels). Entscheidend ist, ob Leads, Funnels und Features unbegrenzt sind oder pro Plan limitiert.",
   },
   {
     q: "Gibt es einen DSGVO-konformen Funnel-Builder aus Deutschland?",
@@ -273,7 +273,8 @@ export default function FunnelBuilder() {
             <p>
               Reine Formular-Tools starten bei rund 25 $ pro Monat (mit
               Antwort-Limits), dedizierte Funnel-Plattformen liegen zwischen 49 €
-              und 99 €+ — US-Tools wie ClickFunnels bei 97 $+. Achte weniger auf
+              und 369 € — teils mit kostenpflichtigen Add-ons und Gebühren pro
+              Lead; US-Tools wie ClickFunnels bei 97 $+. Achte weniger auf
               den Einstiegspreis als auf die Limits: Wie viele Funnels, wie viele
               Leads, welche Features sind wirklich enthalten?
             </p>

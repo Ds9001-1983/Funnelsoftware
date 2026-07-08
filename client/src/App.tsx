@@ -45,6 +45,7 @@ const FunnelBuilderGuide = lazy(() => import("@/pages/funnel-builder"));
 // Template-Galerie mit Live-Vorschau: lazy, damit die Template-Daten
 // (client/src/lib/templates.ts) nicht im Haupt-Bundle landen.
 const Vorlagen = lazy(() => import("@/pages/vorlagen"));
+const AudienceFunnel = lazy(() => import("@/pages/audience-funnel"));
 
 // Loading spinner component for Suspense fallback
 function PageLoader() {
@@ -167,6 +168,17 @@ function Router() {
           <Vorlagen />
         </Suspense>
       </Route>
+      {/* Zielgruppen-Landingpages (öffentlich, Content aus seo-content.ts) */}
+      <Route path="/recruiting-funnel">
+        <Suspense fallback={<PageLoader />}>
+          <AudienceFunnel />
+        </Suspense>
+      </Route>
+      <Route path="/lead-funnel">
+        <Suspense fallback={<PageLoader />}>
+          <AudienceFunnel />
+        </Suspense>
+      </Route>
 
       {/* Admin (geschützt, ohne Sidebar) */}
       <Route path="/admin">
@@ -261,6 +273,8 @@ function isPublicRoute(location: string, isAuthenticated: boolean): boolean {
     "/agb",
     "/nutzungsbedingungen",
     "/funnel-builder",
+    "/recruiting-funnel",
+    "/lead-funnel",
   ];
   if (publicExact.includes(location)) return true;
   if (location.startsWith("/reset-password")) return true;
