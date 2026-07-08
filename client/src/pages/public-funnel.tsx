@@ -1,35 +1,20 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation, Link } from "wouter";
-import confetti from "canvas-confetti";
 import {
   Loader2,
   AlertCircle,
-  ChevronRight,
-  ChevronLeft,
   Eye,
   RefreshCw,
   ArrowLeft,
 } from "lucide-react";
 
-// Inject slide animation keyframes
-const slideStyles = document.createElement("style");
-slideStyles.textContent = `
-  @keyframes slideInFromRight { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-  @keyframes slideInFromLeft { from { transform: translateX(-30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-`;
-if (!document.getElementById("funnel-slide-styles")) {
-  slideStyles.id = "funnel-slide-styles";
-  document.head.appendChild(slideStyles);
-}
-import { loadFont } from "@/lib/font-loader";
 import { getMutedContrastColor, sanitizeUrl } from "@/lib/utils";
 import { useCookieConsent, resetCookieConsent } from "@/components/cookie-consent";
-import { getNextPageIndex } from "@/lib/funnel-logic";
-import { ElementPreviewRenderer } from "@/components/funnel-editor/ElementPreviewRenderer";
-import { validateField } from "@/components/funnel-editor/FormFieldWithValidation";
-import { FunnelProgress } from "@/components/funnel-editor/FunnelProgress";
-import { getQuizAnswersFromFormValues } from "@/components/funnel-editor/QuizElementView";
-import type { FunnelPage, Theme, PageElement, ABTest } from "@shared/schema";
+import {
+  FunnelRenderer,
+  type FunnelLeadPayload,
+} from "@/components/funnel-viewer/FunnelRenderer";
+import type { FunnelPage, Theme, ABTest } from "@shared/schema";
 
 declare global {
   interface Window {
@@ -159,18 +144,10 @@ export default function PublicFunnelView() {
   };
 
   const [funnel, setFunnel] = useState<PublicFunnel | null>(null);
-  const [currentPageIndex, setCurrentPageIndex] = useState(0);
-  const [slideDirection, setSlideDirection] = useState<"left" | "right">("left");
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
   const [viewTracked, setViewTracked] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  const [submitError, setSubmitError] = useState<string | null>(null);
   const [variantAssignments, setVariantAssignments] = useState<Record<string, string>>({});
 
   // Fetch funnel data (public ODER preview, je nach Route)
@@ -247,13 +224,10 @@ export default function PublicFunnelView() {
     };
   }, [params.uuid, isPreviewMode, retryNonce]);
 
-  // Set page title for SEO + load font
+  // Set page title for SEO (Font lädt der FunnelRenderer)
   useEffect(() => {
     if (funnel) {
       document.title = funnel.name;
-      if (funnel.theme?.fontFamily) {
-        loadFont(funnel.theme.fontFamily);
-      }
     }
     return () => { document.title = "Trichterwerk"; };
   }, [funnel]);
@@ -322,10 +296,10 @@ export default function PublicFunnelView() {
     }
   }, [funnel, viewTracked, pushDataLayer, variantAssignments, isPreviewMode]);
 
-  // Track page navigation (nicht im Preview-Mode)
+  // Track page navigation (nur live — im Preview-Mode wird der Callback nicht übergeben)
   const trackPageView = useCallback(
-    (pageId: string) => {
-      if (!funnel || isPreviewMode) return;
+    (pageId: string, pageIndex: number) => {
+      if (!funnel) return;
       fetch("/api/public/analytics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -336,172 +310,25 @@ export default function PublicFunnelView() {
         }),
       }).catch((e) => console.warn("Analytics tracking failed:", e));
 
-      const pageIdx = funnel.pages.findIndex(p => p.id === pageId);
-      const page = funnel.pages[pageIdx];
+      const page = funnel.pages[pageIndex];
       if (page) {
         pushDataLayer({
           event: "funnel_step",
           funnel_name: funnel.name,
           funnel_id: funnel.uuid,
-          step_number: pageIdx + 1,
+          step_number: pageIndex + 1,
           step_title: page.title,
         });
       }
     },
-    [funnel, pushDataLayer, isPreviewMode]
+    [funnel, pushDataLayer]
   );
 
-  const updateFormValue = useCallback((elementId: string, value: string) => {
-    setFormValues((prev) => ({ ...prev, [elementId]: value }));
-  }, []);
-
-  const validateCurrentPage = useCallback((): boolean => {
-    if (!funnel) return false;
-    const page = funnel.pages[currentPageIndex];
-    const errors: Record<string, string> = {};
-
-    for (const el of page.elements) {
-      const value = formValues[el.id] || "";
-
-      if (el.type === "input" || el.type === "textarea") {
-        // Konfigurierte Validierungsregeln (required, min/max, Typ, Pattern)
-        // durchsetzen — vorher wurden sie beim Weiter/Absenden ignoriert.
-        const result = validateField(el, value);
-        if (!result.isValid) {
-          errors[el.id] = result.errorMessage || "Ungültige Eingabe";
-          continue;
-        }
-        // Fallback-Heuristik für Alt-Funnels ohne validation.type:
-        // Felder, die nach E-Mail aussehen, müssen eine valide E-Mail enthalten.
-        const label = (el.label || el.placeholder || "").toLowerCase();
-        if (
-          value &&
-          !el.validation?.type &&
-          (label.includes("email") || label.includes("e-mail")) &&
-          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-        ) {
-          errors[el.id] = "Bitte gib eine gültige E-Mail-Adresse ein";
-        }
-      } else if (el.type === "quiz" && el.required && !value.trim()) {
-        // Der el.id-Key wird erst nach Beantwortung aller Fragen befüllt.
-        errors[el.id] = "Bitte beantworte alle Quiz-Fragen";
-      } else if (el.required && !value.trim()) {
-        errors[el.id] = "Dieses Feld ist erforderlich";
-      }
-    }
-
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-  }, [funnel, currentPageIndex, formValues]);
-
-  const resolveNextPageIndex = useCallback((): number | null => {
-    if (!funnel) return null;
-    return getNextPageIndex(funnel.pages, currentPageIndex, formValues);
-  }, [funnel, currentPageIndex, formValues]);
-
-  const navigateToPage = useCallback((targetIndex: number, direction: "left" | "right") => {
-    if (isAnimating) return;
-    setIsAnimating(true);
-    setSlideDirection(direction);
-    setTimeout(() => {
-      setCurrentPageIndex(targetIndex);
-      setIsAnimating(false);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 50);
-  }, [isAnimating]);
-
-  const handleNextPage = useCallback(() => {
-    if (!funnel) return;
-    if (!validateCurrentPage()) return;
-    const nextIndex = resolveNextPageIndex();
-    if (nextIndex !== null) {
-      navigateToPage(nextIndex, "left");
-      trackPageView(funnel.pages[nextIndex].id);
-    }
-  }, [funnel, validateCurrentPage, resolveNextPageIndex, trackPageView, navigateToPage]);
-
-  const handlePrevPage = useCallback(() => {
-    if (currentPageIndex > 0) {
-      navigateToPage(currentPageIndex - 1, "right");
-    }
-  }, [currentPageIndex, navigateToPage]);
-
-  // Honeypot gegen Bot-Submissions: für Menschen unsichtbar (siehe Render unten),
-  // nur Bots füllen es aus. Der Server (POST /api/public/leads) verwirft solche
-  // Übermittlungen stumm.
-  const honeypotRef = useRef<HTMLInputElement>(null);
-
-  const handleSubmit = useCallback(async () => {
-    if (!funnel || isSubmitting) return;
-
-    // Validierung
-    if (!validateCurrentPage()) return;
-
-    // Im Preview-Mode: zur Thankyou-Seite springen, aber keinen Lead anlegen
-    if (isPreviewMode) {
-      const thankyouIndex = funnel.pages.findIndex((p) => p.type === "thankyou");
-      if (thankyouIndex >= 0) setCurrentPageIndex(thankyouIndex);
-      return;
-    }
-
-    setIsSubmitting(true);
-    setSubmitError(null);
-
-    try {
-      // Collect form data from all pages
-      const formData: Record<string, string> = {};
-      let name = "";
-      let email = "";
-      let phone = "";
-      let company = "";
-      let message = "";
-
-      // Map form values to lead fields. Explizites mapToLeadField hat Vorrang;
-      // andernfalls Label-/Placeholder-Heuristik (Fallback für Alt-Funnels).
-      for (const page of funnel.pages) {
-        for (const el of page.elements) {
-          const value = formValues[el.id];
-
-          // Quiz: pro Frage die Antwort-Texte (statt IDs) + Ergebnis menschen-
-          // lesbar in die answers legen. Muss VOR dem !value-Guard laufen — die
-          // per-Frage-Keys existieren auch bei teilweise beantwortetem Quiz.
-          if (el.type === "quiz" && el.quizConfig) {
-            const quizAnswers = getQuizAnswersFromFormValues(el.id, el.quizConfig.questions, formValues);
-            for (const q of el.quizConfig.questions) {
-              const answerId = quizAnswers[q.id];
-              if (!answerId) continue;
-              const answerText = q.answers.find((a) => a.id === answerId)?.text ?? answerId;
-              formData[q.question] = answerText;
-            }
-            // Der Ergebnis-Titel steht nach Abschluss unter el.id (QuizElementView
-            // ist die einzige Quelle dieser Ableitung — hier nicht neu berechnen).
-            if (value) {
-              formData[el.label ? `${el.label} – Ergebnis` : "Quiz-Ergebnis"] = value;
-            }
-            // …und den el.id-Wert nicht nochmal generisch mappen.
-            continue;
-          }
-
-          if (!value) continue;
-
-          if (el.mapToLeadField) {
-            if (el.mapToLeadField === "name") name = value;
-            else if (el.mapToLeadField === "email") email = value;
-            else if (el.mapToLeadField === "phone") phone = value;
-            else if (el.mapToLeadField === "company") company = value;
-            else if (el.mapToLeadField === "message") message = value;
-          } else if (el.type === "input") {
-            const label = (el.label || el.placeholder || "").toLowerCase();
-            if (label.includes("email") || label.includes("e-mail")) email = value;
-            else if (label.includes("telefon") || label.includes("phone") || label.includes("handy")) phone = value;
-            else if (label.includes("name") || label.includes("vorname")) name = value;
-            else if (label.includes("firma") || label.includes("unternehmen") || label.includes("company")) company = value;
-          } else if (el.type === "textarea") {
-            message = value;
-          }
-          formData[el.label || el.id] = value;
-        }
-      }
+  // Lead absenden: Payload kommt fertig gemappt aus dem FunnelRenderer,
+  // hier kommen funnelId, Source und Consent dazu.
+  const submitLead = useCallback(
+    async (payload: FunnelLeadPayload): Promise<boolean> => {
+      if (!funnel) return false;
 
       // DSGVO: Marketing-Consent aus dem Cookie-Banner auslesen — gated
       // server-side Tracking (z. B. Meta CAPI). Wenn kein Banner gespeichert
@@ -520,60 +347,47 @@ export default function PublicFunnelView() {
         body: JSON.stringify({
           funnelId: funnel.uuid,
           // Honeypot: bei Menschen immer leer; nur Bots befüllen es.
-          website: honeypotRef.current?.value || undefined,
-          name: name || undefined,
-          email: email || undefined,
-          phone: phone || undefined,
-          company: company || undefined,
-          message: message || undefined,
-          answers: formData,
+          website: payload.website,
+          name: payload.name,
+          email: payload.email,
+          phone: payload.phone,
+          company: payload.company,
+          message: payload.message,
+          answers: payload.answers,
           source: document.referrer || "direct",
           marketingConsent,
         }),
       });
 
-      if (res.ok) {
-        setSubmitted(true);
-        fetch("/api/public/analytics", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            funnelUuid: funnel.uuid,
-            eventType: "submit",
-          }),
-        }).catch((e) => console.warn("Analytics tracking failed:", e));
+      if (!res.ok) return false;
 
-        pushDataLayer({ event: "funnel_submit", funnel_name: funnel.name, funnel_id: funnel.uuid });
+      fetch("/api/public/analytics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          funnelUuid: funnel.uuid,
+          eventType: "submit",
+        }),
+      }).catch((e) => console.warn("Analytics tracking failed:", e));
 
-        // Track completion
-        fetch("/api/public/analytics", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            funnelUuid: funnel.uuid,
-            eventType: "complete",
-          }),
-        }).catch((e) => console.warn("Analytics tracking failed:", e));
+      pushDataLayer({ event: "funnel_submit", funnel_name: funnel.name, funnel_id: funnel.uuid });
 
-        pushDataLayer({ event: "funnel_complete", funnel_name: funnel.name, funnel_id: funnel.uuid });
+      // Track completion
+      fetch("/api/public/analytics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          funnelUuid: funnel.uuid,
+          eventType: "complete",
+        }),
+      }).catch((e) => console.warn("Analytics tracking failed:", e));
 
-        const thankyouIndex = funnel.pages.findIndex((p) => p.type === "thankyou");
-        if (thankyouIndex >= 0) {
-          setCurrentPageIndex(thankyouIndex);
-        }
-        // Konfetti-Animation
-        setTimeout(() => {
-          confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-        }, 300);
-      } else {
-        setSubmitError("Absenden fehlgeschlagen. Bitte versuche es erneut.");
-      }
-    } catch {
-      setSubmitError("Verbindungsfehler. Bitte prüfe deine Internetverbindung.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [funnel, formValues, isSubmitting, validateCurrentPage, isPreviewMode, pushDataLayer]);
+      pushDataLayer({ event: "funnel_complete", funnel_name: funnel.name, funnel_id: funnel.uuid });
+
+      return true;
+    },
+    [funnel, pushDataLayer]
+  );
 
   // Loading state
   if (isLoading) {
@@ -620,249 +434,67 @@ export default function PublicFunnelView() {
     );
   }
 
-  const currentPage = funnel.pages[currentPageIndex];
-  if (!currentPage) return null;
-
-  const { theme } = funnel;
-  const isLastPage = currentPageIndex === funnel.pages.length - 1;
-  const isFirstPage = currentPageIndex === 0;
-  const isContactPage = currentPage.type === "contact";
-  const isThankyouPage = currentPage.type === "thankyou";
+  // Preview-Mode Banner — zeigt Owner „Dies ist nur eine Vorschau"
+  const previewBanner = isPreviewMode ? (
+    <div className="sticky top-0 z-50 bg-amber-500 text-amber-950 text-xs font-medium px-4 py-2 flex items-center justify-center gap-2 shadow-sm">
+      <Eye className="h-3.5 w-3.5 shrink-0" />
+      <span>
+        Vorschau-Modus — diese Seite ist für Besucher noch nicht erreichbar.
+      </span>
+      <Link
+        href={`/funnels/${params.uuid}`}
+        className="ml-2 underline underline-offset-2 hover:no-underline"
+      >
+        Zurück zum Editor
+      </Link>
+    </div>
+  ) : undefined;
 
   return (
-    <div
-      className="min-h-screen flex flex-col"
-      style={{
-        backgroundColor: currentPage.backgroundColor || theme.backgroundColor,
-        color: theme.textColor,
-        fontFamily: theme.fontFamily || "system-ui, sans-serif",
-      }}
-    >
-      {/* Preview-Mode Banner — zeigt Owner „Dies ist nur eine Vorschau" */}
-      {isPreviewMode && (
-        <div className="sticky top-0 z-50 bg-amber-500 text-amber-950 text-xs font-medium px-4 py-2 flex items-center justify-center gap-2 shadow-sm">
-          <Eye className="h-3.5 w-3.5 shrink-0" />
-          <span>
-            Vorschau-Modus — diese Seite ist für Besucher noch nicht erreichbar.
-          </span>
-          <Link
-            href={`/funnels/${params.uuid}`}
-            className="ml-2 underline underline-offset-2 hover:no-underline"
-          >
-            Zurück zum Editor
-          </Link>
-        </div>
-      )}
-
-      {/* Progress bar */}
-      {funnel.pages.length > 1 && !isThankyouPage && (
-        <FunnelProgress
-          currentPage={currentPageIndex}
-          totalPages={funnel.pages.length}
-          primaryColor={theme.primaryColor}
-          backgroundColor={currentPage.backgroundColor || theme.backgroundColor}
-        />
-      )}
-
-      {/* Page content with slide animation — vertikal zentriert bei wenig Inhalt,
-          wächst nach oben/unten und bleibt scrollbar bei viel Inhalt (my-auto). */}
-      <div className="flex-1 flex flex-col px-4 py-8 overflow-y-auto">
+    <FunnelRenderer
+      funnel={funnel}
+      mode="live"
+      onSubmit={isPreviewMode ? undefined : submitLead}
+      onPageView={isPreviewMode ? undefined : trackPageView}
+      header={previewBanner}
+      renderFooter={(currentPage) => (
+        // Footer: Rechtslinks des Funnel-Owners + Consent-Widerruf + Branding
         <div
-          key={currentPageIndex}
-          className="w-full max-w-lg mx-auto my-auto space-y-6"
-          style={{
-            animation: `${slideDirection === "left" ? "slideInFromRight" : "slideInFromLeft"} 0.35s ease-out`,
-          }}
+          className="text-center py-4 text-xs space-y-1.5"
+          style={{ color: getMutedContrastColor(currentPage.backgroundColor || funnel.theme.backgroundColor) }}
         >
-          {/* Page title */}
-          {currentPage.title && (
-            <h1
-              className="text-2xl md:text-3xl font-bold text-center leading-tight"
-              style={{ color: theme.textColor }}
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            {sanitizeUrl(funnel.impressumUrl) && (
+              <a
+                href={sanitizeUrl(funnel.impressumUrl)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:opacity-80"
+              >
+                Impressum
+              </a>
+            )}
+            {sanitizeUrl(funnel.datenschutzUrl) && (
+              <a
+                href={sanitizeUrl(funnel.datenschutzUrl)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:opacity-80"
+              >
+                Datenschutz
+              </a>
+            )}
+            {/* Art. 7 Abs. 3 DSGVO: Widerruf so einfach wie die Erteilung */}
+            <button
+              onClick={resetCookieConsent}
+              className="underline underline-offset-2 hover:opacity-80"
             >
-              {currentPage.title}
-            </h1>
-          )}
-
-          {/* Page subtitle */}
-          {currentPage.subtitle && (
-            <p className="text-center text-base opacity-70">
-              {currentPage.subtitle}
-            </p>
-          )}
-
-          {/* Elements */}
-          <div className="space-y-4">
-            {currentPage.elements.map((element: PageElement) => (
-              <div key={element.id}>
-                <ElementPreviewRenderer
-                  element={element}
-                  textColor={theme.textColor}
-                  primaryColor={theme.primaryColor}
-                  formValues={formValues}
-                  updateFormValue={(id, value) => {
-                    updateFormValue(id, value);
-                    if (validationErrors[id]) {
-                      setValidationErrors((prev) => {
-                        const next = { ...prev };
-                        delete next[id];
-                        return next;
-                      });
-                    }
-                  }}
-                  onButtonClick={(el) => {
-                    if (el.buttonAction === "page" && el.buttonNextPageId && funnel) {
-                      const targetIdx = funnel.pages.findIndex(p => p.id === el.buttonNextPageId);
-                      if (targetIdx >= 0) {
-                        navigateToPage(targetIdx, targetIdx > currentPageIndex ? "left" : "right");
-                        trackPageView(funnel.pages[targetIdx].id);
-                      }
-                    } else if (el.buttonAction !== "url") {
-                      handleNextPage();
-                    }
-                  }}
-                  onListItemClick={(el, itemId) => {
-                    const item = el.listItems?.find(i => i.id === itemId);
-                    if (item?.targetPageId && funnel) {
-                      const targetIdx = funnel.pages.findIndex(p => p.id === item.targetPageId);
-                      if (targetIdx >= 0) {
-                        navigateToPage(targetIdx, targetIdx > currentPageIndex ? "left" : "right");
-                        trackPageView(funnel.pages[targetIdx].id);
-                      }
-                    }
-                  }}
-                />
-                {validationErrors[element.id] && (
-                  <p className="text-red-500 text-xs mt-1 px-1">{validationErrors[element.id]}</p>
-                )}
-              </div>
-            ))}
+              Cookie-Einstellungen
+            </button>
           </div>
-
-          {/* Honeypot: für Menschen unsichtbar (aria-hidden, tabindex -1, off-screen).
-              Bots füllen es aus → der Server verwirft die Übermittlung stumm. */}
-          <input
-            ref={honeypotRef}
-            type="text"
-            name="website"
-            tabIndex={-1}
-            autoComplete="off"
-            aria-hidden="true"
-            style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
-          />
-
-          {/* Submit error */}
-          {submitError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
-              {submitError}
-            </div>
-          )}
-
-          {/* Navigation buttons */}
-          {!isThankyouPage && (
-            <div className="flex gap-3 pt-4">
-              {!isFirstPage && (
-                <button
-                  onClick={handlePrevPage}
-                  data-testid="button-funnel-back"
-                  className="flex items-center gap-1 px-5 py-3 rounded-xl text-sm font-medium opacity-70 hover:opacity-100 transition-opacity"
-                  style={{ color: theme.textColor }}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Zurück
-                </button>
-              )}
-
-              <button
-                onClick={
-                  isContactPage || isLastPage ? handleSubmit : handleNextPage
-                }
-                data-testid={isContactPage || isLastPage ? "button-funnel-submit" : "button-funnel-next"}
-                disabled={isSubmitting}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
-                style={{ backgroundColor: theme.primaryColor }}
-              >
-                {isSubmitting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : isContactPage || isLastPage ? (
-                  currentPage.buttonText || "Absenden"
-                ) : (
-                  <>
-                    {currentPage.buttonText || "Weiter"}
-                    <ChevronRight className="h-4 w-4" />
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-
-          {/* Success message for thank you page */}
-          {isThankyouPage && submitted && (
-            <div
-              className="text-center p-6 rounded-2xl"
-              style={{
-                backgroundColor: `${theme.primaryColor}10`,
-              }}
-            >
-              <div
-                className="h-12 w-12 rounded-full flex items-center justify-center mx-auto mb-3"
-                style={{ backgroundColor: theme.primaryColor }}
-              >
-                <svg
-                  className="h-6 w-6 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </div>
-            </div>
-          )}
+          <div>Erstellt mit Trichterwerk</div>
         </div>
-      </div>
-
-      {/* Footer: Rechtslinks des Funnel-Owners + Consent-Widerruf + Branding */}
-      <div
-        className="text-center py-4 text-xs space-y-1.5"
-        style={{ color: getMutedContrastColor(currentPage.backgroundColor || theme.backgroundColor) }}
-      >
-        <div className="flex items-center justify-center gap-4 flex-wrap">
-          {sanitizeUrl(funnel.impressumUrl) && (
-            <a
-              href={sanitizeUrl(funnel.impressumUrl)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-2 hover:opacity-80"
-            >
-              Impressum
-            </a>
-          )}
-          {sanitizeUrl(funnel.datenschutzUrl) && (
-            <a
-              href={sanitizeUrl(funnel.datenschutzUrl)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-2 hover:opacity-80"
-            >
-              Datenschutz
-            </a>
-          )}
-          {/* Art. 7 Abs. 3 DSGVO: Widerruf so einfach wie die Erteilung */}
-          <button
-            onClick={resetCookieConsent}
-            className="underline underline-offset-2 hover:opacity-80"
-          >
-            Cookie-Einstellungen
-          </button>
-        </div>
-        <div>Erstellt mit Trichterwerk</div>
-      </div>
-    </div>
+      )}
+    />
   );
 }
