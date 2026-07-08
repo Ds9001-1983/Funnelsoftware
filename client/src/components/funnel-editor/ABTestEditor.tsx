@@ -44,9 +44,15 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ABTest, ABTestVariant, FunnelPage } from "@shared/schema";
 
+/** Aggregierte Live-Statistiken pro Test/Variante (GET /api/funnels/:id/ab-stats). */
+export type ABTestStats = Record<string, Record<string, { views: number; conversions: number }>>;
+
 interface ABTestEditorProps {
   page: FunnelPage;
   abTests: ABTest[];
+  /** Live-Zahlen aus den analytics_events; ohne Daten greifen die
+   *  (Legacy-)Zähler am Varianten-Objekt (immer 0 bei neuen Tests). */
+  stats?: ABTestStats;
   onCreateTest: (test: ABTest) => void;
   onUpdateTest: (testId: string, updates: Partial<ABTest>) => void;
   onDeleteTest: (testId: string) => void;
@@ -62,6 +68,7 @@ interface ABTestEditorProps {
 export function ABTestEditor({
   page,
   abTests,
+  stats,
   onCreateTest,
   onUpdateTest,
   onDeleteTest,
@@ -167,9 +174,13 @@ export function ABTestEditor({
     onUpdateTest(testId, { variants: updatedVariants });
   };
 
-  const calculateConversionRate = (variant: ABTestVariant): string => {
-    if (variant.views === 0) return "0%";
-    return `${((variant.conversions / variant.views) * 100).toFixed(1)}%`;
+  /** Live-Zahlen aus dem Stats-Endpoint; Fallback auf die Zähler am Objekt. */
+  const getVariantStats = (test: ABTest, variant: ABTestVariant) =>
+    stats?.[test.id]?.[variant.id] ?? { views: variant.views, conversions: variant.conversions };
+
+  const calculateConversionRate = (s: { views: number; conversions: number }): string => {
+    if (s.views === 0) return "0%";
+    return `${((s.conversions / s.views) * 100).toFixed(1)}%`;
   };
 
   const getStatusBadge = (status: ABTest["status"]) => {
@@ -447,19 +458,19 @@ export function ABTestEditor({
                         </div>
                       )}
 
-                      {/* Stats (running/completed) */}
+                      {/* Stats (running/completed) — Live-Zahlen aus analytics_events */}
                       {(test.status === "running" || test.status === "paused" || test.status === "completed") && (
                         <div className="grid grid-cols-3 gap-2 mt-2 text-center">
                           <div className="p-2 bg-muted/50 rounded">
-                            <div className="text-lg font-semibold">{variant.views}</div>
+                            <div className="text-lg font-semibold">{getVariantStats(test, variant).views}</div>
                             <div className="text-xs text-muted-foreground">Views</div>
                           </div>
                           <div className="p-2 bg-muted/50 rounded">
-                            <div className="text-lg font-semibold">{variant.conversions}</div>
+                            <div className="text-lg font-semibold">{getVariantStats(test, variant).conversions}</div>
                             <div className="text-xs text-muted-foreground">Conversions</div>
                           </div>
                           <div className="p-2 bg-muted/50 rounded">
-                            <div className="text-lg font-semibold">{calculateConversionRate(variant)}</div>
+                            <div className="text-lg font-semibold">{calculateConversionRate(getVariantStats(test, variant))}</div>
                             <div className="text-xs text-muted-foreground">Rate</div>
                           </div>
                         </div>
@@ -526,6 +537,19 @@ export function ABTestEditor({
                 {(test.status === "running" || test.status === "paused") && (
                   <div className="pt-2 border-t">
                     <Label className="text-xs text-muted-foreground mb-2 block">Gewinner festlegen</Label>
+                    {(() => {
+                      const totalViews = test.variants.reduce(
+                        (sum, v) => sum + getVariantStats(test, v).views,
+                        0,
+                      );
+                      const minSample = test.config?.minSampleSize ?? 100;
+                      return totalViews < minSample ? (
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Noch wenig Daten ({totalViews}/{minSample} Views) — das Ergebnis
+                          ist statistisch noch nicht belastbar.
+                        </p>
+                      ) : null;
+                    })()}
                     <div className="flex gap-2">
                       {test.variants.map((variant) => (
                         <Button
@@ -540,6 +564,10 @@ export function ABTestEditor({
                         </Button>
                       ))}
                     </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Beim Festlegen werden die Inhalte der Gewinner-Variante in die
+                      Seite übernommen und der Test beendet.
+                    </p>
                   </div>
                 )}
               </CardContent>

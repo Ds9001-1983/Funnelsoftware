@@ -388,6 +388,12 @@ export default function PublicFunnelView() {
         body: JSON.stringify({
           funnelUuid: funnel.uuid,
           eventType: "submit",
+          // Varianten-Zuweisung mitschicken: zusammen mit dem view-Event die
+          // Datenbasis der A/B-Statistiken (server/ab-stats.ts). Nur
+          // testId→variantId — keine Personendaten.
+          metadata: Object.keys(variantAssignments).length > 0
+            ? { abVariants: variantAssignments }
+            : undefined,
         }),
       }).catch((e) => console.warn("Analytics tracking failed:", e));
 
@@ -407,7 +413,7 @@ export default function PublicFunnelView() {
 
       return true;
     },
-    [funnel, pushDataLayer]
+    [funnel, pushDataLayer, variantAssignments]
   );
 
   // Loading state
