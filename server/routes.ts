@@ -20,6 +20,7 @@ import {
 } from "./stripe";
 import { sendWebhook, buildWebhookPayload, generateWebhookSecret } from "./webhooks";
 import { sendCapiEvent } from "./capi";
+import { aggregateAbTestStats } from "./ab-stats";
 import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan, requireVerifiedEmail, hasActivePlan, PUBLIC_GRACE_PERIOD_MS } from "./auth";
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema, insertDomainSchema,
@@ -955,6 +956,29 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Get funnel metrics error:", error);
       res.status(500).json({ error: "Metriken konnten nicht geladen werden" });
+    }
+  });
+
+  // A/B-Test-Statistiken: Varianten-Views/-Conversions aus analytics_events
+  // (metadata.abVariants) aggregiert. Die Testkonfiguration im abTests-jsonb
+  // bleibt reine Config — kein server-seitiges Inkrement, kein Lost-Update
+  // mit dem Editor-PATCH (siehe server/ab-stats.ts).
+  app.get("/api/funnels/:id/ab-stats", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const funnelId = parseInt(String(req.params.id));
+      if (isNaN(funnelId)) return res.status(400).json({ error: "Ungültige Funnel-ID" });
+
+      const funnel = await storage.getFunnel(funnelId, userId);
+      if (!funnel) return res.status(404).json({ error: "Funnel nicht gefunden" });
+
+      const analytics = await storage.getAnalytics(funnelId);
+      res.json(aggregateAbTestStats(analytics));
+    } catch (error) {
+      console.error("Get ab-stats error:", error);
+      res.status(500).json({ error: "A/B-Statistiken konnten nicht geladen werden" });
     }
   });
 

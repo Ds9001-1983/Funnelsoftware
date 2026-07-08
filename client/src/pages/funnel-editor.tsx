@@ -189,11 +189,10 @@ const LogicFlowView = lazy(() =>
   import("@/components/funnel-editor/LogicFlowView").then((m) => ({ default: m.LogicFlowView })),
 );
 
-// A/B-Tests sind für den Launch deaktiviert: Varianten-Statistiken werden
-// noch nicht erhoben (Views/Conversions bleiben 0) und "Gewinner anwenden"
-// hat keine Wirkung — das Feature wäre irreführend. Reaktivieren, sobald
-// Tracking + Winner-Apply gebaut sind (P2 im Launch-Plan).
-const AB_TESTS_ENABLED = false;
+// A/B-Tests sind live: Varianten-Statistiken kommen aus den analytics_events
+// (GET /api/funnels/:id/ab-stats, siehe server/ab-stats.ts), "Gewinner
+// festlegen" übernimmt die Varianten-Inhalte in die Seite (completeABTest).
+const AB_TESTS_ENABLED = true;
 
 type PageType = FunnelPage["type"];
 
@@ -257,6 +256,19 @@ export default function FunnelEditor() {
   // Publish dialog
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [showABTests, setShowABTests] = useState(false);
+
+  // Live-Statistiken der A/B-Tests (aggregiert aus analytics_events) —
+  // nur laden, wenn das Sheet offen ist.
+  const { data: abStats } = useQuery<import("@/components/funnel-editor/ABTestEditor").ABTestStats>({
+    queryKey: ["/api/funnels", params?.id, "ab-stats"],
+    queryFn: async () => {
+      const res = await fetch(`/api/funnels/${params?.id}/ab-stats`, { credentials: "include" });
+      if (!res.ok) throw new Error("A/B-Statistiken konnten nicht geladen werden");
+      return res.json();
+    },
+    enabled: AB_TESTS_ENABLED && showABTests && !!params?.id,
+    refetchInterval: showABTests ? 30_000 : false,
+  });
   const [showLogicFlow, setShowLogicFlow] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
@@ -402,16 +414,48 @@ export default function FunnelEditor() {
   }, [updateABTest, toast]);
 
   const completeABTest = useCallback((testId: string, winnerId: string) => {
-    updateABTest(testId, {
-      status: "completed",
-      winnerId,
-      completedAt: new Date().toISOString(),
-    });
+    if (!localFunnel) return;
+    const currentTests = localFunnel.abTests || [];
+    const test = currentTests.find((t) => t.id === testId);
+    if (!test) return;
+
+    const winner = test.variants.find((v) => v.id === winnerId);
+    // Variante 0 ist die Kontrolle — gewinnt sie, bleibt die Seite unverändert.
+    const isControl = test.variants[0]?.id === winnerId;
+
+    // Gewinner-Overrides in die Seite übernehmen — exakt die Semantik von
+    // applyVariantOverrides im Public-Renderer (public-funnel.tsx).
+    const newPages = !winner || isControl
+      ? localFunnel.pages
+      : localFunnel.pages.map((page) =>
+          page.id === test.pageId
+            ? {
+                ...page,
+                title: winner.title || page.title,
+                subtitle: winner.subtitle || page.subtitle,
+                elements: winner.elements || page.elements,
+                backgroundColor: winner.backgroundColor || page.backgroundColor,
+                buttonText: winner.buttonText || page.buttonText,
+              }
+            : page,
+        );
+
+    const updatedTests = currentTests.map((t) =>
+      t.id === testId
+        ? { ...t, status: "completed" as const, winnerId, completedAt: new Date().toISOString() }
+        : t,
+    );
+
+    // EIN Update für Seiten + Teststatus: atomarer Undo-Schritt, und der
+    // Traffic-Split endet automatisch (Public-API liefert nur running-Tests).
+    updateLocalFunnel({ pages: newPages, abTests: updatedTests });
     toast({
       title: "A/B Test abgeschlossen",
-      description: "Der Gewinner wurde festgelegt.",
+      description: isControl
+        ? "Die Kontrolle hat gewonnen — die Seite bleibt unverändert."
+        : "Gewinner angewendet — die Varianten-Inhalte wurden in die Seite übernommen. Speichern nicht vergessen.",
     });
-  }, [updateABTest, toast]);
+  }, [localFunnel, updateLocalFunnel, toast]);
 
   // Get selected element from current page
   const selectedElement = useMemo(() => {
@@ -1420,6 +1464,7 @@ export default function FunnelEditor() {
               <ABTestEditor
                 page={selectedPage}
                 abTests={localFunnel.abTests || []}
+                stats={abStats}
                 onCreateTest={createABTest}
                 onUpdateTest={updateABTest}
                 onDeleteTest={deleteABTest}
