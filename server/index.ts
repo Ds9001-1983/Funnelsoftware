@@ -59,13 +59,17 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "https://www.googletagmanager.com", "https://js.stripe.com"],
+        // connect.facebook.net: Browser-Meta-Pixel (fbevents.js) — lädt nur
+        // nach Marketing-Consent, muss aber von der CSP erlaubt sein.
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://www.googletagmanager.com", "https://js.stripe.com", "https://connect.facebook.net"],
         // Fonts werden selbst gehostet (@fontsource) — Google-Font-Hosts
         // bewusst NICHT mehr erlaubt, damit kein Pre-Consent-Leak zurückkommt.
         styleSrc: ["'self'", "'unsafe-inline'"],
         fontSrc: ["'self'"],
         imgSrc: ["'self'", "data:", "https:", "blob:"],
-        connectSrc: ["'self'", "https://www.google-analytics.com", "https://api.stripe.com"],
+        // www.facebook.com: Event-Beacons des Meta-Pixels (fetch/XHR zusätzlich
+        // zu den Bild-Beacons, die imgSrc https: bereits abdeckt).
+        connectSrc: ["'self'", "https://www.google-analytics.com", "https://api.stripe.com", "https://www.facebook.com"],
         frameSrc: ["'self'", "https://js.stripe.com", "https://www.youtube.com", "https://www.youtube-nocookie.com", "https://player.vimeo.com", "https://calendly.com", "https://cal.com", "https://app.cal.com"],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],

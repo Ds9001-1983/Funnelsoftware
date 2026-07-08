@@ -1672,13 +1672,28 @@ export default function FunnelEditor() {
                   </p>
                 </div>
 
-                {/* Server-Side Meta CAPI */}
+                {/* Meta Tracking: Browser-Pixel + Server-Side CAPI */}
                 <div className="space-y-3 pt-2 border-t">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Meta Tracking (Pixel + Conversions API)</Label>
+                    <Label className="text-xs">Meta Pixel ID</Label>
+                    <Input
+                      value={localFunnel.metaPixelId || ""}
+                      onChange={(e) =>
+                        updateLocalFunnel({ metaPixelId: e.target.value || null })
+                      }
+                      placeholder="1234567890123456"
+                      className="text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Lädt das Browser-Pixel auf dem veröffentlichten Funnel (PageView pro Schritt + Lead) — ausschließlich nachdem der Besucher Marketing-Cookies akzeptiert hat (DSGVO).
+                    </p>
+                  </div>
                   <div className="flex items-center justify-between">
                     <div>
                       <Label className="text-sm">Server-Side Tracking (Meta CAPI)</Label>
                       <p className="text-xs text-muted-foreground">
-                        Sendet Lead-Events direkt an Meta — überlebt iOS-ATT und Adblocker.
+                        Sendet Lead-Events zusätzlich server-seitig — überlebt iOS-ATT und Adblocker. Deduplizierung mit dem Browser-Pixel läuft automatisch über die Lead-ID.
                       </p>
                     </div>
                     <Switch
@@ -1695,18 +1710,6 @@ export default function FunnelEditor() {
                       </span>
                     </div>
                   )}
-                  <div className="space-y-2">
-                    <Label className="text-xs">Meta Pixel ID</Label>
-                    <Input
-                      value={localFunnel.metaPixelId || ""}
-                      onChange={(e) =>
-                        updateLocalFunnel({ metaPixelId: e.target.value || null })
-                      }
-                      placeholder="1234567890123456"
-                      className="text-sm"
-                      disabled={!localFunnel.capiEnabled}
-                    />
-                  </div>
                   <div className="space-y-2">
                     <Label className="text-xs">CAPI Access Token</Label>
                     <Input
