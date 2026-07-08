@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { getMutedContrastColor, sanitizeUrl } from "@/lib/utils";
+import { injectMetaPixel, fbqTrack } from "@/lib/meta-pixel";
 import { useCookieConsent, resetCookieConsent } from "@/components/cookie-consent";
 import {
   FunnelRenderer,
@@ -28,6 +29,7 @@ interface PublicFunnel {
   pages: FunnelPage[];
   theme: Theme;
   gtmId?: string | null;
+  metaPixelId?: string | null;
   abTests?: ABTest[];
   impressumUrl?: string | null;
   datenschutzUrl?: string | null;
@@ -269,6 +271,15 @@ export default function PublicFunnelView() {
     return () => { script.remove(); };
   }, [funnel?.gtmId, gtmAllowed, allowsAnalytics, allowsMarketing]);
 
+  // Browser-Meta-Pixel — die Client-Hälfte zur Server-CAPI. Lädt NUR mit
+  // Marketing-Consent (das Pixel setzt _fbp/_fbc-Cookies) und nie im
+  // Preview-Mode. Nebeneffekt: die Cookies verbessern die Match-Quality der
+  // CAPI-Events, weil der Server sie aus dem Lead-Request liest.
+  useEffect(() => {
+    if (!funnel?.metaPixelId || !allowsMarketing || isPreviewMode) return;
+    return injectMetaPixel(funnel.metaPixelId);
+  }, [funnel?.metaPixelId, allowsMarketing, isPreviewMode]);
+
   // Push GTM dataLayer event helper
   const pushDataLayer = useCallback((eventData: Record<string, unknown>) => {
     if (window.dataLayer) {
@@ -309,6 +320,10 @@ export default function PublicFunnelView() {
           pageId,
         }),
       }).catch((e) => console.warn("Analytics tracking failed:", e));
+
+      // Virtueller PageView pro Funnel-Schritt (Standard-SPA-Praxis) —
+      // No-op ohne Consent/Pixel.
+      fbqTrack("PageView");
 
       const page = funnel.pages[pageIndex];
       if (page) {
@@ -360,6 +375,12 @@ export default function PublicFunnelView() {
       });
 
       if (!res.ok) return false;
+
+      // Browser-Lead mit eventID = Lead-UUID (Server-Response): Meta
+      // dedupliziert gegen das server-seitige CAPI-Event mit derselben
+      // event_id — beide Events zählen als eines.
+      const data = (await res.json().catch(() => null)) as { id?: string } | null;
+      fbqTrack("Lead", {}, data?.id ? { eventID: data.id } : undefined);
 
       fetch("/api/public/analytics", {
         method: "POST",

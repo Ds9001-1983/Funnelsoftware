@@ -1018,6 +1018,9 @@ export async function registerRoutes(
         pages: funnel.pages,
         theme: funnel.theme,
         gtmId: funnel.gtmId || null,
+        // Pixel-IDs sind public by design (jede Website mit Pixel exponiert sie);
+        // der Client lädt das Browser-Pixel nur nach Marketing-Consent.
+        metaPixelId: funnel.metaPixelId || null,
         abTests: activeTests,
         impressumUrl: funnel.impressumUrl || null,
         datenschutzUrl: funnel.datenschutzUrl || null,
