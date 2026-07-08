@@ -18,7 +18,8 @@
     "lighthouse": "npx --yes lighthouse https://trichterwerk.de/ --preset=desktop --output=html --output-path=./lighthouse-report.html --chrome-flags=\"--headless\" --view",
     "test:e2e": "playwright test",
     "test:e2e:server": "node scripts/e2e-ensure-db.mjs && drizzle-kit push --force && npm run dev",
-    "test:e2e:install": "playwright install --with-deps chromium"
+    "test:e2e:install": "playwright install --with-deps chromium",
+    "generate:template-videos": "tsx scripts/record-template-videos.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

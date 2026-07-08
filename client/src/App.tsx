@@ -42,6 +42,9 @@ const PublicFunnelView = lazy(() => import("@/pages/public-funnel"));
 // im Haupt-Bundle landet.
 const Vergleich = lazy(() => import("@/pages/vergleich"));
 const FunnelBuilderGuide = lazy(() => import("@/pages/funnel-builder"));
+// Template-Galerie mit Live-Vorschau: lazy, damit die Template-Daten
+// (client/src/lib/templates.ts) nicht im Haupt-Bundle landen.
+const Vorlagen = lazy(() => import("@/pages/vorlagen"));
 
 // Loading spinner component for Suspense fallback
 function PageLoader() {
@@ -153,6 +156,17 @@ function Router() {
           <Vergleich />
         </Suspense>
       </Route>
+      {/* Template-Galerie (öffentlich): Übersicht + Detailseiten mit Live-Vorschau */}
+      <Route path="/vorlagen">
+        <Suspense fallback={<PageLoader />}>
+          <Vorlagen />
+        </Suspense>
+      </Route>
+      <Route path="/vorlagen/:slug">
+        <Suspense fallback={<PageLoader />}>
+          <Vorlagen />
+        </Suspense>
+      </Route>
 
       {/* Admin (geschützt, ohne Sidebar) */}
       <Route path="/admin">
@@ -236,6 +250,8 @@ function isPublicRoute(location: string, isAuthenticated: boolean): boolean {
   if (location.startsWith("/preview/")) return false; // Owner-Vorschau (eingeloggt)
   // SEO-Vergleichsseiten inkl. Übersicht /vergleich
   if (location === "/vergleich" || location.startsWith("/vergleich/")) return true;
+  // Template-Galerie inkl. Detailseiten mit Live-Vorschau
+  if (location === "/vorlagen" || location.startsWith("/vorlagen/")) return true;
   const publicExact = [
     "/login",
     "/register",

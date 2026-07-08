@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -12,6 +12,7 @@ import {
   Sparkles,
   ClipboardList,
   Loader2,
+  Eye,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest, ApiError } from "@/lib/queryClient";
-import { visibleTemplates, createBlankFunnel, type ClientTemplate } from "@/lib/templates";
+import { visibleTemplates, createBlankFunnel, getTemplateBySlug, type ClientTemplate } from "@/lib/templates";
+import { TemplatePreviewDialog } from "@/components/template-preview-dialog";
+import { SIGNUP_TEMPLATE_STORAGE_KEY } from "@shared/seo-links";
 import { remapElementIds } from "@/lib/utils";
 import type { InsertFunnel, FunnelPage, Theme } from "@shared/schema";
 
@@ -48,16 +51,18 @@ function TemplateCard({
   template,
   selected,
   onClick,
+  onPreview,
 }: {
   template: ClientTemplate;
   selected: boolean;
   onClick: () => void;
+  onPreview: () => void;
 }) {
   const Icon = categoryIcons[template.category];
 
   return (
     <Card
-      className={`cursor-pointer transition-all hover-elevate ${
+      className={`group cursor-pointer transition-all hover-elevate ${
         selected ? "ring-2 ring-primary ring-offset-2" : ""
       }`}
       onClick={onClick}
@@ -86,6 +91,20 @@ function TemplateCard({
             <span>{categoryLabels[template.category]}</span>
           </div>
         </div>
+        {/* Interaktive Vorschau — stopPropagation, damit die Karte nicht ausgewählt wird */}
+        <Button
+          variant="secondary"
+          size="sm"
+          className="absolute top-2 right-2 gap-1 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPreview();
+          }}
+          data-testid={`preview-${template.id}`}
+        >
+          <Eye className="h-3.5 w-3.5" />
+          Vorschau
+        </Button>
       </div>
       <CardContent className="p-3">
         <h3 className="font-medium text-sm mb-1">{template.name}</h3>
@@ -110,7 +129,26 @@ export default function NewFunnel() {
   const [aiDescription, setAiDescription] = useState("");
   const [aiAudience, setAiAudience] = useState("");
   const [aiPageCount, setAiPageCount] = useState(5);
+  const [previewTemplate, setPreviewTemplate] = useState<ClientTemplate | null>(null);
   const { toast } = useToast();
+
+  // Vorgewähltes Template übernehmen: ?template=<slug> (Galerie-CTA) oder die
+  // bei der Registrierung gemerkte Auswahl (localStorage) — direkt zu den Details.
+  useEffect(() => {
+    const fromQuery = new URLSearchParams(window.location.search).get("template");
+    const stored = localStorage.getItem(SIGNUP_TEMPLATE_STORAGE_KEY);
+    const slug = fromQuery || stored;
+    if (stored) localStorage.removeItem(SIGNUP_TEMPLATE_STORAGE_KEY);
+    if (!slug) return;
+    const template = getTemplateBySlug(slug);
+    if (template) {
+      setSelectedTemplate(template);
+      setUseBlank(false);
+      setUseAi(false);
+      setName(template.name);
+      setStep("details");
+    }
+  }, []);
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertFunnel) => {
@@ -318,6 +356,7 @@ export default function NewFunnel() {
                       setSelectedTemplate(template);
                       setUseBlank(false);
                     }}
+                    onPreview={() => setPreviewTemplate(template)}
                   />
                 ))}
               </div>
@@ -478,6 +517,11 @@ export default function NewFunnel() {
           </div>
         )}
       </div>
+
+      <TemplatePreviewDialog
+        template={previewTemplate}
+        onOpenChange={(open) => !open && setPreviewTemplate(null)}
+      />
     </div>
   );
 }

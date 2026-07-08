@@ -10,6 +10,7 @@
  */
 
 import { funnelBuilderPage, type SeoFaq, type SeoStaticPage } from "./seo-links";
+import { templateSeoPages } from "./template-meta";
 
 export { faqPageJsonLd } from "./seo-links";
 export type { SeoFaq, SeoStaticPage } from "./seo-links";
@@ -384,8 +385,9 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
 
 /**
  * Alle statischen SEO-Seiten (für Sitemap + SSR-Meta-Injektion).
- * Vergleichsseiten werden aus comparisonPages abgeleitet, damit Routen,
- * Sitemap und Server-Meta nicht auseinanderlaufen.
+ * Vergleichsseiten werden aus comparisonPages abgeleitet, die Galerie-Seiten
+ * aus shared/template-meta.ts, damit Routen, Sitemap und Server-Meta nicht
+ * auseinanderlaufen.
  */
 export const seoStaticPages: SeoStaticPage[] = [
   funnelBuilderPage,
@@ -394,6 +396,7 @@ export const seoStaticPages: SeoStaticPage[] = [
     metaTitle: c.metaTitle,
     metaDescription: c.metaDescription,
   })),
+  ...templateSeoPages,
 ];
 
 /** Registry-Lookup, gehärtet gegen Prototype-Keys ("constructor", "__proto__", …). */

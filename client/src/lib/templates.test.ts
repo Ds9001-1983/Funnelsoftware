@@ -5,7 +5,9 @@ import {
   templateCategories,
   getTemplatesByCategory,
   getTemplateById,
+  getTemplateBySlug,
 } from "./templates";
+import { templateMetas } from "@shared/template-meta";
 
 describe("funnel-templates", () => {
   describe("funnelTemplates", () => {
@@ -41,6 +43,40 @@ describe("funnel-templates", () => {
       const ids = funnelTemplates.map((t) => t.id);
       const uniqueIds = new Set(ids);
       expect(uniqueIds.size).toBe(ids.length);
+    });
+
+    it("sollte eindeutige Slugs haben", () => {
+      const slugs = funnelTemplates.map((t) => t.slug);
+      expect(new Set(slugs).size).toBe(slugs.length);
+    });
+  });
+
+  describe("Konsistenz mit shared/template-meta.ts (öffentliche Galerie)", () => {
+    it("jedes sichtbare Template hat einen Meta-Eintrag mit gleichem Namen und Kategorie", () => {
+      for (const template of visibleTemplates) {
+        const meta = templateMetas.find((m) => m.slug === template.slug);
+        expect(meta, `template-meta-Eintrag fehlt für Slug "${template.slug}"`).toBeDefined();
+        expect(meta?.name).toBe(template.name);
+        expect(meta?.category).toBe(template.category);
+      }
+    });
+
+    it("jeder Meta-Eintrag hat ein sichtbares Template (keine tote Galerie-Seite)", () => {
+      for (const meta of templateMetas) {
+        const template = getTemplateBySlug(meta.slug);
+        expect(template, `Sichtbares Template fehlt für Meta-Slug "${meta.slug}"`).toBeDefined();
+      }
+    });
+  });
+
+  describe("getTemplateBySlug", () => {
+    it("liefert das richtige Template für einen gültigen Slug", () => {
+      expect(getTemplateBySlug("termin-buchen")?.id).toBe("template-termin");
+    });
+
+    it("liefert undefined für unbekannte Slugs und undefined", () => {
+      expect(getTemplateBySlug("gibt-es-nicht")).toBeUndefined();
+      expect(getTemplateBySlug(undefined)).toBeUndefined();
     });
   });
 

@@ -4,6 +4,9 @@ import { quizTemplateElement } from "@shared/quiz-template";
 // Client-side template type (uses string IDs since these are local, not from DB)
 export interface ClientTemplate {
   id: string;
+  /** URL-Slug für die öffentliche Galerie (/vorlagen/:slug) — muss dem Eintrag
+   *  in shared/template-meta.ts entsprechen (Konsistenz-Test in templates.test.ts). */
+  slug: string;
   name: string;
   description: string;
   category: "leads" | "sales" | "recruiting" | "webinar" | "quiz" | "survey";
@@ -21,6 +24,7 @@ export const defaultTemplates: ClientTemplate[] = [
   // ============ TERMINE GENERIEREN ============
   {
     id: "template-termin",
+    slug: "termin-buchen",
     name: "Termin buchen",
     description: "Präsentiere dein Angebot, filtere qualifizierte Anfragen und ermögliche direkte Terminbuchungen",
     category: "leads",
@@ -111,6 +115,7 @@ export const defaultTemplates: ClientTemplate[] = [
   },
   {
     id: "template-vsl-demo",
+    slug: "vsl",
     name: "VSL Demo",
     description: "Nutze überzeugende Videos um Conversions zu steigern",
     category: "sales",
@@ -183,6 +188,7 @@ export const defaultTemplates: ClientTemplate[] = [
   },
   {
     id: "template-recruiting",
+    slug: "recruiting",
     name: "Recruiting Experience",
     description: "Präsentiere deine Unternehmenskultur und vereinfache den Bewerbungsprozess",
     category: "recruiting",
@@ -284,6 +290,7 @@ export const defaultTemplates: ClientTemplate[] = [
   },
   {
     id: "template-leadmagnet",
+    slug: "lead-magnet",
     name: "Lead Magnet",
     description: "Präsentiere deinen Lead Magnet und konvertiere Besucher zu qualifizierten Leads",
     category: "leads",
@@ -361,6 +368,7 @@ export const defaultTemplates: ClientTemplate[] = [
   },
   {
     id: "template-masterclass",
+    slug: "masterclass",
     name: "Live Masterclass",
     description: "Sammle Anmeldungen für dein Webinar oder deine Masterclass",
     category: "webinar",
@@ -428,6 +436,7 @@ export const defaultTemplates: ClientTemplate[] = [
   },
   {
     id: "template-immobilien",
+    slug: "immobilien-bewertung",
     name: "Immobilien Bewertung",
     description: "Generiere qualifizierte Immobilien-Leads mit einer kostenlosen Bewertung",
     category: "leads",
@@ -538,6 +547,7 @@ export const defaultTemplates: ClientTemplate[] = [
   },
   {
     id: "template-onboarding",
+    slug: "agentur-onboarding",
     name: "Agentur Onboarding",
     description: "Beschleunige den Start mit neuen Kunden und Projekten",
     category: "leads",
@@ -630,6 +640,7 @@ export const defaultTemplates: ClientTemplate[] = [
   // ============ WEITERE VORLAGEN ============
   {
     id: "template-quiz",
+    slug: "quiz",
     name: "Interaktives Quiz",
     description: "Qualifiziere Leads mit einem unterhaltsamen Quiz",
     category: "quiz",
@@ -681,6 +692,7 @@ export const defaultTemplates: ClientTemplate[] = [
   },
   {
     id: "template-sales",
+    slug: "coaching-angebot",
     name: "Coaching Angebot",
     description: "Präsentiere dein Coaching klar und konvertiere zu Kunden",
     category: "sales",
@@ -759,6 +771,7 @@ export const defaultTemplates: ClientTemplate[] = [
   // ============ UMFRAGE VORLAGEN ============
   {
     id: "template-survey",
+    slug: "umfrage",
     name: "Umfrage",
     description: "Erhalte wertvolle Einblicke von deiner Zielgruppe",
     category: "survey",
@@ -855,6 +868,12 @@ export const templateCategories = [
 export function getTemplateById(id: string): ClientTemplate | undefined {
   // Auch ausgeblendete Templates bleiben per ID auffindbar (z. B. für Bestands-Funnels).
   return defaultTemplates.find(t => t.id === id);
+}
+
+export function getTemplateBySlug(slug: string | undefined): ClientTemplate | undefined {
+  if (!slug) return undefined;
+  // Nur sichtbare Templates sind öffentlich erreichbar (/vorlagen/:slug).
+  return visibleTemplates.find(t => t.slug === slug);
 }
 
 export function getTemplatesByCategory(category: string): ClientTemplate[] {
