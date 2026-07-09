@@ -143,7 +143,7 @@ function TemplateGallery() {
             ))}
           </div>
 
-          <div className="grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3 justify-items-center">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 justify-items-center">
             {visible.map((meta) => (
               <TemplateTile key={meta.slug} meta={meta} />
             ))}

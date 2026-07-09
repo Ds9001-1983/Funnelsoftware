@@ -3,7 +3,6 @@ import { Link } from "wouter";
 import { Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PhoneFrame } from "@/components/marketing/PhoneFrame";
 import {
   templateCategoryLabels,
   type TemplateMeta,
@@ -17,8 +16,8 @@ function prefersReducedMotion(): boolean {
   );
 }
 
-/** Dezente Kategorie-Farbwelt hinter dem Phone-Mockup — Opacity-basierte
- *  Tints, damit Light- und Dark-Theme gleichermaßen funktionieren. */
+/** Dezente Kategorie-Farbwelt hinter der Live-Vorschau (Detailseite) —
+ *  Opacity-basierte Tints, damit Light- und Dark-Theme funktionieren. */
 export const categoryGlow: Record<TemplateMeta["category"], string> = {
   leads: "from-violet-500/15 via-purple-500/5 to-fuchsia-500/10",
   sales: "from-rose-500/15 via-red-500/5 to-orange-500/10",
@@ -33,15 +32,16 @@ interface TemplateTileProps {
 }
 
 /**
- * Galerie-Kachel im Perspective-Stil: Portrait-Poster im Phone-Mockup,
- * automatisch abspielendes stummes Kurzvideo bei Hover/Fokus (Desktop),
- * darunter Kategorie, Name, Nutzenversprechen und die beiden CTAs.
- * Touch-Geräte ohne Hover: Tap auf die Kachel öffnet die Live-Vorschau —
+ * Foto-geführte Galerie-Kachel: Hero-Foto des Templates als ruhiges,
+ * einheitliches Kachelbild; bei Hover/Fokus (Desktop) blendet der
+ * Funnel-Durchlauf als stummes Kurzvideo ein. Darunter Name,
+ * Nutzenversprechen und die beiden CTAs.
+ * Touch-Geräte ohne Hover: Tap auf das Bild öffnet die Live-Vorschau —
  * die schlägt jedes Video.
  */
 export function TemplateTile({ meta }: TemplateTileProps) {
   const detailPath = `${TEMPLATE_GALLERY_PATH}/${meta.slug}`;
-  const poster = `/templates/portrait/${meta.slug}.webp`;
+  const hero = `/templates/heroes/${meta.slug}.webp`;
 
   const [videoActive, setVideoActive] = useState(false);
   const [videoBroken, setVideoBroken] = useState(false);
@@ -52,14 +52,14 @@ export function TemplateTile({ meta }: TemplateTileProps) {
   useEffect(() => {
     if (videoActive) {
       videoRef.current?.play().catch(() => {
-        // Autoplay blockiert → Poster bleibt sichtbar
+        // Autoplay blockiert → Foto bleibt sichtbar
       });
     }
   }, [videoActive]);
 
   return (
     <div
-      className="group flex flex-col items-center"
+      className="group flex w-full max-w-[360px] flex-col overflow-hidden rounded-2xl border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
       onMouseEnter={() => canPlayVideo && setVideoActive(true)}
       onMouseLeave={() => {
         videoRef.current?.pause();
@@ -74,58 +74,57 @@ export function TemplateTile({ meta }: TemplateTileProps) {
       <Link
         href={detailPath}
         aria-label={`Live-Vorschau: ${meta.name}`}
-        className={`block rounded-[2rem] bg-gradient-to-br ${categoryGlow[meta.category]} px-8 pt-8 pb-0 overflow-hidden transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl group-hover:shadow-primary/10`}
+        className="relative block aspect-[4/5] overflow-hidden bg-muted"
       >
-        <PhoneFrame className="w-[240px] !rounded-b-none" screenClassName="h-[400px] !rounded-b-none" interactive={false}>
-          {/* Poster (erste Funnel-Seite als Portrait-Screenshot) */}
-          <picture>
-            <source srcSet={poster} type="image/webp" />
-            <img
-              src={poster.replace(".webp", ".png")}
-              alt={`Vorschau der Funnel-Vorlage „${meta.name}“`}
-              width={375}
-              height={740}
-              loading="lazy"
-              className="absolute inset-0 h-full w-full object-cover object-top"
-            />
-          </picture>
-          {/* Hover-Video: wird erst bei Aktivierung eingehängt (preload none) */}
-          {videoActive && (
+        <img
+          src={hero}
+          alt={`Vorschau der Funnel-Vorlage „${meta.name}“`}
+          width={900}
+          height={1200}
+          loading="lazy"
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+        />
+        {/* Hover-Video (Funnel-Durchlauf): erst bei Aktivierung eingehängt (preload none),
+            hochkant im Letterbox-Container über dem abgedunkelten Foto */}
+        {videoActive && (
+          <div className="absolute inset-0 bg-gray-950/85 backdrop-blur-sm">
             <video
               ref={videoRef}
               muted
               loop
               playsInline
               preload="none"
-              poster={poster}
               onError={() => {
                 setVideoBroken(true);
                 setVideoActive(false);
               }}
-              className="absolute inset-0 h-full w-full object-cover object-top"
+              className="h-full w-full object-contain"
             >
               <source src={`/templates/videos/${meta.slug}.webm`} type="video/webm" />
               <source src={`/templates/videos/${meta.slug}.mp4`} type="video/mp4" />
             </video>
-          )}
-        </PhoneFrame>
-      </Link>
-
-      <div className="mt-5 flex flex-col items-center text-center max-w-[280px]">
-        <Badge variant="secondary" className="mb-2">
+          </div>
+        )}
+        <Badge
+          variant="secondary"
+          className="absolute left-3 top-3 bg-background/85 backdrop-blur-sm"
+        >
           {templateCategoryLabels[meta.category]}
         </Badge>
+      </Link>
+
+      <div className="flex flex-1 flex-col p-5">
         <h3 className="text-lg font-semibold">{meta.name}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">{meta.benefit}</p>
-        <div className="mt-4 flex flex-col sm:flex-row gap-2 w-full justify-center">
-          <Link href={detailPath}>
-            <Button variant="outline" size="sm" className="gap-1.5 w-full sm:w-auto">
+        <p className="mt-1 flex-1 text-sm text-muted-foreground">{meta.benefit}</p>
+        <div className="mt-4 flex flex-col sm:flex-row gap-2">
+          <Link href={detailPath} className="sm:flex-1">
+            <Button variant="outline" size="sm" className="w-full gap-1.5">
               <Play className="h-3.5 w-3.5" />
               Live-Vorschau
             </Button>
           </Link>
-          <Link href={`/register?template=${meta.slug}`}>
-            <Button size="sm" className="w-full sm:w-auto">
+          <Link href={`/register?template=${meta.slug}`} className="sm:flex-1">
+            <Button size="sm" className="w-full">
               Mit Template starten
             </Button>
           </Link>
