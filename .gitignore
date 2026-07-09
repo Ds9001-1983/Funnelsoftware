@@ -20,3 +20,9 @@ playwright/.cache/
 
 # Test-Coverage (lokal generiert)
 coverage/
+
+# macOS/iCloud-Sync-Duplikate ("Name 2.ext") nie committen
+**/* 2.png
+**/* 2.webp
+**/* 2.mp4
+**/* 2.webm
