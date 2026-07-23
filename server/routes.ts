@@ -19,7 +19,7 @@ import {
   cancelAllSubscriptions,
 } from "./stripe";
 import { sendWebhook, buildWebhookPayload, generateWebhookSecret } from "./webhooks";
-import { sendCapiEvent, extractCapiRequestContext } from "./capi";
+import { sendCapiEvent, extractCapiRequestContext, buildPurchaseEvent } from "./capi";
 import { TRICHTERWERK_PIXEL_ID } from "@shared/meta";
 import { aggregateAbTestStats } from "./ab-stats";
 import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan, requireVerifiedEmail, hasActivePlan, PUBLIC_GRACE_PERIOD_MS } from "./auth";
@@ -156,6 +156,9 @@ export async function registerRoutes(
         trialEndsAt,
         isPro: false,
         emailVerificationToken,
+        // Festhalten, weil der Stripe-Webhook zur ersten Zahlung Wochen später
+        // kommt und dort kein Browser-Consent mehr abrufbar ist.
+        marketingConsent: !!result.data.marketingConsent,
       } as any);
 
       // E-Mails asynchron senden (nicht blockierend)
@@ -1852,6 +1855,38 @@ export async function registerRoutes(
             stripeSubscriptionId: status === "canceled" ? null : (user.stripeSubscriptionId ?? subscription.id),
             ...(trialEnd ? { trialEndsAt: new Date(trialEnd * 1000) } : {}),
           });
+          break;
+        }
+
+        case "invoice.payment_succeeded": {
+          // Meta-Purchase: die erste echte Abbuchung nach der Testphase (und
+          // jede Verlängerung danach). Damit schließt sich die Kette
+          // Anzeige → Registrierung → zahlender Kunde.
+          const invoice = event.data.object as any;
+          const metaCapiToken = process.env.META_CAPI_TOKEN;
+          if (metaCapiToken) {
+            const user = await storage.getUserByStripeCustomerId(invoice.customer as string);
+            // Prüft 0-€-Trial-Rechnung, fehlenden Nutzer und Einwilligung.
+            const draft = buildPurchaseEvent(invoice, user);
+            if (draft) {
+              sendCapiEvent({
+                pixelId: TRICHTERWERK_PIXEL_ID,
+                accessToken: metaCapiToken,
+                eventName: "Purchase",
+                // Rechnungs-ID als eventId: Stripe stellt Webhooks bei Fehlern
+                // erneut zu — gleiche ID, Meta dedupliziert. Ein zufälliger
+                // Wert würde jede Wiederholung als eigenen Kauf zählen.
+                eventId: draft.eventId,
+                eventSourceUrl: `${process.env.APP_URL || "https://trichterwerk.de"}/register`,
+                userData: {
+                  // Kein fbc/fbp: Der Request kommt von Stripe, nicht vom
+                  // Browser des Kunden. Das Matching läuft über die E-Mail.
+                  email: draft.email,
+                },
+                customData: draft.customData,
+              }).catch((err) => console.error("[Meta CAPI] Purchase failed:", err));
+            }
+          }
           break;
         }
 

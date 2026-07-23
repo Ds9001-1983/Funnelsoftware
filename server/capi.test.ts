@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Request } from "express";
-import { extractCapiRequestContext } from "./capi";
+import { extractCapiRequestContext, buildPurchaseEvent } from "./capi";
 
 /** Minimaler Request-Stub — nur die Felder, die der Extractor liest. */
 function makeRequest(opts: {
@@ -65,5 +65,71 @@ describe("extractCapiRequestContext", () => {
     expect(ctx.clientUserAgent).toBeUndefined();
     expect(ctx.fbc).toBeUndefined();
     expect(ctx.fbp).toBeUndefined();
+  });
+});
+
+describe("buildPurchaseEvent", () => {
+  const consentingUser = { email: "kunde@example.de", marketingConsent: true };
+
+  it("rechnet die kleinste Währungseinheit in ganze Einheiten um", () => {
+    // 4900 Cent sind 49 €. Ungeteilt gemeldet stünde in Meta ein Umsatz
+    // vom Hundertfachen und der ROAS wäre wertlos.
+    const draft = buildPurchaseEvent(
+      { id: "in_123", amount_paid: 4900, currency: "eur" },
+      consentingUser,
+    );
+    expect(draft?.customData).toEqual({ value: 49, currency: "EUR" });
+  });
+
+  it("nutzt die Rechnungs-ID als eventId (idempotent bei Webhook-Retries)", () => {
+    const draft = buildPurchaseEvent(
+      { id: "in_abc", amount_paid: 4900, currency: "eur" },
+      consentingUser,
+    );
+    expect(draft?.eventId).toBe("in_abc");
+  });
+
+  it("meldet die 0-€-Rechnung des Trial-Starts nicht", () => {
+    const draft = buildPurchaseEvent(
+      { id: "in_trial", amount_paid: 0, currency: "eur" },
+      consentingUser,
+    );
+    expect(draft).toBeNull();
+  });
+
+  it("sendet ohne Marketing-Einwilligung nichts", () => {
+    const draft = buildPurchaseEvent(
+      { id: "in_123", amount_paid: 4900, currency: "eur" },
+      { email: "kunde@example.de", marketingConsent: false },
+    );
+    expect(draft).toBeNull();
+  });
+
+  it("sendet nichts, wenn zur Customer-ID kein Nutzer gefunden wurde", () => {
+    expect(buildPurchaseEvent({ id: "in_123", amount_paid: 4900 }, null)).toBeNull();
+    expect(buildPurchaseEvent({ id: "in_123", amount_paid: 4900 }, undefined)).toBeNull();
+  });
+
+  it("sendet nichts ohne Rechnungs-ID — sonst ginge die Deduplizierung verloren", () => {
+    const draft = buildPurchaseEvent({ amount_paid: 4900, currency: "eur" }, consentingUser);
+    expect(draft).toBeNull();
+  });
+
+  it("normalisiert die Währung auf Großbuchstaben und fällt auf EUR zurück", () => {
+    expect(
+      buildPurchaseEvent({ id: "in_1", amount_paid: 100, currency: "usd" }, consentingUser)
+        ?.customData.currency,
+    ).toBe("USD");
+    expect(
+      buildPurchaseEvent({ id: "in_2", amount_paid: 100 }, consentingUser)?.customData.currency,
+    ).toBe("EUR");
+  });
+
+  it("ignoriert negative Beträge (Gutschriften)", () => {
+    const draft = buildPurchaseEvent(
+      { id: "in_credit", amount_paid: -4900, currency: "eur" },
+      consentingUser,
+    );
+    expect(draft).toBeNull();
   });
 });

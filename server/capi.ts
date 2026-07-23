@@ -81,6 +81,47 @@ export function extractCapiRequestContext(req: Request): {
   };
 }
 
+export interface PurchaseEventDraft {
+  /** Rechnungs-ID — idempotent über Stripe-Webhook-Wiederholungen hinweg. */
+  eventId: string;
+  email: string;
+  customData: { value: number; currency: string };
+}
+
+/**
+ * Entscheidet, ob aus einer bezahlten Stripe-Rechnung ein Meta-Purchase wird,
+ * und rechnet die Beträge um. Gibt `null` zurück, wenn nicht gesendet werden
+ * darf.
+ *
+ * Drei Gründe für ein `null`:
+ *  - `amount_paid === 0` — beim Start des Testabos stellt Stripe eine
+ *    0-€-Rechnung aus. Als Purchase gemeldet würde Meta auf Trial-Starts statt
+ *    auf echte Zahlungen optimieren.
+ *  - kein Nutzer zur Customer-ID auffindbar.
+ *  - keine Marketing-Einwilligung bei der Registrierung erteilt.
+ */
+export function buildPurchaseEvent(
+  invoice: { id?: unknown; amount_paid?: unknown; currency?: unknown },
+  user: { email: string; marketingConsent?: boolean | null } | null | undefined,
+): PurchaseEventDraft | null {
+  const amountPaid = Number(invoice.amount_paid || 0);
+  if (!Number.isFinite(amountPaid) || amountPaid <= 0) return null;
+  if (!user?.marketingConsent) return null;
+  const eventId = typeof invoice.id === "string" ? invoice.id : "";
+  if (!eventId) return null;
+
+  return {
+    eventId,
+    email: user.email,
+    customData: {
+      // Stripe rechnet in der kleinsten Währungseinheit, Meta erwartet den
+      // Betrag in ganzen Einheiten — 4900 Cent sind 49 €, nicht 4900 €.
+      value: amountPaid / 100,
+      currency: String(invoice.currency || "eur").toUpperCase(),
+    },
+  };
+}
+
 /** SHA-256-Hash von String (lowercase + getrimmt), oder undefined bei leerer Eingabe. */
 function hashPii(value: string | null | undefined): string | undefined {
   if (!value) return undefined;
