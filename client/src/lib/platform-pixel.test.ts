@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   injectMetaPixel: vi.fn(),
   fbqTrack: vi.fn(),
   consent: { allowsMarketing: false },
+  host: { isPlatform: true },
 }));
 
 vi.mock("@/lib/meta-pixel", () => ({
@@ -18,6 +19,10 @@ vi.mock("@/lib/meta-pixel", () => ({
 
 vi.mock("@/components/cookie-consent", () => ({
   useCookieConsent: () => ({ allowsMarketing: mocks.consent.allowsMarketing }),
+}));
+
+vi.mock("@/lib/platform-host", () => ({
+  isPlatformHost: () => mocks.host.isPlatform,
 }));
 
 import { useTrichterwerkPixel, isCustomerFunnelRoute } from "./platform-pixel";
@@ -31,6 +36,28 @@ describe("useTrichterwerkPixel", () => {
     mocks.injectMetaPixel.mockClear();
     mocks.fbqTrack.mockClear();
     mocks.consent.allowsMarketing = false;
+    mocks.host.isPlatform = true;
+  });
+
+  it("lädt nichts auf der Custom-Domain eines Kunden", () => {
+    // Zweite Sperre neben dem Routen-Ausschluss: Auf einer Custom-Domain
+    // bootet die App unter "/" und wird erst nach der Host-Auflösung nach
+    // "/f/…" umgeleitet. In diesem Fenster sähe "/" wie unsere Landingpage aus.
+    mocks.consent.allowsMarketing = true;
+    mocks.host.isPlatform = false;
+    renderHook(() => useTrichterwerkPixel("/", true));
+    expect(mocks.injectMetaPixel).not.toHaveBeenCalled();
+    expect(mocks.fbqTrack).not.toHaveBeenCalled();
+  });
+
+  it("meldet auf einer Custom-Domain auch keine Routenwechsel", () => {
+    mocks.consent.allowsMarketing = true;
+    mocks.host.isPlatform = false;
+    const { rerender } = renderHook(({ loc }) => useTrichterwerkPixel(loc, true), {
+      initialProps: { loc: "/" },
+    });
+    rerender({ loc: "/vorlagen" });
+    expect(mocks.fbqTrack).not.toHaveBeenCalled();
   });
 
   it("lädt ohne Marketing-Consent keinen Pixel", () => {

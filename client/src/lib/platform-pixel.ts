@@ -16,6 +16,7 @@
 import { useEffect, useRef } from "react";
 import { useCookieConsent } from "@/components/cookie-consent";
 import { injectMetaPixel, fbqTrack } from "@/lib/meta-pixel";
+import { isPlatformHost } from "@/lib/platform-host";
 import { TRICHTERWERK_PIXEL_ID } from "@shared/meta";
 
 /**
@@ -47,7 +48,16 @@ export function useTrichterwerkPixel(location: string, enabled: boolean): void {
 
   // Bewusst im Hook geprüft und nicht nur beim Aufrufer: Ein künftiger Aufrufer
   // soll den Pixel nicht versehentlich auf einen Kundenfunnel bringen können.
-  const active = enabled && allowsMarketing && !isCustomerFunnelRoute(location);
+  //
+  // Zwei Sperren, weil eine allein nicht reicht:
+  //  - Route: /f/… und /preview/… tragen den Pixel des Kunden.
+  //  - Host:  Auf einer Custom-Domain bootet die App unter "/" und sieht in
+  //           diesem Moment wie unsere eigene Landingpage aus.
+  const active =
+    enabled &&
+    allowsMarketing &&
+    !isCustomerFunnelRoute(location) &&
+    isPlatformHost();
 
   useEffect(() => {
     if (!active || isLoaded.current) return;

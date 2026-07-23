@@ -6,6 +6,7 @@
 // tages-rotierenden Anonym-Hash ab und speichert keine Roh-IP.
 
 import { comparisonLinks, funnelBuilderPage } from "@shared/seo-links";
+import { isPlatformHost } from "@/lib/platform-host";
 
 // Muss zur Server-Whitelist (server/tracking.ts) passen.
 const TRACKABLE = new Set([
@@ -31,6 +32,11 @@ function isTrackable(path: string): boolean {
 /** Meldet einen Seitenaufruf (fire-and-forget). Stört den Nutzer nie. */
 export function trackPageview(path: string): void {
   if (typeof window === "undefined") return;
+  // Niemals auf der Custom-Domain eines Kunden messen. Dort bootet die App
+  // unter "/" — einer getrackten Route — bevor der Host aufgelöst und nach
+  // "/f/…" umgeleitet wird. Ohne diese Sperre landeten die Besucher des Kunden
+  // in unserer eigenen Reichweitenstatistik.
+  if (!isPlatformHost()) return;
   if (!isTrackable(path)) return;
 
   const params = new URLSearchParams(window.location.search);
