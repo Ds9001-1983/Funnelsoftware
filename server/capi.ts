@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import type { Request } from "express";
 
 const META_GRAPH_API_VERSION = "v21.0";
 
@@ -36,6 +37,48 @@ export interface SendCapiEventArgs {
   userData: CapiUserData;
   /** Optionale Custom-Daten (Lead-Wert, Currency, Content-Name etc.). */
   customData?: Record<string, unknown>;
+}
+
+/**
+ * Zieht die nicht-personenbezogenen Matching-Signale aus dem Request, die Meta
+ * ungehasht erwartet: IP, User-Agent und die beiden Pixel-Cookies.
+ *
+ * `_fbc` (Click-ID) und `_fbp` (Browser-ID) setzt der Browser-Pixel. Ohne sie
+ * fällt die Event-Match-Quality deutlich ab, weil dem Server-Event der Bezug
+ * zum Klick auf die Anzeige fehlt.
+ *
+ * Hinter nginx ist `req.socket.remoteAddress` die Proxy-IP — deshalb zuerst
+ * `x-forwarded-for` (erster Eintrag = der echte Client).
+ */
+export function extractCapiRequestContext(req: Request): {
+  clientIpAddress?: string;
+  clientUserAgent?: string;
+  fbc?: string;
+  fbp?: string;
+} {
+  const fwd = req.headers["x-forwarded-for"];
+  const clientIpAddress =
+    (typeof fwd === "string" ? fwd.split(",")[0]?.trim() : undefined) ||
+    req.socket.remoteAddress ||
+    undefined;
+
+  const ua = req.headers["user-agent"];
+
+  const cookies = (req.headers.cookie || "").split(";").reduce(
+    (acc, part) => {
+      const [k, ...rest] = part.trim().split("=");
+      if (k) acc[k] = rest.join("=");
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
+
+  return {
+    clientIpAddress,
+    clientUserAgent: typeof ua === "string" ? ua : undefined,
+    fbc: cookies._fbc,
+    fbp: cookies._fbp,
+  };
 }
 
 /** SHA-256-Hash von String (lowercase + getrimmt), oder undefined bei leerer Eingabe. */

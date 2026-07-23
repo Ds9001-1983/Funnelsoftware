@@ -19,7 +19,8 @@ import {
   cancelAllSubscriptions,
 } from "./stripe";
 import { sendWebhook, buildWebhookPayload, generateWebhookSecret } from "./webhooks";
-import { sendCapiEvent } from "./capi";
+import { sendCapiEvent, extractCapiRequestContext } from "./capi";
+import { TRICHTERWERK_PIXEL_ID } from "@shared/meta";
 import { aggregateAbTestStats } from "./ab-stats";
 import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan, requireVerifiedEmail, hasActivePlan, PUBLIC_GRACE_PERIOD_MS } from "./auth";
 import {
@@ -173,6 +174,33 @@ export async function registerRoutes(
         eventType: "register",
       }).catch((err) => console.error("[Track] register event failed:", err));
 
+      // Meta Conversions API für den EIGENEN Pixel (trichterwerk.de), nicht den
+      // eines Kunden-Funnels. Bewusst serverseitig: Der Client leitet direkt
+      // nach der Antwort zu Stripe Checkout weiter — ein reines Browser-Event
+      // überlebt diese Navigation nicht zuverlässig, und genau die
+      // Registrierung ist das Conversion-Event, auf das die Ads optimieren.
+      // Der Client feuert dasselbe Event zusätzlich mit derselben eventId;
+      // Meta verrechnet beide zu einer Conversion.
+      // DSGVO: nur mit Marketing-Einwilligung aus dem Cookie-Banner.
+      const capiEventId = randomUUID();
+      const metaCapiToken = process.env.META_CAPI_TOKEN;
+      if (result.data.marketingConsent && metaCapiToken) {
+        const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol;
+        sendCapiEvent({
+          pixelId: TRICHTERWERK_PIXEL_ID,
+          accessToken: metaCapiToken,
+          eventName: "CompleteRegistration",
+          eventId: capiEventId,
+          eventSourceUrl: `${proto}://${req.get("host")}/register`,
+          userData: {
+            email,
+            ...extractCapiRequestContext(req),
+          },
+        }).catch((err) =>
+          console.error("[Meta CAPI] CompleteRegistration failed:", err),
+        );
+      }
+
       // Log user in automatically
       req.login({ ...user, password: undefined } as any, async (err) => {
         if (err) {
@@ -209,7 +237,9 @@ export async function registerRoutes(
           }
         }
 
-        res.status(201).json({ user: userWithoutPassword, checkoutUrl, checkoutError });
+        // capiEventId geht mit, damit der Browser-Pixel dasselbe Event mit
+        // identischer eventID feuern kann → Meta dedupliziert.
+        res.status(201).json({ user: userWithoutPassword, checkoutUrl, checkoutError, capiEventId });
       });
     } catch (error) {
       console.error("Registration error:", error);
@@ -1219,20 +1249,6 @@ export async function registerRoutes(
         const eventSourceUrl =
           (typeof referer === "string" && referer) ||
           `${proto}://${host}/f/${funnel.slug || funnel.uuid}`;
-        const fwd = req.headers["x-forwarded-for"];
-        const ip =
-          (typeof fwd === "string" ? fwd.split(",")[0]?.trim() : undefined) ||
-          req.socket.remoteAddress ||
-          undefined;
-        const ua = req.headers["user-agent"];
-        const cookies = (req.headers.cookie || "").split(";").reduce(
-          (acc, part) => {
-            const [k, ...rest] = part.trim().split("=");
-            if (k) acc[k] = rest.join("=");
-            return acc;
-          },
-          {} as Record<string, string>,
-        );
         // Name in firstName + lastName aufteilen (Meta erwartet getrennt).
         const [firstName, ...nameRest] = (lead.name || "").trim().split(/\s+/);
         const lastName = nameRest.join(" ") || undefined;
@@ -1247,10 +1263,7 @@ export async function registerRoutes(
             phone: lead.phone,
             firstName: firstName || undefined,
             lastName,
-            clientIpAddress: ip,
-            clientUserAgent: typeof ua === "string" ? ua : undefined,
-            fbc: cookies._fbc,
-            fbp: cookies._fbp,
+            ...extractCapiRequestContext(req),
           },
         })
           .then(() => {

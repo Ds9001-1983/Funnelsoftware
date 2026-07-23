@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Trichterwerk — Carousel Preis-Anker — Slide 5 (CTA, Facebook-Variante)</title>
+<!-- Identisch zu slide-5.html, nur der Hinweis unter dem CTA:
+     Auf Facebook steht der Link klickbar in der Caption, „Link in Bio" wäre falsch. -->
+<style>
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:500; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:600; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:700; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-700-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:800; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-800-normal.woff2') format('woff2'); }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { margin:0; width:100vw; height:100vh; overflow:hidden; background:#0E0E11; }
+  body { font-family:'Inter', sans-serif; -webkit-font-smoothing:antialiased; }
+
+  .stage { position:relative; width:100vw; height:100vh; overflow:hidden; background:#0E0E11; }
+
+  .dots {
+    position:absolute; inset:0;
+    background-image:radial-gradient(rgba(255,255,255,0.07) 1.5px, transparent 1.5px);
+    background-size:38px 38px; background-position:19px 19px;
+  }
+  .topwash {
+    position:absolute; left:0; right:0; top:0; height:420px;
+    background:radial-gradient(ellipse 900px 380px at 50% -120px, rgba(124,58,237,0.20) 0%, rgba(124,58,237,0) 70%);
+  }
+  .glow {
+    position:absolute; left:50%; top:50%; width:1500px; height:1500px;
+    transform:translate(-50%,-50%);
+    background:radial-gradient(circle, rgba(124,58,237,0.38) 0%, rgba(124,58,237,0.15) 34%, rgba(124,58,237,0) 66%);
+  }
+  .orb { position:absolute; border-radius:50%; filter:blur(90px); }
+  .orb-1 { width:460px; height:460px; left:700px; top:-80px;  background:rgba(124,58,237,0.26); }
+  .orb-2 { width:400px; height:400px; left:-170px; bottom:20px; background:rgba(91,33,182,0.32); }
+
+  .frame { position:absolute; inset:0; padding:74px 80px; display:flex; flex-direction:column; }
+  .head { flex:none; display:flex; justify-content:center; }
+  .body { flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; }
+  .foot { flex:none; display:flex; align-items:center; justify-content:center; }
+
+  .brand { display:flex; align-items:center; gap:16px; }
+  .brand-tile {
+    width:54px; height:54px; border-radius:15px;
+    background:linear-gradient(135deg, #925CF0 0%, #7C3AED 55%, #5B21B6 100%);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 8px 28px rgba(124,58,237,0.45);
+  }
+  .brand-name { font-size:34px; font-weight:700; color:#F2F2F2; letter-spacing:-0.01em; }
+  .counter { font-size:26px; font-weight:600; color:rgba(242,242,242,0.42); letter-spacing:0.02em; }
+
+  /* ---------- Inhalt Slide 5 ---------- */
+  h2 {
+    font-size:82px; font-weight:800; letter-spacing:-0.03em; line-height:1.08;
+    color:#FFFFFF;
+  }
+  h2 .grad {
+    /* Heller Verlauf: dunkle Verlaufsenden fressen auf #0E0E11 den Kontrast */
+    background:linear-gradient(94deg, #FFFFFF 0%, #E6DDFF 48%, #B79BF6 100%);
+    -webkit-background-clip:text; background-clip:text;
+    -webkit-text-fill-color:transparent; color:transparent;
+  }
+  .sub {
+    margin-top:32px; max-width:840px;
+    font-size:34px; font-weight:500; line-height:1.45;
+    color:rgba(242,242,242,0.72);
+  }
+
+  .cta {
+    display:inline-block; margin-top:62px;
+    padding:30px 66px; border-radius:999px;
+    background:linear-gradient(180deg, #8B5CF6 0%, #7C3AED 100%);
+    border:1px solid rgba(255,255,255,0.22);
+    font-size:42px; font-weight:700; color:#FFFFFF; letter-spacing:-0.01em;
+    box-shadow:0 14px 54px rgba(124,58,237,0.55), 0 4px 16px rgba(0,0,0,0.4);
+  }
+  .hint {
+    margin-top:32px;
+    display:inline-flex; align-items:center; gap:14px;
+    font-size:31px; font-weight:600; color:rgba(242,242,242,0.78);
+  }
+
+  .chips { margin-top:64px; display:flex; justify-content:center; gap:13px; flex-wrap:wrap; }
+  .chip {
+    padding:15px 26px; border-radius:999px;
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.15);
+    font-size:26px; font-weight:600; color:#E9E9EE; white-space:nowrap;
+  }
+  .note {
+    margin-top:34px;
+    font-size:24px; font-weight:500; line-height:1.5;
+    color:rgba(242,242,242,0.46);
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="glow"></div>
+    <div class="topwash"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="dots"></div>
+
+    <div class="frame">
+      <div class="head">
+        <div class="brand">
+          <div class="brand-tile">
+            <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
+              <path d="M6 7 H26 L18.5 19 V26 L13.5 23.5 V19 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="brand-name">Trichterwerk</div>
+        </div>
+      </div>
+
+      <div class="body">
+        <h2>Bau deinen Funnel<br><span class="grad">heute noch</span>.</h2>
+        <div class="sub">14 Tage kostenlos testen. Erste Belastung erst nach der Testphase, monatlich kündbar.</div>
+
+        <div class="cta">trichterwerk.de</div>
+        <div class="hint">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+            <path d="M12 5 V19 M6 13 L12 19 L18 13" stroke="#F2F2F2" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Link im Beitrag
+        </div>
+
+        <div class="chips">
+          <div class="chip">DSGVO-konform</div>
+          <div class="chip">Hosting in der EU</div>
+          <div class="chip">Made in Germany</div>
+        </div>
+        <div class="note">49 €/Monat zzgl. MwSt. · keine Setup-Gebühr</div>
+      </div>
+
+      <div class="foot">
+        <div class="counter">5 / 5</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

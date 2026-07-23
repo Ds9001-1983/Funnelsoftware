@@ -59,8 +59,20 @@ jobs:
               exit 1
             fi
 
-            # Restart PM2 (only after successful build)
-            pm2 restart funnelflow || pm2 start dist/index.cjs --name funnelflow
+            # Restart PM2 (only after successful build).
+            # .env exportieren und MIT --update-env neu starten: PM2 behält
+            # sonst die Umgebung vom letzten Start, und ein frisch in die .env
+            # geschriebenes Secret (z. B. META_CAPI_TOKEN) bliebe im Prozess
+            # lautlos leer — die App läuft weiter, das Feature ist tot, und der
+            # Fehler sieht aus wie ein Code-Bug.
+            # `set -a` + `.` statt `export $(cat .env | xargs)`, weil Letzteres
+            # an Werten mit Leerzeichen oder Anführungszeichen zerbricht.
+            if [ -f .env ]; then
+              set -a
+              . ./.env
+              set +a
+            fi
+            pm2 restart funnelflow --update-env || pm2 start dist/index.cjs --name funnelflow
 
             # Save PM2 config
             pm2 save

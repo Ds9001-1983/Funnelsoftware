@@ -14,6 +14,7 @@ import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
 import { useGlobalBodyLockGuard } from "@/hooks/use-ensure-body-unlocked";
 import { useToast } from "@/hooks/use-toast";
 import { trackPageview } from "@/lib/platform-tracker";
+import { useTrichterwerkPixel } from "@/lib/platform-pixel";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Funnels from "@/pages/funnels";
@@ -382,6 +383,11 @@ function AppShell() {
     if (isLoading || isAuthenticated) return;
     trackPageview(location);
   }, [location, isAuthenticated, isLoading]);
+
+  // Meta-Pixel von trichterwerk.de — dieselbe Eingrenzung wie oben (öffentliche
+  // Route, Auth-Status geklärt, anonym), zusätzlich nur mit Marketing-Consent.
+  // Das prüft der Hook selbst.
+  useTrichterwerkPixel(location, showCookieConsent && !isLoading && !isAuthenticated);
 
   return (
     <ErrorBoundary fallbackTitle="Ein unerwarteter Fehler ist aufgetreten">

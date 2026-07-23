@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Trichterwerk Story Ad — Violet Bold</title>
+<style>
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:400; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:600; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:700; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-700-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:800; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-800-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:900; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-900-normal.woff2') format('woff2'); }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { margin:0; width:1080px; height:1920px; overflow:hidden; }
+  body {
+    font-family:'Inter', sans-serif;
+    background:linear-gradient(160deg, #7C3AED 0%, #6D2FD6 45%, #5B21B6 100%);
+    position:relative;
+    color:#F2F2F2;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- Deko ---------- */
+  .glow-tl {
+    position:absolute; top:-320px; left:-320px; width:900px; height:900px;
+    background:radial-gradient(circle, rgba(146,92,240,0.85) 0%, rgba(146,92,240,0) 65%);
+    pointer-events:none;
+  }
+  .glow-br {
+    position:absolute; bottom:-260px; right:-300px; width:1000px; height:1000px;
+    background:radial-gradient(circle, rgba(23,23,28,0.55) 0%, rgba(23,23,28,0) 60%);
+    pointer-events:none;
+  }
+  .stopwatch-deco {
+    position:absolute; top:40px; right:-70px; width:440px; height:440px;
+    opacity:0.13; transform:rotate(12deg);
+  }
+  .speedlines { position:absolute; left:0; top:0; width:1080px; height:1920px; pointer-events:none; }
+
+  /* ---------- Phone (rechts angeschnitten) ---------- */
+  .phone-wrap {
+    position:absolute;
+    right:40px; top:1408px;
+    transform:rotate(-4deg);
+  }
+  .phone {
+    width:600px; height:1240px;
+    background:#17171C;
+    border-radius:60px;
+    padding:16px;
+    box-shadow:-30px 30px 90px rgba(23,23,28,0.45), 0 0 0 2px rgba(255,255,255,0.20);
+    position:relative;
+  }
+  .screen {
+    width:100%; height:100%;
+    border-radius:46px;
+    overflow:hidden;
+    background:#FAFAFA;
+    position:relative;
+  }
+  .screen img {
+    width:100%; height:100%;
+    object-fit:cover; object-position:top;
+    display:block;
+  }
+  .punch {
+    position:absolute; top:34px; left:50%; transform:translateX(-50%);
+    width:20px; height:20px; border-radius:50%;
+    background:#17171C; z-index:2;
+  }
+  .flash-badge {
+    position:absolute; top:-22px; right:8px; z-index:3;
+    width:110px; height:110px; border-radius:50%;
+    background:#FFFFFF;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 16px 40px rgba(23,23,28,0.35);
+  }
+
+  /* ---------- Content (linksbündig) ---------- */
+  .content {
+    position:absolute; left:0; top:0; width:1080px; height:1920px;
+    padding-left:84px; padding-right:84px;
+    display:flex; flex-direction:column; align-items:flex-start;
+    text-align:left;
+  }
+
+  .brand {
+    margin-top:272px;
+    display:flex; align-items:center; gap:22px;
+  }
+  .brand-tile {
+    width:66px; height:66px; border-radius:17px;
+    background:linear-gradient(145deg, #925CF0 0%, #6D28D9 100%);
+    box-shadow:0 0 0 3px rgba(255,255,255,0.55), 0 12px 30px rgba(23,23,28,0.35);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .brand-name { font-size:42px; font-weight:700; letter-spacing:-0.5px; color:#FFFFFF; }
+
+  .hook {
+    margin-top:54px;
+    font-weight:900;
+    font-size:120px;
+    line-height:1.05;
+    letter-spacing:-3.5px;
+    color:#FFFFFF;
+    text-shadow:0 4px 24px rgba(23,23,28,0.15);
+  }
+  .pill-line { margin-top:30px; display:flex; }
+  .pill {
+    display:inline-flex; align-items:center; gap:22px;
+    background:#FFFFFF;
+    color:#6D28D9;
+    border-radius:32px;
+    padding:14px 44px 24px 38px;
+    box-shadow:0 24px 60px rgba(23,23,28,0.30);
+    font-size:96px;
+    letter-spacing:-3px;
+    text-shadow:none;
+    white-space:nowrap;
+  }
+  .pill svg { flex:none; margin-top:8px; }
+
+  .subline {
+    margin-top:46px;
+    font-size:42px; font-weight:500; line-height:1.42;
+    color:rgba(255,255,255,0.92);
+  }
+
+  .chips {
+    margin-top:46px;
+    display:flex; flex-wrap:wrap;
+    gap:18px; max-width:720px;
+  }
+  .chip {
+    border:2.5px solid rgba(255,255,255,0.6);
+    border-radius:999px;
+    padding:15px 32px;
+    font-size:30px; font-weight:600; color:#FFFFFF;
+    background:rgba(255,255,255,0.08);
+    white-space:nowrap;
+  }
+
+  .cta {
+    margin-top:50px;
+    background:#FFFFFF;
+    color:#6D28D9;
+    font-size:38px; font-weight:800; letter-spacing:-0.5px;
+    padding:30px 56px;
+    border-radius:999px;
+    box-shadow:0 26px 70px rgba(23,23,28,0.38);
+    white-space:nowrap;
+  }
+  .hint {
+    margin-top:26px;
+    margin-left:138px;
+    font-size:30px; font-weight:500;
+    color:rgba(255,255,255,0.85);
+  }
+</style>
+</head>
+<body>
+
+  <div class="glow-tl"></div>
+  <div class="glow-br"></div>
+
+  <!-- Deko: Stoppuhr outline, oben rechts -->
+  <svg class="stopwatch-deco" viewBox="0 0 100 100" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round">
+    <circle cx="50" cy="58" r="34"/>
+    <line x1="42" y1="10" x2="58" y2="10" stroke-width="5"/>
+    <line x1="50" y1="10" x2="50" y2="20"/>
+    <line x1="79" y1="24" x2="73" y2="31"/>
+    <path d="M50 40 L50 58 L64 66"/>
+  </svg>
+
+  <!-- Deko: Speedlines links vom Phone -->
+  <svg class="speedlines" viewBox="0 0 1080 1920" fill="none" stroke="#FFFFFF" stroke-linecap="round">
+    <line x1="120" y1="1555" x2="330" y2="1569" stroke-width="8" opacity="0.22"/>
+    <line x1="80" y1="1635" x2="260" y2="1649" stroke-width="8" opacity="0.15"/>
+    <line x1="150" y1="1715" x2="320" y2="1729" stroke-width="8" opacity="0.10"/>
+  </svg>
+
+  <!-- Phone-Mockup rechts angeschnitten -->
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="flash-badge">
+        <svg width="58" height="58" viewBox="0 0 24 24" fill="#7C3AED">
+          <path d="M13 2 L4.5 13.5 H11 L10 22 L19.5 9.5 H13 Z"/>
+        </svg>
+      </div>
+      <div class="punch"></div>
+      <div class="screen">
+        <img src="file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/client/public/templates/portrait/termin-buchen.png" alt="">
+      </div>
+    </div>
+  </div>
+
+  <!-- Inhalt -->
+  <div class="content">
+    <div class="brand">
+      <div class="brand-tile">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="#FFFFFF">
+          <path d="M3 4 H21 L14.5 12.5 V19 L9.5 21.5 V12.5 Z"/>
+        </svg>
+      </div>
+      <div class="brand-name">Trichterwerk</div>
+    </div>
+
+    <h1 class="hook">
+      Dein Funnel.<br>
+      Live in
+      <span class="pill-line">
+        <span class="pill">
+          <svg width="76" height="76" viewBox="0 0 100 100" fill="none" stroke="#7C3AED" stroke-width="7" stroke-linecap="round">
+            <circle cx="50" cy="58" r="32"/>
+            <line x1="40" y1="8" x2="60" y2="8" stroke-width="9"/>
+            <line x1="50" y1="8" x2="50" y2="20"/>
+            <path d="M50 42 L50 58 L63 65"/>
+          </svg>
+          unter 1 Stunde.
+        </span>
+      </span>
+    </h1>
+
+    <p class="subline">Ohne Code. Ohne Agentur.<br>Selbst gebaut — mobil optimiert.</p>
+
+    <div class="chips">
+      <div class="chip">Ohne Code</div>
+      <div class="chip">DSGVO-konform</div>
+      <div class="chip">Made in Germany</div>
+      <div class="chip">ab 49&nbsp;€/Monat</div>
+    </div>
+
+    <div class="cta">14 Tage kostenlos testen</div>
+    <div class="hint">Jetzt unten tippen ↓</div>
+  </div>
+
+</body>
+</html>

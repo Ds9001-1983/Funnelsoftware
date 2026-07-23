@@ -24,7 +24,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (data: RegisterData) => Promise<{ success: boolean; error?: string; checkoutUrl?: string | null; checkoutError?: boolean }>;
+  register: (data: RegisterData) => Promise<{ success: boolean; error?: string; checkoutUrl?: string | null; checkoutError?: boolean; capiEventId?: string | null }>;
   logout: () => Promise<void>;
   refetchUser: () => Promise<void>;
 }
@@ -34,6 +34,8 @@ interface RegisterData {
   email: string;
   password: string;
   displayName?: string;
+  /** Marketing-Einwilligung aus dem Cookie-Banner — steuert das CAPI-Event. */
+  marketingConsent?: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -104,7 +106,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(result.user);
-      return { success: true, checkoutUrl: result.checkoutUrl || null, checkoutError: !!result.checkoutError };
+      return {
+        success: true,
+        checkoutUrl: result.checkoutUrl || null,
+        checkoutError: !!result.checkoutError,
+        capiEventId: result.capiEventId || null,
+      };
     } catch (error) {
       console.error("Register error:", error);
       return { success: false, error: "Netzwerkfehler bei der Registrierung" };

@@ -1020,6 +1020,13 @@ export const registerSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
   password: passwordSchema,
   displayName: z.string().optional(),
+  /**
+   * Marketing-Einwilligung aus dem Cookie-Banner. Nur damit darf die
+   * Registrierung serverseitig an die Meta Conversions API gemeldet werden —
+   * der Server kennt den Banner-Zustand (localStorage) sonst nicht.
+   * Fehlt das Feld, gilt "keine Einwilligung".
+   */
+  marketingConsent: z.boolean().optional(),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

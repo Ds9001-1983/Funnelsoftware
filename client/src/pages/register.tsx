@@ -10,9 +10,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Zap, AlertCircle, Check, Sparkles, Lock } from "lucide-react";
 import { SIGNUP_TEMPLATE_STORAGE_KEY } from "@shared/seo-links";
+import { useCookieConsent } from "@/components/cookie-consent";
+import { fbqTrack } from "@/lib/meta-pixel";
 
 export default function Register() {
   const { register, isAuthenticated } = useAuth();
+  const { allowsMarketing } = useCookieConsent();
   const [, setLocation] = useLocation();
   const [formData, setFormData] = useState({
     username: "",
@@ -95,9 +98,19 @@ export default function Register() {
       email: formData.email,
       password: formData.password,
       displayName: formData.displayName || undefined,
+      marketingConsent: allowsMarketing,
     });
 
     if (result.success) {
+      // Browser-Seite der Conversion. Der Server hat dasselbe Event bereits
+      // über die CAPI gemeldet — identische eventID, Meta dedupliziert. Geht
+      // dieses hier beim Stripe-Redirect verloren, ist die Conversion trotzdem
+      // gezählt. Ohne Marketing-Consent ist der Pixel nie geladen und fbqTrack
+      // damit ein No-op.
+      if (result.capiEventId) {
+        fbqTrack("CompleteRegistration", {}, { eventID: result.capiEventId });
+      }
+
       if (result.checkoutUrl) {
         // Zahlung hinterlegen: Weiterleitung zu Stripe Checkout.
         window.location.href = result.checkoutUrl;
