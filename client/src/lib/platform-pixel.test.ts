@@ -20,7 +20,7 @@ vi.mock("@/components/cookie-consent", () => ({
   useCookieConsent: () => ({ allowsMarketing: mocks.consent.allowsMarketing }),
 }));
 
-import { useTrichterwerkPixel } from "./platform-pixel";
+import { useTrichterwerkPixel, isCustomerFunnelRoute } from "./platform-pixel";
 
 function pageViewCount(): number {
   return mocks.fbqTrack.mock.calls.filter((c) => c[0] === "PageView").length;
@@ -87,6 +87,31 @@ describe("useTrichterwerkPixel", () => {
     expect(mocks.injectMetaPixel).toHaveBeenCalledTimes(1);
   });
 
+  it("lädt nicht auf veröffentlichten Kundenfunnels", () => {
+    // /f/… gilt als öffentliche Route (Cookie-Banner muss dort erscheinen),
+    // trägt aber den Pixel des KUNDEN. Ein zweiter initialisierter Pixel würde
+    // dessen PageViews verdoppeln.
+    mocks.consent.allowsMarketing = true;
+    renderHook(() => useTrichterwerkPixel("/f/mein-funnel", true));
+    expect(mocks.injectMetaPixel).not.toHaveBeenCalled();
+    expect(mocks.fbqTrack).not.toHaveBeenCalled();
+  });
+
+  it("lädt nicht in der Owner-Vorschau eines Funnels", () => {
+    mocks.consent.allowsMarketing = true;
+    renderHook(() => useTrichterwerkPixel("/preview/42", true));
+    expect(mocks.injectMetaPixel).not.toHaveBeenCalled();
+  });
+
+  it("meldet keinen PageView beim Wechsel auf einen Kundenfunnel", () => {
+    mocks.consent.allowsMarketing = true;
+    const { rerender } = renderHook(({ loc }) => useTrichterwerkPixel(loc, true), {
+      initialProps: { loc: "/" },
+    });
+    rerender({ loc: "/f/mein-funnel" });
+    expect(pageViewCount()).toBe(0);
+  });
+
   it("startet sauber, wenn der Consent erst nachträglich erteilt wird", () => {
     // Besucher klickt den Banner erst auf der Seite weg — dann darf genau ein
     // Ladevorgang und kein doppeltes PageView entstehen.
@@ -103,5 +128,25 @@ describe("useTrichterwerkPixel", () => {
 
     rerender({ loc: "/register" });
     expect(pageViewCount()).toBe(1);
+  });
+});
+
+describe("isCustomerFunnelRoute", () => {
+  it("erkennt Funnel- und Vorschau-Routen", () => {
+    expect(isCustomerFunnelRoute("/f/mein-funnel")).toBe(true);
+    expect(isCustomerFunnelRoute("/f/abc-123-uuid")).toBe(true);
+    expect(isCustomerFunnelRoute("/preview/42")).toBe(true);
+  });
+
+  it("lässt die eigenen Marketing-Seiten durch", () => {
+    for (const path of ["/", "/register", "/login", "/vorlagen", "/vergleich", "/datenschutz"]) {
+      expect(isCustomerFunnelRoute(path)).toBe(false);
+    }
+  });
+
+  it("verwechselt /funnels nicht mit /f/", () => {
+    // Das Backend des eingeloggten Kunden — kein Funnel-Betrachter.
+    expect(isCustomerFunnelRoute("/funnels")).toBe(false);
+    expect(isCustomerFunnelRoute("/funnel-builder")).toBe(false);
   });
 });

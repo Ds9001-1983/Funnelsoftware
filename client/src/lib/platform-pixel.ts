@@ -19,11 +19,24 @@ import { injectMetaPixel, fbqTrack } from "@/lib/meta-pixel";
 import { TRICHTERWERK_PIXEL_ID } from "@shared/meta";
 
 /**
+ * Veröffentlichter Kundenfunnel oder dessen Owner-Vorschau.
+ *
+ * Diese Routen sind für unseren Pixel tabu. Sie gelten zwar als „öffentlich"
+ * (der Cookie-Banner muss dort erscheinen), gehören aber dem Kunden — teils
+ * unter seiner eigenen Domain — und tragen bereits SEINEN Pixel. Würden wir
+ * dort zusätzlich initialisieren, bekäme `fbq("track", "PageView")` zwei
+ * initialisierte Pixel und jeder Seitenaufruf des Kunden zählte doppelt.
+ */
+export function isCustomerFunnelRoute(location: string): boolean {
+  return location.startsWith("/f/") || location.startsWith("/preview/");
+}
+
+/**
  * Lädt den Pixel und meldet Seitenaufrufe.
  *
  * @param location Aktueller Pfad (wouter) — jeder Wechsel erzeugt ein PageView.
- * @param enabled  Nur auf öffentlichen Marketing-Routen und nur für anonyme
- *                 Besucher true.
+ * @param enabled  Nur auf öffentlichen Routen und nur für anonyme Besucher
+ *                 true. Kundenfunnel-Routen schließt der Hook selbst aus.
  */
 export function useTrichterwerkPixel(location: string, enabled: boolean): void {
   const { allowsMarketing } = useCookieConsent();
@@ -32,18 +45,22 @@ export function useTrichterwerkPixel(location: string, enabled: boolean): void {
   // Flag käme für den Einstiegs-Seitenaufruf ein zweites hinterher.
   const initialPageViewDone = useRef(false);
 
-  useEffect(() => {
-    if (!enabled || !allowsMarketing || isLoaded.current) return;
-    isLoaded.current = true;
-    injectMetaPixel(TRICHTERWERK_PIXEL_ID);
-  }, [enabled, allowsMarketing]);
+  // Bewusst im Hook geprüft und nicht nur beim Aufrufer: Ein künftiger Aufrufer
+  // soll den Pixel nicht versehentlich auf einen Kundenfunnel bringen können.
+  const active = enabled && allowsMarketing && !isCustomerFunnelRoute(location);
 
   useEffect(() => {
-    if (!enabled || !allowsMarketing || !isLoaded.current) return;
+    if (!active || isLoaded.current) return;
+    isLoaded.current = true;
+    injectMetaPixel(TRICHTERWERK_PIXEL_ID);
+  }, [active]);
+
+  useEffect(() => {
+    if (!active || !isLoaded.current) return;
     if (!initialPageViewDone.current) {
       initialPageViewDone.current = true;
       return;
     }
     fbqTrack("PageView");
-  }, [location, enabled, allowsMarketing]);
+  }, [location, active]);
 }
