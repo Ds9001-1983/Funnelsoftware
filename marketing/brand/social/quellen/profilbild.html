@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Trichterwerk — Profilbild</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:1080px; height:1080px; overflow:hidden; }
+  /* Voll-violetter Gradient-Grund — funktioniert im runden Crop aller Plattformen */
+  .stage {
+    position:relative; width:1080px; height:1080px;
+    background:linear-gradient(135deg, #925CF0 0%, #7C3AED 52%, #5B21B6 100%);
+    display:flex; align-items:center; justify-content:center;
+  }
+  /* dezenter Glanz oben links, wie Licht auf dem App-Icon */
+  .sheen {
+    position:absolute; inset:0;
+    background:radial-gradient(ellipse 900px 700px at 28% 18%, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 55%);
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="sheen"></div>
+    <!-- Trichter-Glyphe: ~56% der Kantenlänge, mittig — sicher im runden Crop -->
+    <svg width="600" height="600" viewBox="0 0 32 32" fill="none">
+      <path d="M6 7 H26 L18.5 19 V26 L13.5 23.5 V19 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"/>
+    </svg>
+  </div>
+</body>
+</html>

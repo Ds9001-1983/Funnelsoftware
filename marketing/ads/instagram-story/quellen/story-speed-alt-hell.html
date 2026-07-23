@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Trichterwerk Story Ad B — Light Clean</title>
+<style>
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:400; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:500; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:600; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:700; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-700-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:800; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-800-normal.woff2') format('woff2'); }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { margin:0; width:1080px; height:1920px; overflow:hidden; }
+  body { font-family:'Inter', sans-serif; background:#FAFAFA; }
+
+  .ad { position:relative; width:1080px; height:1920px; background:#FAFAFA; overflow:hidden; }
+
+  /* ---- Deko ---- */
+  .grid-lines {
+    position:absolute; inset:0;
+    background-image:
+      repeating-linear-gradient(90deg, rgba(23,23,28,0.030) 0 1px, transparent 1px 135px),
+      repeating-linear-gradient(0deg, rgba(23,23,28,0.022) 0 1px, transparent 1px 135px);
+  }
+  .glow-top {
+    position:absolute; top:-420px; right:-380px; width:980px; height:980px;
+    background:radial-gradient(circle, rgba(124,58,237,0.13) 0%, rgba(124,58,237,0.05) 45%, transparent 70%);
+  }
+  .glow-phone {
+    position:absolute; left:50%; transform:translateX(-50%); bottom:-200px;
+    width:1160px; height:900px;
+    background:radial-gradient(ellipse at center, rgba(124,58,237,0.16) 0%, rgba(124,58,237,0.06) 45%, transparent 72%);
+  }
+
+  /* ---- Inhalt ---- */
+  .content { position:absolute; left:84px; right:84px; top:300px; }
+
+  .brand { display:flex; align-items:center; gap:22px; }
+  .brand-icon {
+    width:68px; height:68px; border-radius:19px;
+    background:linear-gradient(135deg, #925CF0 0%, #7C3AED 48%, #5B21B6 100%);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 10px 26px rgba(124,58,237,0.30);
+  }
+  .brand-icon svg { width:40px; height:40px; display:block; }
+  .brand-name { font-size:46px; font-weight:700; letter-spacing:-0.02em; color:#17171C; }
+
+  h1 {
+    margin-top:54px;
+    font-size:108px; font-weight:800; line-height:1.06;
+    letter-spacing:-0.035em; color:#17171C;
+  }
+  h1 .hl {
+    background:linear-gradient(100deg, #7C3AED 10%, #5B21B6 90%);
+    -webkit-background-clip:text; background-clip:text;
+    -webkit-text-fill-color:transparent; color:transparent;
+  }
+
+  .sub {
+    margin-top:38px;
+    font-size:38px; font-weight:500; line-height:1.42; color:#52525B;
+    letter-spacing:-0.005em;
+  }
+
+  .chips { margin-top:46px; display:flex; flex-wrap:wrap; gap:16px; max-width:912px; }
+  .chip {
+    display:inline-flex; align-items:center; gap:13px;
+    background:#FFFFFF; border:1.5px solid #E4E4E7; border-radius:999px;
+    padding:17px 30px 17px 24px;
+    font-size:29px; font-weight:600; color:#17171C; letter-spacing:-0.01em;
+    box-shadow:0 4px 14px rgba(23,23,28,0.05);
+    white-space:nowrap;
+  }
+  .chip svg { width:27px; height:27px; flex:0 0 auto; }
+
+  .cta-row { margin-top:58px; display:flex; align-items:center; gap:38px; }
+  .cta {
+    display:inline-flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+    color:#FFFFFF; font-size:39px; font-weight:700; letter-spacing:-0.01em;
+    padding:31px 60px; border-radius:999px;
+    box-shadow:0 18px 44px rgba(124,58,237,0.35), 0 4px 12px rgba(124,58,237,0.25);
+    white-space:nowrap;
+  }
+  .hint {
+    font-size:30px; font-weight:500; color:#6B6B76; letter-spacing:-0.005em;
+    white-space:nowrap;
+  }
+  .hint .arrow { color:#7C3AED; font-weight:700; }
+
+  /* ---- Phone-Mockup ---- */
+  .phone {
+    position:absolute; left:50%; transform:translateX(-50%);
+    top:1310px;
+    width:600px; height:790px;
+    background:#17171C;
+    border-radius:58px;
+    padding:16px;
+    box-shadow:0 -6px 0 rgba(255,255,255,0.05) inset, 0 34px 80px rgba(23,23,28,0.22), 0 10px 28px rgba(23,23,28,0.14);
+  }
+  .screen {
+    position:relative; width:100%; height:100%;
+    border-radius:42px; overflow:hidden; background:#EFEEF8;
+    padding-top:48px;
+  }
+  .screen img {
+    width:100%; height:calc(100% - 48px); display:block;
+    object-fit:cover; object-position:top;
+  }
+  .punch {
+    position:absolute; top:12px; left:50%; transform:translateX(-50%);
+    width:24px; height:24px; border-radius:50%;
+    background:#0E0E11;
+    box-shadow:0 0 0 3px rgba(14,14,17,0.08);
+  }
+
+  /* ---- Floating Toast ---- */
+  .toast {
+    position:absolute; top:1382px; right:76px;
+    display:flex; align-items:center; gap:20px;
+    background:#FFFFFF; border-radius:28px;
+    padding:22px 34px 22px 22px;
+    border:1px solid rgba(23,23,28,0.06);
+    box-shadow:0 20px 48px rgba(23,23,28,0.16), 0 4px 12px rgba(23,23,28,0.08);
+  }
+  .toast-icon {
+    width:56px; height:56px; border-radius:50%;
+    background:linear-gradient(135deg, #925CF0 0%, #6D28D9 100%);
+    display:flex; align-items:center; justify-content:center;
+    flex:0 0 auto;
+  }
+  .toast-icon svg { width:30px; height:30px; }
+  .toast-title { font-size:29px; font-weight:700; color:#17171C; letter-spacing:-0.01em; white-space:nowrap; }
+  .toast-sub { font-size:24px; font-weight:500; color:#6B6B76; margin-top:4px; }
+</style>
+</head>
+<body>
+<div class="ad">
+  <div class="grid-lines"></div>
+  <div class="glow-top"></div>
+  <div class="glow-phone"></div>
+
+  <div class="content">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3.5 4h17l-6.4 7.4v6.1l-4.2 2.3v-8.4L3.5 4z" fill="#FFFFFF"/>
+        </svg>
+      </div>
+      <div class="brand-name">Trichterwerk</div>
+    </div>
+
+    <h1>Dein Funnel.<br>Live in<br><span class="hl">unter 1 Stunde.</span></h1>
+
+    <p class="sub">Ohne Code. Ohne Agentur.<br>Selbst gebaut — mobil optimiert.</p>
+
+    <div class="chips">
+      <span class="chip">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4.5 12.5l5 5 10-11" stroke="#7C3AED" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Ohne Code
+      </span>
+      <span class="chip">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4.5 12.5l5 5 10-11" stroke="#7C3AED" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        DSGVO-konform
+      </span>
+      <span class="chip">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4.5 12.5l5 5 10-11" stroke="#7C3AED" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Made in Germany
+      </span>
+      <span class="chip">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4.5 12.5l5 5 10-11" stroke="#7C3AED" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        ab 49&nbsp;€/Monat
+      </span>
+    </div>
+
+    <div class="cta-row">
+      <span class="cta">14 Tage kostenlos testen</span>
+      <p class="hint">Jetzt unten tippen <span class="arrow">↓</span></p>
+    </div>
+  </div>
+
+  <div class="phone">
+    <div class="screen">
+      <img src="file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/client/public/templates/portrait/termin-buchen.png" alt="">
+      <div class="punch"></div>
+    </div>
+  </div>
+
+  <div class="toast">
+    <div class="toast-icon">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4.5 12.5l5 5 10-11" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div>
+      <div class="toast-title">Funnel veröffentlicht</div>
+      <div class="toast-sub">gerade eben</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

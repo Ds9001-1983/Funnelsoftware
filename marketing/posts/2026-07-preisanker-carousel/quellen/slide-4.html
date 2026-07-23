@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Trichterwerk — Carousel Preis-Anker — Slide 4 (Beweis)</title>
+<style>
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:500; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:600; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:700; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-700-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:800; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-800-normal.woff2') format('woff2'); }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { margin:0; width:100vw; height:100vh; overflow:hidden; background:#0E0E11; }
+  body { font-family:'Inter', sans-serif; -webkit-font-smoothing:antialiased; }
+
+  .stage { position:relative; width:100vw; height:100vh; overflow:hidden; background:#0E0E11; }
+
+  .dots {
+    position:absolute; inset:0;
+    background-image:radial-gradient(rgba(255,255,255,0.07) 1.5px, transparent 1.5px);
+    background-size:38px 38px; background-position:19px 19px;
+  }
+  .topwash {
+    position:absolute; left:0; right:0; top:0; height:420px;
+    background:radial-gradient(ellipse 900px 380px at 50% -120px, rgba(124,58,237,0.20) 0%, rgba(124,58,237,0) 70%);
+  }
+  .glow {
+    position:absolute; left:66%; top:56%; width:1300px; height:1300px;
+    transform:translate(-50%,-50%);
+    background:radial-gradient(circle, rgba(124,58,237,0.32) 0%, rgba(124,58,237,0.12) 34%, rgba(124,58,237,0) 66%);
+  }
+  .orb { position:absolute; border-radius:50%; filter:blur(90px); }
+  .orb-1 { width:420px; height:420px; left:700px; top:-90px;  background:rgba(124,58,237,0.22); }
+  .orb-2 { width:360px; height:360px; left:-170px; bottom:40px; background:rgba(91,33,182,0.28); }
+
+  .frame { position:absolute; inset:0; padding:74px 80px; display:flex; flex-direction:column; }
+  .head { flex:none; }
+  .body { flex:1; display:flex; flex-direction:column; justify-content:center; }
+  .foot { flex:none; display:flex; align-items:center; justify-content:flex-end; }
+
+  .brand { display:flex; align-items:center; gap:16px; }
+  .brand-tile {
+    width:54px; height:54px; border-radius:15px;
+    background:linear-gradient(135deg, #925CF0 0%, #7C3AED 55%, #5B21B6 100%);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 8px 28px rgba(124,58,237,0.45);
+  }
+  .brand-name { font-size:34px; font-weight:700; color:#F2F2F2; letter-spacing:-0.01em; }
+  .counter { font-size:26px; font-weight:600; color:rgba(242,242,242,0.42); letter-spacing:0.02em; }
+
+  /* ---------- Inhalt Slide 4 ---------- */
+  h2 {
+    font-size:66px; font-weight:800; letter-spacing:-0.025em; line-height:1.14;
+    color:#FFFFFF;
+  }
+  h2 .grad {
+    background:linear-gradient(94deg, #C4B5FD 0%, #925CF0 55%, #7C3AED 100%);
+    -webkit-background-clip:text; background-clip:text;
+    -webkit-text-fill-color:transparent; color:transparent;
+  }
+
+  .cols { margin-top:58px; display:flex; align-items:center; gap:34px; }
+
+  .list { flex:1; display:flex; flex-direction:column; gap:26px; }
+  .item { display:flex; align-items:flex-start; gap:20px; }
+  .check {
+    flex:none; width:44px; height:44px; border-radius:50%; margin-top:2px;
+    background:linear-gradient(135deg, #925CF0 0%, #7C3AED 100%);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 20px rgba(124,58,237,0.45);
+  }
+  .item-label {
+    font-size:34px; font-weight:600; line-height:1.3; color:#F2F2F2; letter-spacing:-0.01em;
+  }
+
+  /* Phone: Technik aus story-speed-v1.html, auf 3:4-Canvas verkleinert */
+  .phone {
+    flex:none; width:392px; height:820px;
+    margin-right:-56px;
+    transform:rotate(-4deg);
+    background:#17171C;
+    border-radius:44px;
+    padding:13px;
+    border:1.5px solid rgba(255,255,255,0.11);
+    box-shadow:
+      0 -6px 60px rgba(124,58,237,0.28),
+      0 30px 120px rgba(124,58,237,0.40),
+      0 20px 60px rgba(0,0,0,0.6);
+  }
+  .screen {
+    position:relative; width:100%; height:100%;
+    border-radius:33px; overflow:hidden; background:#FFFFFF;
+    display:flex; flex-direction:column;
+  }
+  .screen-top { position:relative; height:34px; background:#FFFFFF; flex:none; }
+  .screen img {
+    width:100%; flex:1; min-height:0;
+    object-fit:cover; object-position:top;
+    display:block;
+  }
+  .punch {
+    position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    width:13px; height:13px; border-radius:50%; background:#17171C;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="glow"></div>
+    <div class="topwash"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="dots"></div>
+
+    <div class="frame">
+      <div class="head">
+        <div class="brand">
+          <div class="brand-tile">
+            <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
+              <path d="M6 7 H26 L18.5 19 V26 L13.5 23.5 V19 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="brand-name">Trichterwerk</div>
+        </div>
+      </div>
+
+      <div class="body">
+        <h2>Alles drin.<br>Kein <span class="grad">Add-on</span> nötig.</h2>
+
+        <div class="cols">
+          <div class="list">
+            <div class="item">
+              <div class="check"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12.5 L10 17.5 L19 7" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div class="item-label">13 fertige Vorlagen</div>
+            </div>
+            <div class="item">
+              <div class="check"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12.5 L10 17.5 L19 7" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div class="item-label">Unbegrenzte Funnels<br>&amp; Leads</div>
+            </div>
+            <div class="item">
+              <div class="check"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12.5 L10 17.5 L19 7" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div class="item-label">A/B-Tests &amp; Quiz-Logik</div>
+            </div>
+            <div class="item">
+              <div class="check"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12.5 L10 17.5 L19 7" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div class="item-label">Eigene Domain inklusive</div>
+            </div>
+            <div class="item">
+              <div class="check"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12.5 L10 17.5 L19 7" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div class="item-label">Live-Analytics</div>
+            </div>
+          </div>
+
+          <div class="phone">
+            <div class="screen">
+              <div class="screen-top"><div class="punch"></div></div>
+              <img src="file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/client/public/templates/portrait/termin-buchen.png" alt="">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="foot">
+        <div class="counter">4 / 5</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

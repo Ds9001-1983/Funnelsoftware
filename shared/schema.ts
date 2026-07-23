@@ -65,6 +65,12 @@ export const users = pgTable("users", {
   emailVerificationToken: text("email_verification_token"),
   // Lead-Benachrichtigungs-Mails abbestellbar (Settings → Benachrichtigungen)
   leadNotificationsEnabled: boolean("lead_notifications_enabled").notNull().default(true),
+  // Marketing-Einwilligung aus dem Cookie-Banner, festgehalten bei der
+  // Registrierung. Wird gebraucht, weil die Zahlung erst Wochen später über
+  // einen Stripe-Webhook eintrifft — dort gibt es weder Browser noch
+  // localStorage, aus dem sich der Consent noch ablesen ließe. Ohne dieses
+  // Feld dürfte das Purchase-Event an Meta nicht gesendet werden.
+  marketingConsent: boolean("marketing_consent").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
@@ -1020,6 +1026,13 @@ export const registerSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
   password: passwordSchema,
   displayName: z.string().optional(),
+  /**
+   * Marketing-Einwilligung aus dem Cookie-Banner. Nur damit darf die
+   * Registrierung serverseitig an die Meta Conversions API gemeldet werden —
+   * der Server kennt den Banner-Zustand (localStorage) sonst nicht.
+   * Fehlt das Feld, gilt "keine Einwilligung".
+   */
+  marketingConsent: z.boolean().optional(),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Trichterwerk — Carousel Preis-Anker — Slide 3 (Umbruch)</title>
+<style>
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:500; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:600; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:700; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-700-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:800; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-800-normal.woff2') format('woff2'); }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { margin:0; width:100vw; height:100vh; overflow:hidden; background:#0E0E11; }
+  body { font-family:'Inter', sans-serif; -webkit-font-smoothing:antialiased; }
+
+  .stage { position:relative; width:100vw; height:100vh; overflow:hidden; background:#0E0E11; }
+
+  .dots {
+    position:absolute; inset:0;
+    background-image:radial-gradient(rgba(255,255,255,0.07) 1.5px, transparent 1.5px);
+    background-size:38px 38px; background-position:19px 19px;
+  }
+  .topwash {
+    position:absolute; left:0; right:0; top:0; height:420px;
+    background:radial-gradient(ellipse 900px 380px at 50% -120px, rgba(124,58,237,0.20) 0%, rgba(124,58,237,0) 70%);
+  }
+  /* Stärkerer Glow: dieser Slide ist der Umbruch */
+  .glow {
+    position:absolute; left:50%; top:50%; width:1500px; height:1500px;
+    transform:translate(-50%,-50%);
+    background:radial-gradient(circle, rgba(124,58,237,0.40) 0%, rgba(124,58,237,0.16) 34%, rgba(124,58,237,0) 66%);
+  }
+  .orb { position:absolute; border-radius:50%; filter:blur(90px); }
+  .orb-1 { width:460px; height:460px; left:720px; top:-60px;  background:rgba(124,58,237,0.28); }
+  .orb-2 { width:400px; height:400px; left:-160px; bottom:20px; background:rgba(91,33,182,0.34); }
+
+  .frame { position:absolute; inset:0; padding:74px 80px; display:flex; flex-direction:column; }
+  .head { flex:none; }
+  .body { flex:1; display:flex; flex-direction:column; justify-content:center; }
+  .foot { flex:none; display:flex; align-items:center; justify-content:flex-end; }
+
+  .brand { display:flex; align-items:center; gap:16px; }
+  .brand-tile {
+    width:54px; height:54px; border-radius:15px;
+    background:linear-gradient(135deg, #925CF0 0%, #7C3AED 55%, #5B21B6 100%);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 8px 28px rgba(124,58,237,0.45);
+  }
+  .brand-name { font-size:34px; font-weight:700; color:#F2F2F2; letter-spacing:-0.01em; }
+  .counter { font-size:26px; font-weight:600; color:rgba(242,242,242,0.42); letter-spacing:0.02em; }
+
+  /* ---------- Inhalt Slide 3 ---------- */
+  .kicker {
+    font-size:34px; font-weight:600; line-height:1.35;
+    color:rgba(242,242,242,0.62);
+  }
+  .price-row { margin-top:26px; display:flex; align-items:baseline; gap:26px; }
+  .price {
+    font-size:196px; font-weight:800; letter-spacing:-0.04em; line-height:0.95;
+    /* Heller Verlauf: dunkle Verlaufsenden fressen auf #0E0E11 den Kontrast */
+    background:linear-gradient(94deg, #FFFFFF 0%, #E6DDFF 48%, #B79BF6 100%);
+    -webkit-background-clip:text; background-clip:text;
+    -webkit-text-fill-color:transparent; color:transparent;
+  }
+  .per { font-size:46px; font-weight:700; color:rgba(242,242,242,0.72); letter-spacing:-0.01em; }
+
+  .lead {
+    margin-top:44px;
+    font-size:62px; font-weight:800; letter-spacing:-0.022em; line-height:1.16;
+    color:#FFFFFF;
+  }
+  .sub {
+    margin-top:28px;
+    font-size:34px; font-weight:500; line-height:1.45;
+    color:rgba(242,242,242,0.70);
+  }
+
+  .chips { margin-top:52px; display:flex; gap:14px; flex-wrap:wrap; }
+  .chip {
+    padding:16px 28px; border-radius:999px;
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.15);
+    font-size:29px; font-weight:600; color:#E9E9EE; white-space:nowrap;
+  }
+
+  .note {
+    margin-top:44px;
+    font-size:25px; font-weight:500; line-height:1.5;
+    color:rgba(242,242,242,0.48);
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="glow"></div>
+    <div class="topwash"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="dots"></div>
+
+    <div class="frame">
+      <div class="head">
+        <div class="brand">
+          <div class="brand-tile">
+            <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
+              <path d="M6 7 H26 L18.5 19 V26 L13.5 23.5 V19 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="brand-name">Trichterwerk</div>
+        </div>
+      </div>
+
+      <div class="body">
+        <div class="kicker">Oder du baust ihn selbst — für</div>
+        <div class="price-row">
+          <div class="price">49&nbsp;€</div>
+          <div class="per">im Monat</div>
+        </div>
+
+        <div class="lead">Und zwar nicht einen.<br>Sondern so viele du willst.</div>
+        <div class="sub">Unbegrenzte Funnels, unbegrenzte Leads — der erste ist in unter einer Stunde live.</div>
+
+        <div class="chips">
+          <div class="chip">Ohne Code</div>
+          <div class="chip">Ohne Agentur</div>
+          <div class="chip">Ohne Wartezeit</div>
+        </div>
+
+        <div class="note">49 €/Monat zzgl. MwSt. · 14 Tage kostenlos testen · monatlich kündbar</div>
+      </div>
+
+      <div class="foot">
+        <div class="counter">3 / 5</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

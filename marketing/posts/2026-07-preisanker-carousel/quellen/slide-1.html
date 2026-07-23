@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Trichterwerk — Carousel Preis-Anker — Slide 1 (Hook)</title>
+<style>
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:500; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-500-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:600; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:700; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-700-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:800; src:url('file:///Users/dennissasse/Desktop/DEV/Trichterwerk/Funnelsoftware/node_modules/@fontsource/inter/files/inter-latin-800-normal.woff2') format('woff2'); }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { margin:0; width:100vw; height:100vh; overflow:hidden; background:#0E0E11; }
+  body { font-family:'Inter', sans-serif; -webkit-font-smoothing:antialiased; }
+
+  .stage { position:relative; width:100vw; height:100vh; overflow:hidden; background:#0E0E11; }
+
+  /* ---------- Deko (Tokens aus story-speed-v1.html) ---------- */
+  .dots {
+    position:absolute; inset:0;
+    background-image:radial-gradient(rgba(255,255,255,0.07) 1.5px, transparent 1.5px);
+    background-size:38px 38px; background-position:19px 19px;
+  }
+  .topwash {
+    position:absolute; left:0; right:0; top:0; height:420px;
+    background:radial-gradient(ellipse 900px 380px at 50% -120px, rgba(124,58,237,0.20) 0%, rgba(124,58,237,0) 70%);
+  }
+  .glow {
+    position:absolute; left:50%; top:52%; width:1400px; height:1400px;
+    transform:translate(-50%,-50%);
+    background:radial-gradient(circle, rgba(124,58,237,0.30) 0%, rgba(124,58,237,0.12) 34%, rgba(124,58,237,0) 66%);
+  }
+  .orb { position:absolute; border-radius:50%; filter:blur(90px); }
+  .orb-1 { width:420px; height:420px; left:760px; top:-80px;  background:rgba(124,58,237,0.22); }
+  .orb-2 { width:360px; height:360px; left:-140px; bottom:60px; background:rgba(91,33,182,0.30); }
+
+  /* ---------- Rahmen: Kopf / Mitte / Fuß ----------
+     .body ist flex:1 + zentriert -> absorbiert die 90 px Differenz
+     zwischen 1080x1440 (IG) und 1080x1350 (FB) ohne Layoutbruch. */
+  .frame { position:absolute; inset:0; padding:74px 80px; display:flex; flex-direction:column; }
+  .head { flex:none; }
+  .body { flex:1; display:flex; flex-direction:column; justify-content:center; }
+  .foot { flex:none; display:flex; align-items:center; justify-content:space-between; }
+
+  .brand { display:flex; align-items:center; gap:16px; }
+  .brand-tile {
+    width:54px; height:54px; border-radius:15px;
+    background:linear-gradient(135deg, #925CF0 0%, #7C3AED 55%, #5B21B6 100%);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 8px 28px rgba(124,58,237,0.45);
+  }
+  .brand-name { font-size:34px; font-weight:700; color:#F2F2F2; letter-spacing:-0.01em; }
+
+  .counter { font-size:26px; font-weight:600; color:rgba(242,242,242,0.42); letter-spacing:0.02em; }
+  .swipe {
+    display:inline-flex; align-items:center; gap:14px;
+    padding:18px 32px; border-radius:999px;
+    background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15);
+    font-size:27px; font-weight:600; color:#E9E9EE;
+  }
+
+  /* ---------- Inhalt Slide 1 ---------- */
+  .kicker {
+    font-size:32px; font-weight:600; line-height:1.35;
+    color:rgba(242,242,242,0.62); letter-spacing:0.01em;
+  }
+  .price {
+    margin-top:40px;
+    font-size:114px; font-weight:800; letter-spacing:-0.035em; line-height:1;
+    color:#FFFFFF; white-space:nowrap;
+    text-decoration:line-through;
+    text-decoration-color:#7C3AED;
+    text-decoration-thickness:10px;
+  }
+  .lead {
+    margin-top:62px;
+    font-size:62px; font-weight:800; letter-spacing:-0.02em; line-height:1.18;
+    color:#FFFFFF;
+  }
+  .lead .grad {
+    background:linear-gradient(94deg, #C4B5FD 0%, #925CF0 55%, #7C3AED 100%);
+    -webkit-background-clip:text; background-clip:text;
+    -webkit-text-fill-color:transparent; color:transparent;
+  }
+  .sub {
+    margin-top:30px;
+    font-size:33px; font-weight:500; line-height:1.45;
+    color:rgba(242,242,242,0.70);
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="glow"></div>
+    <div class="topwash"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="dots"></div>
+
+    <div class="frame">
+      <div class="head">
+        <div class="brand">
+          <div class="brand-tile">
+            <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
+              <path d="M6 7 H26 L18.5 19 V26 L13.5 23.5 V19 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="brand-name">Trichterwerk</div>
+        </div>
+      </div>
+
+      <div class="body">
+        <div class="kicker">Was eine Agentur für <b>einen</b> Funnel nimmt:</div>
+        <div class="price">2.000–5.000&nbsp;€</div>
+        <div class="lead">Plus mehrere Wochen,<br>bis er endlich <span class="grad">online</span> ist.</div>
+        <div class="sub">Dabei baust du ihn in unter einer Stunde selbst.</div>
+      </div>
+
+      <div class="foot">
+        <div class="swipe">
+          Wie das geht
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+            <path d="M5 12 H19 M13 6 L19 12 L13 18" stroke="#E9E9EE" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="counter">1 / 5</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

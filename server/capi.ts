@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import type { Request } from "express";
 
 const META_GRAPH_API_VERSION = "v21.0";
 
@@ -36,6 +37,89 @@ export interface SendCapiEventArgs {
   userData: CapiUserData;
   /** Optionale Custom-Daten (Lead-Wert, Currency, Content-Name etc.). */
   customData?: Record<string, unknown>;
+}
+
+/**
+ * Zieht die nicht-personenbezogenen Matching-Signale aus dem Request, die Meta
+ * ungehasht erwartet: IP, User-Agent und die beiden Pixel-Cookies.
+ *
+ * `_fbc` (Click-ID) und `_fbp` (Browser-ID) setzt der Browser-Pixel. Ohne sie
+ * fällt die Event-Match-Quality deutlich ab, weil dem Server-Event der Bezug
+ * zum Klick auf die Anzeige fehlt.
+ *
+ * Hinter nginx ist `req.socket.remoteAddress` die Proxy-IP — deshalb zuerst
+ * `x-forwarded-for` (erster Eintrag = der echte Client).
+ */
+export function extractCapiRequestContext(req: Request): {
+  clientIpAddress?: string;
+  clientUserAgent?: string;
+  fbc?: string;
+  fbp?: string;
+} {
+  const fwd = req.headers["x-forwarded-for"];
+  const clientIpAddress =
+    (typeof fwd === "string" ? fwd.split(",")[0]?.trim() : undefined) ||
+    req.socket.remoteAddress ||
+    undefined;
+
+  const ua = req.headers["user-agent"];
+
+  const cookies = (req.headers.cookie || "").split(";").reduce(
+    (acc, part) => {
+      const [k, ...rest] = part.trim().split("=");
+      if (k) acc[k] = rest.join("=");
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
+
+  return {
+    clientIpAddress,
+    clientUserAgent: typeof ua === "string" ? ua : undefined,
+    fbc: cookies._fbc,
+    fbp: cookies._fbp,
+  };
+}
+
+export interface PurchaseEventDraft {
+  /** Rechnungs-ID — idempotent über Stripe-Webhook-Wiederholungen hinweg. */
+  eventId: string;
+  email: string;
+  customData: { value: number; currency: string };
+}
+
+/**
+ * Entscheidet, ob aus einer bezahlten Stripe-Rechnung ein Meta-Purchase wird,
+ * und rechnet die Beträge um. Gibt `null` zurück, wenn nicht gesendet werden
+ * darf.
+ *
+ * Drei Gründe für ein `null`:
+ *  - `amount_paid === 0` — beim Start des Testabos stellt Stripe eine
+ *    0-€-Rechnung aus. Als Purchase gemeldet würde Meta auf Trial-Starts statt
+ *    auf echte Zahlungen optimieren.
+ *  - kein Nutzer zur Customer-ID auffindbar.
+ *  - keine Marketing-Einwilligung bei der Registrierung erteilt.
+ */
+export function buildPurchaseEvent(
+  invoice: { id?: unknown; amount_paid?: unknown; currency?: unknown },
+  user: { email: string; marketingConsent?: boolean | null } | null | undefined,
+): PurchaseEventDraft | null {
+  const amountPaid = Number(invoice.amount_paid || 0);
+  if (!Number.isFinite(amountPaid) || amountPaid <= 0) return null;
+  if (!user?.marketingConsent) return null;
+  const eventId = typeof invoice.id === "string" ? invoice.id : "";
+  if (!eventId) return null;
+
+  return {
+    eventId,
+    email: user.email,
+    customData: {
+      // Stripe rechnet in der kleinsten Währungseinheit, Meta erwartet den
+      // Betrag in ganzen Einheiten — 4900 Cent sind 49 €, nicht 4900 €.
+      value: amountPaid / 100,
+      currency: String(invoice.currency || "eur").toUpperCase(),
+    },
+  };
 }
 
 /** SHA-256-Hash von String (lowercase + getrimmt), oder undefined bei leerer Eingabe. */

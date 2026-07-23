@@ -19,7 +19,8 @@ import {
   cancelAllSubscriptions,
 } from "./stripe";
 import { sendWebhook, buildWebhookPayload, generateWebhookSecret } from "./webhooks";
-import { sendCapiEvent } from "./capi";
+import { sendCapiEvent, extractCapiRequestContext, buildPurchaseEvent } from "./capi";
+import { TRICHTERWERK_PIXEL_ID } from "@shared/meta";
 import { aggregateAbTestStats } from "./ab-stats";
 import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan, requireVerifiedEmail, hasActivePlan, PUBLIC_GRACE_PERIOD_MS } from "./auth";
 import {
@@ -155,6 +156,9 @@ export async function registerRoutes(
         trialEndsAt,
         isPro: false,
         emailVerificationToken,
+        // Festhalten, weil der Stripe-Webhook zur ersten Zahlung Wochen später
+        // kommt und dort kein Browser-Consent mehr abrufbar ist.
+        marketingConsent: !!result.data.marketingConsent,
       } as any);
 
       // E-Mails asynchron senden (nicht blockierend)
@@ -172,6 +176,33 @@ export async function registerRoutes(
         country: deriveCountry(req.headers),
         eventType: "register",
       }).catch((err) => console.error("[Track] register event failed:", err));
+
+      // Meta Conversions API für den EIGENEN Pixel (trichterwerk.de), nicht den
+      // eines Kunden-Funnels. Bewusst serverseitig: Der Client leitet direkt
+      // nach der Antwort zu Stripe Checkout weiter — ein reines Browser-Event
+      // überlebt diese Navigation nicht zuverlässig, und genau die
+      // Registrierung ist das Conversion-Event, auf das die Ads optimieren.
+      // Der Client feuert dasselbe Event zusätzlich mit derselben eventId;
+      // Meta verrechnet beide zu einer Conversion.
+      // DSGVO: nur mit Marketing-Einwilligung aus dem Cookie-Banner.
+      const capiEventId = randomUUID();
+      const metaCapiToken = process.env.META_CAPI_TOKEN;
+      if (result.data.marketingConsent && metaCapiToken) {
+        const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol;
+        sendCapiEvent({
+          pixelId: TRICHTERWERK_PIXEL_ID,
+          accessToken: metaCapiToken,
+          eventName: "CompleteRegistration",
+          eventId: capiEventId,
+          eventSourceUrl: `${proto}://${req.get("host")}/register`,
+          userData: {
+            email,
+            ...extractCapiRequestContext(req),
+          },
+        }).catch((err) =>
+          console.error("[Meta CAPI] CompleteRegistration failed:", err),
+        );
+      }
 
       // Log user in automatically
       req.login({ ...user, password: undefined } as any, async (err) => {
@@ -209,7 +240,9 @@ export async function registerRoutes(
           }
         }
 
-        res.status(201).json({ user: userWithoutPassword, checkoutUrl, checkoutError });
+        // capiEventId geht mit, damit der Browser-Pixel dasselbe Event mit
+        // identischer eventID feuern kann → Meta dedupliziert.
+        res.status(201).json({ user: userWithoutPassword, checkoutUrl, checkoutError, capiEventId });
       });
     } catch (error) {
       console.error("Registration error:", error);
@@ -1219,20 +1252,6 @@ export async function registerRoutes(
         const eventSourceUrl =
           (typeof referer === "string" && referer) ||
           `${proto}://${host}/f/${funnel.slug || funnel.uuid}`;
-        const fwd = req.headers["x-forwarded-for"];
-        const ip =
-          (typeof fwd === "string" ? fwd.split(",")[0]?.trim() : undefined) ||
-          req.socket.remoteAddress ||
-          undefined;
-        const ua = req.headers["user-agent"];
-        const cookies = (req.headers.cookie || "").split(";").reduce(
-          (acc, part) => {
-            const [k, ...rest] = part.trim().split("=");
-            if (k) acc[k] = rest.join("=");
-            return acc;
-          },
-          {} as Record<string, string>,
-        );
         // Name in firstName + lastName aufteilen (Meta erwartet getrennt).
         const [firstName, ...nameRest] = (lead.name || "").trim().split(/\s+/);
         const lastName = nameRest.join(" ") || undefined;
@@ -1247,10 +1266,7 @@ export async function registerRoutes(
             phone: lead.phone,
             firstName: firstName || undefined,
             lastName,
-            clientIpAddress: ip,
-            clientUserAgent: typeof ua === "string" ? ua : undefined,
-            fbc: cookies._fbc,
-            fbp: cookies._fbp,
+            ...extractCapiRequestContext(req),
           },
         })
           .then(() => {
@@ -1839,6 +1855,38 @@ export async function registerRoutes(
             stripeSubscriptionId: status === "canceled" ? null : (user.stripeSubscriptionId ?? subscription.id),
             ...(trialEnd ? { trialEndsAt: new Date(trialEnd * 1000) } : {}),
           });
+          break;
+        }
+
+        case "invoice.payment_succeeded": {
+          // Meta-Purchase: die erste echte Abbuchung nach der Testphase (und
+          // jede Verlängerung danach). Damit schließt sich die Kette
+          // Anzeige → Registrierung → zahlender Kunde.
+          const invoice = event.data.object as any;
+          const metaCapiToken = process.env.META_CAPI_TOKEN;
+          if (metaCapiToken) {
+            const user = await storage.getUserByStripeCustomerId(invoice.customer as string);
+            // Prüft 0-€-Trial-Rechnung, fehlenden Nutzer und Einwilligung.
+            const draft = buildPurchaseEvent(invoice, user);
+            if (draft) {
+              sendCapiEvent({
+                pixelId: TRICHTERWERK_PIXEL_ID,
+                accessToken: metaCapiToken,
+                eventName: "Purchase",
+                // Rechnungs-ID als eventId: Stripe stellt Webhooks bei Fehlern
+                // erneut zu — gleiche ID, Meta dedupliziert. Ein zufälliger
+                // Wert würde jede Wiederholung als eigenen Kauf zählen.
+                eventId: draft.eventId,
+                eventSourceUrl: `${process.env.APP_URL || "https://trichterwerk.de"}/register`,
+                userData: {
+                  // Kein fbc/fbp: Der Request kommt von Stripe, nicht vom
+                  // Browser des Kunden. Das Matching läuft über die E-Mail.
+                  email: draft.email,
+                },
+                customData: draft.customData,
+              }).catch((err) => console.error("[Meta CAPI] Purchase failed:", err));
+            }
+          }
           break;
         }
 

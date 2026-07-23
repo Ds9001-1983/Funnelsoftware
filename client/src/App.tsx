@@ -14,6 +14,8 @@ import { ErrorBoundary } from "@/components/funnel-editor/ErrorBoundary";
 import { useGlobalBodyLockGuard } from "@/hooks/use-ensure-body-unlocked";
 import { useToast } from "@/hooks/use-toast";
 import { trackPageview } from "@/lib/platform-tracker";
+import { useTrichterwerkPixel } from "@/lib/platform-pixel";
+import { isPlatformHost } from "@/lib/platform-host";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Funnels from "@/pages/funnels";
@@ -283,15 +285,6 @@ function isPublicRoute(location: string, isAuthenticated: boolean): boolean {
   return false;
 }
 
-// Kanonische App-Hosts — alle anderen werden als Custom-Domain behandelt.
-const CANONICAL_HOSTS = new Set([
-  "trichterwerk.de",
-  "www.trichterwerk.de",
-  "localhost",
-  "127.0.0.1",
-  "0.0.0.0",
-]);
-
 /**
  * Wenn die App unter einer Custom-Domain (CNAME) aufgerufen wird, fragen wir
  * beim Server, welcher Funnel zu diesem Host gehört, und routen direkt auf
@@ -302,7 +295,7 @@ function useCustomDomainResolver() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const host = window.location.hostname.toLowerCase();
-    if (CANONICAL_HOSTS.has(host)) return;
+    if (isPlatformHost(host)) return;
     // Bereits auf einer Funnel-Route → nichts tun.
     if (location.startsWith("/f/") || location.startsWith("/preview/")) return;
     let cancelled = false;
@@ -382,6 +375,11 @@ function AppShell() {
     if (isLoading || isAuthenticated) return;
     trackPageview(location);
   }, [location, isAuthenticated, isLoading]);
+
+  // Meta-Pixel von trichterwerk.de — dieselbe Eingrenzung wie oben (öffentliche
+  // Route, Auth-Status geklärt, anonym), zusätzlich nur mit Marketing-Consent.
+  // Das prüft der Hook selbst.
+  useTrichterwerkPixel(location, showCookieConsent && !isLoading && !isAuthenticated);
 
   return (
     <ErrorBoundary fallbackTitle="Ein unerwarteter Fehler ist aufgetreten">
