@@ -22,6 +22,9 @@ vi.mock("@/lib/platform-tracker", () => ({
 
 const BANNER_DELAY_MS = 2500;
 
+/** Der Hinweis, unabhängig von seinem Text — die Region ist der stabile Anker. */
+const banner = () => screen.queryByRole("region", { name: /Cookies/i });
+
 /** Rendert den Banner und lässt die Einblend-Verzögerung ablaufen. */
 async function renderBanner() {
   const view = render(<CookieConsent />);
@@ -43,12 +46,12 @@ describe("CookieConsent", () => {
 
   it("erscheint erst nach der Verzögerung", async () => {
     render(<CookieConsent />);
-    expect(screen.queryByText("Cookie-Einstellungen")).not.toBeInTheDocument();
+    expect(banner()).not.toBeInTheDocument();
 
     await act(async () => {
       vi.advanceTimersByTime(BANNER_DELAY_MS);
     });
-    expect(screen.getByText("Cookie-Einstellungen")).toBeInTheDocument();
+    expect(banner()).toBeInTheDocument();
   });
 
   it("verdeckt die Seite NICHT — kein Vollbild-Overlay", async () => {
@@ -75,7 +78,7 @@ describe("CookieConsent", () => {
 
     await user.click(screen.getByTestId("cookie-consent-close"));
 
-    expect(screen.queryByText("Cookie-Einstellungen")).not.toBeInTheDocument();
+    expect(banner()).not.toBeInTheDocument();
     // Wegklicken muss zum datenschutzfreundlichen Ergebnis führen, sonst wäre
     // es ein Dark Pattern.
     expect(JSON.parse(localStorage.getItem("trichterwerk-cookie-preferences")!)).toMatchObject({
@@ -91,7 +94,7 @@ describe("CookieConsent", () => {
 
     await user.keyboard("{Escape}");
 
-    expect(screen.queryByText("Cookie-Einstellungen")).not.toBeInTheDocument();
+    expect(banner()).not.toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("trichterwerk-cookie-preferences")!).marketing).toBe(false);
   });
 
@@ -123,6 +126,18 @@ describe("CookieConsent", () => {
     );
 
     await renderBanner();
-    expect(screen.queryByText("Cookie-Einstellungen")).not.toBeInTheDocument();
+    expect(banner()).not.toBeInTheDocument();
+  });
+
+  it("reserviert Platz am Seitenende, statt Inhalt zu verdecken", async () => {
+    // Auf /register verdeckte der Hinweis in der ersten Fassung alle drei
+    // Eingabefelder. Das Body-Padding stellt sicher, dass jedes Feld frei
+    // gescrollt werden kann.
+    await renderBanner();
+    expect(document.body.style.paddingBottom).not.toBe("");
+
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(screen.getByTestId("cookie-consent-reject"));
+    expect(document.body.style.paddingBottom).toBe("");
   });
 });

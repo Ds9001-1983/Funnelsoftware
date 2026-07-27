@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +19,7 @@ const COOKIE_PREFERENCES_KEY = "trichterwerk-cookie-preferences";
 export function CookieConsent() {
   const [isVisible, setIsVisible] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
   const [preferences, setPreferences] = useState<CookiePreferences>({
     necessary: true, // Immer aktiviert
     analytics: false,
@@ -98,6 +99,25 @@ export function CookieConsent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isVisible]);
 
+  // Platz reservieren, statt Inhalt zu verdecken.
+  //
+  // Der Hinweis liegt `fixed` unten — auf /register deckte er dadurch alle drei
+  // Eingabefelder ab (Viewport 664 px, Karte 278 px hoch). Ein Padding am Body in
+  // Kartenhöhe schiebt das Seitenende nach oben, sodass jedes Feld frei
+  // gescrollt werden kann. Aufgeräumt wird beim Verschwinden des Hinweises.
+  useEffect(() => {
+    if (!isVisible) return;
+    const card = cardRef.current;
+    if (!card) return;
+    document.body.style.paddingBottom = `${card.offsetHeight + 24}px`;
+    return () => {
+      document.body.style.paddingBottom = "";
+    };
+    // `showDetails` in den Dependencies genügt: Die Kartenhöhe ändert sich nur
+    // beim Auf- und Zuklappen der Details, dann läuft der Effekt erneut. Ein
+    // ResizeObserver wäre hier Aufwand ohne Gegenwert.
+  }, [isVisible, showDetails]);
+
   if (!isVisible) return null;
 
   return (
@@ -112,41 +132,41 @@ export function CookieConsent() {
       className="fixed inset-x-0 bottom-0 z-50 flex justify-center p-3 sm:p-4 pointer-events-none animate-in fade-in duration-300"
       style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
-      <Card className="w-full max-w-md shadow-lg relative pointer-events-auto animate-in slide-in-from-bottom-4 duration-300">
-        <CardContent className="p-4">
+      <Card
+        ref={cardRef}
+        className="w-full max-w-md shadow-lg relative pointer-events-auto animate-in slide-in-from-bottom-4 duration-300"
+      >
+        <CardContent className="p-3">
           <button
             type="button"
             onClick={acceptNecessary}
             aria-label="Hinweis schließen – nur notwendige Cookies verwenden"
-            className="absolute right-2 top-2 rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+            className="absolute right-1.5 top-1.5 rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
             data-testid="cookie-consent-close"
           >
             <X className="h-4 w-4" />
           </button>
 
-          {/* Header */}
-          <div className="flex items-start gap-3 mb-3 pr-8">
-            <div className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-100 text-purple-600">
-              <Cookie className="h-5 w-5" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-base font-semibold text-foreground">
-                Cookie-Einstellungen
-              </h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Notwendige Cookies halten die Seite am Laufen. Marketing-Cookies
-                nur, wenn du zustimmst.{" "}
-                <Link href="/datenschutz" className="text-purple-600 hover:underline">
-                  Mehr erfahren
-                </Link>
-              </p>
-            </div>
+          {/*
+            Bewusst knapp: Auf /register ist der Platz das Wertvollste. Die frühere
+            Fassung mit Icon, Überschrift und zwei Sätzen war 278 px hoch und
+            verdeckte damit das komplette Formular.
+          */}
+          <div className="flex items-start gap-2 mb-2.5 pr-6">
+            <Cookie className="h-4 w-4 shrink-0 mt-0.5 text-purple-600" />
+            <p className="text-xs leading-snug text-muted-foreground">
+              Marketing-Cookies (Meta-Pixel) nur mit deiner Zustimmung. Notwendige
+              Cookies halten die Seite am Laufen.{" "}
+              <Link href="/datenschutz" className="text-purple-600 hover:underline">
+                Mehr erfahren
+              </Link>
+            </p>
           </div>
 
           {/* Details Toggle */}
           <button
             onClick={() => setShowDetails(!showDetails)}
-            className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 mb-3 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-purple-600 hover:text-purple-800 mb-2.5 transition-colors"
           >
             <Settings className="h-4 w-4" />
             <span>Einstellungen anpassen</span>
@@ -221,9 +241,10 @@ export function CookieConsent() {
             schwerer als Zustimmen, was die DSK-Orientierungshilfe Telemedien
             gerade untersagt.
           */}
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-row gap-2">
             <Button
               variant="outline"
+              size="sm"
               className="flex-1"
               onClick={acceptNecessary}
               data-testid="cookie-consent-reject"
@@ -232,6 +253,7 @@ export function CookieConsent() {
             </Button>
             <Button
               variant="outline"
+              size="sm"
               className="flex-1"
               onClick={showDetails ? savePreferences : acceptAll}
               data-testid="cookie-consent-accept"
@@ -240,16 +262,6 @@ export function CookieConsent() {
             </Button>
           </div>
 
-          {/* Links */}
-          <div className="flex justify-center gap-4 mt-3 text-xs text-muted-foreground">
-            <Link href="/impressum" className="hover:text-foreground hover:underline">
-              Impressum
-            </Link>
-            <span>·</span>
-            <Link href="/datenschutz" className="hover:text-foreground hover:underline">
-              Datenschutz
-            </Link>
-          </div>
         </CardContent>
       </Card>
     </div>
