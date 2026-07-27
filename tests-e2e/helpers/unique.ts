@@ -12,7 +12,14 @@ export interface TestCredentials {
   password: string;
 }
 
-/** Registrierungs-Daten, die registerSchema erfüllen (min 8, Großbuchstabe, Ziffer). */
+/**
+ * Registrierungs-Daten, die registerSchema erfüllen (Passwort min. 10 Zeichen —
+ * Zeichenklassen-Regeln gibt es seit der Policy-Vereinfachung nicht mehr).
+ *
+ * `username` bleibt gesetzt: Im Formular ist das Feld weg, über die API ist es
+ * weiterhin erlaubt. So deckt `helpers/api.ts` den Zweig mit selbst gewähltem
+ * Namen ab, während der Browser-Test die Ableitung aus der E-Mail durchläuft.
+ */
 export function makeCredentials(id: string = runId()): TestCredentials {
   return {
     username: `e2e-${id}`,
