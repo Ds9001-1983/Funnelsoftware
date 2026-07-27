@@ -69,7 +69,7 @@ Konsistent zum bestehenden Schema der Story-Ads (`utm_campaign=story_speed`). Or
 ## Inhaltliche Leitplanken (bei Änderungen beibehalten)
 
 - **Agenturpreis als Spanne „2.000–5.000 €"** — exakt die Formulierung der Landingpage ([`client/src/pages/landing.tsx`](../../../client/src/pages/landing.tsx), Hero), nicht als Pauschalaussage über alle Agenturen.
-- **„49 €/Monat zzgl. MwSt."** steht auf Slide 3, Slide 5 und in beiden Captions. Alle Preise des Produkts sind netto — auf einem Kanal, der auch Verbraucher erreicht, muss das dran.
+- **„49 €/Monat inkl. MwSt."** steht auf Slide 3, Slide 5 und in beiden Captions. Der Stripe-Price ist `tax_behavior: "inclusive"` — der Kunde zahlt 49,00 € als Endpreis. Auf einem Kanal, der auch Verbraucher erreicht, muss der Endpreis dran (PAngV). Früher stand hier „zzgl. MwSt."; das war falsch und hat den Preis um 19 % zu hoch dargestellt.
 - **Keine Wettbewerbernamen.** Der Vergleichs-Table der Landingpage bleibt draußen: vergleichende Werbung ist zulässig, aber prüfpflichtig — im organischen Post unnötiges Risiko.
 - **Keine erfundenen Testimonials oder Nutzerzahlen.** Bewusste Linie des Produkts (`proofStats` = belegbare Produktfakten statt Kundenstimmen).
 - **„13 fertige Vorlagen"** ist gegen `client/src/lib/templates.ts` gezählt (13 Einträge, keiner `hidden`). Bei Template-Änderungen nachziehen — sonst steht eine falsche Zahl öffentlich im Netz.

@@ -23,7 +23,7 @@ Mit Trichterwerk baust du deine Funnels selbst — ohne Code, ohne Agentur, ohne
 ✔ A/B-Tests, Quiz-Logik, eigene Domain und Live-Analytics inklusive
 ✔ DSGVO-konform, Hosting in der EU, Made in Germany
 
-14 Tage kostenlos testen, erste Belastung erst nach der Testphase, monatlich kündbar. 49 €/Monat zzgl. MwSt.
+14 Tage kostenlos testen, erste Belastung erst nach der Testphase, monatlich kündbar. 49 €/Monat inkl. MwSt.
 
 👉 https://trichterwerk.de/register?utm_source=facebook&utm_medium=social&utm_campaign=preisanker_carousel&utm_content=feed
 ```
@@ -37,7 +37,7 @@ Kürzere Caption, weil die Slides das Argument tragen.
 ```
 Was eine Agentur für einen Funnel nimmt — und was die Alternative kostet. In 5 Bildern. 👇
 
-Trichterwerk: unbegrenzte Funnels für 49 €/Monat (zzgl. MwSt.), der erste in unter einer Stunde live. Ohne Code, ohne Agentur, DSGVO-konform aus Deutschland.
+Trichterwerk: unbegrenzte Funnels für 49 €/Monat (inkl. MwSt.), der erste in unter einer Stunde live. Ohne Code, ohne Agentur, DSGVO-konform aus Deutschland.
 
 14 Tage kostenlos testen, monatlich kündbar:
 👉 https://trichterwerk.de/register?utm_source=facebook&utm_medium=social&utm_campaign=preisanker_carousel&utm_content=feed

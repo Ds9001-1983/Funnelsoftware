@@ -1,11 +1,41 @@
 # Ads Manager: Preis-Anker als Carousel-Anzeige
 
-Anleitung zum Nachbauen des 5-Karten-Carousels im Ads Manager. Per API geht es
-nicht: Das Ads-Tooling kennt nur Einzelbild, Video und Katalog-Carousel — ein
-manuelles Multi-Karten-Carousel mit eigenen Bildern ist nicht vorgesehen, und
-Bild-Upload ins Werbekonto unterstützt es ebenfalls nicht.
+Anleitung zum Nachbauen des 5-Karten-Carousels im Ads Manager. Rechnen mit rund
+15 Minuten. Alle Dateien und Texte liegen in diesem Ordner.
 
-Rechnen mit rund 15 Minuten. Alle Dateien und Texte liegen in diesem Ordner.
+Warum von Hand und nicht per API: Statische Carousels kann das Ads-Tooling
+inzwischen anlegen (`cards`, 2–10 Karten). Was fehlt, ist die
+**Instagram-Account-ID** — das dafür nötige Tool ist für dieses Werbekonto nicht
+freigeschaltet. Ohne `instagram_user_id` liefert ein neu erzeugtes Creative
+**nicht auf Instagram** aus, und dort kamen 2 von 3 Besuchern her (99 von 150
+Klicks). Deshalb bleibt der Weg über die Oberfläche.
+
+---
+
+## ⚠️ Offen: Korrektur der laufenden Anzeige (Stand 27.07.2026)
+
+Die Kampagne lief vom 24.–27.07. und hat **175 Besucher** auf die Startseite
+gebracht — davon haben **2 die Registrierung gesehen** (1,1 %). Ursache: alle
+fünf Karten verlinkten `https://trichterwerk.de/` statt `/register`, und die
+Karten-Überschriften waren leer.
+
+**Die Anzeigengruppe ist derzeit PAUSIERT.** Das Optimierungsziel wurde bereits
+per API auf *Landingpage-Aufrufe* umgestellt; Meta erzwingt dabei eine Pause.
+Erst diese Liste abarbeiten, dann reaktivieren:
+
+- [ ] Ziel-URL aller 5 Karten auf `/register` **mit UTM** (Abschnitt 3)
+- [ ] Überschrift + Beschreibung je Karte füllen (aktuell ein Leerzeichen)
+- [ ] Call-to-Action auf **„Registrieren"** ändern (vorher „Mehr dazu")
+- [ ] Bilder `fb/slide-3.png` und `fb/slide-5.png` **neu hochladen** — die
+      Preisangabe darauf wurde auf „inkl. MwSt." korrigiert
+- [ ] Primärtext prüfen: muss „inkl. MwSt." sagen
+- [ ] Anzeigengruppe `120249398157080269` reaktivieren
+
+Die Lernphase setzt sich dabei zurück. Das ist kein Verlust — sie hatte in
+3,5 Tagen null Conversions und damit nichts gelernt.
+
+**IDs:** Kampagne `120249398137850269` · Anzeigengruppe `120249398157080269` ·
+Anzeige `120249398718750269` · Creative `1720837492939272`
 
 ---
 
@@ -53,12 +83,23 @@ lohnt nicht — Meta braucht Datenpunkte zum Lernen.
 | Conversion-Ort | Website |
 | Pixel | Trichterwerk PIXEL |
 | Land | **Deutschland** |
-| Alter | **25–55** |
+| Alter | **25–55** (aktuell live: 18–65) |
 | Geschlecht | alle |
 | Sprache | Deutsch |
 | Detailliertes Targeting | **leer lassen** |
 | Advantage+ Zielgruppe | **an** |
 | Platzierungen | **Advantage+ (automatisch)** |
+| Performance-Ziel | **Landingpage-Aufrufe** maximieren |
+
+**Warum Landingpage-Aufrufe und nicht Link-Klicks:** Link-Klicks zählen jeden
+Daumen, der abrutscht — von 206 Klicks kamen nur 158 auf der Seite an. Meta misst
+Landingpage-Aufrufe im eigenen In-App-Browser und braucht dafür **keinen Pixel**
+(belegt: 158 gemessene Aufrufe bei 0 Pixel-Events). Das Ziel funktioniert also
+trotz Consent-Blindheit.
+
+*Nicht* auf `CompleteRegistration` optimieren: Meta braucht dafür ~50 Conversions
+pro Woche und Anzeigengruppe. Bei 10 €/Tag ist das unerreichbar — die
+Anzeigengruppe bliebe dauerhaft in der Lernphase.
 
 **Targeting bewusst breit.** Das ist kein Versäumnis: Bei kleinen Budgets findet
 Metas Algorithmus die Zielgruppe zuverlässiger als eine manuelle Interessenauswahl,
@@ -93,7 +134,7 @@ Mit Trichterwerk baust du ihn selbst:
 → A/B-Tests, Quiz-Logik, eigene Domain und Live-Analytics inklusive
 → DSGVO-konform, Hosting in der EU, Made in Germany
 
-14 Tage kostenlos testen. 49 €/Monat zzgl. MwSt., monatlich kündbar.
+14 Tage kostenlos testen. 49 €/Monat inkl. MwSt., monatlich kündbar.
 ```
 
 Gegenüber der organischen Caption sind „Kein Code. Keine Agentur." und die Hashtags
@@ -113,20 +154,28 @@ raus — in Anzeigen ziehen Hashtags nicht und kosten nur Zeilen. Der Preishinwe
 Überschriften sind knapp gehalten — auf der Karte stehen sie unter einer schmalen
 Vorschau und werden sonst abgeschnitten.
 
-### Ziel-URL (bei **allen** fünf Karten identisch)
+### Ziel-URL (alle fünf Karten, nur `utm_content` unterscheidet sich)
 
 ```
-https://trichterwerk.de/register?utm_source=instagram&utm_medium=paid_feed&utm_campaign=preisanker_carousel&utm_content=card
+https://trichterwerk.de/register?utm_source=meta&utm_medium=paid_feed&utm_campaign=preisanker_carousel&utm_content=card1
 ```
 
-**Call-to-Action:** „Mehr dazu"
+`card1` … `card5` je Karte — damit ist auswertbar, welche Slide den Klick
+gebracht hat.
+
+**Call-to-Action:** „Registrieren" (`SIGN_UP`)
 
 Auf `/register` statt auf die Startseite, weil die Slides den Trial bereits
-verkauft haben — ein zusätzlicher Zwischenschritt kostet nur Conversions.
+verkauft haben — ein zusätzlicher Zwischenschritt kostet nur Conversions. Beim
+ersten Aufsetzen ist genau das verlorengegangen: alle Karten zeigten auf `/`,
+eine 14.800 px hohe Seite, und nur 1,1 % der Besucher kamen bis zum Formular.
 
-`utm_medium=paid_feed` trennt die bezahlte Ausspielung sauber von `social`
-(organisch) und `paid_story` (Story-Ads). So bleiben die Quellen im
-Admin-Dashboard unterscheidbar.
+„Mehr dazu" verspricht Information, nicht ein Formular — deshalb „Registrieren".
+
+`utm_source=meta` statt `instagram`, weil Advantage+ auch auf Facebook ausspielt
+(belegt: 51 der 150 Klicks kamen von `m.facebook.com`). `utm_medium=paid_feed`
+trennt die bezahlte Ausspielung von `social` (organisch) und `paid_story`
+(Story-Ads). So bleiben die Quellen im Admin-Dashboard unterscheidbar.
 
 ---
 
@@ -139,10 +188,17 @@ Admin-Dashboard unterscheidbar.
 - [ ] Platzierungen automatisch
 - [ ] Sonderkategorie leer
 
-Zum Tracking: `PageView` und `CompleteRegistration` sind seit dem Deploy live und
-verifiziert. Beide feuern erst **nach** Marketing-Einwilligung im Cookie-Banner —
-in den Statistiken landen also nur einwilligende Besucher. `Purchase` erscheint,
-sobald das erste Trial ausläuft und abgerechnet wird.
+Zum Tracking — hier stand vorher, `PageView` und `CompleteRegistration` seien
+„live und verifiziert". Das war zu optimistisch: Beide feuern erst **nach**
+Marketing-Einwilligung, und der Cookie-Banner war ein Vollbild-Blocker, den kaum
+jemand beantwortet hat. Ergebnis: **0 Pixel-Events** über die gesamte
+Kampagnenlaufzeit.
+
+Verlasse dich für die Bewertung deshalb nicht auf den Pixel, sondern auf den
+Funnel-Report unter *Admin → Plattform-Statistik*. Der läuft cookielos und
+consent-unabhängig, sieht also alle Besucher. Der Pixel bleibt nützlich für
+Metas Auslieferung — als Erfolgsmessung ist er blind, solange die
+Einwilligungsquote niedrig ist (die steht jetzt ebenfalls im Report).
 
 ---
 
@@ -151,7 +207,7 @@ sobald das erste Trial ausläuft und abgerechnet wird.
 Aus dem [README](README.md), gelten unverändert:
 
 - **„2.000–5.000 €" als Spanne**, nie als Pauschalaussage über alle Agenturen.
-- **„49 €/Monat zzgl. MwSt."** muss sichtbar bleiben — die Preise sind netto und
+- **„49 €/Monat inkl. MwSt."** muss sichtbar bleiben — die Preise sind netto und
   der Kanal erreicht auch Verbraucher.
 - **Keine Wettbewerbernamen.** Vergleichende Werbung ist zulässig, aber
   prüfpflichtig — in einer Anzeige unnötiges Risiko.
@@ -165,6 +221,10 @@ Aus dem [README](README.md), gelten unverändert:
 
 Nicht früher bewerten und **nicht täglich nachjustieren** — Metas Lernphase
 braucht etwa 50 Conversions, jede Änderung setzt sie zurück.
+
+**Gemessene Ausgangswerte (24.–27.07., 32 € Budget)** — als Vergleichsmaßstab:
+CTR **3,55 %**, CPC **0,15 €**, 158 Landingpage-Aufrufe, 175 eindeutige Besucher.
+Die Anzeige war also nicht das Problem, die Zustellung war es.
 
 | Beobachtung | Bedeutung | Reaktion |
 |---|---|---|

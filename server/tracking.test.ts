@@ -5,6 +5,7 @@ import {
   deriveDeviceClass,
   deriveCountry,
   isTrackablePath,
+  isClientTrackableEvent,
 } from "./tracking";
 
 const DAY1 = new Date("2026-07-01T10:00:00Z");
@@ -79,5 +80,36 @@ describe("isTrackablePath", () => {
     expect(isTrackablePath("/dashboard")).toBe(false);
     expect(isTrackablePath("/f/abc-123")).toBe(false);
     expect(isTrackablePath("/settings")).toBe(false);
+  });
+});
+
+describe("isClientTrackableEvent", () => {
+  it("erlaubt die Browser-Ereignisse des Funnels", () => {
+    for (const e of [
+      "pageview",
+      "cta_click",
+      "form_start",
+      "form_submit_error",
+      "form_abort",
+      "consent_accept",
+      "consent_reject",
+      "checkout_redirect",
+    ]) {
+      expect(isClientTrackableEvent(e)).toBe(true);
+    }
+  });
+
+  it("lehnt serverseitige Conversion-Ereignisse ab", () => {
+    // Der Kern des Fixes: Vorher stand 'register' im Client-Enum, sodass ein
+    // einzelnes curl die Registrierungszahl im Admin-Dashboard hochtreiben
+    // konnte — genau die Kennzahl, an der eine Kampagne bewertet wird.
+    expect(isClientTrackableEvent("register")).toBe(false);
+    expect(isClientTrackableEvent("trial_started")).toBe(false);
+    expect(isClientTrackableEvent("purchase")).toBe(false);
+  });
+
+  it("lehnt unbekannte Ereignisse ab", () => {
+    expect(isClientTrackableEvent("")).toBe(false);
+    expect(isClientTrackableEvent("beliebig")).toBe(false);
   });
 });

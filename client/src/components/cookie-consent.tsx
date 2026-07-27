@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Cookie, Settings, X, ChevronDown, ChevronUp } from "lucide-react";
+import { trackPlatformEvent } from "@/lib/platform-tracker";
 
 interface CookiePreferences {
   necessary: boolean;
@@ -28,8 +29,10 @@ export function CookieConsent() {
     // Prüfen ob bereits Consent gegeben wurde
     const consent = localStorage.getItem(COOKIE_CONSENT_KEY);
     if (!consent) {
-      // Kurze Verzögerung für bessere UX
-      const timer = setTimeout(() => setIsVisible(true), 1000);
+      // Bewusst spät: Der Besucher soll Überschrift und CTA gesehen haben,
+      // bevor unten der Hinweis einfährt. Bei 1 s war er schneller da als das
+      // Lesen der ersten Zeile.
+      const timer = setTimeout(() => setIsVisible(true), 2500);
       return () => clearTimeout(timer);
     } else {
       // Gespeicherte Präferenzen laden
@@ -45,6 +48,14 @@ export function CookieConsent() {
     localStorage.setItem(COOKIE_PREFERENCES_KEY, JSON.stringify(prefs));
     setPreferences(prefs);
     setIsVisible(false);
+
+    // Erst damit wird messbar, wie blind der Meta-Pixel eigentlich ist: er sieht
+    // ausschließlich Besucher mit Marketing-Einwilligung. Ohne diese Quote weiß
+    // niemand, ob das 60 % oder 5 % der Besucher sind.
+    trackPlatformEvent(
+      window.location.pathname,
+      prefs.marketing ? "consent_accept" : "consent_reject",
+    );
 
     // Event für Analytics/Marketing Tools auslösen
     window.dispatchEvent(
@@ -72,41 +83,70 @@ export function CookieConsent() {
     saveConsent(preferences);
   };
 
+  // Escape schließt den Hinweis wie das X: als Ablehnung. Wegklicken führt damit
+  // zum datenschutzfreundlichen Ergebnis — das ist die von der DSK geforderte
+  // Gleichwertigkeit, kein Dark Pattern (das wäre die Umkehrung).
+  useEffect(() => {
+    if (!isVisible) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") acceptNecessary();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // acceptNecessary ist stabil genug: es liest keinen State, sondern schreibt
+    // einen festen Satz Präferenzen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isVisible]);
+
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center p-4 sm:items-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
-      <Card className="w-full max-w-lg shadow-2xl animate-in slide-in-from-bottom-4 duration-300">
-        <CardContent className="p-6">
+    // Bewusst KEIN Overlay (früher `fixed inset-0` + `bg-black/50 backdrop-blur-sm`):
+    // Ohne Einwilligung funktioniert die Seite vollständig — es gibt also keinen
+    // Grund, sie zu verdecken. Der Blocker hat auf dem Handy die gesamte
+    // Landingpage überdeckt. `pointer-events-none` am Wrapper hält den Streifen
+    // links und rechts der Karte klickbar.
+    <div
+      role="region"
+      aria-label="Hinweis zu Cookies"
+      className="fixed inset-x-0 bottom-0 z-50 flex justify-center p-3 sm:p-4 pointer-events-none animate-in fade-in duration-300"
+      style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+    >
+      <Card className="w-full max-w-md shadow-lg relative pointer-events-auto animate-in slide-in-from-bottom-4 duration-300">
+        <CardContent className="p-4">
+          <button
+            type="button"
+            onClick={acceptNecessary}
+            aria-label="Hinweis schließen – nur notwendige Cookies verwenden"
+            className="absolute right-2 top-2 rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+            data-testid="cookie-consent-close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+
           {/* Header */}
-          <div className="flex items-start gap-4 mb-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-purple-100 text-purple-600">
-              <Cookie className="h-6 w-6" />
+          <div className="flex items-start gap-3 mb-3 pr-8">
+            <div className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-100 text-purple-600">
+              <Cookie className="h-5 w-5" />
             </div>
             <div className="flex-1">
-              <h2 className="text-lg font-semibold text-foreground">
+              <h2 className="text-base font-semibold text-foreground">
                 Cookie-Einstellungen
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Wir verwenden Cookies, um dir die bestmögliche Erfahrung zu bieten.
+                Notwendige Cookies halten die Seite am Laufen. Marketing-Cookies
+                nur, wenn du zustimmst.{" "}
+                <Link href="/datenschutz" className="text-purple-600 hover:underline">
+                  Mehr erfahren
+                </Link>
               </p>
             </div>
           </div>
 
-          {/* Kurze Beschreibung */}
-          <p className="text-sm text-muted-foreground mb-4">
-            Einige Cookies sind notwendig, damit unsere Website funktioniert. 
-            Andere helfen uns, die Website zu verbessern und dir personalisierte 
-            Inhalte anzuzeigen.{" "}
-            <Link href="/datenschutz" className="text-purple-600 hover:underline">
-              Mehr erfahren
-            </Link>
-          </p>
-
           {/* Details Toggle */}
           <button
             onClick={() => setShowDetails(!showDetails)}
-            className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 mb-4 transition-colors"
+            className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 mb-3 transition-colors"
           >
             <Settings className="h-4 w-4" />
             <span>Einstellungen anpassen</span>
@@ -158,7 +198,10 @@ export function CookieConsent() {
                     Marketing-Cookies
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Werden verwendet, um relevante Werbung anzuzeigen
+                    Meta-Pixel (Meta Platforms Ireland Ltd.). Misst, ob eine
+                    Anzeige zu einer Registrierung geführt hat. Setzt{" "}
+                    <code>_fbp</code>/<code>_fbc</code>; Übermittlung in die USA
+                    möglich.
                   </p>
                 </div>
                 <Switch
@@ -171,45 +214,34 @@ export function CookieConsent() {
             </div>
           )}
 
-          {/* Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            {showDetails ? (
-              <>
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={acceptNecessary}
-                >
-                  Nur Notwendige
-                </Button>
-                <Button
-                  className="flex-1 bg-purple-600 hover:bg-purple-700"
-                  onClick={savePreferences}
-                >
-                  Auswahl speichern
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={acceptNecessary}
-                >
-                  Nur Notwendige
-                </Button>
-                <Button
-                  className="flex-1 bg-purple-600 hover:bg-purple-700"
-                  onClick={acceptAll}
-                >
-                  Alle akzeptieren
-                </Button>
-              </>
-            )}
+          {/*
+            Beide Buttons bewusst identisch gestaltet (`variant="outline"`, gleiche
+            Breite). Vorher war „Alle akzeptieren" ein gefüllter Primary-Button und
+            „Nur Notwendige" ein Outline-Button — Ablehnen war damit optisch
+            schwerer als Zustimmen, was die DSK-Orientierungshilfe Telemedien
+            gerade untersagt.
+          */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={acceptNecessary}
+              data-testid="cookie-consent-reject"
+            >
+              Nur Notwendige
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={showDetails ? savePreferences : acceptAll}
+              data-testid="cookie-consent-accept"
+            >
+              {showDetails ? "Auswahl speichern" : "Alle akzeptieren"}
+            </Button>
           </div>
 
           {/* Links */}
-          <div className="flex justify-center gap-4 mt-4 text-xs text-muted-foreground">
+          <div className="flex justify-center gap-4 mt-3 text-xs text-muted-foreground">
             <Link href="/impressum" className="hover:text-foreground hover:underline">
               Impressum
             </Link>

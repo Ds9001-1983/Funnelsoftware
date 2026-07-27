@@ -19,7 +19,7 @@ Mit Trichterwerk baust du ihn selbst:
 
 Kein Code. Keine Agentur. Keine Wartezeit.
 
-14 Tage kostenlos testen — erste Belastung erst nach der Testphase, monatlich kündbar. 49 €/Monat zzgl. MwSt.
+14 Tage kostenlos testen — erste Belastung erst nach der Testphase, monatlich kündbar. 49 €/Monat inkl. MwSt.
 
 Link in Bio 👆
 
