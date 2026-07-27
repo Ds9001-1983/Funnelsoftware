@@ -114,27 +114,35 @@ und jede Einschränkung verteuert den Tausenderkontaktpreis. Interessen wie
 **Placements automatisch lassen** — sonst fällt Instagram womöglich raus, und genau
 dort soll das Carousel laufen.
 
-### Falle beim Duplizieren: Standort-Targeting
+### Falle: Standort-Targeting-Fehler #1870194
 
-Beim Kopieren einer Anzeigengruppe meldet Meta:
+Ads Manager meldet beim Speichern oder Veröffentlichen:
 
 > „Deine Zielgruppe beinhaltet eine der folgenden Standort-Targeting-Optionen, die
 > mittlerweile entfernt wurde: Personen, die an diesem Ort wohnen, Personen, die
-> diesen Ort besuchen, oder Personen, die kürzlich an diesem Ort waren."
+> diesen Ort besuchen, oder Personen, die kürzlich an diesem Ort waren." (#1870194)
 
-Meta hat das Dropdown mit den vier Standort-Verhalten abgeschafft. Übrig ist die
-Sammel-Option **„Leben in oder kürzlich in diesem Ort"** (API:
-`location_types: ["home","recent"]`). Laufende Anzeigengruppen bleiben
-unangetastet, aber beim Duplizieren validiert Meta neu und lehnt ab.
+Meta hat das Dropdown mit den vier Standort-Verhalten aus der Oberfläche entfernt.
+Übrig ist die Sammel-Option „Leben in oder kürzlich in diesem Ort".
 
-**Fix in der Oberfläche (2 Klicks):** Anzeigengruppe → *Zielgruppe* → *Standorte* →
-„Deutschland" **entfernen** und **neu hinzufügen**. Damit schreibt Ads Manager die
-aktuelle Sammel-Option.
+**Das Entscheidende: Der Fehler ist eine Validierung der Oberfläche, nicht der
+Anzeigengruppe.** Am 27.07. verifiziert für Anzeigengruppe `120249398157080269`
+mit `location_types: ["home","recent"]`:
 
-**Nicht per API reparieren wollen.** Ein unveröffentlichter Entwurf ist über die
-API gar nicht sichtbar, und schickt man `geo_locations` ohne `location_types`,
-normalisiert Meta stillschweigend auf `["home"]` — also auf eine der *entfernten*
-Einzeloptionen, was die Zielgruppe zusätzlich einengt.
+- Aktivierung **per API erfolgreich** (`status: ACTIVE`)
+- `ads_get_errors` über das gesamte Konto: **`{}`** — keine
+  auslieferungsblockierenden Fehler
+- `delivery.substatuses`: nur `no_active_ad` — es fehlte die Anzeige, nicht das
+  Targeting
+
+Wenn die Oberfläche also blockiert, obwohl inhaltlich alles stimmt: **über die API
+aktivieren**, dann läuft es. Ein Umbau des Targetings ist nicht nötig.
+
+**Was nicht funktioniert:** `geo_locations` ohne `location_types` schicken. Meta
+normalisiert das stillschweigend auf `["home"]` — also auf eine der *entfernten*
+Einzeloptionen, was die Zielgruppe von „lebt dort oder war kürzlich dort" auf „lebt
+dort" einengt. `["home","recent"]` ist die korrekte Sammel-Option und muss so
+stehen bleiben.
 
 ---
 
