@@ -109,6 +109,28 @@ und jede Einschränkung verteuert den Tausenderkontaktpreis. Interessen wie
 **Placements automatisch lassen** — sonst fällt Instagram womöglich raus, und genau
 dort soll das Carousel laufen.
 
+### Falle beim Duplizieren: Standort-Targeting
+
+Beim Kopieren einer Anzeigengruppe meldet Meta:
+
+> „Deine Zielgruppe beinhaltet eine der folgenden Standort-Targeting-Optionen, die
+> mittlerweile entfernt wurde: Personen, die an diesem Ort wohnen, Personen, die
+> diesen Ort besuchen, oder Personen, die kürzlich an diesem Ort waren."
+
+Meta hat das Dropdown mit den vier Standort-Verhalten abgeschafft. Übrig ist die
+Sammel-Option **„Leben in oder kürzlich in diesem Ort"** (API:
+`location_types: ["home","recent"]`). Laufende Anzeigengruppen bleiben
+unangetastet, aber beim Duplizieren validiert Meta neu und lehnt ab.
+
+**Fix in der Oberfläche (2 Klicks):** Anzeigengruppe → *Zielgruppe* → *Standorte* →
+„Deutschland" **entfernen** und **neu hinzufügen**. Damit schreibt Ads Manager die
+aktuelle Sammel-Option.
+
+**Nicht per API reparieren wollen.** Ein unveröffentlichter Entwurf ist über die
+API gar nicht sichtbar, und schickt man `geo_locations` ohne `location_types`,
+normalisiert Meta stillschweigend auf `["home"]` — also auf eine der *entfernten*
+Einzeloptionen, was die Zielgruppe zusätzlich einengt.
+
 ---
 
 ## 3 · Anzeige
