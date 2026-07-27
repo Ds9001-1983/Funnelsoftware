@@ -261,12 +261,48 @@ export default function Datenschutz() {
               </p>
             </section>
 
-            {/* 8. Tracking auf veröffentlichten Funnel-Seiten */}
+            {/* 8. Meta-Pixel und Reichweitenmessung */}
             <section className="mb-8">
               <h2 className="text-xl font-semibold text-slate-800 mb-4">
-                8. Tracking auf veröffentlichten Funnel-Seiten
+                8. Meta-Pixel und Werbeerfolgsmessung
               </h2>
-              <h3 className="text-lg font-medium text-slate-700 mb-2">Google Tag Manager</h3>
+
+              <h3 className="text-lg font-medium text-slate-700 mb-2">
+                Meta-Pixel auf trichterwerk.de
+              </h3>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                Auf unseren eigenen Marketing-Seiten (Startseite und
+                Registrierung) setzen wir den Meta-Pixel mit der Kennung{" "}
+                <span className="font-mono">1328032266066211</span> ein, um zu
+                messen, ob eine von uns geschaltete Anzeige zu einer
+                Registrierung geführt hat. Der Pixel wird{" "}
+                <strong>ausschließlich nach Ihrer Einwilligung</strong> in
+                Marketing-Cookies geladen (Art. 6 Abs. 1 lit. a DSGVO, § 25
+                Abs. 1 TDDDG) und speichert dann die Cookies{" "}
+                <span className="font-mono">_fbp</span> und{" "}
+                <span className="font-mono">_fbc</span> auf Ihrem Endgerät.
+                Empfänger ist Meta Platforms Ireland Limited (Merrion Road,
+                Dublin 4, Irland); eine Übermittlung an Meta Platforms, Inc. in
+                den USA ist möglich — das Unternehmen ist nach dem EU-US Data
+                Privacy Framework zertifiziert. Auf veröffentlichten
+                Funnel-Seiten unserer Kunden wird unser Pixel nicht geladen.
+              </p>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                Zusätzlich übermitteln wir bei einer Registrierung und bei einer
+                Zahlung serverseitig ein Ereignis über die Meta Conversions API
+                (Ereignisse <span className="font-mono">CompleteRegistration</span>{" "}
+                und <span className="font-mono">Purchase</span>). Übermittelt
+                werden dabei Ihre E-Mail-Adresse in SHA-256-gehashter Form sowie
+                IP-Adresse und User-Agent. Auch dies geschieht nur, wenn Sie in
+                Marketing-Cookies eingewilligt haben; ohne Einwilligung findet
+                keine Übermittlung statt. Ihre Einwilligung können Sie jederzeit
+                über den Link „Cookie-Einstellungen" im Seitenfuß widerrufen.
+              </p>
+
+              <h3 className="text-lg font-medium text-slate-700 mb-3 mt-6 border-t border-slate-200 pt-4">
+                Tracking auf veröffentlichten Funnel-Seiten
+              </h3>
+              <h4 className="text-base font-medium text-slate-700 mb-2">Google Tag Manager</h4>
               <p className="text-slate-600 text-sm leading-relaxed mb-4">
                 Betreiber von Funnels können den Google Tag Manager (Google Ireland Limited,
                 Gordon House, Barrow Street, Dublin 4, Irland) einbinden. Der Tag Manager
@@ -275,7 +311,7 @@ export default function Datenschutz() {
                 § 25 Abs. 1 TDDDG). Ihre Einwilligung können Sie jederzeit über den Link
                 „Cookie-Einstellungen" im Seitenfuß widerrufen.
               </p>
-              <h3 className="text-lg font-medium text-slate-700 mb-2">Meta Conversions API</h3>
+              <h4 className="text-base font-medium text-slate-700 mb-2">Meta Conversions API</h4>
               <p className="text-slate-600 text-sm leading-relaxed mb-4">
                 Sofern der Betreiber eines Funnels die Meta Conversions API aktiviert hat
                 und Sie in Marketing-Cookies eingewilligt haben, übermitteln wir bei einer

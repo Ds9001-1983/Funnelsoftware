@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { comparisonLinks, funnelBuilderPage } from "@shared/seo-links";
+import { CLIENT_TRACKABLE_EVENTS } from "@shared/schema";
 
 // Reichweitenmessung für trichterwerk.de — cookieless & datensparsam.
 //
@@ -91,4 +92,24 @@ const TRACKABLE_PATHS = new Set([
 export function isTrackablePath(path: string): boolean {
   const clean = (path.split(/[?#]/)[0] || "/").replace(/\/+$/, "") || "/";
   return TRACKABLE_PATHS.has(clean);
+}
+
+/**
+ * Ereignistypen, die ein Browser melden darf.
+ *
+ * `register`, `trial_started` und `purchase` fehlen hier absichtlich: sie
+ * entstehen nur serverseitig (Register-Handler bzw. Stripe-Webhook). Vorher
+ * stand `register` im Client-Enum — ein einzelnes
+ * `curl -d '{"path":"/register","eventType":"register"}'` konnte damit die
+ * Registrierungszahl im Admin-Dashboard beliebig hochtreiben, also genau die
+ * Kennzahl, an der eine Kampagne bewertet wird.
+ *
+ * Die Zod-Validierung in `trackEventSchema` deckt denselben Fall ab; diese
+ * Funktion ist die zweite Sperre direkt an der Route — eine künftige
+ * Schema-Erweiterung soll die Lücke nicht lautlos wieder aufmachen.
+ */
+const CLIENT_ALLOWED_EVENTS: ReadonlySet<string> = new Set(CLIENT_TRACKABLE_EVENTS);
+
+export function isClientTrackableEvent(eventType: string): boolean {
+  return CLIENT_ALLOWED_EVENTS.has(eventType);
 }

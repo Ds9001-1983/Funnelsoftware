@@ -37,15 +37,18 @@ test("Kompletter Funnel-Lebenszyklus: Registrieren → Erstellen → Publizieren
 
   await page.addInitScript(SILENCE_OVERLAYS);
 
-  await test.step("Registrieren (ohne Stripe-Redirect)", async () => {
+  await test.step("Registrieren (zwei Felder, keine Karte)", async () => {
     await page.goto("/register");
-    await page.fill("#username", creds.username);
+    // Nur noch E-Mail und Passwort: Der Benutzername wird serverseitig aus der
+    // E-Mail abgeleitet, die Passwort-Bestätigung ist einem Augen-Toggle gewichen.
     await page.fill("#email", creds.email);
     await page.fill("#password", creds.password);
-    await page.fill("#confirmPassword", creds.password);
+    await expect(page.locator("#username")).toHaveCount(0);
+    await expect(page.locator("#confirmPassword")).toHaveCount(0);
     await page.getByTestId("button-register-submit").click();
-    // Stripe ist in der E2E-Umgebung deaktiviert → Redirect zurück in die App.
-    await page.waitForURL("/");
+    // Ohne SIGNUP_REQUIRE_CARD kommt kein Stripe-Checkout mehr — der neue Nutzer
+    // landet direkt im Produkt statt in einem leeren Dashboard.
+    await page.waitForURL(/\/funnels\/new/);
   });
 
   await test.step("E-Mail verifizieren (Token aus der Test-DB)", async () => {

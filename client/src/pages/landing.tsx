@@ -41,6 +41,18 @@ import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { CONTACT_EMAIL } from "@/components/marketing/constants";
 import { comparisonLinks, TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
+import { trackPlatformEvent } from "@/lib/platform-tracker";
+
+/**
+ * Meldet, welcher der drei /register-CTAs geklickt wurde.
+ *
+ * Ohne dieses Label war nur sichtbar, wie viele Besucher die Seite sahen und
+ * wie viele auf /register ankamen — aber nicht, ob der Hero trägt oder erst
+ * die Preisliste, und damit auch nicht, wie weit überhaupt gescrollt wird.
+ */
+function trackCtaClick(label: "hero" | "pricing" | "final"): void {
+  trackPlatformEvent("/", "cta_click", label);
+}
 
 const templatePreviews = [
   {
@@ -193,7 +205,9 @@ const pricingPlans: PricingPlan[] = [
     cta: "14 Tage kostenlos testen",
     ctaHref: "/register",
     popular: true,
-    note: "14 Tage gratis · Erste Belastung nach Trial · Monatlich kündbar",
+    // Der Stripe-Price ist `tax_behavior: "inclusive"` — der Kunde zahlt 49,00 €
+    // als Endpreis, MwSt. ist enthalten. Deshalb hier und überall sonst „inkl.".
+    note: "14 Tage gratis · Endpreis inkl. MwSt. · Monatlich kündbar",
   },
   {
     name: "Agency",
@@ -284,7 +298,7 @@ const faqs = [
   },
   {
     q: "Brauche ich zum Start eine Kreditkarte?",
-    a: "Ja — wir hinterlegen deine Zahlungsmethode direkt zum Start über Stripe (PayPal, Kreditkarte, SEPA), belasten aber erst nach den 14 Tagen. Du kannst jederzeit vorher kündigen, ohne Kosten.",
+    a: "Nein. Du registrierst dich mit E-Mail und Passwort und kannst sofort losbauen — ohne Zahlungsdaten. Erst wenn du nach den 14 Tagen weitermachen willst, hinterlegst du deine Zahlungsmethode über Stripe (PayPal, Kreditkarte, SEPA).",
   },
   {
     q: "Kann ich jederzeit kündigen?",
@@ -381,7 +395,7 @@ export default function Landing() {
             in unter einer Stunde live. Ohne Code, DSGVO-konform aus Deutschland.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/register">
+            <Link href="/register" onClick={() => trackCtaClick("hero")}>
               <Button
                 size="lg"
                 className="gap-2 text-lg px-8 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-shadow"
@@ -810,7 +824,7 @@ export default function Landing() {
                       </Button>
                     </a>
                   ) : (
-                    <Link href={plan.ctaHref}>
+                    <Link href={plan.ctaHref} onClick={() => trackCtaClick("pricing")}>
                       <Button className="w-full" variant={plan.popular ? "default" : "outline"}>
                         {plan.cta}
                       </Button>
@@ -827,7 +841,7 @@ export default function Landing() {
           {/* Pricing footer */}
           <div className="max-w-3xl mx-auto mt-10 text-center space-y-2 text-sm text-muted-foreground">
             <p>
-              Alle Preise netto zzgl. 19&nbsp;% MwSt. · Monatlich kündbar · Keine Setup-Gebühr
+              Alle Preise sind Endpreise inkl. 19&nbsp;% MwSt. · Monatlich kündbar · Keine Setup-Gebühr
             </p>
             <p>
               <span className="font-medium text-foreground">Agency</span> mit Team-Seats,
@@ -951,7 +965,7 @@ export default function Landing() {
                 zum Team, keine Mindestlaufzeit. Kündigung mit zwei Klicks.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Link href="/register">
+                <Link href="/register" onClick={() => trackCtaClick("final")}>
                   <Button size="lg" variant="secondary" className="gap-2 text-lg px-8">
                     14 Tage kostenlos testen
                     <ArrowRight className="h-5 w-5" />

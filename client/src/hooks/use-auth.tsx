@@ -30,7 +30,11 @@ interface AuthContextType {
 }
 
 interface RegisterData {
-  username: string;
+  /**
+   * Optional — fehlt er, leitet der Server ihn aus der E-Mail ab. Das
+   * Registrierungsformular schickt ihn nicht mehr mit.
+   */
+  username?: string;
   email: string;
   password: string;
   displayName?: string;

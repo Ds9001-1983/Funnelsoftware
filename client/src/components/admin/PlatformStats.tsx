@@ -7,11 +7,30 @@ import { Globe, Eye, UserPlus, TrendingUp } from "lucide-react";
 interface PlatformStatsData {
   days: number;
   totals: { visitors: number; pageviews: number; registrations: number };
+  funnel: {
+    landingViewed: number;
+    ctaClicked: number;
+    registerViewed: number;
+    formStarted: number;
+    accountCreated: number;
+    trialStarted: number;
+    purchased: number;
+  };
+  consent: { accepted: number; rejected: number };
   visitorsByDay: { day: string; visitors: number; pageviews: number }[];
   topPaths: { path: string; count: number }[];
   topReferrers: { host: string; count: number }[];
   topUtmSources: { source: string; count: number }[];
+  ctaBreakdown: { label: string; count: number }[];
+  byDevice: { device: string; visitors: number; registrations: number }[];
 }
+
+const CTA_LABELS: Record<string, string> = {
+  hero: "Hero (oben)",
+  pricing: "Preisliste",
+  final: "Abschluss (unten)",
+  unbekannt: "ohne Zuordnung",
+};
 
 const RANGES = [7, 30, 90] as const;
 
@@ -34,6 +53,20 @@ export function PlatformStats() {
   const convRate = totals.visitors > 0 ? (totals.registrations / totals.visitors) * 100 : 0;
   const byDay = data?.visitorsByDay ?? [];
   const maxDay = Math.max(1, ...byDay.map((d) => d.visitors));
+
+  const f = data?.funnel;
+  const funnelSteps = [
+    { key: "landingViewed", label: "Startseite gesehen", value: f?.landingViewed ?? 0 },
+    { key: "ctaClicked", label: "CTA geklickt", value: f?.ctaClicked ?? 0 },
+    { key: "registerViewed", label: "Formular gesehen", value: f?.registerViewed ?? 0 },
+    { key: "formStarted", label: "Formular begonnen", value: f?.formStarted ?? 0 },
+    { key: "accountCreated", label: "Account erstellt", value: f?.accountCreated ?? 0 },
+    { key: "trialStarted", label: "Trial mit Karte", value: f?.trialStarted ?? 0 },
+    { key: "purchased", label: "Bezahlt", value: f?.purchased ?? 0 },
+  ];
+  const funnelTop = funnelSteps[0].value;
+  const consentTotal = (data?.consent.accepted ?? 0) + (data?.consent.rejected ?? 0);
+  const consentRate = consentTotal > 0 ? ((data?.consent.accepted ?? 0) / consentTotal) * 100 : 0;
 
   return (
     <Card className="mb-8">
@@ -69,6 +102,63 @@ export function PlatformStats() {
               </p>
             )}
 
+            {/*
+              Der Funnel — die Auswertung, die bei der ersten Meta-Kampagne
+              gefehlt hat. Sichtbar waren nur „Besucher" und „Registrierungen";
+              die Stufe dazwischen, auf der 98 % verloren gingen, war unsichtbar.
+            */}
+            {funnelSteps.some((s) => s.value > 0) && (
+              <div>
+                <p className="text-sm font-medium mb-3">Funnel</p>
+                <div className="space-y-1.5">
+                  {funnelSteps.map((step, i) => {
+                    const prev = i === 0 ? null : funnelSteps[i - 1].value;
+                    const drop = prev && prev > 0 ? 100 - (step.value / prev) * 100 : null;
+                    const width = funnelTop > 0 ? (step.value / funnelTop) * 100 : 0;
+                    return (
+                      <div key={step.key} className="flex items-center gap-3">
+                        <span className="w-40 shrink-0 text-xs text-muted-foreground">{step.label}</span>
+                        <div className="flex-1 h-6 rounded bg-muted overflow-hidden">
+                          <div
+                            className="h-full bg-primary/70 rounded min-w-[2px]"
+                            style={{ width: `${Math.max(width, step.value > 0 ? 1 : 0)}%` }}
+                          />
+                        </div>
+                        <span className="w-12 shrink-0 text-right text-sm font-medium tabular-nums">
+                          {step.value}
+                        </span>
+                        <span className="w-20 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
+                          {drop === null ? "" : `−${drop.toFixed(0)} %`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Eindeutige Besucher je Stufe. „Account erstellt" und alles darunter
+                  entsteht serverseitig und ist von außen nicht manipulierbar.
+                </p>
+              </div>
+            )}
+
+            {/*
+              Einwilligungsquote: sagt, welchen Anteil der Besucher der Meta-Pixel
+              überhaupt sehen kann. Ohne diese Zahl ist jede Pixel-Statistik
+              unlesbar — bei der ersten Kampagne waren es 0 von 175.
+            */}
+            {consentTotal > 0 && (
+              <div className="rounded-lg border p-3">
+                <p className="text-sm font-medium">
+                  Marketing-Einwilligung: {consentRate.toFixed(0)} %
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {data?.consent.accepted ?? 0} von {consentTotal} Entscheidungen. Nur
+                  diesen Anteil der Besucher sieht der Meta-Pixel — die Zahlen oben
+                  sind cookielos und sehen alle.
+                </p>
+              </div>
+            )}
+
             {byDay.length > 0 && (
               <div>
                 <p className="text-sm font-medium mb-2">Besucher pro Tag</p>
@@ -101,6 +191,22 @@ export function PlatformStats() {
                 title="Top-Kampagnen (UTM)"
                 rows={(data?.topUtmSources ?? []).map((u) => ({ label: u.source, count: u.count }))}
                 empty="keine UTM-Quellen"
+              />
+              <TopList
+                title="Welcher CTA trägt"
+                rows={(data?.ctaBreakdown ?? []).map((c) => ({
+                  label: CTA_LABELS[c.label] ?? c.label,
+                  count: c.count,
+                }))}
+                empty="noch keine CTA-Klicks"
+              />
+              <TopList
+                title="Gerät (Besucher / Registrierungen)"
+                rows={(data?.byDevice ?? []).map((d) => ({
+                  label: `${d.device} — ${d.registrations} Reg.`,
+                  count: d.visitors,
+                }))}
+                empty="keine Geräte-Daten"
               />
             </div>
           </div>

@@ -22,7 +22,7 @@ import { sendWebhook, buildWebhookPayload, generateWebhookSecret } from "./webho
 import { sendCapiEvent, extractCapiRequestContext, buildPurchaseEvent } from "./capi";
 import { TRICHTERWERK_PIXEL_ID } from "@shared/meta";
 import { aggregateAbTestStats } from "./ab-stats";
-import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan, requireVerifiedEmail, hasActivePlan, PUBLIC_GRACE_PERIOD_MS } from "./auth";
+import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan, requireVerifiedEmail, requireVerifiedEmailForPublish, hasActivePlan, PUBLIC_GRACE_PERIOD_MS } from "./auth";
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema, insertDomainSchema,
   loginSchema, registerSchema, slugSchema, passwordSchema, trackEventSchema,
@@ -31,7 +31,7 @@ import {
   type Domain,
 } from "@shared/schema";
 import { seoStaticPages } from "@shared/seo-content";
-import { dailyVisitorHash, deriveReferrerHost, deriveDeviceClass, deriveCountry, isTrackablePath } from "./tracking";
+import { dailyVisitorHash, deriveReferrerHost, deriveDeviceClass, deriveCountry, isTrackablePath, isClientTrackableEvent } from "./tracking";
 import { encryptSecret, decryptSecret, last4 } from "./crypto";
 import { verifyDomainDns } from "./domain-verify";
 import { generateFunnel, testConnection, AiError, type DecryptedCredential } from "./ai";
@@ -40,6 +40,85 @@ import { z } from "zod";
 // Partial update schemas for PATCH endpoints
 // views/leads sind server-verwaltete Zähler — nicht vom Client setzbar (Mass-Assignment)
 const updateFunnelSchema = funnelSchema.partial().omit({ id: true, uuid: true, userId: true, createdAt: true, updatedAt: true, views: true, leads: true });
+
+/**
+ * Leitet einen freien Benutzernamen aus einer E-Mail ab.
+ *
+ * Hintergrund: `username` ist im Formular nicht mehr Pflicht. Der Local-Part der
+ * E-Mail ist der naheliegende Vorschlag; bei Kollision hängen wir ein kurzes
+ * Zufallssuffix an. `users.username` ist `notNull().unique()` — dieser
+ * Vorab-Check kann ein Rennen zweier gleichzeitiger Registrierungen nicht
+ * ausschließen, deshalb fängt `createUserWithUniqueUsername` den
+ * Postgres-Fehler 23505 zusätzlich ab.
+ */
+async function deriveAvailableUsername(email: string): Promise<string> {
+  const base =
+    (email.split("@")[0] || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]/g, "")
+      .replace(/^[._-]+/, "")
+      .slice(0, 24) || "user";
+
+  const candidates = [base, ...Array.from({ length: 5 }, () => `${base.slice(0, 19)}${randomSuffix()}`)];
+  for (const candidate of candidates) {
+    if (candidate.length < 3) continue;
+    if (!(await storage.getUserByUsername(candidate))) return candidate;
+  }
+  // Alle Kandidaten belegt (praktisch unmöglich): eindeutig per UUID-Fragment.
+  return `${base.slice(0, 12)}-${randomUUID().slice(0, 8)}`;
+}
+
+function randomSuffix(): string {
+  return String(randomBytes(2).readUInt16BE(0) % 10000).padStart(4, "0");
+}
+
+/**
+ * Schreibt eine Funnel-Stufe, die erst im Stripe-Webhook feststeht.
+ *
+ * Hier gibt es keinen Request-Kontext (der Aufruf kommt von Stripe, nicht vom
+ * Browser des Kunden), also auch keine IP für den üblichen tages-rotierenden
+ * Besucher-Hash. Stattdessen ein stabiler synthetischer Hash aus der User-ID:
+ * ein reiner Aggregatzähler, keine Besucheridentität. Genau deshalb zählt
+ * `getPlatformStats` Besucher ausschließlich aus 'pageview'-Events — sonst
+ * würden diese Einträge die Besucherzahl verfälschen.
+ */
+function trackFunnelMilestone(userId: number, eventType: "trial_started" | "purchase"): void {
+  storage
+    .createPlatformVisit({
+      visitorHash: createHash("sha256")
+        .update(`user:${userId}:${process.env.SESSION_SECRET || "dev"}`)
+        .digest("hex"),
+      path: "/register",
+      eventType,
+    })
+    .catch((err) => console.error(`[Track] ${eventType} event failed:`, err));
+}
+
+/** True bei Postgres "unique_violation". */
+function isUniqueViolation(err: unknown): boolean {
+  return typeof err === "object" && err !== null && (err as { code?: string }).code === "23505";
+}
+
+/**
+ * Legt den User an und weicht einem Unique-Rennen auf `username` aus.
+ *
+ * Ohne diesen Retry würde aus einem Millisekunden-Rennen zweier Registrierungen
+ * ein 500er auf der wichtigsten Route der Anwendung.
+ */
+async function createUserWithUniqueUsername(
+  data: Record<string, unknown>,
+  email: string,
+  usernameWasExplicit: boolean,
+) {
+  try {
+    return await storage.createUser(data as any);
+  } catch (err) {
+    // Bei selbst gewähltem Namen ist die Kollision eine Nutzer-Eingabe und muss
+    // als Fehler sichtbar bleiben — nur abgeleitete Namen dürfen wir ersetzen.
+    if (!isUniqueViolation(err) || usernameWasExplicit) throw err;
+    return await storage.createUser({ ...data, username: await deriveAvailableUsername(email) } as any);
+  }
+}
 
 // Rate-Limit für die DNS-Verifikation: begrenzt DNS-Lookup-Floods.
 // Route-Level statt app.use, weil der Pfad einen :id-Parameter hat.
@@ -124,21 +203,26 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Ungültige Registrierungsdaten", details: result.error.errors });
       }
 
-      const { username, password, displayName } = result.data;
+      const { password, displayName } = result.data;
       // E-Mail normalisieren — sonst existieren "Max@Web.de" und "max@web.de"
       // als zwei Accounts und Login/Reset scheitern an der Schreibweise.
       const email = result.data.email.toLowerCase();
 
-      // Parallel uniqueness checks
-      const [existingUsername, existingEmail] = await Promise.all([
-        storage.getUserByUsername(username),
-        storage.getUserByEmail(email),
-      ]);
-      if (existingUsername) {
-        return res.status(400).json({ error: "Benutzername bereits vergeben" });
-      }
+      const existingEmail = await storage.getUserByEmail(email);
       if (existingEmail) {
         return res.status(400).json({ error: "E-Mail bereits registriert" });
+      }
+
+      // Benutzername ist optional. Schickt das Formular keinen, leiten wir ihn
+      // aus der E-Mail ab — das Feld war ein Pflichtfeld ohne Gegenwert.
+      let username: string;
+      if (result.data.username) {
+        username = result.data.username.trim();
+        if (await storage.getUserByUsername(username)) {
+          return res.status(400).json({ error: "Benutzername bereits vergeben" });
+        }
+      } else {
+        username = await deriveAvailableUsername(email);
       }
 
       // Create user with 14-day trial
@@ -148,18 +232,22 @@ export async function registerRoutes(
       // Generate email verification token
       const emailVerificationToken = randomBytes(32).toString("hex");
 
-      const user = await storage.createUser({
-        username,
+      const user = await createUserWithUniqueUsername(
+        {
+          username,
+          email,
+          password,
+          displayName,
+          trialEndsAt,
+          isPro: false,
+          emailVerificationToken,
+          // Festhalten, weil der Stripe-Webhook zur ersten Zahlung Wochen später
+          // kommt und dort kein Browser-Consent mehr abrufbar ist.
+          marketingConsent: !!result.data.marketingConsent,
+        },
         email,
-        password,
-        displayName,
-        trialEndsAt,
-        isPro: false,
-        emailVerificationToken,
-        // Festhalten, weil der Stripe-Webhook zur ersten Zahlung Wochen später
-        // kommt und dort kein Browser-Consent mehr abrufbar ist.
-        marketingConsent: !!result.data.marketingConsent,
-      } as any);
+        !!result.data.username,
+      );
 
       // E-Mails asynchron senden (nicht blockierend)
       sendVerificationEmail(email, emailVerificationToken).catch((err) => console.error("[Email] Verification send failed:", err));
@@ -212,12 +300,26 @@ export async function registerRoutes(
 
         const { password: _, ...userWithoutPassword } = user;
 
-        // Create Stripe Checkout Session with 14-day trial.
+        // Kreditkarte beim Registrieren: standardmäßig NEIN.
+        //
+        // Der Trial braucht Stripe nicht — `trialEndsAt` steht oben schon in der
+        // DB und `hasActivePlan()` erkennt ihn daraus. Der Checkout verlangte
+        // dagegen (payment_method_collection ist nicht gesetzt → Stripe-Default
+        // "always", plus STRIPE_TAX_ENABLED → Rechnungsadresse und USt-ID) von
+        // einem 90 Sekunden alten Besucher volle Zahlungsdaten. Das war der
+        // teuerste Schritt im Funnel.
+        //
+        // Die Karte wird später über POST /api/billing/create-checkout geholt
+        // (übernimmt trialEnd korrekt und hat einen Doppelabo-Guard).
+        // SIGNUP_REQUIRE_CARD=true schaltet das alte Verhalten wieder ein, wenn
+        // genug Volumen da ist, um Trial-Qualität über Trial-Menge zu stellen.
+        //
         // success_url/cancel_url MÜSSEN sich unterscheiden — sonst kann der Client
         // eine erfolgreiche Zahlung nicht von einem Abbruch trennen.
         let checkoutUrl: string | null = null;
         let checkoutError = false;
-        if (isStripeConfigured() && process.env.STRIPE_PRICE_ID) {
+        const requireCardAtSignup = process.env.SIGNUP_REQUIRE_CARD === "true";
+        if (requireCardAtSignup && isStripeConfigured() && process.env.STRIPE_PRICE_ID) {
           try {
             const customerId = await getOrCreateStripeCustomer(user);
             await storage.updateStripeCustomerId(user.id, customerId);
@@ -721,7 +823,7 @@ export async function registerRoutes(
   });
 
   // Create funnel
-  app.post("/api/funnels", isAuthenticated, requireVerifiedEmail, requireActivePlan, async (req, res) => {
+  app.post("/api/funnels", isAuthenticated, requireActivePlan, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
@@ -740,7 +842,7 @@ export async function registerRoutes(
   });
 
   // Update funnel
-  app.patch("/api/funnels/:id", isAuthenticated, requireVerifiedEmail, requireActivePlan, async (req, res) => {
+  app.patch("/api/funnels/:id", isAuthenticated, requireVerifiedEmailForPublish, requireActivePlan, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
@@ -860,7 +962,7 @@ export async function registerRoutes(
   });
 
   // Clone funnel
-  app.post("/api/funnels/:id/clone", isAuthenticated, requireVerifiedEmail, requireActivePlan, async (req, res) => {
+  app.post("/api/funnels/:id/clone", isAuthenticated, requireActivePlan, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
@@ -1805,6 +1907,8 @@ export async function registerRoutes(
               subscriptionStartedAt: new Date(),
               ...(trialEndsAt ? { trialEndsAt } : {}),
             });
+
+            trackFunnelMilestone(user.id, "trial_started");
           }
           break;
         }
@@ -1863,6 +1967,15 @@ export async function registerRoutes(
           // jede Verlängerung danach). Damit schließt sich die Kette
           // Anzeige → Registrierung → zahlender Kunde.
           const invoice = event.data.object as any;
+
+          // Eigene Funnel-Statistik: consent-unabhängig, damit das Funnel-Ende
+          // auch für Besucher sichtbar ist, die dem Pixel nie zugestimmt haben.
+          // Nur echte Abbuchungen, nicht die 0-€-Trial-Rechnung.
+          if (Number(invoice.amount_paid || 0) > 0) {
+            const paidUser = await storage.getUserByStripeCustomerId(invoice.customer as string);
+            if (paidUser) trackFunnelMilestone(paidUser.id, "purchase");
+          }
+
           const metaCapiToken = process.env.META_CAPI_TOKEN;
           if (metaCapiToken) {
             const user = await storage.getUserByStripeCustomerId(invoice.customer as string);
@@ -2008,9 +2121,14 @@ export async function registerRoutes(
       const parsed = trackEventSchema.safeParse(req.body);
       if (!parsed.success) return res.status(204).end();
 
-      const { path, referrer, utmSource, utmMedium, utmCampaign, eventType } = parsed.data;
+      const { path, referrer, utmSource, utmMedium, utmCampaign, eventType, label } = parsed.data;
       // Nur Marketing-/Legal-/Auth-Pfade zählen (Whitelist) — sonst still verwerfen.
       if (!isTrackablePath(path)) return res.status(204).end();
+      // Zweite Sperre neben dem Zod-Enum: `register`, `trial_started` und
+      // `purchase` entstehen ausschließlich serverseitig. Ohne diese Prüfung
+      // konnte ein Fremder per curl die Registrierungszahl im Admin-Dashboard
+      // hochtreiben — die Kennzahl, an der die Kampagne bewertet wird.
+      if (!isClientTrackableEvent(eventType)) return res.status(204).end();
 
       const ip = req.ip || req.socket.remoteAddress || "";
       const userAgent = req.get("user-agent") || "";
@@ -2025,6 +2143,7 @@ export async function registerRoutes(
         deviceClass: deriveDeviceClass(userAgent),
         country: deriveCountry(req.headers),
         eventType,
+        label: label ?? null,
       });
 
       res.status(204).end();

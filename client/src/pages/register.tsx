@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { usePageMeta } from "@/hooks/use-document-title";
@@ -8,24 +8,30 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Zap, AlertCircle, Check, Sparkles, Lock } from "lucide-react";
+import { Loader2, Zap, AlertCircle, Check, Sparkles, Eye, EyeOff } from "lucide-react";
 import { SIGNUP_TEMPLATE_STORAGE_KEY } from "@shared/seo-links";
+import { PASSWORD_MIN_LENGTH } from "@shared/schema";
 import { useCookieConsent } from "@/components/cookie-consent";
 import { fbqTrack } from "@/lib/meta-pixel";
+import { trackPlatformEvent } from "@/lib/platform-tracker";
 
 export default function Register() {
   const { register, isAuthenticated } = useAuth();
   const { allowsMarketing } = useCookieConsent();
   const [, setLocation] = useLocation();
   const [formData, setFormData] = useState({
-    username: "",
     email: "",
     password: "",
-    confirmPassword: "",
     displayName: "",
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  // Funnel-Messung: Wer hat angefangen zu tippen, und wer hat danach
+  // abgebrochen? Genau diese beiden Zahlen fehlten, um „Formular gesehen" von
+  // „Formular versucht" zu unterscheiden.
+  const formStarted = useRef(false);
+  const formSubmitted = useRef(false);
 
   usePageMeta({
     title: "Kostenlos starten",
@@ -52,9 +58,26 @@ export default function Register() {
     }
   }, []);
 
+  // Abbruch messen: Formular begonnen, aber nie abgesendet. `pagehide` statt
+  // `beforeunload`, weil Safari/iOS letzteres bei Tab-Wechsel nicht feuert — und
+  // mobil kommt der Großteil des Traffics.
+  useEffect(() => {
+    const onLeave = () => {
+      if (formStarted.current && !formSubmitted.current) {
+        trackPlatformEvent("/register", "form_abort");
+      }
+    };
+    window.addEventListener("pagehide", onLeave);
+    return () => window.removeEventListener("pagehide", onLeave);
+  }, []);
+
   if (isAuthenticated) return null;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!formStarted.current) {
+      formStarted.current = true;
+      trackPlatformEvent("/register", "form_start");
+    }
     setFormData((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
@@ -65,36 +88,18 @@ export default function Register() {
     e.preventDefault();
     setError("");
 
-    // Validate passwords match
-    if (formData.password !== formData.confirmPassword) {
-      setError("Die Passwörter stimmen nicht überein");
-      return;
-    }
-
-    // Validate password strength
-    if (formData.password.length < 8) {
-      setError("Das Passwort muss mindestens 8 Zeichen haben");
-      return;
-    }
-    if (!/[A-Z]/.test(formData.password)) {
-      setError("Das Passwort muss mindestens einen Großbuchstaben enthalten");
-      return;
-    }
-    if (!/[0-9]/.test(formData.password)) {
-      setError("Das Passwort muss mindestens eine Zahl enthalten");
-      return;
-    }
-
-    // Validate username length
-    if (formData.username.length < 3) {
-      setError("Der Benutzername muss mindestens 3 Zeichen haben");
+    // Spiegelt passwordSchema in shared/schema.ts: nur Länge, keine
+    // Zeichenklassen-Regeln (NIST SP 800-63B).
+    if (formData.password.length < PASSWORD_MIN_LENGTH) {
+      setError(`Das Passwort muss mindestens ${PASSWORD_MIN_LENGTH} Zeichen haben`);
+      trackPlatformEvent("/register", "form_submit_error", "password_short");
       return;
     }
 
     setIsLoading(true);
 
+    // Kein `username`: der Server leitet ihn aus der E-Mail ab.
     const result = await register({
-      username: formData.username,
       email: formData.email,
       password: formData.password,
       displayName: formData.displayName || undefined,
@@ -102,6 +107,7 @@ export default function Register() {
     });
 
     if (result.success) {
+      formSubmitted.current = true;
       // Browser-Seite der Conversion. Der Server hat dasselbe Event bereits
       // über die CAPI gemeldet — identische eventID, Meta dedupliziert. Geht
       // dieses hier beim Stripe-Redirect verloren, ist die Conversion trotzdem
@@ -112,18 +118,26 @@ export default function Register() {
       }
 
       if (result.checkoutUrl) {
-        // Zahlung hinterlegen: Weiterleitung zu Stripe Checkout.
+        // Nur noch mit SIGNUP_REQUIRE_CARD=true: Zahlung sofort hinterlegen.
+        trackPlatformEvent("/register", "checkout_redirect");
         window.location.href = result.checkoutUrl;
       } else if (result.checkoutError) {
         // Account erstellt, aber die Weiterleitung zur Zahlung schlug fehl —
         // sichtbar machen (Toast im Dashboard) statt den Nutzer stumm abzulegen.
         setLocation("/?checkout=error");
       } else {
-        // Stripe (bewusst) nicht konfiguriert: klassischer Trial ohne Karte.
-        setLocation("/");
+        // Regelfall: Trial ohne Karte → direkt ins Produkt statt in ein leeres
+        // Dashboard. /funnels/new liest SIGNUP_TEMPLATE_STORAGE_KEY und wählt
+        // eine aus der Galerie mitgebrachte Vorlage vor.
+        setLocation("/funnels/new");
       }
     } else {
       setError(result.error || "Registrierung fehlgeschlagen");
+      trackPlatformEvent(
+        "/register",
+        "form_submit_error",
+        /E-Mail bereits/i.test(result.error || "") ? "email_taken" : "server_error",
+      );
     }
 
     setIsLoading(false);
@@ -200,23 +214,6 @@ export default function Register() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="username">Benutzername *</Label>
-                <Input
-                  id="username"
-                  name="username"
-                  type="text"
-                  placeholder="max123"
-                  value={formData.username}
-                  onChange={handleChange}
-                  required
-                  autoComplete="username"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Mindestens 3 Zeichen, keine Leerzeichen
-                </p>
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="email">E-Mail *</Label>
                 <Input
                   id="email"
@@ -232,67 +229,52 @@ export default function Register() {
 
               <div className="space-y-2">
                 <Label htmlFor="password">Passwort *</Label>
+                {/*
+                  Augen-Toggle statt eines zweiten "Passwort bestätigen"-Felds:
+                  streicht ein Pflichtfeld und die häufigste Fehlermeldung, ohne
+                  Tippfehler zu riskieren.
+                */}
+                <div className="relative">
                 <Input
                   id="password"
                   name="password"
-                  type="password"
-                  placeholder="••••••••"
+                  type={showPassword ? "text" : "password"}
+                  className="pr-10"
+                  placeholder={`Mindestens ${PASSWORD_MIN_LENGTH} Zeichen`}
                   value={formData.password}
                   onChange={handleChange}
                   required
                   autoComplete="new-password"
                 />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? "Passwort verbergen" : "Passwort anzeigen"}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+                    data-testid="button-toggle-password"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {/*
+                  Nur noch Länge — die alten Zeichenklassen-Häkchen
+                  (Großbuchstabe, Zahl) sind mit der Policy weggefallen.
+                */}
                 {formData.password.length > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="flex gap-1">
-                      {[1, 2, 3, 4].map((level) => {
-                        const strength =
-                          (formData.password.length >= 8 ? 1 : 0) +
-                          (/[A-Z]/.test(formData.password) ? 1 : 0) +
-                          (/[0-9]/.test(formData.password) ? 1 : 0) +
-                          (/[^A-Za-z0-9]/.test(formData.password) ? 1 : 0);
-                        const color =
-                          strength <= 1 ? "bg-red-500" :
-                          strength === 2 ? "bg-amber-500" :
-                          strength === 3 ? "bg-yellow-500" : "bg-emerald-500";
-                        return (
-                          <div
-                            key={level}
-                            className={`h-1 flex-1 rounded-full ${
-                              level <= strength ? color : "bg-muted"
-                            }`}
-                          />
-                        );
-                      })}
-                    </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-                      <span className={`text-xs ${formData.password.length >= 8 ? "text-emerald-600" : "text-muted-foreground"}`}>
-                        {formData.password.length >= 8 ? "\u2713" : "\u2717"} Min. 8 Zeichen
-                      </span>
-                      <span className={`text-xs ${/[A-Z]/.test(formData.password) ? "text-emerald-600" : "text-muted-foreground"}`}>
-                        {/[A-Z]/.test(formData.password) ? "\u2713" : "\u2717"} Großbuchstabe
-                      </span>
-                      <span className={`text-xs ${/[0-9]/.test(formData.password) ? "text-emerald-600" : "text-muted-foreground"}`}>
-                        {/[0-9]/.test(formData.password) ? "\u2713" : "\u2717"} Zahl
-                      </span>
-                    </div>
-                  </div>
+                  <p
+                    className={`text-xs ${
+                      formData.password.length >= PASSWORD_MIN_LENGTH
+                        ? "text-emerald-600"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {formData.password.length >= PASSWORD_MIN_LENGTH ? "\u2713" : "\u2717"}{" "}
+                    Mindestens {PASSWORD_MIN_LENGTH} Zeichen — Länge zählt mehr
+                    als Sonderzeichen
+                  </p>
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Passwort bestätigen *</Label>
-                <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  placeholder="••••••••"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  required
-                  autoComplete="new-password"
-                />
-              </div>
 
               <Button type="submit" className="w-full" disabled={isLoading} size="lg" data-testid="button-register-submit">
                 {isLoading ? (
@@ -306,17 +288,12 @@ export default function Register() {
               </Button>
               <div className="mt-3 space-y-2">
                 <p className="text-xs text-muted-foreground text-center leading-relaxed">
-                  Im nächsten Schritt hinterlegst du sicher über Stripe deine
-                  Zahlungsmethode. Die erste Belastung erfolgt erst nach 14 Tagen —
-                  vorher jederzeit kostenlos kündbar.
+                  <strong className="font-medium text-foreground">
+                    Keine Zahlungsdaten nötig.
+                  </strong>{" "}
+                  14 Tage kostenlos testen — danach entscheidest du, ob du für
+                  49&nbsp;€ im Monat (inkl. MwSt.) weitermachst.
                 </p>
-                <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-muted-foreground">
-                  <span className="flex items-center gap-1 text-xs">
-                    <Lock className="h-3.5 w-3.5" /> SSL-verschlüsselt · Stripe
-                  </span>
-                  <span className="text-xs">·</span>
-                  <span className="text-xs">PayPal · Visa · Mastercard · SEPA</span>
-                </div>
               </div>
             </form>
           </CardContent>

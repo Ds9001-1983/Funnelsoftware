@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { funnelSchema, isSafeWebhookUrl } from "./schema";
+import {
+  funnelSchema,
+  isSafeWebhookUrl,
+  registerSchema,
+  trackEventSchema,
+  PASSWORD_MIN_LENGTH,
+} from "./schema";
 
 const partialFunnel = funnelSchema.partial();
 
@@ -45,5 +51,47 @@ describe("funnelSchema Integrations-Validierung", () => {
     expect(partialFunnel.safeParse({ webhookUrl: "https://crm.example.com/hook" }).success).toBe(true);
     expect(partialFunnel.safeParse({ webhookUrl: null }).success).toBe(true);
     expect(partialFunnel.safeParse({ webhookUrl: "http://localhost/x" }).success).toBe(false);
+  });
+});
+
+describe("registerSchema", () => {
+  const valid = { email: "max@example.com", password: "a".repeat(PASSWORD_MIN_LENGTH) };
+
+  it("akzeptiert E-Mail + Passwort ohne Benutzernamen", () => {
+    // Der Benutzername war ein Pflichtfeld ohne Gegenwert — der Server leitet
+    // ihn jetzt aus der E-Mail ab.
+    const r = registerSchema.safeParse(valid);
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.username).toBeUndefined();
+  });
+
+  it("akzeptiert einen mitgeschickten Benutzernamen weiterhin", () => {
+    expect(registerSchema.safeParse({ ...valid, username: "max" }).success).toBe(true);
+    expect(registerSchema.safeParse({ ...valid, username: "ab" }).success).toBe(false);
+  });
+
+  it("verlangt Länge statt Zeichenklassen", () => {
+    // Keine Kompositionsregeln mehr (NIST SP 800-63B): eine lange Passphrase
+    // ohne Großbuchstabe und Zahl ist gültig, ein kurzes "Aa1..." nicht.
+    expect(registerSchema.safeParse({ ...valid, password: "pferd zaun tisch" }).success).toBe(true);
+    expect(registerSchema.safeParse({ ...valid, password: "Sommer26" }).success).toBe(false);
+  });
+});
+
+describe("trackEventSchema", () => {
+  it("nimmt Browser-Ereignisse mit Label an", () => {
+    const r = trackEventSchema.safeParse({ path: "/", eventType: "cta_click", label: "hero" });
+    expect(r.success).toBe(true);
+  });
+
+  it("verwirft serverseitige Conversion-Ereignisse vom Client", () => {
+    expect(trackEventSchema.safeParse({ path: "/register", eventType: "register" }).success).toBe(false);
+    expect(trackEventSchema.safeParse({ path: "/register", eventType: "purchase" }).success).toBe(false);
+  });
+
+  it("fällt ohne eventType auf pageview zurück", () => {
+    const r = trackEventSchema.safeParse({ path: "/" });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.eventType).toBe("pageview");
   });
 });

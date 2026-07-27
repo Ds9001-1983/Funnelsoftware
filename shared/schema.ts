@@ -211,12 +211,21 @@ export const platformVisits = pgTable("platform_visits", {
   utmCampaign: text("utm_campaign"),
   deviceClass: text("device_class"), // mobile | tablet | desktop
   country: text("country"), // grober 2-stelliger Ländercode, falls ermittelbar
-  eventType: text("event_type").notNull().default("pageview"), // pageview | register
+  eventType: text("event_type").notNull().default("pageview"), // siehe PLATFORM_EVENT_TYPES
+  /**
+   * Freie Unterscheidung innerhalb eines Ereignistyps, z.B. welcher CTA geklickt
+   * wurde ("hero" | "pricing" | "final") oder woran ein Formular scheiterte
+   * ("email_taken"). Nullable und additiv, damit `drizzle-kit push` im Deploy
+   * nicht-interaktiv durchläuft.
+   */
+  label: text("label"),
   timestamp: timestamp("timestamp").defaultNow().notNull(),
 }, (table) => [
   index("platform_visits_timestamp_idx").on(table.timestamp),
   index("platform_visits_visitor_idx").on(table.visitorHash, table.timestamp),
   index("platform_visits_event_idx").on(table.eventType),
+  // Der Funnel-Report filtert über beides gleichzeitig.
+  index("platform_visits_event_time_idx").on(table.eventType, table.timestamp),
 ]);
 
 // KI-Zugangsdaten pro User (Bring-Your-Own-Key): Der Kunde hinterlegt seinen
@@ -974,15 +983,54 @@ export const insertAnalyticsSchema = z.object({
 
 export type InsertAnalytics = z.infer<typeof insertAnalyticsSchema>;
 
+/**
+ * Alle Ereignistypen, die in `platform_visits` vorkommen können.
+ *
+ * Wichtig ist die Trennung darunter: `CLIENT_TRACKABLE_EVENTS` sind die, die ein
+ * Browser melden darf. `register`, `trial_started` und `purchase` entstehen
+ * ausschließlich serverseitig — sie sind die Zahlen, an denen Kampagnen bewertet
+ * werden, und dürfen nicht von außen setzbar sein.
+ */
+export const PLATFORM_EVENT_TYPES = [
+  "pageview",
+  "cta_click",
+  "form_start",
+  "form_submit_error",
+  "form_abort",
+  "consent_accept",
+  "consent_reject",
+  "checkout_redirect",
+  "register",
+  "trial_started",
+  "purchase",
+] as const;
+
+export const CLIENT_TRACKABLE_EVENTS = [
+  "pageview",
+  "cta_click",
+  "form_start",
+  "form_submit_error",
+  "form_abort",
+  "consent_accept",
+  "consent_reject",
+  "checkout_redirect",
+] as const;
+
+export type PlatformEventType = (typeof PLATFORM_EVENT_TYPES)[number];
+
 // Plattform-Tracking: was der Client-Beacon senden DARF. visitorHash, country
 // und deviceClass werden ausschließlich serverseitig gesetzt (nicht vom Client).
+// eventType ist hier bewusst auf CLIENT_TRACKABLE_EVENTS begrenzt: vorher stand
+// "register" im Enum, sodass ein einzelnes curl die Registrierungszahl im
+// Admin-Dashboard hochtreiben konnte.
 export const trackEventSchema = z.object({
   path: z.string().min(1).max(200),
   referrer: z.string().max(500).optional(),
   utmSource: z.string().max(100).optional(),
   utmMedium: z.string().max(100).optional(),
   utmCampaign: z.string().max(100).optional(),
-  eventType: z.enum(["pageview", "register"]).default("pageview"),
+  label: z.string().max(60).optional(),
+  eventType: z.enum(CLIENT_TRACKABLE_EVENTS).default("pageview"),
 });
 
 export type TrackEvent = z.infer<typeof trackEventSchema>;
@@ -1015,14 +1063,29 @@ export type LoginInput = z.infer<typeof loginSchema>;
 
 // Eine Passwort-Policy für ALLE Pfade (Registrierung, Reset, Ändern) —
 // vorher akzeptierte der Reset schwächere Passwörter als die Registrierung.
+//
+// Länge statt Zeichenklassen: NIST SP 800-63B rät ausdrücklich von
+// Kompositionsregeln ab, weil "8 Zeichen + Großbuchstabe + Zahl" zuverlässig
+// `Sommer2026!` produziert. 10 frei gewählte Zeichen sind stärker — und im
+// Formular fällt die häufigste Fehlermeldung weg.
+export const PASSWORD_MIN_LENGTH = 10;
+
 export const passwordSchema = z
   .string()
-  .min(8, "Passwort muss mindestens 8 Zeichen haben")
-  .regex(/[A-Z]/, "Passwort muss mindestens einen Großbuchstaben enthalten")
-  .regex(/[0-9]/, "Passwort muss mindestens eine Zahl enthalten");
+  .min(PASSWORD_MIN_LENGTH, `Passwort muss mindestens ${PASSWORD_MIN_LENGTH} Zeichen haben`);
 
 export const registerSchema = z.object({
-  username: z.string().min(3, "Benutzername muss mindestens 3 Zeichen haben"),
+  /**
+   * Optional: fehlt er, leitet der Server ihn aus der E-Mail ab. Ein separater
+   * Benutzername neben der E-Mail war ein Pflichtfeld ohne Gegenwert — die
+   * LocalStrategy akzeptiert zum Login längst beides, und im UI erscheint er
+   * nur als Initialen und @handle, nie in einer URL.
+   */
+  username: z
+    .string()
+    .min(3, "Benutzername muss mindestens 3 Zeichen haben")
+    .max(30, "Benutzername darf höchstens 30 Zeichen haben")
+    .optional(),
   email: z.string().email("Ungültige E-Mail-Adresse"),
   password: passwordSchema,
   displayName: z.string().optional(),

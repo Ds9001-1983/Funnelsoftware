@@ -168,6 +168,31 @@ export function requireVerifiedEmail(
 }
 
 /**
+ * Verifizierung nur beim VERÖFFENTLICHEN verlangen, nicht beim Bearbeiten.
+ *
+ * Vorher hing `requireVerifiedEmail` auch an `POST /api/funnels` — ein neuer
+ * Nutzer landete damit in einem leeren Dashboard und einer Fehlermeldung, ohne
+ * je einen Funnel anlegen zu können. Die Sperre war nicht falsch, nur an der
+ * falschen Stelle: Missbrauch eines unverifizierten Accounts bedeutet
+ * Phishing-Seiten unter einer trichterwerk.de-URL hosten, Mails über unseren
+ * SMTP auslösen oder Speicher/KI-Budget verbrennen. Ein privater Entwurf trifft
+ * davon nichts — erst das Veröffentlichen tut es. Dort ist der Wert der
+ * Bestätigung für den Nutzer auch offensichtlich.
+ *
+ * Uploads, KI-Endpoints und Domains behalten die harte Sperre.
+ */
+export function requireVerifiedEmailForPublish(
+  req: import("express").Request,
+  res: import("express").Response,
+  next: import("express").NextFunction
+) {
+  if (req.body?.status !== "published") {
+    return next();
+  }
+  return requireVerifiedEmail(req, res, next);
+}
+
+/**
  * Grace-Period für die ÖFFENTLICHE Auslieferung publizierter Funnels nach
  * Trial-/Abo-Ende: Live-Kampagnen brechen nicht zur Sekunde des Ablaufs ab,
  * der Account selbst (Editor/Erstellen) ist aber sofort gesperrt.

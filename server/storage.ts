@@ -34,10 +34,29 @@ export async function comparePasswords(supplied: string, stored: string): Promis
 // Aggregierte Reichweiten-Statistik für das Betreiber-Dashboard.
 export interface PlatformStats {
   totals: { visitors: number; pageviews: number; registrations: number };
+  /**
+   * Eindeutige Besucher je Funnel-Stufe. Reihenfolge = Absteigen im Funnel;
+   * `accountCreated`, `trialStarted` und `purchased` entstehen ausschließlich
+   * serverseitig und sind damit nicht von außen manipulierbar.
+   */
+  funnel: {
+    landingViewed: number;
+    ctaClicked: number;
+    registerViewed: number;
+    formStarted: number;
+    accountCreated: number;
+    trialStarted: number;
+    purchased: number;
+  };
+  /** Wie viele Besucher der Meta-Pixel überhaupt sehen darf. */
+  consent: { accepted: number; rejected: number };
   visitorsByDay: { day: string; visitors: number; pageviews: number }[];
   topPaths: { path: string; count: number }[];
   topReferrers: { host: string; count: number }[];
   topUtmSources: { source: string; count: number }[];
+  /** Welcher CTA getragen hat: "hero" | "pricing" | "final". */
+  ctaBreakdown: { label: string; count: number }[];
+  byDevice: { device: string; visitors: number; registrations: number }[];
 }
 
 // Storage interface
@@ -564,20 +583,77 @@ export class DatabaseStorage implements IStorage {
     // Zeitfenster in JS berechnen (kein SQL-Interval-String → keine Injektion).
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
+    // Besucher IMMER nur aus 'pageview' zählen.
+    //
+    // Ohne diesen Filter zählte jeder Ereignistyp mit. Der visitorHash eines
+    // 'register'-Events entsteht aus der IP der Server-Anfrage, der eines
+    // 'pageview' aus der IP des Beacons — wechselt die IP zwischendurch (Mobilfunk,
+    // Proxy), wird ein Mensch zu zwei Besuchern. Mit den serverseitigen
+    // Webhook-Events ('trial_started', 'purchase'), die einen synthetischen Hash
+    // ohne Request-Kontext tragen, wäre daraus ein systematischer Fehler geworden.
+    const visitorCount = sql<number>`count(DISTINCT ${platformVisits.visitorHash}) FILTER (WHERE ${platformVisits.eventType} = 'pageview')`;
+
     const [totals] = await db.select({
-      visitors: sql<number>`count(DISTINCT ${platformVisits.visitorHash})`,
+      visitors: visitorCount,
       pageviews: sql<number>`count(*) FILTER (WHERE ${platformVisits.eventType} = 'pageview')`,
       registrations: sql<number>`count(*) FILTER (WHERE ${platformVisits.eventType} = 'register')`,
     }).from(platformVisits).where(gte(platformVisits.timestamp, since));
 
     const byDay = await db.select({
       day: sql<string>`to_char(date_trunc('day', ${platformVisits.timestamp}), 'YYYY-MM-DD')`,
-      visitors: sql<number>`count(DISTINCT ${platformVisits.visitorHash})`,
+      visitors: visitorCount,
       pageviews: sql<number>`count(*) FILTER (WHERE ${platformVisits.eventType} = 'pageview')`,
     }).from(platformVisits)
       .where(gte(platformVisits.timestamp, since))
       .groupBy(sql`date_trunc('day', ${platformVisits.timestamp})`)
       .orderBy(sql`date_trunc('day', ${platformVisits.timestamp})`);
+
+    // Der eigentliche Funnel — eindeutige Besucher je Stufe, damit
+    // Mehrfach-Events einer Person die Quote nicht verzerren. Das ist die
+    // Auswertung, die bei der Meta-Kampagne gefehlt hat: sichtbar war nur
+    // „Besucher" und „Registrierungen", nicht die Stufe dazwischen, an der 98 %
+    // verloren gingen.
+    const step = (eventType: string, path?: string) => {
+      const cond = path
+        ? sql`${platformVisits.eventType} = ${eventType} AND ${platformVisits.path} = ${path}`
+        : sql`${platformVisits.eventType} = ${eventType}`;
+      return sql<number>`count(DISTINCT ${platformVisits.visitorHash}) FILTER (WHERE ${cond})`;
+    };
+
+    const [funnel] = await db.select({
+      landingViewed: step("pageview", "/"),
+      ctaClicked: step("cta_click"),
+      registerViewed: step("pageview", "/register"),
+      formStarted: step("form_start"),
+      accountCreated: step("register"),
+      trialStarted: step("trial_started"),
+      purchased: step("purchase"),
+    }).from(platformVisits).where(gte(platformVisits.timestamp, since));
+
+    // Einwilligungsquote — sagt, welchen Anteil der Besucher der Meta-Pixel
+    // überhaupt sehen kann. Ohne diese Zahl ist jede Pixel-Statistik unlesbar.
+    const [consent] = await db.select({
+      accepted: sql<number>`count(*) FILTER (WHERE ${platformVisits.eventType} = 'consent_accept')`,
+      rejected: sql<number>`count(*) FILTER (WHERE ${platformVisits.eventType} = 'consent_reject')`,
+    }).from(platformVisits).where(gte(platformVisits.timestamp, since));
+
+    const ctaBreakdown = await db.select({
+      label: sql<string>`coalesce(${platformVisits.label}, 'unbekannt')`,
+      count: sql<number>`count(*)`,
+    }).from(platformVisits)
+      .where(and(eq(platformVisits.eventType, "cta_click"), gte(platformVisits.timestamp, since)))
+      .groupBy(sql`coalesce(${platformVisits.label}, 'unbekannt')`)
+      .orderBy(desc(sql`count(*)`))
+      .limit(10);
+
+    const byDevice = await db.select({
+      device: sql<string>`coalesce(${platformVisits.deviceClass}, 'unbekannt')`,
+      visitors: sql<number>`count(DISTINCT ${platformVisits.visitorHash}) FILTER (WHERE ${platformVisits.eventType} = 'pageview')`,
+      registrations: sql<number>`count(*) FILTER (WHERE ${platformVisits.eventType} = 'register')`,
+    }).from(platformVisits)
+      .where(gte(platformVisits.timestamp, since))
+      .groupBy(sql`coalesce(${platformVisits.deviceClass}, 'unbekannt')`)
+      .orderBy(desc(sql`count(DISTINCT ${platformVisits.visitorHash}) FILTER (WHERE ${platformVisits.eventType} = 'pageview')`));
 
     const topPaths = await db.select({
       path: platformVisits.path,
@@ -612,10 +688,25 @@ export class DatabaseStorage implements IStorage {
         pageviews: Number(totals?.pageviews || 0),
         registrations: Number(totals?.registrations || 0),
       },
+      funnel: {
+        landingViewed: Number(funnel?.landingViewed || 0),
+        ctaClicked: Number(funnel?.ctaClicked || 0),
+        registerViewed: Number(funnel?.registerViewed || 0),
+        formStarted: Number(funnel?.formStarted || 0),
+        accountCreated: Number(funnel?.accountCreated || 0),
+        trialStarted: Number(funnel?.trialStarted || 0),
+        purchased: Number(funnel?.purchased || 0),
+      },
+      consent: {
+        accepted: Number(consent?.accepted || 0),
+        rejected: Number(consent?.rejected || 0),
+      },
       visitorsByDay: byDay.map(r => ({ day: String(r.day), visitors: Number(r.visitors), pageviews: Number(r.pageviews) })),
       topPaths: topPaths.map(r => ({ path: String(r.path), count: Number(r.count) })),
       topReferrers: topReferrers.map(r => ({ host: String(r.host), count: Number(r.count) })),
       topUtmSources: topUtmSources.map(r => ({ source: String(r.source), count: Number(r.count) })),
+      ctaBreakdown: ctaBreakdown.map(r => ({ label: String(r.label), count: Number(r.count) })),
+      byDevice: byDevice.map(r => ({ device: String(r.device), visitors: Number(r.visitors), registrations: Number(r.registrations) })),
     };
   }
 
