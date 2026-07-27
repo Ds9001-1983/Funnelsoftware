@@ -12,30 +12,35 @@ Klicks). Deshalb bleibt der Weg über die Oberfläche.
 
 ---
 
-## ⚠️ Offen: Korrektur der laufenden Anzeige (Stand 27.07.2026)
+## Stand 27.07.2026 — Anzeige v2 liegt bereit
 
-Die Kampagne lief vom 24.–27.07. und hat **175 Besucher** auf die Startseite
-gebracht — davon haben **2 die Registrierung gesehen** (1,1 %). Ursache: alle
-fünf Karten verlinkten `https://trichterwerk.de/` statt `/register`, und die
-Karten-Überschriften waren leer.
+Der erste Lauf (24.–27.07., 32 €) brachte **175 Besucher** auf die Startseite,
+davon sahen **2 die Registrierung** (1,1 %). Ursache: alle fünf Karten verlinkten
+`https://trichterwerk.de/` statt `/register`, und die Karten-Überschriften waren
+leer.
 
-**Die Anzeigengruppe ist derzeit PAUSIERT.** Das Optimierungsziel wurde bereits
-per API auf *Landingpage-Aufrufe* umgestellt; Meta erzwingt dabei eine Pause.
-Erst diese Liste abarbeiten, dann reaktivieren:
+**Erledigt (per API):**
 
-- [ ] Ziel-URL aller 5 Karten auf `/register` **mit UTM** (Abschnitt 3)
-- [ ] Überschrift + Beschreibung je Karte füllen (aktuell ein Leerzeichen)
-- [ ] Call-to-Action auf **„Registrieren"** ändern (vorher „Mehr dazu")
-- [ ] Bilder `fb/slide-3.png` und `fb/slide-5.png` **neu hochladen** — die
-      Preisangabe darauf wurde auf „inkl. MwSt." korrigiert
-- [ ] Primärtext prüfen: muss „inkl. MwSt." sagen
-- [ ] Anzeigengruppe `120249398157080269` reaktivieren
+- Anzeigengruppe `120249398157080269`: Performance-Ziel auf **Landingpage-Aufrufe**
+- Standort-Targeting auf die Sammel-Option zurückgesetzt (siehe Falle unten)
+- Altes Creative-Ad `120249398718750269` **pausiert**
+- Neues Creative `1356005953401782` + Anzeige `120249465489770269` angelegt:
+  alle 5 Karten auf `/register` mit UTM je Karte, Überschriften und
+  Beschreibungen gefüllt, CTA **„Registrieren"** (`SIGN_UP`), Primärtext mit
+  „inkl. MwSt." und „ohne Zahlungsdaten"
+- Vorschau für **Instagram Feed** und **Facebook Mobile Feed** geprüft — beide
+  rendern, Instagram fällt also nicht aus der Auslieferung
 
-Die Lernphase setzt sich dabei zurück. Das ist kein Verlust — sie hatte in
-3,5 Tagen null Conversions und damit nichts gelernt.
+**Ein Rest bleibt von Hand:** Die Slides 3 und 5 im Werbekonto zeigen noch
+„zzgl. MwSt.". Die korrigierten PNGs liegen in `fb/slide-3.png` und
+`fb/slide-5.png`, aber `ads_creative_upload_image` ist für dieses Konto nicht
+freigeschaltet. Bis zum Austausch trägt der Kartentext von Karte 3 den korrekten
+Hinweis („Endpreis inkl. MwSt."). Beim Austausch am besten auch die anderen drei
+auf die **4:5**-Fassung umstellen — im Konto liegen derzeit die 3:4-Slides, die
+der Feed beschneidet.
 
 **IDs:** Kampagne `120249398137850269` · Anzeigengruppe `120249398157080269` ·
-Anzeige `120249398718750269` · Creative `1720837492939272`
+Anzeige v2 `120249465489770269` · Creative v2 `1356005953401782`
 
 ---
 
