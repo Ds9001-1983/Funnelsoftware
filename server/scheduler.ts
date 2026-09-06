@@ -39,18 +39,24 @@ export async function runFreeDowngradeJob(): Promise<void> {
         user.id,
         FREE_MAX_PUBLISHED_FUNNELS,
       );
-      await storage.markUserFree(user.id);
       if (demoted.length > 0) {
         console.log(
           `[scheduler] Free-Downgrade User ${user.id}: ${demoted.length} Funnel(s) auf Entwurf gesetzt (${demoted.map((d) => `#${d.id} ${d.name}`).join(", ")})`,
         );
       }
 
-      // Downgrade-Mail (einmalig, mit Cutoff für Uralt-Accounts).
+      // Downgrade-Mail VOR markUserFree: Wirft tryLogEmail (z. B. email_log
+      // fehlt nach falscher Deploy-Reihenfolge), bleibt der Nutzer im
+      // Kandidaten-Set und der nächste Tick versucht Mail + Status erneut —
+      // demoteExtraPublishedFunnels ist idempotent, das Dedupe verhindert
+      // Doppelversand. Cutoff nur für Uralt-Accounts, die NIE gezahlt haben:
+      // Ex-Abonnenten (subscriptionStartedAt gesetzt) bekommen die Mail immer,
+      // auch wenn ihr Trial Monate zurückliegt.
       const trialEndedAgo = user.trialEndsAt
         ? Date.now() - new Date(user.trialEndsAt).getTime()
         : Infinity;
-      if (trialEndedAgo < DOWNGRADE_MAIL_CUTOFF_MS) {
+      const wasPayingCustomer = !!user.subscriptionStartedAt;
+      if (wasPayingCustomer || trialEndedAgo < DOWNGRADE_MAIL_CUTOFF_MS) {
         if (await storage.tryLogEmail(user.id, "free_downgrade")) {
           const funnels = await storage.getFunnels(user.id);
           const kept = funnels.find((f) => f.status === "published");
@@ -62,6 +68,10 @@ export async function runFreeDowngradeJob(): Promise<void> {
           ).catch((err) => console.error("[scheduler] Downgrade-Mail fehlgeschlagen:", err));
         }
       }
+
+      // Zuletzt den Status materialisieren — danach fällt der Nutzer aus dem
+      // Kandidaten-Set, alles davor muss also erledigt (oder geworfen) sein.
+      await storage.markUserFree(user.id);
     } catch (error) {
       // Ein fehlgeschlagener Nutzer darf den Rest des Laufs nicht stoppen.
       console.error(`[scheduler] Free-Downgrade für User ${user.id} fehlgeschlagen:`, error);

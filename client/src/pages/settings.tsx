@@ -681,7 +681,12 @@ function TeamSettings() {
   const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const isEnterprise = user?.isPro || user?.subscriptionPlan === "enterprise";
+  // Teams sind ein Pro-Feature (Trial inklusive) — Server: requirePro.
+  // user.plan ist die serverseitig abgeleitete Wahrheit; Fallback nur für
+  // gecachte Sessions ohne das Feld.
+  const canUseTeams = user?.plan
+    ? user.plan !== "free"
+    : user?.isPro || user?.subscriptionPlan === "enterprise";
 
   const fetchTeams = async (signal?: AbortSignal) => {
     try {
@@ -712,64 +717,65 @@ function TeamSettings() {
     return () => ac.abort();
   }, []);
 
+  // Schreibende Team-Aktionen laufen über apiRequest (setzt den CSRF-Token —
+  // rohes fetch würde von der doubleCsrf-Middleware mit 403 abgewiesen).
   const createTeam = async () => {
     if (!newTeamName.trim()) return;
     try {
-      const res = await fetch("/api/teams", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ name: newTeamName.trim() }),
+      await apiRequest("POST", "/api/teams", { name: newTeamName.trim() });
+      setNewTeamName("");
+      fetchTeams();
+      toast({ title: "Team erstellt" });
+    } catch (err) {
+      toast({
+        title: "Fehler",
+        description: err instanceof Error ? err.message : "Team konnte nicht erstellt werden.",
+        variant: "destructive",
       });
-      if (res.ok) {
-        setNewTeamName("");
-        fetchTeams();
-        toast({ title: "Team erstellt" });
-      } else {
-        const data = await res.json();
-        toast({ title: "Fehler", description: data.error, variant: "destructive" });
-      }
-    } catch {}
+    }
   };
 
   const inviteMember = async (teamId: number) => {
     if (!inviteEmail.trim()) return;
     try {
-      const res = await fetch(`/api/teams/${teamId}/invite`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email: inviteEmail.trim() }),
+      await apiRequest("POST", `/api/teams/${teamId}/invite`, { email: inviteEmail.trim() });
+      setInviteEmail("");
+      fetchMembers(teamId);
+      toast({ title: "Einladung gesendet" });
+    } catch (err) {
+      // Zeigt auch 409 „bereits im Team" und 403 PRO_REQUIRED verständlich an.
+      toast({
+        title: "Einladung fehlgeschlagen",
+        description: err instanceof Error ? err.message : "Bitte erneut versuchen.",
+        variant: "destructive",
       });
-      if (res.ok) {
-        setInviteEmail("");
-        fetchMembers(teamId);
-        toast({ title: "Einladung gesendet" });
-      }
-    } catch {}
+    }
   };
 
   const removeMember = async (teamId: number, memberId: number) => {
     try {
-      await fetch(`/api/teams/${teamId}/members/${memberId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
+      await apiRequest("DELETE", `/api/teams/${teamId}/members/${memberId}`);
       fetchMembers(teamId);
-    } catch {}
+    } catch (err) {
+      toast({
+        title: "Entfernen fehlgeschlagen",
+        description: err instanceof Error ? err.message : "Bitte erneut versuchen.",
+        variant: "destructive",
+      });
+    }
   };
 
-  if (!isEnterprise) {
+  if (!canUseTeams) {
     return (
       <Card>
         <CardContent className="p-6 text-center">
           <Users className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
           <h3 className="font-semibold mb-1">Team-Funktion</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Team-Accounts sind im Enterprise-Plan verfügbar.
+            Teams sind im Pro-Plan enthalten (in der Testphase inklusive).
           </p>
           <Button onClick={() => window.location.href = "/settings#billing"}>
-            Plan upgraden
+            Auf Pro upgraden
           </Button>
         </CardContent>
       </Card>

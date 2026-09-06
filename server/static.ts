@@ -155,7 +155,10 @@ export function serveStatic(app: Express) {
         return sendHtml(res, html);
       }
     } catch (error) {
+      // Transienter DB-Fehler darf eine echte Kundendomain nie als
+      // 404+noindex ausliefern (Deindexierungs-Risiko) → normale SPA.
       console.error("Custom-Domain-Meta fehlgeschlagen:", error);
+      return next();
     }
     sendHtml(res, notFoundHtml, 404);
   });
@@ -168,8 +171,17 @@ export function serveStatic(app: Express) {
       const funnel = await storage.getFunnelBySlugOrUuid(String(req.params.identifier));
       if (funnel && funnel.status === "published" && META_MARKER.test(indexHtml)) {
         // Verifizierte Custom-Domain → Canonical zeigt auf die Kundendomain.
+        // Nur wenn die Domain auch bedient wird (Pro-Owner) — sonst zeigte
+        // der Canonical auf eine 404-Seite (resolveCustomDomainFunnel prüft
+        // verified + published + Pro und cached das Ergebnis).
         const domain = await storage.getVerifiedDomainByFunnelId(funnel.id);
-        const canonicalOverride = domain ? `https://${domain.hostname}/` : undefined;
+        let canonicalOverride: string | undefined;
+        if (domain) {
+          const served = await resolveCustomDomainFunnel(domain.hostname);
+          if (served?.funnel.id === funnel.id) {
+            canonicalOverride = `https://${domain.hostname}/`;
+          }
+        }
         const html = indexHtml.replace(META_MARKER, buildFunnelMeta(funnel, canonicalOverride));
         return sendHtml(res, html);
       }

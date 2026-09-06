@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { GLOBALLY_HANDLED_ERROR_CODES } from "@shared/schema";
 
 // CSRF Token Management
 let csrfToken: string | null = null;
@@ -88,12 +89,7 @@ export async function apiRequest(
     const cloned = res.clone();
     try {
       const errorBody = await cloned.json();
-      if (
-        errorBody.code === "TRIAL_EXPIRED" ||
-        errorBody.code === "EMAIL_NOT_VERIFIED" ||
-        errorBody.code === "PRO_REQUIRED" ||
-        errorBody.code === "FREE_LIMIT_REACHED"
-      ) {
+      if (GLOBALLY_HANDLED_ERROR_CODES.includes(errorBody.code)) {
         await throwIfResNotOk(res);
         return res;
       }

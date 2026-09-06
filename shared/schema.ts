@@ -57,13 +57,26 @@ export const FREE_MAX_PUBLISHED_FUNNELS = 1;
  *  rückwirkend frei (server/lead-limits.ts). */
 export const FREE_MONTHLY_LEAD_LIMIT = 100;
 
-/** Fehlercodes der Plan-/Limit-Durchsetzung (Client: global-error-handler). */
+/** Fehlercodes der Plan-/Limit-Durchsetzung (Server-Responses + Client-Handler). */
 export const PLAN_ERROR_CODES = {
   /** Funktion nur im Pro-Plan (KI, Custom Domains, Teams, Branding ausblenden). */
   PRO_REQUIRED: "PRO_REQUIRED",
   /** Free-Limit erreicht (z. B. zweiter veröffentlichter Funnel). */
   FREE_LIMIT_REACHED: "FREE_LIMIT_REACHED",
 } as const;
+
+/**
+ * Fehlercodes, die der GLOBALE Handler übernimmt (Toast + Upgrade-/Verify-Flow,
+ * client/src/components/global-error-handler.tsx) — Seiten-Handler und der
+ * CSRF-Retry in queryClient prüfen gegen DIESE Liste statt eigener Literale,
+ * damit ein neuer Code nur an einer Stelle ergänzt werden muss.
+ */
+export const GLOBALLY_HANDLED_ERROR_CODES: readonly string[] = [
+  "TRIAL_EXPIRED", // Legacy (alte Sessions)
+  "EMAIL_NOT_VERIFIED",
+  PLAN_ERROR_CODES.PRO_REQUIRED,
+  PLAN_ERROR_CODES.FREE_LIMIT_REACHED,
+];
 
 // ============ DATABASE TABLES ============
 
