@@ -9,6 +9,7 @@ import {
   ArrowDownRight,
   Plus,
   ExternalLink,
+  Copy,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 import { WelcomeModal } from "@/components/welcome-modal";
 import { UpgradeBanner } from "@/components/upgrade-banner";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
@@ -354,6 +356,61 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <ReferralCard />
     </div>
+  );
+}
+
+/**
+ * Partnerprogramm-Kachel: Empfehlungslink mit Copy-Button. Der Code wird
+ * beim ersten Abruf serverseitig generiert (GET /api/referral/me).
+ */
+function ReferralCard() {
+  const { toast } = useToast();
+  const { data } = useQuery<{ code: string; link: string; stats: { registered: number; paying: number } }>({
+    queryKey: ["/api/referral/me"],
+  });
+
+  if (!data) return null;
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(data.link);
+      toast({ title: "Link kopiert", description: "Dein Empfehlungslink ist in der Zwischenablage." });
+    } catch {
+      toast({ title: "Kopieren fehlgeschlagen", description: data.link, variant: "destructive" });
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-2">
+        <CardTitle className="text-lg">Empfehlungsprogramm</CardTitle>
+        <Link href="/partner">
+          <Button variant="ghost" size="sm" className="text-muted-foreground">
+            Details
+          </Button>
+        </Link>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Empfiehl Trichterwerk und erhalte <strong className="text-foreground">25&nbsp;% Provision</strong> auf
+          jede Pro-Zahlung deiner Geworbenen — dauerhaft.
+        </p>
+        <div className="flex items-center gap-2">
+          <code className="flex-1 truncate rounded-md bg-muted px-3 py-2 text-sm">{data.link}</code>
+          <Button variant="outline" size="sm" onClick={copyLink} className="gap-1.5 shrink-0">
+            <Copy className="h-3.5 w-3.5" />
+            Kopieren
+          </Button>
+        </div>
+        {data.stats.registered > 0 && (
+          <p className="text-xs text-muted-foreground">
+            {data.stats.registered} geworben · {data.stats.paying} zahlend
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }

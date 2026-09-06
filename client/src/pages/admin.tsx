@@ -595,6 +595,8 @@ export default function AdminDashboard() {
             )}
           </CardContent>
         </Card>
+
+        <ReferralAdminCard />
       </main>
 
       {/* Edit User Dialog */}
@@ -715,5 +717,95 @@ export default function AdminDashboard() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+interface ReferralPartner {
+  partnerId: number;
+  partnerEmail: string;
+  partnerName: string;
+  referralCode: string | null;
+  referred: {
+    id: number;
+    email: string;
+    registeredAt: string;
+    plan: string;
+    subscriptionStatus: string;
+    subscriptionStartedAt: string | null;
+  }[];
+}
+
+/**
+ * Partnerprogramm-Übersicht: Partner → Geworbene mit Plan-Status.
+ * Grundlage der manuellen 25-%-Abrechnung (25 % von 49 € = 12,25 €/Monat
+ * pro zahlendem Geworbenen, Auszahlung per Überweisung).
+ */
+function ReferralAdminCard() {
+  const { data } = useQuery<{ partners: ReferralPartner[] }>({
+    queryKey: ["/api/admin/referrals"],
+  });
+
+  const partners = data?.partners ?? [];
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle>Partner (Empfehlungsprogramm)</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {partners.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Noch keine geworbenen Registrierungen. Partner teilen ihren Link aus
+            dem Dashboard (25&nbsp;% Lifetime-Provision, manuelle Auszahlung).
+          </p>
+        ) : (
+          <div className="space-y-6">
+            {partners.map((partner) => (
+              <div key={partner.partnerId}>
+                <div className="font-medium mb-2">
+                  {partner.partnerName}{" "}
+                  <span className="text-muted-foreground font-normal">
+                    ({partner.partnerEmail}
+                    {partner.referralCode ? ` · Code ${partner.referralCode}` : ""})
+                  </span>
+                </div>
+                <div className="overflow-x-auto rounded-lg border">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/30 text-left">
+                        <th className="p-2 font-medium">Geworbener</th>
+                        <th className="p-2 font-medium">Registriert</th>
+                        <th className="p-2 font-medium">Plan</th>
+                        <th className="p-2 font-medium">Zahlend seit</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {partner.referred.map((ref) => (
+                        <tr key={ref.id} className="border-b last:border-0">
+                          <td className="p-2">{ref.email}</td>
+                          <td className="p-2">
+                            {new Date(ref.registeredAt).toLocaleDateString("de-DE")}
+                          </td>
+                          <td className="p-2">
+                            <Badge variant={ref.plan === "pro" ? "default" : "secondary"}>
+                              {ref.plan}
+                            </Badge>
+                          </td>
+                          <td className="p-2">
+                            {ref.subscriptionStartedAt
+                              ? new Date(ref.subscriptionStartedAt).toLocaleDateString("de-DE")
+                              : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

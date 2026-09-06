@@ -13,6 +13,7 @@ import {
   audiencePages,
   faqPageJsonLd,
   funnelBuilderPage,
+  partnerPage,
   SITE_ORIGIN,
   vergleichIndexPage,
   type SeoFaq,
@@ -609,6 +610,31 @@ export const funnelBuilderFaqs: SeoFaq[] = [
   },
 ];
 
+/** FAQ der Partnerprogramm-Seite (/partner) — geteilt zwischen Page-Komponente
+ *  und SSR-JSON-LD, analog funnelBuilderFaqs. */
+export const partnerFaqs: SeoFaq[] = [
+  {
+    q: "Wie hoch ist die Provision im Trichterwerk-Partnerprogramm?",
+    a: "25 % auf jede Pro-Zahlung deiner Geworbenen — wiederkehrend und dauerhaft (Lifetime). Bei 49 € pro Monat sind das 12,25 € pro Monat und Kunde, solange das Abo läuft.",
+  },
+  {
+    q: "Wie funktioniert die Vermittlung?",
+    a: "Du bekommst im Dashboard einen persönlichen Empfehlungslink (trichterwerk.de/register?ref=DEINCODE). Registriert sich jemand darüber, wird er dauerhaft dir zugeordnet — auch wenn er erst Wochen später auf Pro upgradet.",
+  },
+  {
+    q: "Wann und wie wird ausgezahlt?",
+    a: "Monatlich per Überweisung oder PayPal, sobald mindestens 25 € Provision aufgelaufen sind. Du bekommst eine Übersicht deiner Geworbenen und ihrer Abo-Status — volle Transparenz.",
+  },
+  {
+    q: "Wer kann Partner werden?",
+    a: "Jeder mit einem Trichterwerk-Account — auch im kostenlosen Free-Plan. Besonders geeignet für Agenturen, Coaches, Berater und Betreiber von Vergleichs- oder Tool-Seiten, deren Publikum Funnels braucht.",
+  },
+  {
+    q: "Gibt es Werbematerial?",
+    a: "Ja — auf Anfrage stellen wir Logos, Screenshots, Produktvideos und eine Feature-/Preistabelle bereit. Schreib uns nach der Registrierung einfach eine E-Mail.",
+  },
+];
+
 /** FAQPage + BreadcrumbList einer Vergleichsseite — genutzt von der
  *  Page-Komponente (client-gerendert) UND der SSR-Meta-Injektion. */
 export function comparisonJsonLd(c: ComparisonPageContent): object {
@@ -650,6 +676,10 @@ export const seoStaticPages: SeoStaticPage[] = [
     jsonLd: { "@context": "https://schema.org", ...faqPageJsonLd(funnelBuilderFaqs) },
   },
   vergleichIndexPage,
+  {
+    ...partnerPage,
+    jsonLd: { "@context": "https://schema.org", ...faqPageJsonLd(partnerFaqs) },
+  },
   ...Object.values(comparisonPages).map((c) => ({
     path: `/vergleich/${c.slug}`,
     metaTitle: c.metaTitle,

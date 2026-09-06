@@ -284,6 +284,19 @@ export async function registerRoutes(
         !!result.data.username,
       );
 
+      // Partnerprogramm-Attribution: unbekannter Code oder Selbst-Referral
+      // wird still ignoriert — die Registrierung darf daran nie scheitern.
+      if (result.data.referralCode) {
+        try {
+          const referrer = await storage.getUserByReferralCode(result.data.referralCode.trim());
+          if (referrer && referrer.id !== user.id) {
+            await storage.setReferredBy(user.id, referrer.id);
+          }
+        } catch (err) {
+          console.error("Referral-Attribution fehlgeschlagen:", err);
+        }
+      }
+
       // E-Mails asynchron senden (nicht blockierend)
       sendVerificationEmail(email, emailVerificationToken).catch((err) => console.error("[Email] Verification send failed:", err));
       sendWelcomeEmail(email, displayName).catch((err) => console.error("[Email] Welcome send failed:", err));
@@ -2334,6 +2347,68 @@ export async function registerRoutes(
   });
 
   // Get admin statistics
+  // ============ PARTNERPROGRAMM ============
+
+  // Eigener Empfehlungslink + Statistik (Dashboard-Kachel, /partner-Seite).
+  app.get("/api/referral/me", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+
+      const code = await storage.ensureReferralCode(userId);
+      const referred = (await storage.getReferredUsers()).filter(
+        (u) => u.referredById === userId,
+      );
+      const stats = {
+        registered: referred.length,
+        paying: referred.filter((u) => u.isPro).length,
+      };
+      res.json({
+        code,
+        link: `https://trichterwerk.de/register?ref=${code}`,
+        stats,
+      });
+    } catch (error) {
+      console.error("Referral me error:", error);
+      res.status(500).json({ error: "Empfehlungslink konnte nicht geladen werden" });
+    }
+  });
+
+  // Admin: Partner → geworbene Nutzer mit Plan-Status — Grundlage der
+  // manuellen 25 %-Abrechnung (kein Payout-Automatismus in V1).
+  app.get("/api/admin/referrals", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const referred = await storage.getReferredUsers();
+      const partnerIds = Array.from(new Set(referred.map((u) => u.referredById as number)));
+      const partners = await Promise.all(
+        partnerIds.map(async (id) => {
+          const partner = await storage.getUser(id);
+          if (!partner) return null;
+          return {
+            partnerId: partner.id,
+            partnerEmail: partner.email,
+            partnerName: partner.displayName || partner.username,
+            referralCode: partner.referralCode,
+            referred: referred
+              .filter((u) => u.referredById === id)
+              .map((u) => ({
+                id: u.id,
+                email: u.email,
+                registeredAt: u.createdAt,
+                plan: getUserPlan(u),
+                subscriptionStatus: u.subscriptionStatus,
+                subscriptionStartedAt: u.subscriptionStartedAt,
+              })),
+          };
+        }),
+      );
+      res.json({ partners: partners.filter(Boolean) });
+    } catch (error) {
+      console.error("Admin referrals error:", error);
+      res.status(500).json({ error: "Partner-Übersicht konnte nicht geladen werden" });
+    }
+  });
+
   app.get("/api/admin/stats", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const stats = await storage.getAdminStats();
