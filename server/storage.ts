@@ -3,7 +3,7 @@ import { quizTemplateElement } from "@shared/quiz-template";
 import { db } from "./db";
 import {
   users, funnels, leads, templates, analyticsEvents, passwordResetTokens,
-  teams, teamMembers, apiKeys, domains, platformVisits, aiCredentials,
+  teams, teamMembers, apiKeys, domains, platformVisits, aiCredentials, emailLog,
   type User, type InsertUser, type Funnel, type InsertFunnel,
   type Lead, type InsertLead, type AnalyticsEvent, type Template,
   type FunnelPage, type Theme, type ABTest,
@@ -88,6 +88,13 @@ export interface IStorage {
   ensureReferralCode(userId: number): Promise<string>;
   setReferredBy(userId: number, referrerId: number): Promise<void>;
   getReferredUsers(): Promise<User[]>;
+
+  // Lifecycle-Mails (server/scheduler.ts + Stripe-Webhook)
+  tryLogEmail(userId: number, emailType: string, periodKey?: string): Promise<boolean>;
+  countLeadsForUserSince(userId: number, since: Date): Promise<number>;
+  getUsersForTrialEndingMail(from: Date, to: Date): Promise<User[]>;
+  getInactiveUsersSince(cutoff: Date): Promise<User[]>;
+  claimTeamInvites(email: string, userId: number): Promise<number>;
 
   // Funnels
   getFunnels(userId: number): Promise<Funnel[]>;
@@ -315,6 +322,65 @@ export class DatabaseStorage implements IStorage {
   async getReferredUsers(): Promise<User[]> {
     return db.select().from(users)
       .where(and(sql`${users.referredById} IS NOT NULL`, sql`${users.deletedAt} IS NULL`));
+  }
+
+  // ============ LIFECYCLE-MAILS ============
+
+  /**
+   * Dedupe-Gate: true = dieser (userId, emailType, periodKey) wurde JETZT
+   * protokolliert → Mail senden. false = schon vorhanden → nicht senden.
+   * INSERT-first + Unique-Index macht das atomar (mehrinstanzsicher).
+   */
+  async tryLogEmail(userId: number, emailType: string, periodKey = ""): Promise<boolean> {
+    const inserted = await db.insert(emailLog)
+      .values({ userId, emailType, periodKey })
+      .onConflictDoNothing()
+      .returning({ id: emailLog.id });
+    return inserted.length > 0;
+  }
+
+  /** Leads eines Owners seit Zeitpunkt (für die Lead-Limit-Mail des Free-Plans). */
+  async countLeadsForUserSince(userId: number, since: Date): Promise<number> {
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(leads)
+      .where(and(eq(leads.userId, userId), gte(leads.createdAt, since)));
+    return row?.count ?? 0;
+  }
+
+  /** Trial endet im Fenster [from, to) — Fensterquery statt Punktabfrage,
+   *  robust gegen verpasste Scheduler-Ticks. */
+  async getUsersForTrialEndingMail(from: Date, to: Date): Promise<User[]> {
+    return db.select().from(users).where(and(
+      eq(users.isPro, false),
+      eq(users.isAdmin, false),
+      sql`${users.deletedAt} IS NULL`,
+      gte(users.trialEndsAt, from),
+      sql`${users.trialEndsAt} < ${to}`,
+    ));
+  }
+
+  /** Länger als cutoff nicht eingeloggt (und alt genug, dass die Welcome-Phase
+   *  vorbei ist) — Kandidaten für die einmalige Re-Engagement-Mail. */
+  async getInactiveUsersSince(cutoff: Date): Promise<User[]> {
+    return db.select().from(users).where(and(
+      eq(users.isAdmin, false),
+      sql`${users.deletedAt} IS NULL`,
+      sql`${users.createdAt} < ${cutoff}`,
+      sql`(${users.lastLoginAt} IS NULL OR ${users.lastLoginAt} < ${cutoff})`,
+    ));
+  }
+
+  /** Ausstehende Team-Einladungen (userId NULL) beim Registrieren übernehmen. */
+  async claimTeamInvites(email: string, userId: number): Promise<number> {
+    const result = await db.update(teamMembers)
+      .set({ userId, acceptedAt: new Date() })
+      .where(and(
+        sql`lower(${teamMembers.invitedEmail}) = ${email.toLowerCase()}`,
+        sql`${teamMembers.userId} IS NULL`,
+      ))
+      .returning({ id: teamMembers.id });
+    return result.length;
   }
 
   // ============ FUNNELS ============
@@ -1336,14 +1402,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addTeamMember(teamId: number, email: string, role: string = "member"): Promise<any> {
-    // Check if user exists
-    const user = await this.getUserByEmail(email);
+    const normalized = email.toLowerCase();
+    const user = await this.getUserByEmail(normalized);
+
+    // Duplikat-Check: dieselbe Person (per userId oder eingeladener E-Mail)
+    // nicht zweimal ins selbe Team einladen.
+    const existing = await db.select({ id: teamMembers.id }).from(teamMembers)
+      .where(and(
+        eq(teamMembers.teamId, teamId),
+        user
+          ? sql`(${teamMembers.userId} = ${user.id} OR lower(${teamMembers.invitedEmail}) = ${normalized})`
+          : sql`lower(${teamMembers.invitedEmail}) = ${normalized}`,
+      ));
+    if (existing.length > 0) {
+      throw new Error("DUPLICATE_MEMBER");
+    }
 
     const [member] = await db.insert(teamMembers).values({
       teamId,
-      userId: user?.id || 0, // 0 for pending invite (user doesn't exist yet)
+      // NULL = ausstehende Einladung; der Claim bei der Registrierung füllt nach.
+      userId: user?.id ?? null,
       role,
-      invitedEmail: email,
+      invitedEmail: normalized,
       acceptedAt: user ? new Date() : null,
     }).returning();
 

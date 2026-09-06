@@ -208,3 +208,193 @@ export async function sendLeadNotificationEmail(
 
   return sendEmail(ownerEmail, `Neuer Lead: ${leadData.name || "Unbekannt"} via ${funnelName}`, html);
 }
+
+// ============ LIFECYCLE-MAILS (server/scheduler.ts + Stripe-Webhook) ============
+// Alle Versände laufen über das email_log-Dedupe (storage.tryLogEmail) —
+// die Funktionen hier bauen nur Template + Versand.
+
+/** Trial endet in ~3 Tagen: Erinnerung mit Feature-Verlust-Liste + Upgrade-CTA. */
+export async function sendTrialEndingSoonEmail(
+  email: string,
+  displayName: string | null | undefined,
+  daysLeft: number,
+): Promise<boolean> {
+  const name = displayName ? escapeHtml(displayName) : "dort";
+  const upgradeLink = `${APP_URL}/settings#billing`;
+
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 16px;color:#18181b;font-size:20px;">Noch ${daysLeft} ${daysLeft === 1 ? "Tag" : "Tage"} volle Pro-Features</h2>
+    <p style="margin:0 0 24px;color:#52525b;font-size:15px;line-height:1.6;">
+      Hallo ${name}, deine Pro-Testphase endet bald. Keine Sorge: Dein Account läuft
+      danach automatisch im <strong>kostenlosen Free-Plan</strong> weiter — dein zuletzt
+      bearbeiteter Funnel bleibt online.
+    </p>
+    <div style="background:#f4f4f5;border-radius:8px;padding:20px;margin:0 0 24px;">
+      <p style="margin:0 0 12px;color:#18181b;font-weight:600;font-size:14px;">Nach der Testphase entfallen:</p>
+      <p style="margin:0 0 8px;color:#52525b;font-size:14px;">• Unbegrenzte veröffentlichte Funnels (Free: 1)</p>
+      <p style="margin:0 0 8px;color:#52525b;font-size:14px;">• Unbegrenzte Leads (Free: 100 sichtbar pro Monat)</p>
+      <p style="margin:0 0 8px;color:#52525b;font-size:14px;">• Eigene Domain, Teams &amp; KI-Generator</p>
+      <p style="margin:0;color:#52525b;font-size:14px;">• Entfernbares „Erstellt mit Trichterwerk“-Badge</p>
+    </div>
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${upgradeLink}" style="display:inline-block;background:#6366f1;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;">
+        Pro behalten — 49 €/Monat
+      </a>
+    </div>
+    <p style="margin:0;color:#a1a1aa;font-size:13px;text-align:center;">
+      Monatlich kündbar · Endpreis inkl. MwSt.
+    </p>
+  `);
+
+  return sendEmail(email, `Deine Pro-Testphase endet in ${daysLeft} ${daysLeft === 1 ? "Tag" : "Tagen"}`, html);
+}
+
+/** Nach dem Free-Downgrade: welcher Funnel blieb online, was wurde depubliziert. */
+export async function sendFreeDowngradeEmail(
+  email: string,
+  displayName: string | null | undefined,
+  keptFunnelName: string | null,
+  demotedCount: number,
+): Promise<boolean> {
+  const name = displayName ? escapeHtml(displayName) : "dort";
+  const upgradeLink = `${APP_URL}/settings#billing`;
+  const kept = keptFunnelName
+    ? `Dein Funnel <strong>„${escapeHtml(keptFunnelName)}“</strong> bleibt online.`
+    : "Du kannst jederzeit einen Funnel veröffentlichen.";
+  const demoted =
+    demotedCount > 0
+      ? `<p style="margin:0 0 24px;color:#52525b;font-size:15px;line-height:1.6;">
+           ${demotedCount === 1 ? "Ein weiterer veröffentlichter Funnel wurde" : `${demotedCount} weitere veröffentlichte Funnels wurden`}
+           auf „Entwurf“ gesetzt — nichts ist gelöscht, mit einem Upgrade schaltest du alles wieder live.
+         </p>`
+      : "";
+
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 16px;color:#18181b;font-size:20px;">Du bist jetzt im Free-Plan</h2>
+    <p style="margin:0 0 16px;color:#52525b;font-size:15px;line-height:1.6;">
+      Hallo ${name}, deine Pro-Testphase ist vorbei — dein Account läuft kostenlos weiter.
+      ${kept}
+    </p>
+    ${demoted}
+    <div style="background:#f4f4f5;border-radius:8px;padding:20px;margin:0 0 24px;">
+      <p style="margin:0 0 12px;color:#18181b;font-weight:600;font-size:14px;">Dein Free-Plan:</p>
+      <p style="margin:0 0 8px;color:#52525b;font-size:14px;">• 1 veröffentlichter Funnel, unbegrenzte Entwürfe</p>
+      <p style="margin:0 0 8px;color:#52525b;font-size:14px;">• 100 sichtbare Leads pro Monat (alle werden gespeichert)</p>
+      <p style="margin:0;color:#52525b;font-size:14px;">• Alle Templates &amp; Editor-Funktionen</p>
+    </div>
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${upgradeLink}" style="display:inline-block;background:#6366f1;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;">
+        Auf Pro upgraden
+      </a>
+    </div>
+  `);
+
+  return sendEmail(email, "Deine Testphase ist vorbei — dein Account läuft kostenlos weiter", html);
+}
+
+/** Re-Engagement nach 14 Tagen Inaktivität (einmalig pro Account). */
+export async function sendReEngagementEmail(
+  email: string,
+  displayName: string | null | undefined,
+): Promise<boolean> {
+  const name = displayName ? escapeHtml(displayName) : "dort";
+  const loginLink = `${APP_URL}/login`;
+
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 16px;color:#18181b;font-size:20px;">Dein Funnel wartet auf dich</h2>
+    <p style="margin:0 0 24px;color:#52525b;font-size:15px;line-height:1.6;">
+      Hallo ${name}, du warst eine Weile nicht mehr bei Trichterwerk. Dein Account
+      und deine Funnels sind noch da — und mit den fertigen Vorlagen ist ein
+      Funnel in unter einer Stunde live.
+    </p>
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${loginLink}" style="display:inline-block;background:#6366f1;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;">
+        Weitermachen
+      </a>
+    </div>
+    <p style="margin:0;color:#a1a1aa;font-size:13px;text-align:center;">
+      Fragen oder Feedback? Antworte einfach auf diese E-Mail an info@superbrand.marketing.
+    </p>
+  `);
+
+  return sendEmail(email, "Dein Funnel wartet auf dich", html);
+}
+
+/** Dunning: Zahlung fehlgeschlagen — CTA ins Stripe-Portal (Settings → Billing). */
+export async function sendPaymentFailedEmail(
+  email: string,
+  displayName: string | null | undefined,
+): Promise<boolean> {
+  const name = displayName ? escapeHtml(displayName) : "dort";
+  const billingLink = `${APP_URL}/settings#billing`;
+
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 16px;color:#18181b;font-size:20px;">Deine Zahlung konnte nicht verarbeitet werden</h2>
+    <p style="margin:0 0 24px;color:#52525b;font-size:15px;line-height:1.6;">
+      Hallo ${name}, die letzte Abbuchung für dein Pro-Abo ist fehlgeschlagen.
+      Dein Zugang bleibt vorerst aktiv — Stripe versucht es automatisch erneut.
+      Damit nichts unterbrochen wird, aktualisiere am besten kurz deine Zahlungsmethode.
+    </p>
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${billingLink}" style="display:inline-block;background:#6366f1;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;">
+        Zahlungsmethode aktualisieren
+      </a>
+    </div>
+  `);
+
+  return sendEmail(email, "Zahlung fehlgeschlagen — bitte Zahlungsmethode prüfen", html);
+}
+
+/** Free-Limit erreicht: Funnel sammelt weiter, Leads über dem Limit sind maskiert. */
+export async function sendLeadLimitReachedEmail(
+  email: string,
+  displayName: string | null | undefined,
+  funnelName: string,
+): Promise<boolean> {
+  const name = displayName ? escapeHtml(displayName) : "dort";
+  const upgradeLink = `${APP_URL}/settings#billing`;
+
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 16px;color:#18181b;font-size:20px;">100 Leads diesen Monat — stark! 🎉</h2>
+    <p style="margin:0 0 24px;color:#52525b;font-size:15px;line-height:1.6;">
+      Hallo ${name}, dein Funnel <strong>„${escapeHtml(funnelName)}“</strong> hat das
+      Monatslimit deines Free-Plans erreicht. Gute Nachricht: <strong>Er sammelt
+      weiter</strong> — alle neuen Leads werden gespeichert, sind aber bis zu einem
+      Upgrade gesperrt. Mit Pro schaltest du sie rückwirkend frei.
+    </p>
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${upgradeLink}" style="display:inline-block;background:#6366f1;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;">
+        Leads freischalten — Pro für 49 €/Monat
+      </a>
+    </div>
+  `);
+
+  return sendEmail(email, `${funnelName}: Lead-Limit erreicht — dein Funnel sammelt weiter`, html);
+}
+
+/** Team-Einladung: Bestandsnutzer → Settings, Unbekannte → Registrierung. */
+export async function sendTeamInviteEmail(
+  email: string,
+  teamName: string,
+  inviterName: string,
+  isExistingUser: boolean,
+): Promise<boolean> {
+  const link = isExistingUser ? `${APP_URL}/settings` : `${APP_URL}/register?invite=1`;
+  const cta = isExistingUser ? "Team ansehen" : "Kostenlos registrieren & beitreten";
+
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 16px;color:#18181b;font-size:20px;">Du wurdest in ein Team eingeladen</h2>
+    <p style="margin:0 0 24px;color:#52525b;font-size:15px;line-height:1.6;">
+      ${escapeHtml(inviterName)} hat dich zum Team <strong>„${escapeHtml(teamName)}“</strong>
+      bei Trichterwerk eingeladen — dem Funnel-Builder aus Deutschland.
+      ${isExistingUser ? "Melde dich an, um loszulegen." : "Erstelle einen kostenlosen Account mit dieser E-Mail-Adresse, dann wirst du dem Team automatisch zugeordnet."}
+    </p>
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${link}" style="display:inline-block;background:#6366f1;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;">
+        ${cta}
+      </a>
+    </div>
+  `);
+
+  return sendEmail(email, `Einladung ins Team „${teamName}“ bei Trichterwerk`, html);
+}

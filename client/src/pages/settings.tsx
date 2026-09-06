@@ -667,8 +667,9 @@ function BillingSettings() {
   );
 }
 
-// Teams sind für den Launch deaktiviert (kaputte Einladungen, kein Annahme-Flow)
-const TEAMS_ENABLED = false;
+// Teams sind wieder aktiv: Einladungen verschicken jetzt E-Mails, unbekannte
+// Adressen werden als "Ausstehend" geführt und beim Registrieren übernommen.
+const TEAMS_ENABLED = true;
 
 function TeamSettings() {
   const { user } = useAuth();
@@ -829,6 +830,12 @@ function TeamSettings() {
                         <div>
                           <span className="text-sm font-medium">{m.displayName || m.username || m.invitedEmail}</span>
                           <span className="text-xs text-muted-foreground ml-2">{m.role}</span>
+                          {/* userId NULL = Einladung verschickt, noch nicht registriert */}
+                          {!m.userId && (
+                            <span className="text-xs ml-2 px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-600">
+                              Ausstehend
+                            </span>
+                          )}
                         </div>
                         {m.role !== "owner" && (
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeMember(team.id, m.id)}>
@@ -1066,10 +1073,6 @@ export default function Settings() {
             <CreditCard className="h-4 w-4" />
             <span className="hidden sm:inline">Abrechnung</span>
           </TabsTrigger>
-          {/* Team-Tab für den Launch deaktiviert: Einladungen nicht
-              registrierter E-Mails schlagen mit 500 fehl (FK userId=0),
-              es gibt weder Einladungs-Mail noch Annahme-Flow. Reaktivieren,
-              wenn das Feature fertig gebaut ist (P2 im Launch-Plan). */}
           {TEAMS_ENABLED && (
             <TabsTrigger value="team" className="gap-2" data-testid="tab-team">
               <Users className="h-4 w-4" />
