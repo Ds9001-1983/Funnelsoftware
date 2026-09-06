@@ -58,6 +58,9 @@ export default defineConfig({
           // holen ihn die Tests ab (helpers/db.ts).
           SMTP_HOST: "",
           SENTRY_DSN: "",
+          // Hintergrund-Jobs (Free-Downgrade) würden Testdaten während der
+          // Läufe verändern — im E2E-Server deshalb aus.
+          DISABLE_SCHEDULER: "1",
           SESSION_SECRET: "e2e-session-secret",
           CSRF_SECRET: "e2e-csrf-secret",
         },

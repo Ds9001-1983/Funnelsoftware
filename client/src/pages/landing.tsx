@@ -188,26 +188,44 @@ interface PricingPlan {
 
 const pricingPlans: PricingPlan[] = [
   {
+    name: "Free",
+    price: "0",
+    priceSuffix: "€ / für immer",
+    description: "Zum Ausprobieren und für den ersten Funnel",
+    features: [
+      "1 veröffentlichter Funnel",
+      "100 Leads pro Monat",
+      "Alle Templates & Editor-Funktionen",
+      "Unbegrenzte Entwürfe",
+      "Live-Analytics",
+      "„Erstellt mit Trichterwerk“-Badge",
+    ],
+    cta: "Kostenlos starten",
+    ctaHref: "/register",
+    popular: false,
+    note: "Keine Kreditkarte nötig · für immer kostenlos",
+  },
+  {
     name: "Pro",
     price: "49",
     priceSuffix: "€ / Monat",
     description: "Alles, was du zum Launch brauchst",
     features: [
-      "Unbegrenzte Funnels",
+      "Unbegrenzte veröffentlichte Funnels",
       "Unbegrenzte Leads",
       "Alle Templates & Elemente",
       "Eigene Domain",
-      "Live-Analytics & Conversion-Tracking",
+      "KI-Funnel-Generator",
       "A/B-Tests & Conditional Logic",
-      "E-Mail-Benachrichtigungen",
-      "Support per E-Mail",
+      "Teams & E-Mail-Benachrichtigungen",
+      "Badge entfernbar · Support per E-Mail",
     ],
     cta: "14 Tage kostenlos testen",
     ctaHref: "/register",
     popular: true,
     // Der Stripe-Price ist `tax_behavior: "inclusive"` — der Kunde zahlt 49,00 €
     // als Endpreis, MwSt. ist enthalten. Deshalb hier und überall sonst „inkl.".
-    note: "14 Tage gratis · Endpreis inkl. MwSt. · Monatlich kündbar",
+    note: "14 Tage gratis · danach dauerhaft kostenloser Free-Plan · inkl. MwSt.",
   },
   {
     name: "Agency",
@@ -258,7 +276,7 @@ const integrations = [
 
 // Vergrößerte Trust-Leiste direkt unter dem Hero-CTA
 const heroTrust = [
-  { icon: ShieldCheck, label: "14 Tage gratis testen" },
+  { icon: ShieldCheck, label: "Für immer kostenloser Free-Plan" },
   { icon: Lock, label: "Monatlich kündbar" },
   { icon: Flag, label: "Made in Germany" },
   { icon: Server, label: "EU-Hosting · DSGVO-konform" },
@@ -288,17 +306,17 @@ const comparisonRows: ComparisonRow[] = [
   { label: "Eigene Domain inklusive", trichterwerk: true, typeform: false, perspective: true, webflow: true },
   { label: "A/B-Tests", trichterwerk: true, typeform: false, perspective: "ab 184 €-Plan", webflow: "mit Add-on" },
   { label: "Setup-Zeit bis Launch", trichterwerk: "< 1 h", typeform: "1–2 h", perspective: "2–4 h", webflow: "Tage" },
-  { label: "Monatspreis", trichterwerk: "49 €", typeform: "ab 25 $", perspective: "ab 59 € + Add-ons", webflow: "ab 29 $ + Design" },
+  { label: "Monatspreis", trichterwerk: "0–49 €", typeform: "ab 25 $", perspective: "ab 59 € + Add-ons", webflow: "ab 29 $ + Design" },
 ];
 
 const faqs = [
   {
-    q: "Was ist im 14-tägigen Trial enthalten?",
-    a: "Volle Pro-Features — unbegrenzte Funnels, alle Templates, Analytics, Conditional Logic, eigene Domain. Zwei Wochen lang testen, bevor dir etwas berechnet wird.",
+    q: "Ist Trichterwerk wirklich kostenlos?",
+    a: "Ja. Der Free-Plan ist dauerhaft kostenlos: 1 veröffentlichter Funnel, 100 Leads pro Monat, alle Templates und Editor-Funktionen. In den ersten 14 Tagen hast du zusätzlich alle Pro-Features zum Testen — danach läuft dein Account einfach im Free-Plan weiter.",
   },
   {
     q: "Brauche ich zum Start eine Kreditkarte?",
-    a: "Nein. Du registrierst dich mit E-Mail und Passwort und kannst sofort losbauen — ohne Zahlungsdaten. Erst wenn du nach den 14 Tagen weitermachen willst, hinterlegst du deine Zahlungsmethode über Stripe (PayPal, Kreditkarte, SEPA).",
+    a: "Nein. Du registrierst dich mit E-Mail und Passwort und kannst sofort losbauen — ohne Zahlungsdaten. Erst wenn du auf Pro upgraden willst, hinterlegst du deine Zahlungsmethode über Stripe (PayPal, Kreditkarte, SEPA).",
   },
   {
     q: "Kann ich jederzeit kündigen?",
@@ -333,7 +351,7 @@ export default function Landing() {
   usePageMeta({
     title: "Funnel-Builder aus Deutschland — ohne Code, DSGVO-konform",
     description:
-      "Erstelle mobile-optimierte Marketing-Funnels & Landingpages in Minuten — ohne Code, ohne Agentur. DSGVO-konform, Hosting in der EU. 14 Tage kostenlos testen.",
+      "Erstelle mobile-optimierte Marketing-Funnels & Landingpages in Minuten — ohne Code, ohne Agentur. DSGVO-konform, Hosting in der EU. Für immer kostenloser Free-Plan.",
     canonical: "/",
   });
 
@@ -407,7 +425,7 @@ export default function Landing() {
                 size="lg"
                 className="gap-2 text-lg px-8 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-shadow"
               >
-                14 Tage kostenlos testen
+                Kostenlos starten
                 <ArrowRight className="h-5 w-5" />
               </Button>
             </Link>
@@ -420,7 +438,7 @@ export default function Landing() {
 
           {/* Risiko-Reduktion direkt unter dem CTA */}
           <p className="text-sm text-muted-foreground mt-4">
-            14 Tage kostenlos · erste Belastung erst nach der Testphase · monatlich kündbar
+            Für immer kostenloser Free-Plan · keine Kreditkarte nötig · 14 Tage volle Pro-Features
           </p>
 
           {/* Trust-Leiste */}
@@ -768,14 +786,15 @@ export default function Landing() {
               Transparente Preise. Keine Überraschungen.
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Ein fairer Preis für alle Features. Monatlich kündbar. 14 Tage gratis testen.
+              Kostenlos starten, upgraden wenn du wächst. Monatlich kündbar,
+              14 Tage volle Pro-Features zum Testen.
             </p>
           </div>
 
           {/* Nur kaufbare Pläne in der Kaufreihe — der noch nicht buchbare
               Agency-Plan wandert als Teaser in den Footer, damit der Blick
               auf dem sofort buchbaren Pro-Plan bleibt (keine Friktion am CTA). */}
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
             {pricingPlans.filter((plan) => !plan.comingSoon).map((plan) => (
               <Card
                 key={plan.name}
@@ -969,13 +988,13 @@ export default function Landing() {
                 Bereit für deinen nächsten Funnel?
               </h2>
               <p className="text-primary-foreground/85 max-w-2xl mx-auto mb-8">
-                Sei einer der Ersten auf Trichterwerk: 14 Tage Pro-Zugang, direkter Draht
-                zum Team, keine Mindestlaufzeit. Kündigung mit zwei Klicks.
+                Sei einer der Ersten auf Trichterwerk: für immer kostenloser Free-Plan,
+                14 Tage volle Pro-Features, direkter Draht zum Team. Keine Kreditkarte nötig.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link href="/register" onClick={() => trackCtaClick("final")}>
                   <Button size="lg" variant="secondary" className="gap-2 text-lg px-8">
-                    14 Tage kostenlos testen
+                    Kostenlos starten
                     <ArrowRight className="h-5 w-5" />
                   </Button>
                 </Link>

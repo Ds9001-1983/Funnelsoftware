@@ -22,16 +22,20 @@ import { sendWebhook, buildWebhookPayload, generateWebhookSecret } from "./webho
 import { sendCapiEvent, extractCapiRequestContext, buildPurchaseEvent } from "./capi";
 import { TRICHTERWERK_PIXEL_ID } from "@shared/meta";
 import { aggregateAbTestStats } from "./ab-stats";
-import { passport, isAuthenticated, isAdmin, getUserId, requireActivePlan, requireVerifiedEmail, requireVerifiedEmailForPublish, hasActivePlan, PUBLIC_GRACE_PERIOD_MS } from "./auth";
+import { passport, isAuthenticated, isAdmin, getUserId, requirePro, requireVerifiedEmail, requireVerifiedEmailForPublish, getUserPlan, hasProFeatures } from "./auth";
 import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema, insertDomainSchema,
   loginSchema, registerSchema, slugSchema, passwordSchema, trackEventSchema,
   aiCredentialInputSchema, generateFunnelInputSchema,
   MAX_IMAGE_UPLOAD_BYTES, MAX_AUDIO_UPLOAD_BYTES,
-  type Domain,
+  FREE_MAX_PUBLISHED_FUNNELS,
+  type Domain, type Lead,
 } from "@shared/schema";
+import { computeLockedLeadIds, maskLockedLeads } from "./lead-limits";
 import { seoStaticPages } from "@shared/seo-content";
 import { sitemapStaticPaths } from "@shared/seo-links";
+import { isPlatformHost } from "@shared/platform-host";
+import { resolveCustomDomainFunnel } from "./custom-domain";
 import { dailyVisitorHash, deriveReferrerHost, deriveDeviceClass, deriveCountry, isTrackablePath, isClientTrackableEvent } from "./tracking";
 import { encryptSecret, decryptSecret, last4 } from "./crypto";
 import { verifyDomainDns } from "./domain-verify";
@@ -169,11 +173,39 @@ export async function registerRoutes(
 
   // ============ SEO ============
 
+  // Custom Domains: robots.txt/sitemap.xml pro Kundendomain — die Trichterwerk-
+  // Fassungen (mit trichterwerk.de-URLs) dürfen dort nie ausgeliefert werden.
+  // Platform-Hosts laufen per next() weiter in die statische robots.txt.
+  app.get("/robots.txt", async (req, res, next) => {
+    if (isPlatformHost(req.hostname)) return next();
+    try {
+      const resolved = await resolveCustomDomainFunnel(req.hostname);
+      if (!resolved) {
+        return res.status(404).type("text/plain; charset=utf-8").send("User-agent: *\nDisallow: /\n");
+      }
+      res
+        .type("text/plain; charset=utf-8")
+        .send(`User-agent: *\nAllow: /\n\nSitemap: https://${resolved.host}/sitemap.xml\n`);
+    } catch (error) {
+      console.error("Custom-Domain-robots error:", error);
+      res.status(500).send("");
+    }
+  });
+
   // Dynamische Sitemap: statische Marketing-/Legal-Seiten + alle veröffentlichten
   // Funnels. Wird vor der statischen Auslieferung registriert und ersetzt die alte
   // statische sitemap.xml. robots.txt verweist bereits hierauf.
-  app.get("/sitemap.xml", async (_req, res) => {
+  // Custom Domains bekommen eine Mini-Sitemap mit genau ihrer Root-URL.
+  app.get("/sitemap.xml", async (req, res) => {
     try {
+      if (!isPlatformHost(req.hostname)) {
+        const resolved = await resolveCustomDomainFunnel(req.hostname);
+        if (!resolved) return res.status(404).send("");
+        const lastmod = new Date(resolved.funnel.updatedAt).toISOString().slice(0, 10);
+        const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>https://${resolved.host}/</loc><lastmod>${lastmod}</lastmod></url>\n</urlset>\n`;
+        return res.set("Content-Type", "application/xml; charset=utf-8").send(xml);
+      }
+
       const funnelRows = await storage.getPublishedFunnelsForSitemap();
       // /login und /register bewusst NICHT in der Sitemap (Thin Content,
       // serverseitig noindex — siehe server/static.ts).
@@ -306,7 +338,7 @@ export async function registerRoutes(
         // Kreditkarte beim Registrieren: standardmäßig NEIN.
         //
         // Der Trial braucht Stripe nicht — `trialEndsAt` steht oben schon in der
-        // DB und `hasActivePlan()` erkennt ihn daraus. Der Checkout verlangte
+        // DB und `getUserPlan()` erkennt ihn daraus. Der Checkout verlangte
         // dagegen (payment_method_collection ist nicht gesetzt → Stripe-Default
         // "always", plus STRIPE_TAX_ENABLED → Rechnungsadresse und USt-ID) von
         // einem 90 Sekunden alten Besucher volle Zahlungsdaten. Das war der
@@ -376,7 +408,7 @@ export async function registerRoutes(
         }
         // Update last login timestamp
         await storage.updateLastLogin(user.id);
-        res.json({ user });
+        res.json({ user: { ...user, plan: getUserPlan(user) } });
       });
     })(req, res, next);
   });
@@ -400,7 +432,9 @@ export async function registerRoutes(
   // Get current user
   app.get("/api/auth/user", (req, res) => {
     if (req.isAuthenticated() && req.user) {
-      res.json({ user: req.user });
+      // plan wird serverseitig abgeleitet (pro | trial | free), damit der
+      // Client die Trial-/Free-Logik nicht duplizieren muss.
+      res.json({ user: { ...req.user, plan: getUserPlan(req.user) } });
     } else {
       res.json({ user: null });
     }
@@ -520,11 +554,21 @@ export async function registerRoutes(
         displayName: z.string().max(100).optional(),
         email: z.string().email("Ungültige E-Mail-Adresse").optional(),
         leadNotificationsEnabled: z.boolean().optional(),
+        hideBranding: z.boolean().optional(),
       });
 
       const result = updateSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ error: "Ungültige Daten", details: result.error.errors });
+      }
+
+      // Badge ausblenden ist ein Pro-Perk — serverseitig durchsetzen, das
+      // Client-Disable allein wäre umgehbar.
+      if (result.data.hideBranding === true && req.user && !hasProFeatures(req.user)) {
+        return res.status(403).json({
+          error: "Das Trichterwerk-Badge lässt sich im Pro-Plan ausblenden.",
+          code: "PRO_REQUIRED",
+        });
       }
 
       const { email, ...profileUpdates } = result.data;
@@ -666,7 +710,9 @@ export async function registerRoutes(
     },
   });
 
-  app.post("/api/uploads", isAuthenticated, requireVerifiedEmail, requireActivePlan, upload.single("file"), async (req, res) => {
+  // Uploads sind auch im Free-Plan erlaubt (der Editor braucht Bilder);
+  // Größenlimits + E-Mail-Verifikation bleiben als Missbrauchsschutz.
+  app.post("/api/uploads", isAuthenticated, requireVerifiedEmail, upload.single("file"), async (req, res) => {
     let outputPath: string | undefined;
     try {
       if (!req.file) {
@@ -716,7 +762,6 @@ export async function registerRoutes(
     "/api/uploads/audio",
     isAuthenticated,
     requireVerifiedEmail,
-    requireActivePlan,
     audioUpload.single("file"),
     async (req, res) => {
       let outputPath: string | undefined;
@@ -825,15 +870,37 @@ export async function registerRoutes(
     }
   });
 
+  // Free-Plan-Publish-Limit: greift überall, wo ein Funnel den Status
+  // "published" bekommen kann (Create, Update, Restore). Entwürfe sind
+  // unbegrenzt; Unpublish ist immer erlaubt.
+  const freePublishLimitResponse = {
+    error: `Im Free-Plan kannst du ${FREE_MAX_PUBLISHED_FUNNELS} Funnel veröffentlichen. Depubliziere den anderen Funnel oder upgrade auf Pro für unbegrenzte Funnels.`,
+    code: "FREE_LIMIT_REACHED",
+    limit: "published_funnels",
+  } as const;
+  async function isOverFreePublishLimit(
+    user: Express.User,
+    targetStatus: string | undefined,
+    excludeFunnelId?: number,
+  ): Promise<boolean> {
+    if (targetStatus !== "published" || hasProFeatures(user)) return false;
+    const count = await storage.countPublishedFunnels(user.id, excludeFunnelId);
+    return count >= FREE_MAX_PUBLISHED_FUNNELS;
+  }
+
   // Create funnel
-  app.post("/api/funnels", isAuthenticated, requireActivePlan, async (req, res) => {
+  app.post("/api/funnels", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+      if (!userId || !req.user) return res.status(401).json({ error: "Nicht autorisiert" });
 
       const result = insertFunnelSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ error: "Ungültige Funnel-Daten", details: result.error.errors });
+      }
+
+      if (await isOverFreePublishLimit(req.user, result.data.status)) {
+        return res.status(403).json(freePublishLimitResponse);
       }
 
       const funnel = await storage.createFunnel(result.data, userId);
@@ -845,10 +912,10 @@ export async function registerRoutes(
   });
 
   // Update funnel
-  app.patch("/api/funnels/:id", isAuthenticated, requireVerifiedEmailForPublish, requireActivePlan, async (req, res) => {
+  app.patch("/api/funnels/:id", isAuthenticated, requireVerifiedEmailForPublish, async (req, res) => {
     try {
       const userId = getUserId(req);
-      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+      if (!userId || !req.user) return res.status(401).json({ error: "Nicht autorisiert" });
 
       const funnelId = parseInt(String(req.params.id));
       if (isNaN(funnelId)) {
@@ -898,6 +965,13 @@ export async function registerRoutes(
         if (!available) {
           return res.status(409).json({ error: "Dieser Slug ist bereits vergeben" });
         }
+      }
+
+      // Free-Plan: max. FREE_MAX_PUBLISHED_FUNNELS gleichzeitig veröffentlicht
+      // (der Funnel selbst zählt nicht mit — erneutes Speichern eines bereits
+      // veröffentlichten Funnels bleibt möglich).
+      if (await isOverFreePublishLimit(req.user, result.data.status, funnelId)) {
+        return res.status(403).json(freePublishLimitResponse);
       }
 
       try {
@@ -957,7 +1031,26 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Funnel nicht gefunden" });
       }
 
-      res.json({ message: "Funnel wiederhergestellt" });
+      // Free-Plan: Wiederherstellen darf das Publish-Limit nicht umgehen.
+      // Statt zu blockieren wird der Funnel als Entwurf wiederhergestellt.
+      let demotedToDraft = false;
+      if (req.user) {
+        const funnel = await storage.getFunnel(funnelId, userId);
+        if (
+          funnel?.status === "published" &&
+          (await isOverFreePublishLimit(req.user, "published", funnelId))
+        ) {
+          await storage.updateFunnel(funnelId, userId, { status: "draft" });
+          demotedToDraft = true;
+        }
+      }
+
+      res.json({
+        message: demotedToDraft
+          ? "Funnel wiederhergestellt — als Entwurf, weil dein Free-Plan nur einen veröffentlichten Funnel erlaubt."
+          : "Funnel wiederhergestellt",
+        demotedToDraft,
+      });
     } catch (error) {
       console.error("Restore funnel error:", error);
       res.status(500).json({ error: "Funnel konnte nicht wiederhergestellt werden" });
@@ -965,7 +1058,8 @@ export async function registerRoutes(
   });
 
   // Clone funnel
-  app.post("/api/funnels/:id/clone", isAuthenticated, requireActivePlan, async (req, res) => {
+  // Klonen erzeugt immer einen Entwurf → auch im Free-Plan erlaubt.
+  app.post("/api/funnels/:id/clone", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
@@ -1161,12 +1255,12 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Funnel nicht gefunden oder nicht veröffentlicht" });
       }
 
-      // Trial-Enforcement: Funnels von Accounts ohne aktiven Plan werden nach
-      // einer Grace-Period nicht mehr ausgeliefert — sonst liefe der Kern-
-      // Geschäftswert (Funnel live + Leads sammeln) nach Trial-Ende ewig gratis.
+      // Free-Modell: veröffentlichte Funnels bleiben auch nach Trial-Ende live
+      // (Downgrade auf Free statt Sperre; das Publish-Limit setzt
+      // server/scheduler.ts durch). Der Owner-Check bleibt für gelöschte Accounts.
       const owner = await storage.getUser(funnel.userId);
-      if (!owner || !hasActivePlan(owner, PUBLIC_GRACE_PERIOD_MS)) {
-        return res.status(410).json({ error: "Dieser Funnel ist derzeit pausiert.", code: "FUNNEL_PAUSED" });
+      if (!owner || owner.deletedAt) {
+        return res.status(404).json({ error: "Funnel nicht gefunden oder nicht veröffentlicht" });
       }
 
       // Return only necessary public data (including A/B tests for traffic splitting)
@@ -1186,6 +1280,9 @@ export async function registerRoutes(
         abTests: activeTests,
         impressumUrl: funnel.impressumUrl || null,
         datenschutzUrl: funnel.datenschutzUrl || null,
+        // Badge-Sichtbarkeit wird serverseitig berechnet: Pro darf ausblenden,
+        // Free nie — Downgrade blendet den Badge damit automatisch wieder ein.
+        showBranding: !(hasProFeatures(owner) && owner.hideBranding),
       });
     } catch (error) {
       console.error("Get public funnel error:", error);
@@ -1195,14 +1292,22 @@ export async function registerRoutes(
 
   // ============ LEADS (Protected) ============
 
+  // Free-Plan: Kontaktdaten oberhalb von FREE_MONTHLY_LEAD_LIMIT pro Monat
+  // maskieren (Soft-Store/Hard-View — gespeichert wird immer, ein Upgrade
+  // schaltet rückwirkend frei, weil zur Lesezeit berechnet wird).
+  function maskLeadsForPlan(user: Express.User, leads: Lead[]): (Lead & { locked?: boolean })[] {
+    if (getUserPlan(user) !== "free") return leads;
+    return maskLockedLeads(leads, computeLockedLeadIds(leads));
+  }
+
   // Get all leads for current user
   app.get("/api/leads", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+      if (!userId || !req.user) return res.status(401).json({ error: "Nicht autorisiert" });
 
       const leads = await storage.getLeads(userId);
-      res.json(leads);
+      res.json(maskLeadsForPlan(req.user, leads));
     } catch (error) {
       console.error("Get leads error:", error);
       res.status(500).json({ error: "Leads konnten nicht geladen werden" });
@@ -1221,6 +1326,13 @@ export async function registerRoutes(
       }
 
       const leads = await storage.getLeadsByFunnel(funnelId, userId);
+      // Das Monatslimit gilt pro ACCOUNT, nicht pro Funnel — der Rang wird
+      // deshalb über alle Leads des Nutzers berechnet und dann auf die
+      // Teilmenge dieses Funnels angewendet.
+      if (req.user && getUserPlan(req.user) === "free") {
+        const allLeads = await storage.getLeads(userId);
+        return res.json(maskLockedLeads(leads, computeLockedLeadIds(allLeads)));
+      }
       res.json(leads);
     } catch (error) {
       console.error("Get funnel leads error:", error);
@@ -1275,6 +1387,13 @@ export async function registerRoutes(
       if (!lead) {
         return res.status(404).json({ error: "Lead nicht gefunden" });
       }
+      // Free-Plan: auch der Einzelabruf respektiert die Maskierung — sonst
+      // ließe sich das Monatslimit per Detail-Request umgehen.
+      if (req.user && getUserPlan(req.user) === "free") {
+        const allLeads = await storage.getLeads(userId);
+        const [masked] = maskLockedLeads([lead], computeLockedLeadIds(allLeads));
+        return res.json(masked);
+      }
       res.json(lead);
     } catch (error) {
       console.error("Get lead error:", error);
@@ -1304,11 +1423,12 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Funnel nicht gefunden" });
       }
 
-      // Trial-Enforcement: Kein Lead-Capture für Funnels von Accounts ohne
-      // aktiven Plan (gleiche Grace-Period wie bei der Auslieferung).
+      // Free-Modell: Leads werden IMMER gespeichert — auch für Free-Accounts
+      // über dem Sichtbarkeits-Limit (Endkunden-Daten wegwerfen ist keine
+      // Option; die Maskierung passiert in den Lese-Endpunkten).
       const funnelOwner = await storage.getUser(funnel.userId);
-      if (!funnelOwner || !hasActivePlan(funnelOwner, PUBLIC_GRACE_PERIOD_MS)) {
-        return res.status(410).json({ error: "Dieser Funnel ist derzeit pausiert.", code: "FUNNEL_PAUSED" });
+      if (!funnelOwner || funnelOwner.deletedAt) {
+        return res.status(404).json({ error: "Funnel nicht gefunden" });
       }
 
       const result = insertLeadSchema.safeParse({
@@ -1489,16 +1609,11 @@ export async function registerRoutes(
   });
 
   // Create team
-  app.post("/api/teams", isAuthenticated, async (req, res) => {
+  // Teams sind ein Pro-Feature (Trial zählt mit — volle Features zum Testen).
+  app.post("/api/teams", isAuthenticated, requirePro, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
-
-      // Enterprise plan check
-      const user = await storage.getUser(userId);
-      if (!user?.isPro && user?.subscriptionPlan !== "enterprise") {
-        return res.status(403).json({ error: "Team-Funktion erfordert einen Enterprise-Plan." });
-      }
 
       const { name } = req.body;
       if (!name?.trim()) {
@@ -1534,7 +1649,7 @@ export async function registerRoutes(
   });
 
   // Invite team member
-  app.post("/api/teams/:id/invite", isAuthenticated, async (req, res) => {
+  app.post("/api/teams/:id/invite", isAuthenticated, requirePro, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
@@ -1841,7 +1956,7 @@ export async function registerRoutes(
 
   // Funnel per KI generieren — gibt { pages, theme } zurück. Der Client remappt die
   // Element-IDs und legt den Funnel über den bestehenden POST /api/funnels-Pfad an.
-  app.post("/api/ai/generate-funnel", isAuthenticated, requireVerifiedEmail, requireActivePlan, aiGenerateLimiter, async (req, res) => {
+  app.post("/api/ai/generate-funnel", isAuthenticated, requireVerifiedEmail, requirePro, aiGenerateLimiter, async (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
     const parsed = generateFunnelInputSchema.safeParse(req.body);
@@ -2421,7 +2536,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/domains", isAuthenticated, requireVerifiedEmail, requireActivePlan, async (req, res) => {
+  app.post("/api/domains", isAuthenticated, requireVerifiedEmail, requirePro, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
@@ -2542,10 +2657,10 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Funnel nicht verfügbar" });
       }
 
-      // Trial-Enforcement (siehe /api/public/funnels/:identifier)
+      // Free-Modell: kein Plan-Gate mehr (siehe /api/public/funnels/:identifier)
       const owner = await storage.getUser(domain.userId);
-      if (!owner || !hasActivePlan(owner, PUBLIC_GRACE_PERIOD_MS)) {
-        return res.status(410).json({ error: "Dieser Funnel ist derzeit pausiert.", code: "FUNNEL_PAUSED" });
+      if (!owner || owner.deletedAt) {
+        return res.status(404).json({ error: "Funnel nicht verfügbar" });
       }
 
       // Reduzierter Payload (öffentliche Sicht — Sensitive Felder weglassen)

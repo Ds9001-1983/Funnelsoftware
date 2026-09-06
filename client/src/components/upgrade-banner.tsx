@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, Sparkles, Loader2, X, LogOut } from "lucide-react";
+import { AlertTriangle, Sparkles, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,13 +11,20 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { FREE_MAX_PUBLISHED_FUNNELS, FREE_MONTHLY_LEAD_LIMIT } from "@shared/schema";
 
 interface UpgradeBannerProps {
-  variant: "warning" | "expired" | "inline" | "payment-required";
+  variant: "warning" | "expired" | "inline";
+}
+
+/** Einmal-pro-Account-Merker (Free-Info-Dialog) — localStorage kann in
+ *  Private-Windows werfen, deshalb überall try/catch mit Fallback. */
+function freeInfoDismissedKey(userId: number): string {
+  return `tw-free-info-dismissed-${userId}`;
 }
 
 export function UpgradeBanner({ variant }: UpgradeBannerProps) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -76,40 +83,57 @@ export function UpgradeBanner({ variant }: UpgradeBannerProps) {
     );
   }
 
-  // Expired blocking modal (cannot be dismissed)
+  // Free-Info-Dialog nach Trial-Ende: KEINE Sperre mehr — der Account läuft
+  // im Free-Plan weiter. Einmalig pro Account anzeigen, schließbar.
   if (variant === "expired") {
-    const isExpired =
+    const isOnFreePlan =
+      user.plan === "free" ||
       (user.subscriptionStatus === "trial" && daysLeft <= 0) ||
+      user.subscriptionStatus === "free" ||
       user.subscriptionStatus === "expired" ||
       user.subscriptionStatus === "cancelled";
 
-    if (!isExpired) return null;
+    let alreadyDismissed = false;
+    try {
+      alreadyDismissed = localStorage.getItem(freeInfoDismissedKey(user.id)) === "1";
+    } catch {
+      // localStorage nicht verfügbar → Dialog bleibt schließbar, nur ohne Merker
+    }
+
+    if (!isOnFreePlan || dismissed || alreadyDismissed) return null;
+
+    const close = () => {
+      setDismissed(true);
+      try {
+        localStorage.setItem(freeInfoDismissedKey(user.id), "1");
+      } catch {
+        // ohne Merker erscheint der Dialog beim nächsten Laden erneut — verschmerzbar
+      }
+    };
 
     return (
-      <Dialog open={true}>
-        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+      <Dialog open={true} onOpenChange={(open) => !open && close()}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
-              {user.subscriptionStatus === "trial"
-                ? "Testphase abgelaufen"
-                : "Kein aktives Abo"}
+              <Sparkles className="h-5 w-5 text-primary" />
+              Du bist jetzt im Free-Plan
             </DialogTitle>
             <DialogDescription>
-              {user.subscriptionStatus === "trial"
-                ? "Deine 14-tägige Testphase ist abgelaufen. Upgrade auf den Pro Plan, um deine Funnels weiter zu bearbeiten und neue zu erstellen."
-                : "Dein Abonnement wurde beendet. Abonniere erneut, um alle Features zu nutzen."}
+              Deine 14-tägige Testphase ist vorbei — dein Account läuft kostenlos
+              weiter: {FREE_MAX_PUBLISHED_FUNNELS} veröffentlichter Funnel,{" "}
+              {FREE_MONTHLY_LEAD_LIMIT} Leads pro Monat, alle Editor-Funktionen.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="bg-muted rounded-lg p-4">
-              <h4 className="font-medium mb-2">Pro Plan beinhaltet:</h4>
+              <h4 className="font-medium mb-2">Mit Pro (49 €/Monat) bekommst du:</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
-                <li>Unbegrenzte Funnels erstellen</li>
-                <li>Unbegrenzte Leads sammeln</li>
-                <li>Custom URLs und Slugs</li>
-                <li>Analytics und Statistiken</li>
-                <li>Alle Element-Typen</li>
+                <li>Unbegrenzte veröffentlichte Funnels</li>
+                <li>Unbegrenzte Leads</li>
+                <li>Eigene Domain & Teams</li>
+                <li>KI-Funnel-Generator</li>
+                <li>„Erstellt mit Trichterwerk“-Badge entfernbar</li>
               </ul>
             </div>
             <Button className="w-full gap-2" size="lg" onClick={handleUpgrade} disabled={isLoading}>
@@ -119,58 +143,10 @@ export function UpgradeBanner({ variant }: UpgradeBannerProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="w-full gap-2 text-muted-foreground"
-              onClick={() => logout()}
+              className="w-full text-muted-foreground"
+              onClick={close}
             >
-              <LogOut className="h-3.5 w-3.5" />
-              Ausloggen
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  // Payment required blocking modal (user cancelled Stripe Checkout after registration)
-  if (variant === "payment-required") {
-    const needsPayment = user.stripeCustomerId && !user.stripeSubscriptionId && !user.isPro;
-    if (!needsPayment) return null;
-
-    return (
-      <Dialog open={true}>
-        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              Registrierung abschließen
-            </DialogTitle>
-            <DialogDescription>
-              Bitte hinterlege deine Zahlungsdaten, um Trichterwerk nutzen zu können.
-              Du wirst 14 Tage lang nicht belastet und kannst jederzeit kündigen.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="bg-muted rounded-lg p-4">
-              <h4 className="font-medium mb-2">14 Tage kostenlos testen:</h4>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>Keine Kosten während der Testphase</li>
-                <li>Jederzeit kündbar</li>
-                <li>Alle Pro-Features sofort verfügbar</li>
-                <li>Nahtloser Übergang nach der Testphase</li>
-              </ul>
-            </div>
-            <Button className="w-full gap-2" size="lg" onClick={handleUpgrade} disabled={isLoading}>
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              Zahlungsdaten hinterlegen
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full gap-2 text-muted-foreground"
-              onClick={() => logout()}
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              Ausloggen
+              Weiter im Free-Plan
             </Button>
           </div>
         </DialogContent>

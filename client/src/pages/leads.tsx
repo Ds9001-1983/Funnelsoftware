@@ -17,7 +17,10 @@ import {
   FileText,
   CalendarRange,
   ShieldCheck,
+  Lock,
+  Sparkles,
 } from "lucide-react";
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,7 +53,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { GdprRequestDialog } from "@/components/leads/GdprRequestDialog";
+import { useAuth } from "@/hooks/use-auth";
+import { FREE_MONTHLY_LEAD_LIMIT } from "@shared/schema";
 import type { Lead, Funnel } from "@shared/schema";
+
+/** Server maskiert im Free-Plan Leads über dem Monatslimit (locked=true,
+ *  Kontaktfelder null) — siehe server/lead-limits.ts. */
+type MaskedLead = Lead & { locked?: boolean };
 
 type StatusFilter = "all" | Lead["status"];
 
@@ -481,7 +490,7 @@ function LeadRow({
   onDelete,
   onStatusChange,
 }: {
-  lead: Lead;
+  lead: MaskedLead;
   onView: () => void;
   onDelete: () => void;
   onStatusChange: (status: Lead["status"]) => void;
@@ -503,11 +512,13 @@ function LeadRow({
   return (
     <div className="flex items-center gap-4 p-4 border-b border-border hover:bg-muted/30 transition-colors group">
       <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary font-medium shrink-0">
-        {lead.name?.charAt(0).toUpperCase() || "?"}
+        {lead.locked ? <Lock className="h-4 w-4" /> : lead.name?.charAt(0).toUpperCase() || "?"}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-          <span className="font-medium truncate">{lead.name || "Unbekannt"}</span>
+          <span className="font-medium truncate">
+            {lead.locked ? "Gesperrter Lead — Upgrade für Details" : lead.name || "Unbekannt"}
+          </span>
         </div>
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           {lead.email && (
@@ -602,9 +613,11 @@ export default function Leads() {
   const [showGdprDialog, setShowGdprDialog] = useState(false);
   const { toast } = useToast();
 
-  const { data: leads, isLoading: leadsLoading } = useQuery<Lead[]>({
+  const { data: leads, isLoading: leadsLoading } = useQuery<MaskedLead[]>({
     queryKey: ["/api/leads"],
   });
+  const { user } = useAuth();
+  const lockedCount = leads?.filter((l) => l.locked).length ?? 0;
 
   const { data: funnels } = useQuery<Funnel[]>({
     queryKey: ["/api/funnels"],
@@ -668,6 +681,29 @@ export default function Leads() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      {/* Free-Plan: Hinweis auf maskierte Leads über dem Monatslimit */}
+      {user?.plan === "free" && lockedCount > 0 && (
+        <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <Lock className="h-5 w-5 text-primary shrink-0" />
+            <div>
+              <p className="font-medium text-sm">
+                {lockedCount} {lockedCount === 1 ? "Lead ist" : "Leads sind"} gesperrt
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Dein Free-Plan zeigt {FREE_MONTHLY_LEAD_LIMIT} Leads pro Monat. Alle
+                Leads sind gespeichert — ein Upgrade schaltet sie rückwirkend frei.
+              </p>
+            </div>
+          </div>
+          <Link href="/settings#billing">
+            <Button size="sm" className="gap-1.5">
+              <Sparkles className="h-3.5 w-3.5" />
+              Upgraden
+            </Button>
+          </Link>
+        </div>
+      )}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Leads</h1>

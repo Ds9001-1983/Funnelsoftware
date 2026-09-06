@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { useLocation } from "wouter";
 
+import type { PlanId } from "@shared/schema";
+
 interface User {
   id: number;
   username: string;
@@ -15,6 +17,10 @@ interface User {
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
   emailVerifiedAt: string | null;
+  /** "Erstellt mit Trichterwerk"-Badge ausgeblendet (Pro-Perk). */
+  hideBranding?: boolean;
+  /** Serverseitig abgeleitet: pro | trial | free (GET /api/auth/user). */
+  plan?: PlanId;
   createdAt: string;
   updatedAt: string;
 }

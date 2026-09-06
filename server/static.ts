@@ -6,6 +6,8 @@ import { escapeHtml } from "./email";
 import type { Funnel } from "@shared/schema";
 import { seoStaticPages } from "@shared/seo-content";
 import { marketingRoutePatterns, SITE_ORIGIN } from "@shared/seo-links";
+import { isPlatformHost } from "@shared/platform-host";
+import { resolveCustomDomainFunnel } from "./custom-domain";
 
 const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/images/og-image.png`;
 // Wird im Prod-Build durch server-seitige Injektion für /f/:id ersetzt.
@@ -45,12 +47,17 @@ function buildMetaBlock({ title, description, canonical, ogImage = DEFAULT_OG_IM
   ].join("\n    ");
 }
 
-/** Baut den funnel-spezifischen Meta-Block (ersetzt den <!--SSR-META-->-Bereich). */
-function buildFunnelMeta(funnel: Funnel): string {
+/**
+ * Baut den funnel-spezifischen Meta-Block (ersetzt den <!--SSR-META-->-Bereich).
+ * canonicalOverride: Hat der Funnel eine verifizierte Custom-Domain, ist DIE
+ * die kanonische URL — trichterwerk.de/f/<slug> wird zur Nicht-kanonischen
+ * Variante, damit Google die Signale auf der Kundendomain konsolidiert.
+ */
+function buildFunnelMeta(funnel: Funnel, canonicalOverride?: string): string {
   return buildMetaBlock({
     title: `${funnel.name} | Trichterwerk`,
     description: (funnel.description?.trim() || `${funnel.name} — jetzt starten.`).slice(0, 200),
-    canonical: `${SITE_ORIGIN}/f/${encodeURIComponent(funnel.slug || funnel.uuid)}`,
+    canonical: canonicalOverride ?? `${SITE_ORIGIN}/f/${encodeURIComponent(funnel.slug || funnel.uuid)}`,
     ogImage: funnel.ogImageUrl || DEFAULT_OG_IMAGE,
   });
 }
@@ -100,6 +107,10 @@ export function serveStatic(app: Express) {
 
   app.use(
     express.static(distPath, {
+      // index.html NICHT automatisch für "/" ausliefern — sonst kommt der
+      // Root-Request einer Custom-Domain nie beim host-aware Handler unten an
+      // (Platform-"/" läuft über den Catch-all, wie jede andere SPA-Route).
+      index: false,
       setHeaders: (res, filePath) => {
         // Direkter Treffer auf /index.html (z. B. lokaler Prod-Test ohne nginx).
         if (filePath.endsWith("index.html")) {
@@ -109,6 +120,43 @@ export function serveStatic(app: Express) {
     }),
   );
 
+  // Unbekannte Slugs/fremde Hosts: echter 404-Status + noindex, damit Crawler
+  // keine Soft-404 mit Homepage-Canonical indexieren (Client rendert seine
+  // öffentliche 404-Ansicht). Muss VOR den Handlern definiert sein, die es nutzen.
+  const notFoundHtml = indexHtml.replace(
+    META_MARKER,
+    [
+      `<meta name="robots" content="noindex" />`,
+      `<title>Seite nicht gefunden | Trichterwerk</title>`,
+    ].join("\n    "),
+  );
+
+  // Custom Domains (CNAME auf einen Kundenfunnel): Das Root-Dokument bekommt
+  // funnel-spezifische Meta mit canonical auf DIE KUNDENDOMAIN — vorher lief
+  // der Request in den Catch-all und lieferte das Trichterwerk-Canonical aus,
+  // womit Google die Kundendomain weggededupliziert hätte. Alle anderen Pfade
+  // eines fremden Hosts (Marketing-Seiten, Landing) werden nie unter fremdem
+  // Host ausgeliefert (noindex + 404); /f/* und /preview/* laufen weiter in
+  // ihre eigenen Handler. Assets bedient express.static bereits davor.
+  app.use(async (req: Request, res: Response, next) => {
+    if (req.method !== "GET" || isPlatformHost(req.hostname)) return next();
+    const p = normalizeMarketingPath(req.path);
+    if (p.startsWith("/f/") || p.startsWith("/preview/")) return next();
+    try {
+      const resolved = await resolveCustomDomainFunnel(req.hostname);
+      if (resolved && p === "/") {
+        const html = indexHtml.replace(
+          META_MARKER,
+          buildFunnelMeta(resolved.funnel, `https://${resolved.host}/`),
+        );
+        return sendHtml(res, html);
+      }
+    } catch (error) {
+      console.error("Custom-Domain-Meta fehlgeschlagen:", error);
+    }
+    sendHtml(res, notFoundHtml, 404);
+  });
+
   // Öffentliche Funnels: funnel-spezifische Meta-Tags server-seitig injizieren,
   // damit Share-Bots (LinkedIn/WhatsApp/Google) korrekte Vorschauen sehen. Die SPA
   // setzt Meta-Tags sonst erst nach JS-Ausführung, was Crawler nicht durchlaufen.
@@ -116,7 +164,10 @@ export function serveStatic(app: Express) {
     try {
       const funnel = await storage.getFunnelBySlugOrUuid(String(req.params.identifier));
       if (funnel && funnel.status === "published" && META_MARKER.test(indexHtml)) {
-        const html = indexHtml.replace(META_MARKER, buildFunnelMeta(funnel));
+        // Verifizierte Custom-Domain → Canonical zeigt auf die Kundendomain.
+        const domain = await storage.getVerifiedDomainByFunnelId(funnel.id);
+        const canonicalOverride = domain ? `https://${domain.hostname}/` : undefined;
+        const html = indexHtml.replace(META_MARKER, buildFunnelMeta(funnel, canonicalOverride));
         return sendHtml(res, html);
       }
     } catch (error) {
@@ -148,17 +199,6 @@ export function serveStatic(app: Express) {
       ),
     ]),
   );
-  // Unbekannte /vergleich/-Slugs: echter 404-Status + noindex, damit Crawler
-  // keine Soft-404 mit Homepage-Canonical indexieren (Client rendert seine
-  // öffentliche 404-Ansicht).
-  const notFoundHtml = indexHtml.replace(
-    META_MARKER,
-    [
-      `<meta name="robots" content="noindex" />`,
-      `<title>Seite nicht gefunden | Trichterwerk</title>`,
-    ].join("\n    "),
-  );
-
   // Routen-Patterns kommen aus shared/seo-links.ts — dieselbe Quelle, aus der
   // auch seoStaticPages/Sitemap gespeist werden (shared/seo-routes.test.ts
   // erzwingt, dass keine Registry-Seite ohne Server-Route bleibt).
