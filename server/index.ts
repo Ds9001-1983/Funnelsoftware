@@ -12,6 +12,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { setupAuth, apiKeyAuth } from "./auth";
 import { storage } from "./storage";
+import { startScheduler } from "./scheduler";
 import { pool } from "./db";
 
 // ============ ENV-VALIDIERUNG ============
@@ -295,6 +296,9 @@ app.get("/api/health", async (_req, res) => {
     },
     () => {
       log(`serving on port ${port}`);
+      // Hintergrund-Jobs (Free-Downgrade nach Trial-Ende) — nach dem Listen,
+      // damit ein Job-Fehler den Serverstart nie verhindert.
+      startScheduler();
     },
   );
 

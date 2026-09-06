@@ -441,9 +441,41 @@ function AppearanceSettings() {
 }
 
 function BillingSettings() {
-  const { user } = useAuth();
+  const { user, refetchUser } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [hideBranding, setHideBranding] = useState(!!user?.hideBranding);
+  const [isSavingBranding, setIsSavingBranding] = useState(false);
+  const isFreePlan = user?.plan === "free";
+
+  const handleBrandingToggle = async (hidden: boolean) => {
+    setHideBranding(hidden);
+    setIsSavingBranding(true);
+    try {
+      const response = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ hideBranding: hidden }),
+      });
+      if (!response.ok) {
+        setHideBranding(!hidden);
+        const data = await response.json().catch(() => null);
+        toast({
+          title: "Fehler",
+          description: data?.error || "Einstellung konnte nicht gespeichert werden.",
+          variant: "destructive",
+        });
+        return;
+      }
+      await refetchUser();
+    } catch {
+      setHideBranding(!hidden);
+      toast({ title: "Fehler", description: "Netzwerkfehler beim Speichern.", variant: "destructive" });
+    } finally {
+      setIsSavingBranding(false);
+    }
+  };
 
   const status = user?.subscriptionStatus || "trial";
   const isPro = user?.isPro || false;
@@ -541,32 +573,36 @@ function BillingSettings() {
                 : "bg-primary/10 border-primary/20"
             }`}>
               <div>
-                <div className="text-lg font-semibold">Testphase</div>
+                <div className="text-lg font-semibold">Pro-Testphase</div>
                 <div className="text-sm text-muted-foreground">
                   {daysLeft > 0
-                    ? `Noch ${daysLeft} ${daysLeft === 1 ? "Tag" : "Tage"} verbleibend. Hinterlege Zahlungsdaten für nahtlosen Übergang.`
-                    : "Testphase abgelaufen"}
+                    ? `Noch ${daysLeft} ${daysLeft === 1 ? "Tag" : "Tage"} volle Pro-Features — danach läuft dein Account im kostenlosen Free-Plan weiter.`
+                    : "Deine Testphase ist vorbei — du bist jetzt im Free-Plan."}
                 </div>
               </div>
               <Button onClick={handleUpgrade} disabled={isLoading}>
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Zahlungsdaten hinterlegen
+                Auf Pro upgraden
               </Button>
             </div>
           )}
 
-          {/* Cancelled / Expired */}
-          {(status === "cancelled" || status === "expired") && !isAdmin && (
-            <div className="flex items-center justify-between p-4 bg-red-500/10 rounded-lg border border-red-500/20">
+          {/* Free-Plan (dauerhaft kostenlos, nach Trial-Ende oder Abo-Ende) */}
+          {(status === "free" || status === "cancelled" || status === "expired") && !isAdmin && !isPro && (
+            <div className="flex items-center justify-between p-4 bg-muted rounded-lg border">
               <div>
-                <div className="text-lg font-semibold">Kein aktives Abo</div>
+                <div className="text-lg font-semibold flex items-center gap-2">
+                  Free-Plan
+                  <span className="text-xs bg-muted-foreground/20 px-2 py-0.5 rounded-full">Kostenlos</span>
+                </div>
                 <div className="text-sm text-muted-foreground">
-                  Dein Abonnement wurde beendet. Upgrade um weiterzumachen.
+                  1 veröffentlichter Funnel · 100 Leads/Monat · alle Editor-Funktionen.
+                  Pro schaltet unbegrenzte Funnels, Leads, eigene Domain und Teams frei.
                 </div>
               </div>
               <Button onClick={handleUpgrade} disabled={isLoading}>
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Erneut abonnieren
+                Auf Pro upgraden
               </Button>
             </div>
           )}
@@ -598,6 +634,33 @@ function BillingSettings() {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Branding</CardTitle>
+          <CardDescription>
+            „Erstellt mit Trichterwerk“-Badge auf deinen veröffentlichten Funnels
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium">Badge ausblenden</div>
+              <div className="text-sm text-muted-foreground">
+                {isFreePlan
+                  ? "Im Pro-Plan verfügbar — der Badge bleibt im Free-Plan sichtbar."
+                  : "Blendet den Badge im Footer aller veröffentlichten Funnels aus."}
+              </div>
+            </div>
+            <Switch
+              checked={hideBranding}
+              onCheckedChange={handleBrandingToggle}
+              disabled={isSavingBranding || isFreePlan}
+              data-testid="switch-hide-branding"
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

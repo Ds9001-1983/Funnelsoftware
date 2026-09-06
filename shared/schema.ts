@@ -43,6 +43,28 @@ export const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
 /** Max. Audiogröße in Bytes (wird im Originalformat gespeichert). */
 export const MAX_AUDIO_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MB
 
+// ============ PLÄNE & LIMITS ============
+// Client (Preisseite, Limit-Dialoge) und Server (Enforcement) teilen sich
+// diese Werte — sonst laufen Anzeige und Durchsetzung auseinander.
+
+/** Abgeleiteter Plan zur Laufzeit — keine eigene DB-Spalte (server/auth.ts:getUserPlan). */
+export type PlanId = "pro" | "trial" | "free";
+
+/** Free-Plan: max. gleichzeitig veröffentlichte Funnels (Entwürfe unbegrenzt). */
+export const FREE_MAX_PUBLISHED_FUNNELS = 1;
+/** Free-Plan: sichtbare Leads pro Kalendermonat (UTC). Leads werden IMMER
+ *  gespeichert — oberhalb des Limits nur maskiert angezeigt, Upgrade schaltet
+ *  rückwirkend frei (server/lead-limits.ts). */
+export const FREE_MONTHLY_LEAD_LIMIT = 100;
+
+/** Fehlercodes der Plan-/Limit-Durchsetzung (Client: global-error-handler). */
+export const PLAN_ERROR_CODES = {
+  /** Funktion nur im Pro-Plan (KI, Custom Domains, Teams, Branding ausblenden). */
+  PRO_REQUIRED: "PRO_REQUIRED",
+  /** Free-Limit erreicht (z. B. zweiter veröffentlichter Funnel). */
+  FREE_LIMIT_REACHED: "FREE_LIMIT_REACHED",
+} as const;
+
 // ============ DATABASE TABLES ============
 
 // Users table
@@ -55,7 +77,7 @@ export const users = pgTable("users", {
   isAdmin: boolean("is_admin").notNull().default(false),
   trialEndsAt: timestamp("trial_ends_at"),
   isPro: boolean("is_pro").notNull().default(false),
-  subscriptionStatus: text("subscription_status").notNull().default("trial"), // trial, active, cancelled, expired
+  subscriptionStatus: text("subscription_status").notNull().default("trial"), // trial, free, active, past_due, cancelled, expired
   subscriptionPlan: text("subscription_plan"), // basic, pro, enterprise
   subscriptionStartedAt: timestamp("subscription_started_at"),
   stripeCustomerId: text("stripe_customer_id"),
@@ -65,6 +87,10 @@ export const users = pgTable("users", {
   emailVerificationToken: text("email_verification_token"),
   // Lead-Benachrichtigungs-Mails abbestellbar (Settings → Benachrichtigungen)
   leadNotificationsEnabled: boolean("lead_notifications_enabled").notNull().default(true),
+  // "Erstellt mit Trichterwerk"-Badge auf veröffentlichten Funnels ausblenden.
+  // Nutzer-Intent auf Account-Ebene; ob er greift, entscheidet der Plan zur
+  // Lesezeit (Pro ja, Free nie) — Downgrade blendet den Badge automatisch ein.
+  hideBranding: boolean("hide_branding").notNull().default(false),
   // Marketing-Einwilligung aus dem Cookie-Banner, festgehalten bei der
   // Registrierung. Wird gebraucht, weil die Zahlung erst Wochen später über
   // einen Stripe-Webhook eintrifft — dort gibt es weder Browser noch

@@ -34,6 +34,7 @@ export function GlobalErrorHandler() {
       if (!(error instanceof ApiError)) return;
       if (handledIds.current.has(mutationId)) return;
 
+      // Legacy-Fallback: alte Sessions können den Code noch liefern.
       if (error.code === "TRIAL_EXPIRED") {
         handledIds.current.add(mutationId);
         toast({
@@ -43,6 +44,30 @@ export function GlobalErrorHandler() {
           variant: "destructive",
         });
         startCheckout();
+        return;
+      }
+
+      if (error.code === "PRO_REQUIRED") {
+        handledIds.current.add(mutationId);
+        toast({
+          title: "Pro-Funktion",
+          description:
+            "Diese Funktion ist im Pro-Plan enthalten (49 €/Monat). Wir leiten dich zum Upgrade weiter …",
+          variant: "destructive",
+        });
+        startCheckout();
+        return;
+      }
+
+      if (error.code === "FREE_LIMIT_REACHED") {
+        handledIds.current.add(mutationId);
+        toast({
+          title: "Free-Limit erreicht",
+          description:
+            error.message ||
+            "Dein Free-Plan-Limit ist erreicht. Upgrade auf Pro für unbegrenzte Funnels und Leads.",
+          variant: "destructive",
+        });
         return;
       }
 

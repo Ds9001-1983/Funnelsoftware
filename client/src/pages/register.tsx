@@ -35,7 +35,7 @@ export default function Register() {
 
   usePageMeta({
     title: "Kostenlos starten",
-    description: "Erstelle deinen Trichterwerk-Account und teste 14 Tage kostenlos — ohne Code, DSGVO-konform.",
+    description: "Erstelle deinen kostenlosen Trichterwerk-Account — für immer kostenloser Free-Plan, 14 Tage Pro-Features, ohne Code, DSGVO-konform.",
     canonical: "/register",
   });
 
@@ -144,8 +144,8 @@ export default function Register() {
   };
 
   const features = [
-    "14 Tage Pro-Features kostenlos",
-    "Unbegrenzte Funnels",
+    "Für immer kostenloser Free-Plan",
+    "14 Tage Pro-Features gratis",
     "Drag & Drop Builder",
     "Analytics & Insights",
   ];
@@ -163,10 +163,10 @@ export default function Register() {
           <h1 className="text-3xl font-bold tracking-tight">Trichterwerk</h1>
           <Badge variant="secondary" className="mt-2">
             <Sparkles className="h-3 w-3 mr-1" />
-            14 Tage kostenlos testen
+            Kostenlos starten
           </Badge>
           <p className="text-muted-foreground mt-2">
-            Starte jetzt deine kostenlose Testversion
+            Für immer kostenloser Free-Plan — mit 14 Tagen Pro-Features
           </p>
         </div>
 
@@ -283,7 +283,7 @@ export default function Register() {
                     Account wird erstellt...
                   </>
                 ) : (
-                  "14 Tage kostenlos testen"
+                  "Kostenlos starten"
                 )}
               </Button>
               <div className="mt-3 space-y-2">
@@ -291,8 +291,8 @@ export default function Register() {
                   <strong className="font-medium text-foreground">
                     Keine Zahlungsdaten nötig.
                   </strong>{" "}
-                  14 Tage kostenlos testen — danach entscheidest du, ob du für
-                  49&nbsp;€ im Monat (inkl. MwSt.) weitermachst.
+                  14 Tage volle Pro-Features — danach läuft dein Account im für
+                  immer kostenlosen Free-Plan weiter (Pro: 49&nbsp;€/Monat inkl. MwSt.).
                 </p>
               </div>
             </form>

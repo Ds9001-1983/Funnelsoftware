@@ -386,8 +386,7 @@ function AppShell() {
       <Toaster />
       <GlobalErrorHandler />
       <Router />
-      {/* Globale Blocking-Guards: zeigen sich selbst nur, wenn User betroffen */}
-      <UpgradeBanner variant="payment-required" />
+      {/* Free-Plan-Info nach Trial-Ende (schließbar, keine Sperre mehr) */}
       <UpgradeBanner variant="expired" />
       {/* Cookie-Banner nur auf öffentlichen Seiten — blockiert sonst den App-Bereich */}
       {showCookieConsent && <CookieConsent />}

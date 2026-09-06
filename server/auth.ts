@@ -24,6 +24,7 @@ declare global {
       stripeSubscriptionId: string | null;
       emailVerifiedAt: Date | null;
       leadNotificationsEnabled: boolean;
+      hideBranding: boolean;
       createdAt: Date;
       updatedAt: Date;
     }
@@ -193,30 +194,40 @@ export function requireVerifiedEmailForPublish(
 }
 
 /**
- * Grace-Period für die ÖFFENTLICHE Auslieferung publizierter Funnels nach
- * Trial-/Abo-Ende: Live-Kampagnen brechen nicht zur Sekunde des Ablaufs ab,
- * der Account selbst (Editor/Erstellen) ist aber sofort gesperrt.
+ * Leitet den Plan eines Accounts zur Laufzeit ab — bewusst KEINE eigene
+ * DB-Spalte als Wahrheitsquelle (subscriptionStatus bleibt Stripe-Spiegel):
+ * - "pro":   zahlendes Abo oder Admin (volle Features)
+ * - "trial": laufende 14-Tage-Testphase (volle Pro-Features)
+ * - "free":  dauerhaft kostenloser Plan (1 veröffentlichter Funnel,
+ *            FREE_MONTHLY_LEAD_LIMIT Leads/Monat sichtbar, Badge Pflicht)
+ *
+ * Es gibt keinen Zustand "kein Plan" mehr — nach Trial-Ende wird niemand
+ * gesperrt, sondern auf Free heruntergestuft (server/scheduler.ts
+ * materialisiert das zusätzlich in subscriptionStatus).
  */
-export const PUBLIC_GRACE_PERIOD_MS = 7 * 24 * 60 * 60 * 1000;
-
-/**
- * Prüft, ob ein Account einen aktiven Plan hat (Abo, Admin oder laufender
- * Trial). Gemeinsame Logik für requireActivePlan (eingeloggte Nutzer) und
- * die Public-Routen (Owner-Check bei anonymer Funnel-Auslieferung).
- */
-export function hasActivePlan(
-  user: { isAdmin: boolean; isPro: boolean; trialEndsAt: Date | string | null },
-  graceMs = 0
-): boolean {
-  if (user.isAdmin || user.isPro) return true;
-  if (user.trialEndsAt) {
-    return new Date(user.trialEndsAt).getTime() + graceMs > Date.now();
+export function getUserPlan(user: {
+  isAdmin: boolean;
+  isPro: boolean;
+  trialEndsAt: Date | string | null;
+}): import("@shared/schema").PlanId {
+  if (user.isAdmin || user.isPro) return "pro";
+  if (user.trialEndsAt && new Date(user.trialEndsAt).getTime() > Date.now()) {
+    return "trial";
   }
-  return false;
+  return "free";
 }
 
-// Trial-Enforcement: Blockiert schreibende Aktionen wenn Trial abgelaufen
-export function requireActivePlan(
+/** Pro-Features verfügbar? (Trial zählt mit — volle Features zum Testen.) */
+export function hasProFeatures(user: {
+  isAdmin: boolean;
+  isPro: boolean;
+  trialEndsAt: Date | string | null;
+}): boolean {
+  return getUserPlan(user) !== "free";
+}
+
+// Pro-Gate: Blockiert Pro-Features (KI, Custom Domains, Teams) für Free-Accounts.
+export function requirePro(
   req: import("express").Request,
   res: import("express").Response,
   next: import("express").NextFunction
@@ -225,13 +236,13 @@ export function requireActivePlan(
     return res.status(401).json({ error: "Nicht autorisiert." });
   }
 
-  if (hasActivePlan(req.user)) {
+  if (hasProFeatures(req.user)) {
     return next();
   }
 
   return res.status(403).json({
-    error: "Dein Testzeitraum ist abgelaufen. Bitte upgrade auf einen kostenpflichtigen Plan.",
-    code: "TRIAL_EXPIRED",
+    error: "Diese Funktion ist im Pro-Plan enthalten. Upgrade, um sie zu nutzen.",
+    code: "PRO_REQUIRED",
   });
 }
 

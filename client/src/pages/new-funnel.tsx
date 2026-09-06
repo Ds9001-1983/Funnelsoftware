@@ -165,7 +165,7 @@ export default function NewFunnel() {
     },
     onError: (error) => {
       // Globaler Handler übernimmt bekannte Plan-/Email-Fehler (TRIAL_EXPIRED, EMAIL_NOT_VERIFIED)
-      if (error instanceof ApiError && (error.code === "TRIAL_EXPIRED" || error.code === "EMAIL_NOT_VERIFIED")) {
+      if (error instanceof ApiError && (error.code === "TRIAL_EXPIRED" || error.code === "PRO_REQUIRED" || error.code === "FREE_LIMIT_REACHED" || error.code === "EMAIL_NOT_VERIFIED")) {
         return;
       }
       toast({
@@ -205,7 +205,7 @@ export default function NewFunnel() {
         navigate("/settings?tab=ai");
         return;
       }
-      if (error instanceof ApiError && (error.code === "TRIAL_EXPIRED" || error.code === "EMAIL_NOT_VERIFIED")) {
+      if (error instanceof ApiError && (error.code === "TRIAL_EXPIRED" || error.code === "PRO_REQUIRED" || error.code === "FREE_LIMIT_REACHED" || error.code === "EMAIL_NOT_VERIFIED")) {
         return;
       }
       toast({

@@ -34,6 +34,9 @@ interface PublicFunnel {
   abTests?: ABTest[];
   impressumUrl?: string | null;
   datenschutzUrl?: string | null;
+  /** Serverseitig berechnet (Pro darf Badge ausblenden, Free nie).
+   *  Fehlt das Feld (gecachte Antwort), wird der Badge angezeigt. */
+  showBranding?: boolean;
 }
 
 /** Analytics-Consent direkt aus dem gespeicherten Banner-Stand lesen (default-deny). */
@@ -522,17 +525,21 @@ export default function PublicFunnelView() {
           </div>
           {/* Badge als echter Link: jeder Live-Funnel wird zum Backlink + Referral-Kanal.
               Absolute URL, damit das auch auf Custom Domains auf trichterwerk.de zeigt;
-              bewusst kein rel="nofollow" — der Linkwert ist der Zweck. */}
-          <div>
-            <a
-              href={`${SITE_ORIGIN}/?utm_source=funnel&utm_medium=badge&utm_campaign=powered-by`}
-              target="_blank"
-              rel="noopener"
-              className="hover:underline underline-offset-2"
-            >
-              Erstellt mit Trichterwerk
-            </a>
-          </div>
+              bewusst kein rel="nofollow" — der Linkwert ist der Zweck.
+              Pro-Accounts können den Badge in den Einstellungen ausblenden
+              (showBranding kommt serverseitig berechnet). */}
+          {funnel.showBranding !== false && (
+            <div>
+              <a
+                href={`${SITE_ORIGIN}/?utm_source=funnel&utm_medium=badge&utm_campaign=powered-by`}
+                target="_blank"
+                rel="noopener"
+                className="hover:underline underline-offset-2"
+              >
+                Erstellt mit Trichterwerk
+              </a>
+            </div>
+          )}
         </div>
       )}
     />

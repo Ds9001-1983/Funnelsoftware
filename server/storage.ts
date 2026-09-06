@@ -1,4 +1,4 @@
-import { eq, desc, and, sql, gte } from "drizzle-orm";
+import { eq, desc, and, sql, gte, inArray } from "drizzle-orm";
 import { quizTemplateElement } from "@shared/quiz-template";
 import { db } from "./db";
 import {
@@ -76,6 +76,12 @@ export interface IStorage {
     subscriptionStartedAt?: Date | null;
     trialEndsAt?: Date | null;
   }): Promise<void>;
+
+  // Free-Plan (siehe server/auth.ts:getUserPlan + server/scheduler.ts)
+  countPublishedFunnels(userId: number, excludeFunnelId?: number): Promise<number>;
+  demoteExtraPublishedFunnels(userId: number, keep?: number): Promise<{ id: number; name: string }[]>;
+  getUsersForFreeDowngrade(): Promise<User[]>;
+  markUserFree(userId: number): Promise<void>;
 
   // Funnels
   getFunnels(userId: number): Promise<Funnel[]>;
@@ -182,6 +188,73 @@ export class DatabaseStorage implements IStorage {
   }): Promise<void> {
     await db.update(users)
       .set({ ...updates, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+  }
+
+  // ============ FREE-PLAN ============
+
+  async countPublishedFunnels(userId: number, excludeFunnelId?: number): Promise<number> {
+    const conditions = [
+      eq(funnels.userId, userId),
+      eq(funnels.status, "published"),
+      sql`${funnels.deletedAt} IS NULL`,
+    ];
+    if (excludeFunnelId !== undefined) {
+      conditions.push(sql`${funnels.id} <> ${excludeFunnelId}`);
+    }
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(funnels)
+      .where(and(...conditions));
+    return row?.count ?? 0;
+  }
+
+  /**
+   * Free-Downgrade: Alle veröffentlichten Funnels bis auf die `keep` zuletzt
+   * aktualisierten auf "draft" setzen. Gibt die depublizierten Funnels zurück
+   * (für Logging/Downgrade-Mail). Idempotent — beim zweiten Lauf ist nichts
+   * mehr über dem Limit.
+   */
+  async demoteExtraPublishedFunnels(
+    userId: number,
+    keep: number = 1,
+  ): Promise<{ id: number; name: string }[]> {
+    const published = await db
+      .select({ id: funnels.id, name: funnels.name })
+      .from(funnels)
+      .where(and(
+        eq(funnels.userId, userId),
+        eq(funnels.status, "published"),
+        sql`${funnels.deletedAt} IS NULL`,
+      ))
+      .orderBy(desc(funnels.updatedAt));
+
+    const extras = published.slice(keep);
+    if (extras.length === 0) return [];
+
+    await db.update(funnels)
+      .set({ status: "draft", updatedAt: new Date() })
+      .where(inArray(funnels.id, extras.map((e) => e.id)));
+
+    return extras;
+  }
+
+  /** Kandidaten für die Free-Normalisierung (server/scheduler.ts): Trial vorbei
+   *  (oder nie gestartet), kein Abo, Status noch nicht "free". Self-healing —
+   *  erfasst beim Erst-Lauf auch Alt-Accounts mit Status expired/cancelled. */
+  async getUsersForFreeDowngrade(): Promise<User[]> {
+    return db.select().from(users).where(and(
+      eq(users.isPro, false),
+      eq(users.isAdmin, false),
+      sql`${users.deletedAt} IS NULL`,
+      sql`(${users.trialEndsAt} IS NULL OR ${users.trialEndsAt} < NOW())`,
+      sql`${users.subscriptionStatus} <> 'free'`,
+    ));
+  }
+
+  async markUserFree(userId: number): Promise<void> {
+    await db.update(users)
+      .set({ subscriptionStatus: "free", updatedAt: new Date() })
       .where(eq(users.id, userId));
   }
 
@@ -1007,6 +1080,7 @@ export class DatabaseStorage implements IStorage {
   async updateUserProfile(userId: number, updates: {
     displayName?: string;
     leadNotificationsEnabled?: boolean;
+    hideBranding?: boolean;
   }): Promise<User | undefined> {
     const [user] = await db.update(users)
       .set({

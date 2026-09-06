@@ -88,7 +88,12 @@ export async function apiRequest(
     const cloned = res.clone();
     try {
       const errorBody = await cloned.json();
-      if (errorBody.code === "TRIAL_EXPIRED" || errorBody.code === "EMAIL_NOT_VERIFIED") {
+      if (
+        errorBody.code === "TRIAL_EXPIRED" ||
+        errorBody.code === "EMAIL_NOT_VERIFIED" ||
+        errorBody.code === "PRO_REQUIRED" ||
+        errorBody.code === "FREE_LIMIT_REACHED"
+      ) {
         await throwIfResNotOk(res);
         return res;
       }
