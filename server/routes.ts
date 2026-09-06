@@ -7,7 +7,15 @@ import path from "path";
 import fs from "fs";
 import { storage, hashPassword, comparePasswords } from "./storage";
 import { randomBytes, randomUUID, createHash, timingSafeEqual } from "crypto";
-import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail, sendLeadNotificationEmail } from "./email";
+import {
+  sendPasswordResetEmail,
+  sendVerificationEmail,
+  sendWelcomeEmail,
+  sendLeadNotificationEmail,
+  sendLeadLimitReachedEmail,
+  sendPaymentFailedEmail,
+  sendTeamInviteEmail,
+} from "./email";
 import {
   stripe,
   isStripeConfigured,
@@ -28,7 +36,7 @@ import {
   loginSchema, registerSchema, slugSchema, passwordSchema, trackEventSchema,
   aiCredentialInputSchema, generateFunnelInputSchema,
   MAX_IMAGE_UPLOAD_BYTES, MAX_AUDIO_UPLOAD_BYTES,
-  FREE_MAX_PUBLISHED_FUNNELS,
+  FREE_MAX_PUBLISHED_FUNNELS, FREE_MONTHLY_LEAD_LIMIT,
   type Domain, type Lead,
 } from "@shared/schema";
 import { computeLockedLeadIds, maskLockedLeads } from "./lead-limits";
@@ -283,6 +291,17 @@ export async function registerRoutes(
         email,
         !!result.data.username,
       );
+
+      // Ausstehende Team-Einladungen an diese E-Mail übernehmen (userId NULL
+      // → jetzt zuordnen). Fehler dürfen die Registrierung nie blockieren.
+      try {
+        const claimed = await storage.claimTeamInvites(email, user.id);
+        if (claimed > 0) {
+          console.log(`[Teams] ${claimed} Einladung(en) für ${email} übernommen`);
+        }
+      } catch (err) {
+        console.error("Team-Invite-Claim fehlgeschlagen:", err);
+      }
 
       // Partnerprogramm-Attribution: unbekannter Code oder Selbst-Referral
       // wird still ignoriert — die Registrierung darf daran nie scheitern.
@@ -1477,6 +1496,22 @@ export async function registerRoutes(
         sendLeadNotificationEmail(owner.email, lead, funnel.name).catch(() => {});
       }
 
+      // Free-Plan: Hinweis-Mail, wenn das Monatslimit gerade erreicht wurde —
+      // 1x pro Monat (periodKey = YYYY-MM), non-blocking.
+      if (owner && getUserPlan(owner) === "free") {
+        (async () => {
+          const now = new Date();
+          const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+          const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+          const monthlyCount = await storage.countLeadsForUserSince(owner.id, monthStart);
+          if (monthlyCount >= FREE_MONTHLY_LEAD_LIMIT) {
+            if (await storage.tryLogEmail(owner.id, "lead_limit_reached", monthKey)) {
+              await sendLeadLimitReachedEmail(owner.email, owner.displayName, funnel.name);
+            }
+          }
+        })().catch((err) => console.error("[Email] Lead-Limit-Mail fehlgeschlagen:", err));
+      }
+
       // Async: Server-Side Meta Conversions API. DSGVO: nur bei aktivem
       // Marketing-Consent des Besuchers feuern. Funktioniert nur, wenn der
       // Funnel-Owner Pixel-ID + CAPI-Token konfiguriert und capiEnabled=true
@@ -1677,8 +1712,26 @@ export async function registerRoutes(
       if (!email?.trim()) return res.status(400).json({ error: "E-Mail ist erforderlich" });
 
       const member = await storage.addTeamMember(teamId, email.trim(), role || "member");
+
+      // Einladungs-Mail — Fehler dürfen die Route nicht failen lassen.
+      try {
+        const team = await storage.getTeam(teamId, userId);
+        const invitedUser = await storage.getUserByEmail(email.trim().toLowerCase());
+        const inviter = req.user?.displayName || req.user?.username || "Ein Teammitglied";
+        if (team) {
+          sendTeamInviteEmail(email.trim(), team.name, inviter, !!invitedUser).catch((err) =>
+            console.error("[Email] Team-Einladung fehlgeschlagen:", err),
+          );
+        }
+      } catch (mailErr) {
+        console.error("Team-Invite-Mail-Vorbereitung fehlgeschlagen:", mailErr);
+      }
+
       res.status(201).json(member);
     } catch (error) {
+      if (error instanceof Error && error.message === "DUPLICATE_MEMBER") {
+        return res.status(409).json({ error: "Diese Person ist bereits im Team oder eingeladen." });
+      }
       console.error("Invite team member error:", error);
       res.status(500).json({ error: "Einladung fehlgeschlagen" });
     }
@@ -2144,6 +2197,14 @@ export async function registerRoutes(
             await storage.updateSubscriptionFromStripe(user.id, {
               subscriptionStatus: "past_due",
             });
+
+            // Dunning-Mail — periodKey = Invoice-ID: Stripe-Webhook-Retries
+            // und weitere Fehlversuche derselben Rechnung deduplizieren sich.
+            if (await storage.tryLogEmail(user.id, "payment_failed", String(invoice.id || ""))) {
+              sendPaymentFailedEmail(user.email, user.displayName).catch((err) =>
+                console.error("[Email] Dunning-Mail fehlgeschlagen:", err),
+              );
+            }
 
             // Dunning-Fallback: Nach dem 4. Fehlversuch (letzte Smart-Retry-
             // Stufe) das Abo serverseitig kündigen — sonst hängt der Account

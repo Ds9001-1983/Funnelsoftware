@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, timestamp, jsonb, serial, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, timestamp, jsonb, serial, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -305,7 +305,9 @@ export const teams = pgTable("teams", {
 export const teamMembers = pgTable("team_members", {
   id: serial("id").primaryKey(),
   teamId: integer("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  // NULL = ausstehende Einladung an eine noch nicht registrierte E-Mail
+  // (invitedEmail gesetzt). Der Claim bei der Registrierung füllt userId nach.
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
   role: text("role").notNull().default("member"), // owner, admin, member
   invitedEmail: text("invited_email"),
   acceptedAt: timestamp("accepted_at"),
@@ -313,6 +315,20 @@ export const teamMembers = pgTable("team_members", {
 }, (table) => [
   index("team_members_team_id_idx").on(table.teamId),
   index("team_members_user_id_idx").on(table.userId),
+]);
+
+// E-Mail-Versandprotokoll: Dedupe-Gate für Lifecycle-Mails. Der Unique-Index
+// macht den Versand DB-atomar (INSERT zuerst, nur bei Erfolg senden) — auch
+// bei mehreren Server-Instanzen oder Stripe-Webhook-Retries kein Doppelversand.
+// periodKey: "" für Einmal-Mails, "YYYY-MM" für monatliche, invoice-ID für Dunning.
+export const emailLog = pgTable("email_log", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  emailType: text("email_type").notNull(), // trial_ending_3d, free_downgrade, reengagement_14d, payment_failed, lead_limit_reached
+  periodKey: text("period_key").notNull().default(""),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("email_log_dedupe_idx").on(table.userId, table.emailType, table.periodKey),
 ]);
 
 // API Keys table (Enterprise feature)
@@ -1160,7 +1176,8 @@ export type InsertTeam = z.infer<typeof insertTeamSchema>;
 export const teamMemberSchema = z.object({
   id: z.number(),
   teamId: z.number(),
-  userId: z.number(),
+  // NULL = ausstehende Einladung (invitedEmail gesetzt, noch nicht registriert)
+  userId: z.number().nullable(),
   role: z.enum(["owner", "admin", "member"]),
   invitedEmail: z.string().nullable().optional(),
   acceptedAt: z.string().or(z.date()).nullable().optional(),
