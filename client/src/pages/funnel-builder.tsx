@@ -28,6 +28,7 @@ import { MarketingCta } from "@/components/marketing/MarketingCta";
 // Bewusst NUR das leichte seo-links-Modul — die große Content-Registry
 // (shared/seo-content.ts) bleibt dem Vergleichsseiten-Chunk vorbehalten.
 import { comparisonLinks, funnelBuilderPage, faqPageJsonLd } from "@shared/seo-links";
+import { funnelBuilderFaqs } from "@shared/seo-content";
 
 const buildingBlocks = [
   {
@@ -77,32 +78,9 @@ const useCases = [
   },
 ];
 
-const faqs = [
-  {
-    q: "Was ist ein Funnel-Builder?",
-    a: "Ein Funnel-Builder ist eine Software, mit der du mehrstufige Marketing-Funnels ohne Programmierkenntnisse erstellst: Landingpage, Frage-Seiten, Kontaktformular und Danke-Seite — verbunden mit Logik, Tracking und Lead-Verwaltung in einem Tool.",
-  },
-  {
-    q: "Was ist der Unterschied zwischen Funnel, Landingpage und Formular?",
-    a: "Eine Landingpage ist eine einzelne Seite, ein Formular ein einzelner Baustein. Ein Funnel verbindet beides zu einer Strecke: Er führt Besucher Schritt für Schritt vom ersten Interesse bis zur Kontaktaufnahme — und qualifiziert sie unterwegs mit Fragen.",
-  },
-  {
-    q: "Brauche ich Programmierkenntnisse für einen Funnel-Builder?",
-    a: "Nein. Moderne Funnel-Builder wie Trichterwerk arbeiten mit Drag & Drop und fertigen Templates. Wenn du eine E-Mail schreiben kannst, kannst du einen Funnel bauen.",
-  },
-  {
-    q: "Was kostet ein Funnel-Builder?",
-    a: "Die Spanne reicht von ca. 25 $ (reine Formular-Tools wie Typeform) über 49 € (Trichterwerk, alles inklusive) bis 59–369 € pro Monat plus kostenpflichtiger Add-ons (Perspective) oder 97 $+ (ClickFunnels). Entscheidend ist, ob Leads, Funnels und Features unbegrenzt sind oder pro Plan limitiert.",
-  },
-  {
-    q: "Gibt es einen DSGVO-konformen Funnel-Builder aus Deutschland?",
-    a: "Ja — Trichterwerk wird in Deutschland entwickelt, hostet ausschließlich in der EU, misst cookielos und stellt eine AVV bereit. Damit ist die häufigste Compliance-Hürde von US-Tools gelöst.",
-  },
-  {
-    q: "Wie schnell ist ein Funnel live?",
-    a: "Mit Template und Drag & Drop-Editor typischerweise in unter einer Stunde: registrieren, Vorlage wählen, Texte und Farben anpassen, veröffentlichen — fertig.",
-  },
-];
+// FAQ lebt in shared/seo-content.ts, damit der Server dasselbe FAQPage-JSON-LD
+// bereits in den SSR-Meta-Block injizieren kann (ohne JS-Rendering).
+const faqs = funnelBuilderFaqs;
 
 // Statischer Inhalt → einmal pro Modul-Load statt pro Render.
 const JSON_LD = JSON.stringify({ "@context": "https://schema.org", ...faqPageJsonLd(faqs) });

@@ -22,6 +22,11 @@ export interface SeoStaticPage {
   /** Ohne Suffix — Server/Hook hängen " | Trichterwerk" an. */
   metaTitle: string;
   metaDescription: string;
+  /** Optionales JSON-LD (schema.org) — wird von server/static.ts mit in den
+   *  SSR-Meta-Block injiziert, damit Rich Results ohne JS-Rendering greifen.
+   *  Befüllt wird das Feld erst in der Assembly in shared/seo-content.ts
+   *  (Lazy-Chunk) — hier im leichten Modul bleibt nur der Typ. */
+  jsonLd?: object;
 }
 
 export const funnelBuilderPage: SeoStaticPage = {
@@ -29,6 +34,15 @@ export const funnelBuilderPage: SeoStaticPage = {
   metaTitle: "Funnel-Builder: Marketing-Funnels ohne Code erstellen",
   metaDescription:
     "Was ist ein Funnel-Builder und wie erstellst du damit Funnels ohne Code? Der Guide aus Deutschland — DSGVO-konform, ab 49 €/Monat, 14 Tage kostenlos testen.",
+};
+
+/** Meta der Vergleichs-Übersicht (/vergleich) — eine Quelle für Client-Hook,
+ *  Sitemap und SSR-Meta (der Index fehlte früher in beiden, siehe Test). */
+export const vergleichIndexPage: SeoStaticPage = {
+  path: "/vergleich",
+  metaTitle: "Trichterwerk im Vergleich",
+  metaDescription:
+    "Trichterwerk ehrlich verglichen mit Typeform, Perspective und ClickFunnels — Features, Preise, DSGVO. Finde heraus, welcher Funnel-Builder zu dir passt.",
 };
 
 export const comparisonLinks = [
@@ -55,6 +69,27 @@ export const audiencePages = [
       "Lead-Funnel statt Kontaktformular: Besucher Schritt für Schritt qualifizieren und konvertieren — DSGVO-konform ab 49 €/Monat. 14 Tage kostenlos testen.",
   },
 ] as const satisfies readonly (SeoStaticPage & { label: string })[];
+
+/**
+ * Statische Pfade der Sitemap OHNE die SEO-Registry-Seiten (die kommen aus
+ * shared/seo-content.ts:seoStaticPages dazu). Bewusst ohne /login und /register:
+ * Auth-Seiten sind Thin Content und werden serverseitig auf noindex gesetzt.
+ */
+export const sitemapStaticPaths = ["/", "/impressum", "/datenschutz", "/agb", "/avv"] as const;
+
+/**
+ * Express-Routen-Patterns der Marketing-Seiten mit SSR-Meta-Injektion
+ * (server/static.ts). Muss jede seoStaticPages-Seite abdecken —
+ * shared/seo-routes.test.ts erzwingt das.
+ */
+export const marketingRoutePatterns: string[] = [
+  funnelBuilderPage.path,
+  vergleichIndexPage.path,
+  "/vergleich/:slug",
+  ...audiencePages.map((p) => p.path),
+  TEMPLATE_GALLERY_PATH,
+  `${TEMPLATE_GALLERY_PATH}/:slug`,
+];
 
 export interface SeoFaq {
   q: string;

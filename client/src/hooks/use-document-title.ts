@@ -66,6 +66,7 @@ export function usePageMeta({ title, description, canonical }: PageMeta) {
       const href = canonical.startsWith("http")
         ? canonical
         : `${SITE_ORIGIN}${canonical.startsWith("/") ? "" : "/"}${canonical}`;
+      restores.push(upsertMeta('meta[property="og:url"]', "property", "og:url", href));
       let link = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
       const created = !link;
       const prev = link?.getAttribute("href") ?? null;

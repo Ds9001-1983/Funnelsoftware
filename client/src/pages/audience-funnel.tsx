@@ -16,32 +16,16 @@ import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { MarketingCta } from "@/components/marketing/MarketingCta";
 import {
   getAudiencePage,
-  faqPageJsonLd,
+  audienceJsonLd,
   type AudiencePageContent,
 } from "@shared/seo-content";
 import { getTemplateMeta } from "@shared/template-meta";
-import { audiencePages, SITE_ORIGIN, TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
+import { audiencePages, TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
 
-/** FAQPage + BreadcrumbList als JSON-LD (Google liest das auch client-gerendert). */
+/** FAQPage + BreadcrumbList als JSON-LD — gemeinsame Quelle mit der
+ *  SSR-Meta-Injektion (shared/seo-content.ts:audienceJsonLd). */
 function buildJsonLd(c: AudiencePageContent, label: string): string {
-  return JSON.stringify({
-    "@context": "https://schema.org",
-    "@graph": [
-      faqPageJsonLd(c.faqs),
-      {
-        "@type": "BreadcrumbList",
-        itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Start", item: SITE_ORIGIN },
-          {
-            "@type": "ListItem",
-            position: 2,
-            name: label,
-            item: `${SITE_ORIGIN}/${c.slug}`,
-          },
-        ],
-      },
-    ],
-  });
+  return JSON.stringify(audienceJsonLd(c, label));
 }
 
 /**

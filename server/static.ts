@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { escapeHtml } from "./email";
 import type { Funnel } from "@shared/schema";
 import { seoStaticPages } from "@shared/seo-content";
-import { SITE_ORIGIN } from "@shared/seo-links";
+import { marketingRoutePatterns, SITE_ORIGIN } from "@shared/seo-links";
 
 const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/images/og-image.png`;
 // Wird im Prod-Build durch server-seitige Injektion für /f/:id ersetzt.
@@ -30,6 +30,7 @@ function buildMetaBlock({ title, description, canonical, ogImage = DEFAULT_OG_IM
     `<meta name="description" content="${desc}" />`,
     `<link rel="canonical" href="${canonical}" />`,
     `<meta property="og:type" content="website" />`,
+    `<meta property="og:url" content="${escapeHtml(canonical)}" />`,
     `<meta property="og:title" content="${t}" />`,
     `<meta property="og:description" content="${desc}" />`,
     `<meta property="og:image" content="${img}" />`,
@@ -137,6 +138,12 @@ export function serveStatic(app: Express) {
           title: `${p.metaTitle} | Trichterwerk`,
           description: p.metaDescription,
           canonical: `${SITE_ORIGIN}${p.path}`,
+          extra: p.jsonLd
+            ? [
+                // "<" escapen, damit ein "</script>" im Content den Block nie beendet.
+                `<script type="application/ld+json">${JSON.stringify(p.jsonLd).replace(/</g, "\\u003c")}</script>`,
+              ]
+            : [],
         }),
       ),
     ]),
@@ -152,23 +159,37 @@ export function serveStatic(app: Express) {
     ].join("\n    "),
   );
 
-  app.get(
+  // Routen-Patterns kommen aus shared/seo-links.ts — dieselbe Quelle, aus der
+  // auch seoStaticPages/Sitemap gespeist werden (shared/seo-routes.test.ts
+  // erzwingt, dass keine Registry-Seite ohne Server-Route bleibt).
+  app.get(marketingRoutePatterns, (req: Request, res: Response) => {
+    const html = marketingHtmlByPath.get(normalizeMarketingPath(req.path));
+    if (html) {
+      return sendHtml(res, html);
+    }
+    sendHtml(res, notFoundHtml, 404);
+  });
+
+  // Auth-Seiten: Thin Content → noindex (stehen bewusst nicht in der Sitemap).
+  const noindexHtml = indexHtml.replace(
+    META_MARKER,
     [
-      "/funnel-builder",
-      "/recruiting-funnel",
-      "/lead-funnel",
-      "/vergleich/:slug",
-      "/vorlagen",
-      "/vorlagen/:slug",
-    ],
-    (req: Request, res: Response) => {
-      const html = marketingHtmlByPath.get(normalizeMarketingPath(req.path));
-      if (html) {
-        return sendHtml(res, html);
-      }
-      sendHtml(res, notFoundHtml, 404);
+      `<meta name="robots" content="noindex" />`,
+      `<title>Trichterwerk – Funnel-Builder aus Deutschland</title>`,
+    ].join("\n    "),
+  );
+  app.get(
+    ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email"],
+    (_req: Request, res: Response) => {
+      sendHtml(res, noindexHtml);
     },
   );
+
+  // Alias-Konsolidierung: /nutzungsbedingungen rendert die AGB — ohne Redirect
+  // wäre das Duplicate Content mit Homepage-Meta (Catch-all).
+  app.get("/nutzungsbedingungen", (_req: Request, res: Response) => {
+    res.redirect(301, "/agb");
+  });
 
   // fall through to index.html if the file doesn't exist
   app.use("/{*path}", (_req, res) => {
