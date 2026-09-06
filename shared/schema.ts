@@ -91,6 +91,11 @@ export const users = pgTable("users", {
   // Nutzer-Intent auf Account-Ebene; ob er greift, entscheidet der Plan zur
   // Lesezeit (Pro ja, Free nie) — Downgrade blendet den Badge automatisch ein.
   hideBranding: boolean("hide_branding").notNull().default(false),
+  // Partnerprogramm: eigener Empfehlungscode (lazy generiert, /register?ref=…)
+  // und wer diesen Account geworben hat. Provision (25 % lifetime) wird manuell
+  // über die Admin-Übersicht abgerechnet — kein Payout-Automatismus in V1.
+  referralCode: text("referral_code").unique(),
+  referredById: integer("referred_by_id"),
   // Marketing-Einwilligung aus dem Cookie-Banner, festgehalten bei der
   // Registrierung. Wird gebraucht, weil die Zahlung erst Wochen später über
   // einen Stripe-Webhook eintrifft — dort gibt es weder Browser noch
@@ -103,6 +108,8 @@ export const users = pgTable("users", {
 }, (table) => [
   // Jeder Stripe-Webhook macht einen Lookup über die Customer-ID
   index("users_stripe_customer_id_idx").on(table.stripeCustomerId),
+  // Admin-Partnerübersicht joint über referredById
+  index("users_referred_by_id_idx").on(table.referredById),
 ]);
 
 // Funnels table
@@ -1122,6 +1129,12 @@ export const registerSchema = z.object({
    * Fehlt das Feld, gilt "keine Einwilligung".
    */
   marketingConsent: z.boolean().optional(),
+  /**
+   * Empfehlungscode aus /register?ref=… (localStorage-Handoff wie beim
+   * template-Param). Unbekannte Codes und Selbst-Referrals werden serverseitig
+   * still ignoriert — die Registrierung scheitert daran nie.
+   */
+  referralCode: z.string().max(32).optional(),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Zap, AlertCircle, Check, Sparkles, Eye, EyeOff } from "lucide-react";
-import { SIGNUP_TEMPLATE_STORAGE_KEY } from "@shared/seo-links";
+import { SIGNUP_REF_STORAGE_KEY, SIGNUP_TEMPLATE_STORAGE_KEY } from "@shared/seo-links";
 import { PASSWORD_MIN_LENGTH } from "@shared/schema";
 import { useCookieConsent } from "@/components/cookie-consent";
 import { fbqTrack } from "@/lib/meta-pixel";
@@ -58,6 +58,19 @@ export default function Register() {
     }
   }, []);
 
+  // Partnerprogramm: ?ref=<code> merken (gleiches Muster wie ?template) —
+  // wird beim Absenden mitgeschickt und danach gelöscht.
+  useEffect(() => {
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref && /^[a-z0-9-]{1,32}$/i.test(ref)) {
+      try {
+        localStorage.setItem(SIGNUP_REF_STORAGE_KEY, ref);
+      } catch {
+        // Storage blockiert → Attribution geht verloren, Registrierung läuft normal
+      }
+    }
+  }, []);
+
   // Abbruch messen: Formular begonnen, aber nie abgesendet. `pagehide` statt
   // `beforeunload`, weil Safari/iOS letzteres bei Tab-Wechsel nicht feuert — und
   // mobil kommt der Großteil des Traffics.
@@ -98,16 +111,30 @@ export default function Register() {
 
     setIsLoading(true);
 
+    // Empfehlungscode aus dem localStorage-Handoff (Partnerprogramm).
+    let referralCode: string | undefined;
+    try {
+      referralCode = localStorage.getItem(SIGNUP_REF_STORAGE_KEY) || undefined;
+    } catch {
+      // ohne Storage keine Attribution — Registrierung läuft normal
+    }
+
     // Kein `username`: der Server leitet ihn aus der E-Mail ab.
     const result = await register({
       email: formData.email,
       password: formData.password,
       displayName: formData.displayName || undefined,
       marketingConsent: allowsMarketing,
+      referralCode,
     });
 
     if (result.success) {
       formSubmitted.current = true;
+      try {
+        localStorage.removeItem(SIGNUP_REF_STORAGE_KEY);
+      } catch {
+        // egal — der Server ignoriert einen erneut mitgeschickten Code
+      }
       // Browser-Seite der Conversion. Der Server hat dasselbe Event bereits
       // über die CAPI gemeldet — identische eventID, Meta dedupliziert. Geht
       // dieses hier beim Stripe-Redirect verloren, ist die Conversion trotzdem

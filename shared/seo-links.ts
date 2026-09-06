@@ -17,6 +17,10 @@ export const TEMPLATE_GALLERY_PATH = "/vorlagen";
  *  Stripe-Checkout-Redirect und E-Mail-Verifizierung. */
 export const SIGNUP_TEMPLATE_STORAGE_KEY = "tw-signup-template";
 
+/** localStorage-Key für den Empfehlungscode aus /register?ref=<code> —
+ *  gleiches Handoff-Muster wie beim template-Param (Partnerprogramm). */
+export const SIGNUP_REF_STORAGE_KEY = "tw-signup-ref";
+
 export interface SeoStaticPage {
   path: string;
   /** Ohne Suffix — Server/Hook hängen " | Trichterwerk" an. */
@@ -43,6 +47,14 @@ export const vergleichIndexPage: SeoStaticPage = {
   metaTitle: "Trichterwerk im Vergleich",
   metaDescription:
     "Trichterwerk ehrlich verglichen mit Typeform, Perspective und ClickFunnels — Features, Preise, DSGVO. Finde heraus, welcher Funnel-Builder zu dir passt.",
+};
+
+/** Partnerprogramm-Seite (25 % Lifetime-Provision). */
+export const partnerPage: SeoStaticPage = {
+  path: "/partner",
+  metaTitle: "Partnerprogramm: 25 % Lifetime-Provision",
+  metaDescription:
+    "Empfiehl Trichterwerk und verdiene 25 % wiederkehrende Provision auf jede Pro-Zahlung — dauerhaft, ohne Deckelung. Ideal für Agenturen, Coaches und Creator.",
 };
 
 export const comparisonLinks = [
@@ -86,6 +98,7 @@ export const marketingRoutePatterns: string[] = [
   funnelBuilderPage.path,
   vergleichIndexPage.path,
   "/vergleich/:slug",
+  partnerPage.path,
   ...audiencePages.map((p) => p.path),
   TEMPLATE_GALLERY_PATH,
   `${TEMPLATE_GALLERY_PATH}/:slug`,

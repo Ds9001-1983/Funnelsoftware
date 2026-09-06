@@ -83,6 +83,12 @@ export interface IStorage {
   getUsersForFreeDowngrade(): Promise<User[]>;
   markUserFree(userId: number): Promise<void>;
 
+  // Partnerprogramm (25 % lifetime, manuelle Abrechnung über Admin-Übersicht)
+  getUserByReferralCode(code: string): Promise<User | undefined>;
+  ensureReferralCode(userId: number): Promise<string>;
+  setReferredBy(userId: number, referrerId: number): Promise<void>;
+  getReferredUsers(): Promise<User[]>;
+
   // Funnels
   getFunnels(userId: number): Promise<Funnel[]>;
   getFunnel(id: number, userId: number): Promise<Funnel | undefined>;
@@ -257,6 +263,58 @@ export class DatabaseStorage implements IStorage {
     await db.update(users)
       .set({ subscriptionStatus: "free", updatedAt: new Date() })
       .where(eq(users.id, userId));
+  }
+
+  // ============ PARTNERPROGRAMM ============
+
+  async getUserByReferralCode(code: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users)
+      .where(and(eq(users.referralCode, code), sql`${users.deletedAt} IS NULL`));
+    return user;
+  }
+
+  /**
+   * Liefert den Empfehlungscode des Nutzers — lazy generiert beim ersten
+   * Abruf (erspart Backfill für Bestandsnutzer). Kollisions-Retry über den
+   * Unique-Index; 8 Hex-Zeichen reichen bei dieser Nutzerzahl locker.
+   */
+  async ensureReferralCode(userId: number): Promise<string> {
+    const [existing] = await db.select({ code: users.referralCode }).from(users)
+      .where(eq(users.id, userId));
+    if (existing?.code) return existing.code;
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const code = randomBytes(4).toString("hex");
+      try {
+        const [row] = await db.update(users)
+          .set({ referralCode: code, updatedAt: new Date() })
+          .where(and(eq(users.id, userId), sql`${users.referralCode} IS NULL`))
+          .returning({ code: users.referralCode });
+        // Kein Update-Treffer: paralleler Request hat den Code gerade gesetzt.
+        if (!row) {
+          const [again] = await db.select({ code: users.referralCode }).from(users)
+            .where(eq(users.id, userId));
+          if (again?.code) return again.code;
+          continue;
+        }
+        if (row.code) return row.code;
+      } catch {
+        // Unique-Kollision → nächster Versuch mit neuem Code
+      }
+    }
+    throw new Error("Empfehlungscode konnte nicht generiert werden");
+  }
+
+  async setReferredBy(userId: number, referrerId: number): Promise<void> {
+    await db.update(users)
+      .set({ referredById: referrerId })
+      .where(eq(users.id, userId));
+  }
+
+  /** Alle geworbenen Nutzer (referredById gesetzt) für die Admin-Übersicht. */
+  async getReferredUsers(): Promise<User[]> {
+    return db.select().from(users)
+      .where(and(sql`${users.referredById} IS NOT NULL`, sql`${users.deletedAt} IS NULL`));
   }
 
   // ============ FUNNELS ============

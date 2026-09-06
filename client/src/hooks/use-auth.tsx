@@ -46,6 +46,8 @@ interface RegisterData {
   displayName?: string;
   /** Marketing-Einwilligung aus dem Cookie-Banner — steuert das CAPI-Event. */
   marketingConsent?: boolean;
+  /** Empfehlungscode aus /register?ref=… (Partnerprogramm). */
+  referralCode?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
