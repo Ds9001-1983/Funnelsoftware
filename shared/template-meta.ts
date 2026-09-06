@@ -714,6 +714,22 @@ export const vorlagenIndexPage: SeoStaticPage = {
     "Fertige Funnel-Vorlagen für Recruiting, Leads und Sales — jede Vorlage live im Smartphone-Format durchklickbar. DSGVO-konform, in Minuten übernommen.",
 };
 
+/** FAQPage + BreadcrumbList einer Template-Detailseite — EINE Quelle für die
+ *  SSR-Injektion (unten) und das client-gerenderte Script (vorlagen.tsx). */
+export function templateJsonLd(t: TemplateMeta): object {
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      ...(t.faqs?.length ? [faqPageJsonLd(t.faqs)] : []),
+      breadcrumbJsonLd([
+        { name: "Start", path: "/" },
+        { name: "Vorlagen", path: TEMPLATE_GALLERY_PATH },
+        { name: t.name, path: `${TEMPLATE_GALLERY_PATH}/${t.slug}` },
+      ]),
+    ],
+  };
+}
+
 /** Alle Galerie-Seiten für Sitemap + SSR-Meta-Injektion (Index + Detailseiten).
  *  jsonLd (FAQPage + BreadcrumbList) und bodyHtml (noscript-Prerender) werden
  *  serverseitig mit injiziert. */
@@ -724,17 +740,7 @@ export const templateSeoPages: SeoStaticPage[] = [
     metaTitle: t.metaTitle,
     metaDescription: t.metaDescription,
     bodyHtml: renderTemplateHtml(t),
-    jsonLd: {
-      "@context": "https://schema.org",
-      "@graph": [
-        ...(t.faqs?.length ? [faqPageJsonLd(t.faqs)] : []),
-        breadcrumbJsonLd([
-          { name: "Start", path: "/" },
-          { name: "Vorlagen", path: TEMPLATE_GALLERY_PATH },
-          { name: t.name, path: `${TEMPLATE_GALLERY_PATH}/${t.slug}` },
-        ]),
-      ],
-    },
+    jsonLd: templateJsonLd(t),
   })),
 ];
 

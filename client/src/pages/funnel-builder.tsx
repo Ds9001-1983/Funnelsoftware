@@ -28,7 +28,7 @@ import { MarketingCta } from "@/components/marketing/MarketingCta";
 // Bewusst NUR das leichte seo-links-Modul — die große Content-Registry
 // (shared/seo-content.ts) bleibt dem Vergleichsseiten-Chunk vorbehalten.
 import { comparisonLinks, funnelBuilderPage, faqPageJsonLd } from "@shared/seo-links";
-import { funnelBuilderFaqs } from "@shared/seo-content";
+import { funnelBuilderFaqs } from "@shared/seo-faqs";
 
 const buildingBlocks = [
   {

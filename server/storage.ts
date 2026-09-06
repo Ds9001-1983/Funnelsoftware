@@ -87,7 +87,8 @@ export interface IStorage {
   getUserByReferralCode(code: string): Promise<User | undefined>;
   ensureReferralCode(userId: number): Promise<string>;
   setReferredBy(userId: number, referrerId: number): Promise<void>;
-  getReferredUsers(): Promise<User[]>;
+  getReferredUsers(referrerId?: number): Promise<User[]>;
+  getUsersByIds(ids: number[]): Promise<User[]>;
 
   // Lifecycle-Mails (server/scheduler.ts + Stripe-Webhook)
   tryLogEmail(userId: number, emailType: string, periodKey?: string): Promise<boolean>;
@@ -318,10 +319,23 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId));
   }
 
-  /** Alle geworbenen Nutzer (referredById gesetzt) für die Admin-Übersicht. */
-  async getReferredUsers(): Promise<User[]> {
-    return db.select().from(users)
-      .where(and(sql`${users.referredById} IS NOT NULL`, sql`${users.deletedAt} IS NULL`));
+  /** Geworbene Nutzer — optional gefiltert auf EINEN Partner (Index
+   *  users_referred_by_id_idx), damit /api/referral/me nicht die geworbenen
+   *  Nutzer der gesamten Plattform lädt. */
+  async getReferredUsers(referrerId?: number): Promise<User[]> {
+    const conditions = [sql`${users.deletedAt} IS NULL`];
+    if (referrerId !== undefined) {
+      conditions.push(eq(users.referredById, referrerId));
+    } else {
+      conditions.push(sql`${users.referredById} IS NOT NULL`);
+    }
+    return db.select().from(users).where(and(...conditions));
+  }
+
+  /** Mehrere Nutzer in EINEM Query (Admin-Partnerübersicht statt N+1). */
+  async getUsersByIds(ids: number[]): Promise<User[]> {
+    if (ids.length === 0) return [];
+    return db.select().from(users).where(inArray(users.id, ids));
   }
 
   // ============ LIFECYCLE-MAILS ============
@@ -361,10 +375,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   /** Länger als cutoff nicht eingeloggt (und alt genug, dass die Welcome-Phase
-   *  vorbei ist) — Kandidaten für die einmalige Re-Engagement-Mail. */
+   *  vorbei ist) — Kandidaten für die einmalige Re-Engagement-Mail.
+   *  Bewusst NUR Free-/Trial-Accounts mit verifizierter E-Mail: zahlende
+   *  Set-and-forget-Kunden sollen keine "dein Account ist verwaist"-Mail
+   *  bekommen, und unverifizierte Adressen keine Marketing-Mail (§ 7 UWG). */
   async getInactiveUsersSince(cutoff: Date): Promise<User[]> {
     return db.select().from(users).where(and(
       eq(users.isAdmin, false),
+      eq(users.isPro, false),
+      sql`${users.emailVerifiedAt} IS NOT NULL`,
       sql`${users.deletedAt} IS NULL`,
       sql`${users.createdAt} < ${cutoff}`,
       sql`(${users.lastLoginAt} IS NULL OR ${users.lastLoginAt} < ${cutoff})`,

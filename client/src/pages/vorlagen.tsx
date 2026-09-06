@@ -21,12 +21,13 @@ import {
   templateMetas,
   templateCategoryLabels,
   getTemplateMeta,
+  templateJsonLd,
   vorlagenIndexPage,
   audienceLinkByCategory,
   type TemplateMeta,
   type TemplateCategory,
 } from "@shared/template-meta";
-import { breadcrumbJsonLd, faqPageJsonLd, TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
+import { TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
 
 /**
  * Öffentliche Template-Galerie (/vorlagen) + Detailseiten mit interaktiver
@@ -200,19 +201,10 @@ function TemplateDetail({
     canonical: `${TEMPLATE_GALLERY_PATH}/${meta.slug}`,
   });
 
-  // FAQPage + BreadcrumbList — dieselben Daten injiziert der Server bereits in
-  // den SSR-Meta-Block (shared/seo-content.ts, seoStaticPages-Assembly).
-  const jsonLd = JSON.stringify({
-    "@context": "https://schema.org",
-    "@graph": [
-      ...(meta.faqs?.length ? [faqPageJsonLd(meta.faqs)] : []),
-      breadcrumbJsonLd([
-        { name: "Start", path: "/" },
-        { name: "Vorlagen", path: TEMPLATE_GALLERY_PATH },
-        { name: meta.name, path: `${TEMPLATE_GALLERY_PATH}/${meta.slug}` },
-      ]),
-    ],
-  });
+  // FAQPage + BreadcrumbList — gemeinsame Quelle mit der SSR-Injektion
+  // (shared/template-meta.ts:templateJsonLd), damit Server- und Client-Graph
+  // nie auseinanderlaufen.
+  const jsonLd = JSON.stringify(templateJsonLd(meta));
 
   const related = (meta.relatedSlugs ?? [])
     .map((slug) => getTemplateMeta(slug))

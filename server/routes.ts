@@ -36,12 +36,12 @@ import {
   loginSchema, registerSchema, slugSchema, passwordSchema, trackEventSchema,
   aiCredentialInputSchema, generateFunnelInputSchema,
   MAX_IMAGE_UPLOAD_BYTES, MAX_AUDIO_UPLOAD_BYTES,
-  FREE_MAX_PUBLISHED_FUNNELS, FREE_MONTHLY_LEAD_LIMIT,
+  FREE_MAX_PUBLISHED_FUNNELS, FREE_MONTHLY_LEAD_LIMIT, PLAN_ERROR_CODES,
   type Domain, type Lead,
 } from "@shared/schema";
-import { computeLockedLeadIds, maskLockedLeads } from "./lead-limits";
+import { computeLockedLeadIds, maskLockedLeads, monthKeyUtc } from "./lead-limits";
 import { seoStaticPages } from "@shared/seo-content";
-import { sitemapStaticPaths } from "@shared/seo-links";
+import { SITE_ORIGIN, sitemapStaticPaths } from "@shared/seo-links";
 import { isPlatformHost } from "@shared/platform-host";
 import { resolveCustomDomainFunnel } from "./custom-domain";
 import { dailyVisitorHash, deriveReferrerHost, deriveDeviceClass, deriveCountry, isTrackablePath, isClientTrackableEvent } from "./tracking";
@@ -599,7 +599,7 @@ export async function registerRoutes(
       if (result.data.hideBranding === true && req.user && !hasProFeatures(req.user)) {
         return res.status(403).json({
           error: "Das Trichterwerk-Badge lässt sich im Pro-Plan ausblenden.",
-          code: "PRO_REQUIRED",
+          code: PLAN_ERROR_CODES.PRO_REQUIRED,
         });
       }
 
@@ -907,7 +907,7 @@ export async function registerRoutes(
   // unbegrenzt; Unpublish ist immer erlaubt.
   const freePublishLimitResponse = {
     error: `Im Free-Plan kannst du ${FREE_MAX_PUBLISHED_FUNNELS} Funnel veröffentlichen. Depubliziere den anderen Funnel oder upgrade auf Pro für unbegrenzte Funnels.`,
-    code: "FREE_LIMIT_REACHED",
+    code: PLAN_ERROR_CODES.FREE_LIMIT_REACHED,
     limit: "published_funnels",
   } as const;
   async function isOverFreePublishLimit(
@@ -999,11 +999,25 @@ export async function registerRoutes(
         }
       }
 
-      // Free-Plan: max. FREE_MAX_PUBLISHED_FUNNELS gleichzeitig veröffentlicht
-      // (der Funnel selbst zählt nicht mit — erneutes Speichern eines bereits
-      // veröffentlichten Funnels bleibt möglich).
-      if (await isOverFreePublishLimit(req.user, result.data.status, funnelId)) {
-        return res.status(403).json(freePublishLimitResponse);
+      // Free-Plan: max. FREE_MAX_PUBLISHED_FUNNELS gleichzeitig veröffentlicht.
+      // Enforcement nur bei der TRANSITION zu "published" — das erneute
+      // Speichern eines bereits veröffentlichten Funnels muss auch dann
+      // funktionieren, wenn der Account (z. B. frisch nach Trial-Ende, vor dem
+      // Scheduler-Tick) insgesamt über dem Limit liegt; der Editor schickt beim
+      // Speichern immer den aktuellen Status mit.
+      if (
+        result.data.status === "published" &&
+        req.user &&
+        !hasProFeatures(req.user)
+      ) {
+        const existing = await storage.getFunnel(funnelId, userId);
+        if (
+          existing &&
+          existing.status !== "published" &&
+          (await isOverFreePublishLimit(req.user, "published", funnelId))
+        ) {
+          return res.status(403).json(freePublishLimitResponse);
+        }
       }
 
       try {
@@ -1326,10 +1340,18 @@ export async function registerRoutes(
 
   // Free-Plan: Kontaktdaten oberhalb von FREE_MONTHLY_LEAD_LIMIT pro Monat
   // maskieren (Soft-Store/Hard-View — gespeichert wird immer, ein Upgrade
-  // schaltet rückwirkend frei, weil zur Lesezeit berechnet wird).
-  function maskLeadsForPlan(user: Express.User, leads: Lead[]): (Lead & { locked?: boolean })[] {
-    if (getUserPlan(user) !== "free") return leads;
-    return maskLockedLeads(leads, computeLockedLeadIds(leads));
+  // schaltet rückwirkend frei, weil zur Lesezeit berechnet wird). EINE Stelle
+  // für alle Lese-Routen: Das Limit gilt pro ACCOUNT, der Rang wird deshalb
+  // über ALLE Leads des Nutzers berechnet und auf die Teilmenge angewendet.
+  async function maskLeadsForOwner<T extends Lead>(
+    user: Express.User,
+    userId: number,
+    subset: T[],
+    allLeads?: Lead[],
+  ): Promise<(T & { locked?: boolean })[]> {
+    if (getUserPlan(user) !== "free") return subset;
+    const all = allLeads ?? (await storage.getLeads(userId));
+    return maskLockedLeads(subset, computeLockedLeadIds(all));
   }
 
   // Get all leads for current user
@@ -1339,7 +1361,7 @@ export async function registerRoutes(
       if (!userId || !req.user) return res.status(401).json({ error: "Nicht autorisiert" });
 
       const leads = await storage.getLeads(userId);
-      res.json(maskLeadsForPlan(req.user, leads));
+      res.json(await maskLeadsForOwner(req.user, userId, leads, leads));
     } catch (error) {
       console.error("Get leads error:", error);
       res.status(500).json({ error: "Leads konnten nicht geladen werden" });
@@ -1358,14 +1380,8 @@ export async function registerRoutes(
       }
 
       const leads = await storage.getLeadsByFunnel(funnelId, userId);
-      // Das Monatslimit gilt pro ACCOUNT, nicht pro Funnel — der Rang wird
-      // deshalb über alle Leads des Nutzers berechnet und dann auf die
-      // Teilmenge dieses Funnels angewendet.
-      if (req.user && getUserPlan(req.user) === "free") {
-        const allLeads = await storage.getLeads(userId);
-        return res.json(maskLockedLeads(leads, computeLockedLeadIds(allLeads)));
-      }
-      res.json(leads);
+      if (!req.user) return res.status(401).json({ error: "Nicht autorisiert" });
+      res.json(await maskLeadsForOwner(req.user, userId, leads));
     } catch (error) {
       console.error("Get funnel leads error:", error);
       res.status(500).json({ error: "Leads konnten nicht geladen werden" });
@@ -1421,12 +1437,9 @@ export async function registerRoutes(
       }
       // Free-Plan: auch der Einzelabruf respektiert die Maskierung — sonst
       // ließe sich das Monatslimit per Detail-Request umgehen.
-      if (req.user && getUserPlan(req.user) === "free") {
-        const allLeads = await storage.getLeads(userId);
-        const [masked] = maskLockedLeads([lead], computeLockedLeadIds(allLeads));
-        return res.json(masked);
-      }
-      res.json(lead);
+      if (!req.user) return res.status(401).json({ error: "Nicht autorisiert" });
+      const [masked] = await maskLeadsForOwner(req.user, userId, [lead]);
+      res.json(masked);
     } catch (error) {
       console.error("Get lead error:", error);
       res.status(500).json({ error: "Lead konnte nicht geladen werden" });
@@ -1484,32 +1497,40 @@ export async function registerRoutes(
       const lead = await storage.createLead(result.data, funnel.userId);
       res.status(201).json({ success: true, id: lead.uuid });
 
-      // Async: Webhook + E-Mail Benachrichtigung (non-blocking)
-      if (funnel.webhookEnabled && funnel.webhookUrl) {
+      // Free-Plan-Sperre gilt für JEDEN Egress: Ein Lead über dem Monatslimit
+      // darf weder per Webhook noch per Benachrichtigungs-Mail mit vollen
+      // Kontaktdaten beim Owner ankommen — sonst wäre die Maskierung in den
+      // Lese-Endpunkten wirkungslos. Die Limit-Mail (unten) informiert stattdessen.
+      const owner = await storage.getUser(funnel.userId);
+      let leadLocked = false;
+      if (owner && getUserPlan(owner) === "free") {
+        try {
+          const now = new Date();
+          const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+          const monthlyCount = await storage.countLeadsForUserSince(owner.id, monthStart);
+          leadLocked = monthlyCount > FREE_MONTHLY_LEAD_LIMIT;
+          // Hinweis-Mail beim Erreichen des Limits — 1x pro Monat (periodKey = YYYY-MM).
+          if (monthlyCount >= FREE_MONTHLY_LEAD_LIMIT) {
+            if (await storage.tryLogEmail(owner.id, "lead_limit_reached", monthKeyUtc(now))) {
+              sendLeadLimitReachedEmail(owner.email, owner.displayName, funnel.name).catch(
+                (err) => console.error("[Email] Lead-Limit-Mail fehlgeschlagen:", err),
+              );
+            }
+          }
+        } catch (err) {
+          console.error("Lead-Limit-Prüfung fehlgeschlagen:", err);
+        }
+      }
+
+      // Async: Webhook + E-Mail Benachrichtigung (non-blocking, nur entsperrte Leads)
+      if (!leadLocked && funnel.webhookEnabled && funnel.webhookUrl) {
         const payload = buildWebhookPayload(funnel, lead);
         sendWebhook(funnel.webhookUrl, payload, funnel.webhookSecret).catch(() => {});
       }
 
       // E-Mail an Funnel-Owner — abbestellbar über Settings → Benachrichtigungen
-      const owner = await storage.getUser(funnel.userId);
-      if (owner?.email && owner.leadNotificationsEnabled !== false) {
+      if (!leadLocked && owner?.email && owner.leadNotificationsEnabled !== false) {
         sendLeadNotificationEmail(owner.email, lead, funnel.name).catch(() => {});
-      }
-
-      // Free-Plan: Hinweis-Mail, wenn das Monatslimit gerade erreicht wurde —
-      // 1x pro Monat (periodKey = YYYY-MM), non-blocking.
-      if (owner && getUserPlan(owner) === "free") {
-        (async () => {
-          const now = new Date();
-          const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-          const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-          const monthlyCount = await storage.countLeadsForUserSince(owner.id, monthStart);
-          if (monthlyCount >= FREE_MONTHLY_LEAD_LIMIT) {
-            if (await storage.tryLogEmail(owner.id, "lead_limit_reached", monthKey)) {
-              await sendLeadLimitReachedEmail(owner.email, owner.displayName, funnel.name);
-            }
-          }
-        })().catch((err) => console.error("[Email] Lead-Limit-Mail fehlgeschlagen:", err));
       }
 
       // Async: Server-Side Meta Conversions API. DSGVO: nur bei aktivem
@@ -2417,16 +2438,14 @@ export async function registerRoutes(
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
 
       const code = await storage.ensureReferralCode(userId);
-      const referred = (await storage.getReferredUsers()).filter(
-        (u) => u.referredById === userId,
-      );
+      const referred = await storage.getReferredUsers(userId);
       const stats = {
         registered: referred.length,
         paying: referred.filter((u) => u.isPro).length,
       };
       res.json({
         code,
-        link: `https://trichterwerk.de/register?ref=${code}`,
+        link: `${SITE_ORIGIN}/register?ref=${code}`,
         stats,
       });
     } catch (error) {
@@ -2441,9 +2460,10 @@ export async function registerRoutes(
     try {
       const referred = await storage.getReferredUsers();
       const partnerIds = Array.from(new Set(referred.map((u) => u.referredById as number)));
-      const partners = await Promise.all(
-        partnerIds.map(async (id) => {
-          const partner = await storage.getUser(id);
+      // Partner in EINEM Query statt N+1 (Promise.all über getUser).
+      const partnerRows = await storage.getUsersByIds(partnerIds);
+      const partners = partnerIds.map((id) => {
+          const partner = partnerRows.find((p) => p.id === id);
           if (!partner) return null;
           return {
             partnerId: partner.id,
@@ -2461,8 +2481,7 @@ export async function registerRoutes(
                 subscriptionStartedAt: u.subscriptionStartedAt,
               })),
           };
-        }),
-      );
+        });
       res.json({ partners: partners.filter(Boolean) });
     } catch (error) {
       console.error("Admin referrals error:", error);
@@ -2785,25 +2804,18 @@ export async function registerRoutes(
       const host = String(rawHost).toLowerCase().split(":")[0].trim();
       if (!host) return res.status(400).json({ error: "Host fehlt" });
 
-      const domain = await storage.getDomainByHostname(host);
-      if (!domain || !domain.verified) return res.status(404).json({ error: "Keine verifizierte Domain" });
-
-      const funnel = await storage.getFunnel(domain.funnelId, domain.userId);
-      if (!funnel || funnel.status !== "published") {
-        return res.status(404).json({ error: "Funnel nicht verfügbar" });
-      }
-
-      // Free-Modell: kein Plan-Gate mehr (siehe /api/public/funnels/:identifier)
-      const owner = await storage.getUser(domain.userId);
-      if (!owner || owner.deletedAt) {
-        return res.status(404).json({ error: "Funnel nicht verfügbar" });
+      // Eine Wahrheitsquelle für die Host-Auflösung (inkl. Pro-Gate + Cache) —
+      // dieselbe Logik nutzen HTML-/robots-/sitemap-Auslieferung.
+      const resolved = await resolveCustomDomainFunnel(host);
+      if (!resolved) {
+        return res.status(404).json({ error: "Keine verifizierte Domain" });
       }
 
       // Reduzierter Payload (öffentliche Sicht — Sensitive Felder weglassen)
       res.json({
-        uuid: funnel.uuid,
-        slug: funnel.slug,
-        name: funnel.name,
+        uuid: resolved.funnel.uuid,
+        slug: resolved.funnel.slug,
+        name: resolved.funnel.name,
       });
     } catch (error) {
       console.error("Funnel-by-host error:", error);

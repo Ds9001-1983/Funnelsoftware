@@ -83,6 +83,28 @@ describe("Router ↔ SEO-Registry", () => {
     }
   });
 
+  it("nginx proxied jede seoStaticPages-Seite an Node (SSR-Meta erreicht Produktion)", () => {
+    // Genau diese Lücke gab es: /partner und die Branchen-Seiten standen in der
+    // Registry, aber nginx servierte sie statisch aus dist/ — Crawler sahen die
+    // unersetzten SSR-Marker. Der Test parst die Marketing-Location der
+    // Produktions-Config und prüft sie gegen die Registry.
+    const conf = readFileSync(
+      path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../deploy/nginx-trichterwerk.conf"),
+      "utf-8",
+    );
+    const locationRegexes = [...conf.matchAll(/location ~ (\^\/[^\s{]+)/g)].map(
+      (m) => new RegExp(m[1]),
+    );
+    expect(locationRegexes.length).toBeGreaterThan(0);
+    for (const page of seoStaticPages) {
+      const proxied = locationRegexes.some((re) => re.test(page.path));
+      expect(
+        proxied,
+        `${page.path} wird von nginx nicht an Node proxied — Präfix in deploy/nginx-trichterwerk.conf (Marketing-Location) ergänzen`,
+      ).toBe(true);
+    }
+  });
+
   it("Auth-Seiten stehen nicht in der Sitemap", () => {
     const paths: readonly string[] = sitemapStaticPaths;
     expect(paths).not.toContain("/login");

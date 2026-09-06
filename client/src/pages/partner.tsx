@@ -14,7 +14,7 @@ import { ArrowRight, Handshake, Link2, Wallet, TrendingUp } from "lucide-react";
 import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { MarketingCta } from "@/components/marketing/MarketingCta";
-import { partnerFaqs } from "@shared/seo-content";
+import { partnerFaqs } from "@shared/seo-faqs";
 import { faqPageJsonLd, partnerPage } from "@shared/seo-links";
 
 // Statischer Inhalt → einmal pro Modul-Load statt pro Render.

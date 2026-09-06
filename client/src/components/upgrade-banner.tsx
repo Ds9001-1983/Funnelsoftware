@@ -86,12 +86,16 @@ export function UpgradeBanner({ variant }: UpgradeBannerProps) {
   // Free-Info-Dialog nach Trial-Ende: KEINE Sperre mehr — der Account läuft
   // im Free-Plan weiter. Einmalig pro Account anzeigen, schließbar.
   if (variant === "expired") {
-    const isOnFreePlan =
-      user.plan === "free" ||
-      (user.subscriptionStatus === "trial" && daysLeft <= 0) ||
-      user.subscriptionStatus === "free" ||
-      user.subscriptionStatus === "expired" ||
-      user.subscriptionStatus === "cancelled";
+    // user.plan ist die serverseitig abgeleitete Wahrheit (getUserPlan) —
+    // die Status-String-Ableitung bleibt NUR als Fallback für gecachte
+    // Sessions ohne das Feld. (Wichtig: ein zahlender Kunde mit
+    // "cancel at period end" hat Status "cancelled", aber plan "pro" —
+    // der darf diesen Dialog nicht sehen.)
+    const isOnFreePlan = user.plan
+      ? user.plan === "free"
+      : (user.subscriptionStatus === "trial" && daysLeft <= 0) ||
+        user.subscriptionStatus === "free" ||
+        user.subscriptionStatus === "expired";
 
     let alreadyDismissed = false;
     try {
@@ -120,8 +124,9 @@ export function UpgradeBanner({ variant }: UpgradeBannerProps) {
               Du bist jetzt im Free-Plan
             </DialogTitle>
             <DialogDescription>
-              Deine 14-tägige Testphase ist vorbei — dein Account läuft kostenlos
-              weiter: {FREE_MAX_PUBLISHED_FUNNELS} veröffentlichter Funnel,{" "}
+              {/* Neutral formuliert: trifft Trial-Ende UND Abo-Ende (Ex-Zahler) */}
+              Dein Account läuft im kostenlosen Free-Plan weiter:{" "}
+              {FREE_MAX_PUBLISHED_FUNNELS} veröffentlichter Funnel,{" "}
               {FREE_MONTHLY_LEAD_LIMIT} Leads pro Monat, alle Editor-Funktionen.
             </DialogDescription>
           </DialogHeader>

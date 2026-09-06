@@ -5,7 +5,7 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
 import { storage, comparePasswords } from "./storage";
-import { type User } from "@shared/schema";
+import { PLAN_ERROR_CODES, type User } from "@shared/schema";
 
 // Extend Express types for session
 declare global {
@@ -242,7 +242,7 @@ export function requirePro(
 
   return res.status(403).json({
     error: "Diese Funktion ist im Pro-Plan enthalten. Upgrade, um sie zu nutzen.",
-    code: "PRO_REQUIRED",
+    code: PLAN_ERROR_CODES.PRO_REQUIRED,
   });
 }
 
