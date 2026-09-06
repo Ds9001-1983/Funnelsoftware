@@ -131,6 +131,7 @@ export interface IStorage {
   listDomains(userId: number): Promise<Domain[]>;
   getDomain(id: number, userId: number): Promise<Domain | undefined>;
   getDomainByHostname(hostname: string): Promise<Domain | undefined>;
+  getVerifiedDomainByFunnelId(funnelId: number): Promise<Domain | undefined>;
   createDomain(funnelId: number, userId: number, hostname: string): Promise<Domain>;
   markDomainVerified(id: number, userId: number): Promise<Domain | undefined>;
   deleteDomain(id: number, userId: number): Promise<boolean>;
@@ -1381,6 +1382,16 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(domains)
       .where(eq(domains.hostname, hostname.toLowerCase()));
+    return row as Domain | undefined;
+  }
+
+  /** Verifizierte Custom-Domain eines Funnels (für Canonical auf /f/<slug>). */
+  async getVerifiedDomainByFunnelId(funnelId: number): Promise<Domain | undefined> {
+    const [row] = await db
+      .select()
+      .from(domains)
+      .where(and(eq(domains.funnelId, funnelId), eq(domains.verified, true)))
+      .limit(1);
     return row as Domain | undefined;
   }
 

@@ -34,6 +34,8 @@ import {
 import { computeLockedLeadIds, maskLockedLeads } from "./lead-limits";
 import { seoStaticPages } from "@shared/seo-content";
 import { sitemapStaticPaths } from "@shared/seo-links";
+import { isPlatformHost } from "@shared/platform-host";
+import { resolveCustomDomainFunnel } from "./custom-domain";
 import { dailyVisitorHash, deriveReferrerHost, deriveDeviceClass, deriveCountry, isTrackablePath, isClientTrackableEvent } from "./tracking";
 import { encryptSecret, decryptSecret, last4 } from "./crypto";
 import { verifyDomainDns } from "./domain-verify";
@@ -171,11 +173,39 @@ export async function registerRoutes(
 
   // ============ SEO ============
 
+  // Custom Domains: robots.txt/sitemap.xml pro Kundendomain — die Trichterwerk-
+  // Fassungen (mit trichterwerk.de-URLs) dürfen dort nie ausgeliefert werden.
+  // Platform-Hosts laufen per next() weiter in die statische robots.txt.
+  app.get("/robots.txt", async (req, res, next) => {
+    if (isPlatformHost(req.hostname)) return next();
+    try {
+      const resolved = await resolveCustomDomainFunnel(req.hostname);
+      if (!resolved) {
+        return res.status(404).type("text/plain; charset=utf-8").send("User-agent: *\nDisallow: /\n");
+      }
+      res
+        .type("text/plain; charset=utf-8")
+        .send(`User-agent: *\nAllow: /\n\nSitemap: https://${resolved.host}/sitemap.xml\n`);
+    } catch (error) {
+      console.error("Custom-Domain-robots error:", error);
+      res.status(500).send("");
+    }
+  });
+
   // Dynamische Sitemap: statische Marketing-/Legal-Seiten + alle veröffentlichten
   // Funnels. Wird vor der statischen Auslieferung registriert und ersetzt die alte
   // statische sitemap.xml. robots.txt verweist bereits hierauf.
-  app.get("/sitemap.xml", async (_req, res) => {
+  // Custom Domains bekommen eine Mini-Sitemap mit genau ihrer Root-URL.
+  app.get("/sitemap.xml", async (req, res) => {
     try {
+      if (!isPlatformHost(req.hostname)) {
+        const resolved = await resolveCustomDomainFunnel(req.hostname);
+        if (!resolved) return res.status(404).send("");
+        const lastmod = new Date(resolved.funnel.updatedAt).toISOString().slice(0, 10);
+        const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>https://${resolved.host}/</loc><lastmod>${lastmod}</lastmod></url>\n</urlset>\n`;
+        return res.set("Content-Type", "application/xml; charset=utf-8").send(xml);
+      }
+
       const funnelRows = await storage.getPublishedFunnelsForSitemap();
       // /login und /register bewusst NICHT in der Sitemap (Thin Content,
       // serverseitig noindex — siehe server/static.ts).
