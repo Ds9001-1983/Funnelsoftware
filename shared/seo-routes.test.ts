@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { seoStaticPages } from "./seo-content";
+import { comparisonPages, seoStaticPages } from "./seo-content";
 import { marketingRoutePatterns, sitemapStaticPaths } from "./seo-links";
 
 /**
@@ -87,5 +87,23 @@ describe("Router ↔ SEO-Registry", () => {
     const paths: readonly string[] = sitemapStaticPaths;
     expect(paths).not.toContain("/login");
     expect(paths).not.toContain("/register");
+  });
+
+  it("noscript-Prerender (bodyHtml) enthält die Registry-Texte (kein Cloaking-Drift)", () => {
+    // Stichprobe: Vergleichs- und Zielgruppen-Seiten müssen h1 + alle
+    // FAQ-Fragen im bodyHtml tragen — dieselben Texte rendert auch React.
+    const esc = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    for (const page of seoStaticPages) {
+      if (!page.path.startsWith("/vergleich/") && !page.path.startsWith("/vorlagen/")) continue;
+      expect(page.bodyHtml, `bodyHtml fehlt für ${page.path}`).toBeTruthy();
+    }
+    for (const c of Object.values(comparisonPages)) {
+      const page = seoStaticPages.find((p) => p.path === `/vergleich/${c.slug}`);
+      expect(page?.bodyHtml).toContain(esc(c.h1));
+      for (const faq of c.faqs) {
+        expect(page?.bodyHtml, `FAQ fehlt im bodyHtml von ${c.slug}`).toContain(esc(faq.q));
+      }
+    }
   });
 });

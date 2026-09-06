@@ -79,6 +79,10 @@
     </script>
   </head>
   <body>
+    <!-- SSR-CONTENT: Für Marketing-Seiten ersetzt der Server (server/static.ts)
+         diesen Block durch statisches Kern-HTML (H1, Intro, FAQ) für Crawler
+         ohne JS-Rendering. Marker bitte nicht entfernen. -->
+    <noscript data-seo><!--SSR-CONTENT--><!--/SSR-CONTENT--></noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

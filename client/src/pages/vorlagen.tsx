@@ -10,16 +10,23 @@ import { MarketingCta } from "@/components/marketing/MarketingCta";
 import { PhoneFrame } from "@/components/marketing/PhoneFrame";
 import { TemplateTile, categoryGlow } from "@/components/marketing/TemplateTile";
 import { FunnelRenderer } from "@/components/funnel-viewer/FunnelRenderer";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { getTemplateBySlug, type ClientTemplate } from "@/lib/templates";
 import {
   templateMetas,
   templateCategoryLabels,
   getTemplateMeta,
   vorlagenIndexPage,
+  audienceLinkByCategory,
   type TemplateMeta,
   type TemplateCategory,
 } from "@shared/template-meta";
-import { TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
+import { breadcrumbJsonLd, faqPageJsonLd, TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
 
 /**
  * Öffentliche Template-Galerie (/vorlagen) + Detailseiten mit interaktiver
@@ -50,11 +57,30 @@ export default function Vorlagen() {
   }
 
   // Aufnahmemodus für die Hover-Videos: nur der nackte Funnel im Viewport.
+  // noindex, damit die Chrome-lose URL-Variante nie als Duplicate indexiert
+  // wird (robots.txt Disallow /*?video= greift zusätzlich).
   if (new URLSearchParams(window.location.search).get("video") === "1") {
-    return <FunnelRenderer key={template.slug} funnel={template} mode="preview" />;
+    return (
+      <>
+        <RobotsNoindex />
+        <FunnelRenderer key={template.slug} funnel={template} mode="preview" />
+      </>
+    );
   }
 
   return <TemplateDetail meta={meta} template={template} />;
+}
+
+/** Setzt <meta name="robots" content="noindex"> für die Lebensdauer der Ansicht. */
+function RobotsNoindex() {
+  useEffect(() => {
+    const metaEl = document.createElement("meta");
+    metaEl.setAttribute("name", "robots");
+    metaEl.setAttribute("content", "noindex");
+    document.head.appendChild(metaEl);
+    return () => metaEl.remove();
+  }, []);
+  return null;
 }
 
 /** Galerie-Übersicht mit Kategoriefilter. */
@@ -174,9 +200,29 @@ function TemplateDetail({
     canonical: `${TEMPLATE_GALLERY_PATH}/${meta.slug}`,
   });
 
+  // FAQPage + BreadcrumbList — dieselben Daten injiziert der Server bereits in
+  // den SSR-Meta-Block (shared/seo-content.ts, seoStaticPages-Assembly).
+  const jsonLd = JSON.stringify({
+    "@context": "https://schema.org",
+    "@graph": [
+      ...(meta.faqs?.length ? [faqPageJsonLd(meta.faqs)] : []),
+      breadcrumbJsonLd([
+        { name: "Start", path: "/" },
+        { name: "Vorlagen", path: TEMPLATE_GALLERY_PATH },
+        { name: meta.name, path: `${TEMPLATE_GALLERY_PATH}/${meta.slug}` },
+      ]),
+    ],
+  });
+
+  const related = (meta.relatedSlugs ?? [])
+    .map((slug) => getTemplateMeta(slug))
+    .filter((m): m is TemplateMeta => !!m);
+  const audienceLink = audienceLinkByCategory[meta.category];
+
   return (
     <div className="min-h-screen bg-background">
       <MarketingHeader />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
 
       <section className="pt-28 pb-20 px-4">
         <div className="container mx-auto max-w-6xl">
@@ -195,7 +241,7 @@ function TemplateDetail({
                 {templateCategoryLabels[meta.category]}
               </Badge>
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
-                {meta.name}
+                {meta.h1 ?? meta.name}
               </h1>
               <p className="text-lg text-muted-foreground mb-3">{meta.benefit}</p>
               <p className="text-muted-foreground mb-8">{template.description}</p>
@@ -256,10 +302,84 @@ function TemplateDetail({
         </div>
       </section>
 
+      {/* Unique Content gegen Thin-Content: Beschreibung + Einsatz-Szenarien */}
+      {(meta.longDescription?.length || meta.useCases?.length) && (
+        <section className="py-16 px-4 bg-muted/30 border-y">
+          <div className="container mx-auto max-w-3xl">
+            {meta.longDescription?.length ? (
+              <div className="space-y-4 text-lg text-muted-foreground leading-relaxed mb-12">
+                {meta.longDescription.map((p, idx) => (
+                  <p key={idx}>{p}</p>
+                ))}
+              </div>
+            ) : null}
+            {meta.useCases?.length ? (
+              <>
+                <h2 className="text-2xl md:text-3xl font-bold mb-6">
+                  Wofür diese Vorlage gemacht ist
+                </h2>
+                <div className="grid md:grid-cols-3 gap-4">
+                  {meta.useCases.map((uc) => (
+                    <div key={uc.title} className="rounded-xl border bg-card p-5">
+                      <h3 className="font-semibold mb-1.5">{uc.title}</h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{uc.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : null}
+          </div>
+        </section>
+      )}
+
+      {/* FAQ */}
+      {meta.faqs?.length ? (
+        <section className="py-16 px-4">
+          <div className="container mx-auto max-w-3xl">
+            <h2 className="text-2xl md:text-3xl font-bold mb-8 text-center">
+              Häufige Fragen zur Vorlage
+            </h2>
+            <Accordion type="single" collapsible className="w-full">
+              {meta.faqs.map((faq, idx) => (
+                <AccordionItem key={idx} value={`item-${idx}`}>
+                  <AccordionTrigger className="text-left">{faq.q}</AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground">{faq.a}</AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        </section>
+      ) : null}
+
       <MarketingCta
         title="Gefällt dir die Vorlage?"
-        text="Übernimm sie mit einem Klick in deinen Account und passe sie an deine Marke an — in unter einer Stunde live. 14 Tage kostenlos, monatlich kündbar."
+        text="Übernimm sie mit einem Klick in deinen Account und passe sie an deine Marke an — in unter einer Stunde live. Für immer kostenloser Free-Plan, keine Kreditkarte nötig."
       />
+
+      {/* Verwandte Vorlagen + passender Ratgeber (interne Verlinkung) */}
+      {(related.length > 0 || audienceLink) && (
+        <section className="py-16 px-4">
+          <div className="container mx-auto max-w-3xl text-center">
+            <h2 className="text-2xl font-bold mb-6">Das könnte auch passen</h2>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center flex-wrap">
+              {related.map((rel) => (
+                <Link key={rel.slug} href={`${TEMPLATE_GALLERY_PATH}/${rel.slug}`}>
+                  <Button variant="outline">{rel.name}</Button>
+                </Link>
+              ))}
+              {audienceLink && (
+                <Link href={audienceLink.path}>
+                  <Button variant="outline" className="gap-1.5">
+                    {audienceLink.label}
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       <MarketingFooter />
     </div>
   );

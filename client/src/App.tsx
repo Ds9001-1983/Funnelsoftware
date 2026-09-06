@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { trackPageview } from "@/lib/platform-tracker";
 import { useTrichterwerkPixel } from "@/lib/platform-pixel";
 import { isPlatformHost } from "@/lib/platform-host";
+import { audiencePages } from "@shared/seo-links";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Funnels from "@/pages/funnels";
@@ -171,17 +172,16 @@ function Router() {
           <Vorlagen />
         </Suspense>
       </Route>
-      {/* Zielgruppen-Landingpages (öffentlich, Content aus seo-content.ts) */}
-      <Route path="/recruiting-funnel">
-        <Suspense fallback={<PageLoader />}>
-          <AudienceFunnel />
-        </Suspense>
-      </Route>
-      <Route path="/lead-funnel">
-        <Suspense fallback={<PageLoader />}>
-          <AudienceFunnel />
-        </Suspense>
-      </Route>
+      {/* Zielgruppen-/Branchen-Landingpages (öffentlich): Routen kommen aus der
+          Registry (shared/seo-links.ts) — neue Seiten brauchen nur einen
+          Registry-Eintrag, Sitemap/SSR-Meta ziehen automatisch nach. */}
+      {audiencePages.map((p) => (
+        <Route key={p.path} path={p.path}>
+          <Suspense fallback={<PageLoader />}>
+            <AudienceFunnel />
+          </Suspense>
+        </Route>
+      ))}
       {/* Partnerprogramm (öffentlich) */}
       <Route path="/partner">
         <Suspense fallback={<PageLoader />}>
@@ -282,11 +282,11 @@ function isPublicRoute(location: string, isAuthenticated: boolean): boolean {
     "/agb",
     "/nutzungsbedingungen",
     "/funnel-builder",
-    "/recruiting-funnel",
-    "/lead-funnel",
     "/partner",
   ];
   if (publicExact.includes(location)) return true;
+  // Zielgruppen-/Branchen-Seiten aus der Registry (z. B. /recruiting-funnel)
+  if (audiencePages.some((p) => p.path === location)) return true;
   if (location.startsWith("/reset-password")) return true;
   if (location.startsWith("/verify-email")) return true;
   if (location === "/" && !isAuthenticated) return true; // Landing
