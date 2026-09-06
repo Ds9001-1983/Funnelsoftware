@@ -16,6 +16,7 @@ import {
   type FunnelLeadPayload,
 } from "@/components/funnel-viewer/FunnelRenderer";
 import type { FunnelPage, Theme, ABTest } from "@shared/schema";
+import { SITE_ORIGIN } from "@shared/seo-links";
 
 declare global {
   interface Window {
@@ -519,7 +520,19 @@ export default function PublicFunnelView() {
               Cookie-Einstellungen
             </button>
           </div>
-          <div>Erstellt mit Trichterwerk</div>
+          {/* Badge als echter Link: jeder Live-Funnel wird zum Backlink + Referral-Kanal.
+              Absolute URL, damit das auch auf Custom Domains auf trichterwerk.de zeigt;
+              bewusst kein rel="nofollow" — der Linkwert ist der Zweck. */}
+          <div>
+            <a
+              href={`${SITE_ORIGIN}/?utm_source=funnel&utm_medium=badge&utm_campaign=powered-by`}
+              target="_blank"
+              rel="noopener"
+              className="hover:underline underline-offset-2"
+            >
+              Erstellt mit Trichterwerk
+            </a>
+          </div>
         </div>
       )}
     />

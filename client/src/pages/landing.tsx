@@ -40,7 +40,7 @@ import { useEffect } from "react";
 import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { CONTACT_EMAIL } from "@/components/marketing/constants";
-import { comparisonLinks, TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
+import { comparisonLinks, faqPageJsonLd, TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
 import { trackPlatformEvent } from "@/lib/platform-tracker";
 
 /**
@@ -326,6 +326,9 @@ const faqs = [
   },
 ];
 
+// Statischer Inhalt → einmal pro Modul-Load statt pro Render (Rich-Snippet-FAQ).
+const FAQ_JSON_LD = JSON.stringify({ "@context": "https://schema.org", ...faqPageJsonLd(faqs) });
+
 export default function Landing() {
   usePageMeta({
     title: "Funnel-Builder aus Deutschland — ohne Code, DSGVO-konform",
@@ -375,6 +378,10 @@ export default function Landing() {
             Made in Germany · DSGVO-konform · Hosting in der EU
           </Badge>
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 leading-[1.05]">
+            {/* Kicker im H1: trägt das Haupt-Keyword, ohne die Hero-Zeile zu verwässern. */}
+            <span className="block text-lg md:text-2xl font-semibold text-muted-foreground tracking-normal mb-4">
+              Der Funnel-Builder aus Deutschland
+            </span>
             Funnels, die{" "}
             <span className="relative inline-block">
               <span className="relative z-10 bg-gradient-to-r from-primary via-primary to-primary/70 bg-clip-text text-transparent">
@@ -867,6 +874,7 @@ export default function Landing() {
 
       {/* FAQ Section */}
       <section id="faq" className="py-20 px-4">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: FAQ_JSON_LD }} />
         <div className="container mx-auto max-w-3xl">
           <div className="text-center mb-12">
             <Badge variant="secondary" className="mb-4">FAQ</Badge>

@@ -9,11 +9,32 @@
  * statt im Lazy-Chunk — dafür gibt es das leichte shared/seo-links.ts.
  */
 
-import { audiencePages, funnelBuilderPage, type SeoFaq, type SeoStaticPage } from "./seo-links";
+import {
+  audiencePages,
+  faqPageJsonLd,
+  funnelBuilderPage,
+  SITE_ORIGIN,
+  vergleichIndexPage,
+  type SeoFaq,
+  type SeoStaticPage,
+} from "./seo-links";
 import { templateSeoPages } from "./template-meta";
 
 export { faqPageJsonLd } from "./seo-links";
 export type { SeoFaq, SeoStaticPage } from "./seo-links";
+
+/** BreadcrumbList-Knoten für JSON-LD — Pfade relativ, Origin kommt aus seo-links. */
+export function breadcrumbJsonLd(items: { name: string; path: string }[]): object {
+  return {
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((it, idx) => ({
+      "@type": "ListItem",
+      position: idx + 1,
+      name: it.name,
+      item: it.path === "/" ? SITE_ORIGIN : `${SITE_ORIGIN}${it.path}`,
+    })),
+  };
+}
 
 export interface SeoComparisonRow {
   label: string;
@@ -557,19 +578,88 @@ export function getAudiencePage(slug: string | undefined): AudiencePageContent |
 }
 
 /**
+ * FAQ der Pillar-Seite /funnel-builder — hier statt in der Page-Komponente,
+ * damit der Server das FAQPage-JSON-LD ohne JS-Rendering injizieren kann
+ * (client/src/pages/funnel-builder.tsx importiert dieselbe Liste).
+ */
+export const funnelBuilderFaqs: SeoFaq[] = [
+  {
+    q: "Was ist ein Funnel-Builder?",
+    a: "Ein Funnel-Builder ist eine Software, mit der du mehrstufige Marketing-Funnels ohne Programmierkenntnisse erstellst: Landingpage, Frage-Seiten, Kontaktformular und Danke-Seite — verbunden mit Logik, Tracking und Lead-Verwaltung in einem Tool.",
+  },
+  {
+    q: "Was ist der Unterschied zwischen Funnel, Landingpage und Formular?",
+    a: "Eine Landingpage ist eine einzelne Seite, ein Formular ein einzelner Baustein. Ein Funnel verbindet beides zu einer Strecke: Er führt Besucher Schritt für Schritt vom ersten Interesse bis zur Kontaktaufnahme — und qualifiziert sie unterwegs mit Fragen.",
+  },
+  {
+    q: "Brauche ich Programmierkenntnisse für einen Funnel-Builder?",
+    a: "Nein. Moderne Funnel-Builder wie Trichterwerk arbeiten mit Drag & Drop und fertigen Templates. Wenn du eine E-Mail schreiben kannst, kannst du einen Funnel bauen.",
+  },
+  {
+    q: "Was kostet ein Funnel-Builder?",
+    a: "Die Spanne reicht von ca. 25 $ (reine Formular-Tools wie Typeform) über 49 € (Trichterwerk, alles inklusive) bis 59–369 € pro Monat plus kostenpflichtiger Add-ons (Perspective) oder 97 $+ (ClickFunnels). Entscheidend ist, ob Leads, Funnels und Features unbegrenzt sind oder pro Plan limitiert.",
+  },
+  {
+    q: "Gibt es einen DSGVO-konformen Funnel-Builder aus Deutschland?",
+    a: "Ja — Trichterwerk wird in Deutschland entwickelt, hostet ausschließlich in der EU, misst cookielos und stellt eine AVV bereit. Damit ist die häufigste Compliance-Hürde von US-Tools gelöst.",
+  },
+  {
+    q: "Wie schnell ist ein Funnel live?",
+    a: "Mit Template und Drag & Drop-Editor typischerweise in unter einer Stunde: registrieren, Vorlage wählen, Texte und Farben anpassen, veröffentlichen — fertig.",
+  },
+];
+
+/** FAQPage + BreadcrumbList einer Vergleichsseite — genutzt von der
+ *  Page-Komponente (client-gerendert) UND der SSR-Meta-Injektion. */
+export function comparisonJsonLd(c: ComparisonPageContent): object {
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      faqPageJsonLd(c.faqs),
+      breadcrumbJsonLd([
+        { name: "Start", path: "/" },
+        { name: `${c.competitorName}-Alternative`, path: `/vergleich/${c.slug}` },
+      ]),
+    ],
+  };
+}
+
+/** FAQPage + BreadcrumbList einer Zielgruppen-Seite (analog comparisonJsonLd). */
+export function audienceJsonLd(c: AudiencePageContent, label: string): object {
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      faqPageJsonLd(c.faqs),
+      breadcrumbJsonLd([
+        { name: "Start", path: "/" },
+        { name: label, path: `/${c.slug}` },
+      ]),
+    ],
+  };
+}
+
+/**
  * Alle statischen SEO-Seiten (für Sitemap + SSR-Meta-Injektion).
  * Vergleichsseiten werden aus comparisonPages abgeleitet, die Galerie-Seiten
  * aus shared/template-meta.ts, die Zielgruppen-Seiten aus seo-links, damit
  * Routen, Sitemap und Server-Meta nicht auseinanderlaufen.
  */
 export const seoStaticPages: SeoStaticPage[] = [
-  funnelBuilderPage,
+  {
+    ...funnelBuilderPage,
+    jsonLd: { "@context": "https://schema.org", ...faqPageJsonLd(funnelBuilderFaqs) },
+  },
+  vergleichIndexPage,
   ...Object.values(comparisonPages).map((c) => ({
     path: `/vergleich/${c.slug}`,
     metaTitle: c.metaTitle,
     metaDescription: c.metaDescription,
+    jsonLd: comparisonJsonLd(c),
   })),
-  ...audiencePages,
+  ...audiencePages.map((p) => {
+    const content = audiencePagesContent[p.path.slice(1)];
+    return content ? { ...p, jsonLd: audienceJsonLd(content, p.label) } : { ...p };
+  }),
   ...templateSeoPages,
 ];
 

@@ -31,6 +31,7 @@ import {
   type Domain,
 } from "@shared/schema";
 import { seoStaticPages } from "@shared/seo-content";
+import { sitemapStaticPaths } from "@shared/seo-links";
 import { dailyVisitorHash, deriveReferrerHost, deriveDeviceClass, deriveCountry, isTrackablePath, isClientTrackableEvent } from "./tracking";
 import { encryptSecret, decryptSecret, last4 } from "./crypto";
 import { verifyDomainDns } from "./domain-verify";
@@ -174,8 +175,10 @@ export async function registerRoutes(
   app.get("/sitemap.xml", async (_req, res) => {
     try {
       const funnelRows = await storage.getPublishedFunnelsForSitemap();
+      // /login und /register bewusst NICHT in der Sitemap (Thin Content,
+      // serverseitig noindex — siehe server/static.ts).
       const staticPaths = [
-        "/", "/impressum", "/datenschutz", "/agb", "/avv", "/login", "/register",
+        ...sitemapStaticPaths,
         ...seoStaticPages.map((p) => p.path),
       ];
       const entries = [

@@ -10,6 +10,7 @@ import {
   audiencePages,
   comparisonLinks,
   funnelBuilderPage,
+  vergleichIndexPage,
   TEMPLATE_GALLERY_PATH,
 } from "./seo-links";
 import { templateSeoPages, templateMetas, getTemplateMeta } from "./template-meta";
@@ -34,6 +35,8 @@ describe("seo-content ↔ seo-links Konsistenz", () => {
   it("seoStaticPages enthält Pillar-, Vergleichs-, Zielgruppen- und Galerie-Seiten", () => {
     const paths = seoStaticPages.map((p) => p.path);
     expect(paths).toContain(funnelBuilderPage.path);
+    // Der Vergleichs-Index fehlte früher in Sitemap UND SSR-Meta — nie wieder.
+    expect(paths).toContain(vergleichIndexPage.path);
     for (const link of comparisonLinks) {
       expect(paths).toContain(link.path);
     }
@@ -44,12 +47,28 @@ describe("seo-content ↔ seo-links Konsistenz", () => {
     for (const meta of templateMetas) {
       expect(paths).toContain(`${TEMPLATE_GALLERY_PATH}/${meta.slug}`);
     }
+    // 2 = Pillar (/funnel-builder) + Vergleichs-Index (/vergleich).
     expect(seoStaticPages.length).toBe(
-      1 +
+      2 +
         Object.keys(comparisonPages).length +
         audiencePages.length +
         templateSeoPages.length,
     );
+  });
+
+  it("Vergleichs- und Zielgruppen-Seiten liefern JSON-LD für die SSR-Injektion", () => {
+    for (const link of comparisonLinks) {
+      const page = seoStaticPages.find((p) => p.path === link.path);
+      expect(page?.jsonLd, `jsonLd fehlt für ${link.path}`).toBeDefined();
+      expect(JSON.stringify(page?.jsonLd)).toContain("FAQPage");
+    }
+    for (const audience of audiencePages) {
+      const page = seoStaticPages.find((p) => p.path === audience.path);
+      expect(page?.jsonLd, `jsonLd fehlt für ${audience.path}`).toBeDefined();
+      expect(JSON.stringify(page?.jsonLd)).toContain("BreadcrumbList");
+    }
+    const pillar = seoStaticPages.find((p) => p.path === funnelBuilderPage.path);
+    expect(JSON.stringify(pillar?.jsonLd)).toContain("FAQPage");
   });
 
   it("jede Zielgruppen-Seite hat Content, und jeder Content eine Seite", () => {

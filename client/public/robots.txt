@@ -7,5 +7,7 @@ Disallow: /analytics
 Disallow: /settings
 Disallow: /admin
 Disallow: /api/
+Disallow: /preview/
+Disallow: /*?video=
 
 Sitemap: https://trichterwerk.de/sitemap.xml

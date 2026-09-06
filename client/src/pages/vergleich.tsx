@@ -16,10 +16,10 @@ import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { MarketingCta } from "@/components/marketing/MarketingCta";
 import {
   getComparisonPage,
-  faqPageJsonLd,
+  comparisonJsonLd,
   type ComparisonPageContent,
 } from "@shared/seo-content";
-import { SITE_ORIGIN, comparisonLinks, funnelBuilderPage } from "@shared/seo-links";
+import { comparisonLinks, funnelBuilderPage, vergleichIndexPage } from "@shared/seo-links";
 
 // Einmal pro Seiten-Load statt pro Render (Disclaimer unter der Tabelle).
 const COMPETITOR_DATA_DATE = new Date().toLocaleDateString("de-DE", {
@@ -27,26 +27,10 @@ const COMPETITOR_DATA_DATE = new Date().toLocaleDateString("de-DE", {
   year: "numeric",
 });
 
-/** FAQPage + BreadcrumbList als JSON-LD (Google liest das auch client-gerendert). */
+/** FAQPage + BreadcrumbList als JSON-LD — gemeinsame Quelle mit der
+ *  SSR-Meta-Injektion (shared/seo-content.ts:comparisonJsonLd). */
 function buildJsonLd(c: ComparisonPageContent): string {
-  return JSON.stringify({
-    "@context": "https://schema.org",
-    "@graph": [
-      faqPageJsonLd(c.faqs),
-      {
-        "@type": "BreadcrumbList",
-        itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Start", item: SITE_ORIGIN },
-          {
-            "@type": "ListItem",
-            position: 2,
-            name: `${c.competitorName}-Alternative`,
-            item: `${SITE_ORIGIN}/vergleich/${c.slug}`,
-          },
-        ],
-      },
-    ],
-  });
+  return JSON.stringify(comparisonJsonLd(c));
 }
 
 /** Zelle der 2-Spalten-Vergleichstabelle (Boolean → Icon, String → Text). */
@@ -103,10 +87,9 @@ function ComparisonLinkButtons() {
 /** Übersichtsseite für /vergleich ohne Slug. */
 function ComparisonIndex() {
   usePageMeta({
-    title: "Trichterwerk im Vergleich",
-    description:
-      "Trichterwerk ehrlich verglichen mit Typeform, Perspective und ClickFunnels — Features, Preise, DSGVO. Finde heraus, welcher Funnel-Builder zu dir passt.",
-    canonical: "/vergleich",
+    title: vergleichIndexPage.metaTitle,
+    description: vergleichIndexPage.metaDescription,
+    canonical: vergleichIndexPage.path,
   });
 
   return (
