@@ -688,7 +688,7 @@ export default function Landing() {
 
           <p className="text-sm text-muted-foreground text-center mt-6">
             Ausführliche Vergleiche:{" "}
-            {comparisonLinks.map((link, idx) => (
+            {comparisonLinks.slice(0, 3).map((link, idx) => (
               <span key={link.path}>
                 {idx > 0 && " · "}
                 <Link href={link.path} className="underline hover:text-foreground">
@@ -696,6 +696,10 @@ export default function Landing() {
                 </Link>
               </span>
             ))}
+            {" · "}
+            <Link href="/vergleich" className="underline hover:text-foreground">
+              alle Vergleiche
+            </Link>
           </p>
         </div>
       </section>

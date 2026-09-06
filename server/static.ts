@@ -12,6 +12,9 @@ import { resolveCustomDomainFunnel } from "./custom-domain";
 const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/images/og-image.png`;
 // Wird im Prod-Build durch server-seitige Injektion für /f/:id ersetzt.
 const META_MARKER = /<!--SSR-META-->[\s\S]*?<!--\/SSR-META-->/;
+// Statischer Kerninhalt der Marketing-Seiten für Crawler ohne JS-Rendering
+// (<noscript data-seo> in client/index.html).
+const CONTENT_MARKER = /<!--SSR-CONTENT-->[\s\S]*?<!--\/SSR-CONTENT-->/;
 
 interface MetaBlockInput {
   /** Kompletter Titel inkl. Suffix. */
@@ -181,9 +184,8 @@ export function serveStatic(app: Express) {
   // Bing, schnellere Indexierung). Die HTML-Varianten sind statisch → einmal beim
   // Start vorberechnen statt pro Request Regex+Replace zu fahren.
   const marketingHtmlByPath = new Map(
-    seoStaticPages.map((p) => [
-      p.path,
-      indexHtml.replace(
+    seoStaticPages.map((p) => {
+      let html = indexHtml.replace(
         META_MARKER,
         buildMetaBlock({
           title: `${p.metaTitle} | Trichterwerk`,
@@ -196,8 +198,14 @@ export function serveStatic(app: Express) {
               ]
             : [],
         }),
-      ),
-    ]),
+      );
+      // Kerninhalt in den <noscript data-seo>-Block — bereits escaped
+      // (shared/seo-html.ts), fehlt der Marker, bleibt das HTML unverändert.
+      if (p.bodyHtml) {
+        html = html.replace(CONTENT_MARKER, p.bodyHtml);
+      }
+      return [p.path, html];
+    }),
   );
   // Routen-Patterns kommen aus shared/seo-links.ts — dieselbe Quelle, aus der
   // auch seoStaticPages/Sitemap gespeist werden (shared/seo-routes.test.ts

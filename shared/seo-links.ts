@@ -31,6 +31,10 @@ export interface SeoStaticPage {
    *  Befüllt wird das Feld erst in der Assembly in shared/seo-content.ts
    *  (Lazy-Chunk) — hier im leichten Modul bleibt nur der Typ. */
   jsonLd?: object;
+  /** Optionales statisches HTML für den <noscript data-seo>-Block
+   *  (<!--SSR-CONTENT-->-Marker) — Kerninhalt für Crawler ohne JS-Rendering.
+   *  Gerendert aus denselben Registries wie die React-Seiten (shared/seo-html.ts). */
+  bodyHtml?: string;
 }
 
 export const funnelBuilderPage: SeoStaticPage = {
@@ -46,7 +50,7 @@ export const vergleichIndexPage: SeoStaticPage = {
   path: "/vergleich",
   metaTitle: "Trichterwerk im Vergleich",
   metaDescription:
-    "Trichterwerk ehrlich verglichen mit Typeform, Perspective und ClickFunnels — Features, Preise, DSGVO. Finde heraus, welcher Funnel-Builder zu dir passt.",
+    "Trichterwerk ehrlich verglichen mit Perspective, FunnelCockpit, Typeform, Heyflow & Co. — Features, Preise, DSGVO. Finde den Funnel-Builder, der zu dir passt.",
 };
 
 /** Partnerprogramm-Seite (25 % Lifetime-Provision). */
@@ -61,6 +65,11 @@ export const comparisonLinks = [
   { path: "/vergleich/typeform-alternative", competitor: "Typeform" },
   { path: "/vergleich/perspective-alternative", competitor: "Perspective" },
   { path: "/vergleich/clickfunnels-alternative", competitor: "ClickFunnels" },
+  { path: "/vergleich/funnelcockpit-alternative", competitor: "FunnelCockpit" },
+  { path: "/vergleich/heyflow-alternative", competitor: "Heyflow" },
+  { path: "/vergleich/meetovo-alternative", competitor: "MEETOVO" },
+  { path: "/vergleich/systeme-io-alternative", competitor: "systeme.io" },
+  { path: "/vergleich/onepage-alternative", competitor: "Onepage" },
 ] as const;
 
 /** Zielgruppen-Landingpages — Meta hier (Server-Injektion + Footer-Links),
@@ -79,6 +88,41 @@ export const audiencePages = [
     metaTitle: "Lead-Funnel erstellen: mehr qualifizierte Anfragen",
     metaDescription:
       "Lead-Funnel statt Kontaktformular: Besucher Schritt für Schritt qualifizieren und konvertieren — DSGVO-konform ab 49 €/Monat. 14 Tage kostenlos testen.",
+  },
+  {
+    path: "/photovoltaik-funnel",
+    label: "Photovoltaik-Funnel",
+    metaTitle: "Photovoltaik-Funnel: Solar-Leads selbst gewinnen",
+    metaDescription:
+      "PV-Leads kosten auf Portalen 35–120 €. Mit einem eigenen Solar-Check-Funnel gewinnst du Anfragen selbst — DSGVO-konform aus Deutschland. 14 Tage gratis testen.",
+  },
+  {
+    path: "/handwerk-recruiting-funnel",
+    label: "Handwerk-Recruiting",
+    metaTitle: "Handwerk-Recruiting: Monteure per Funnel finden",
+    metaDescription:
+      "Rund 107.000 Fachkräfte fehlen im Handwerk. Express-Bewerbung in 60 Sekunden vom Handy, QR-Code auf dem Firmenwagen — DSGVO-konform. 14 Tage kostenlos testen.",
+  },
+  {
+    path: "/pflege-recruiting-funnel",
+    label: "Pflege-Recruiting",
+    metaTitle: "Pflege-Recruiting-Funnel: Bewerbungen in 2 Minuten",
+    metaDescription:
+      "Pflegekräfte gewinnen mit den Argumenten, die zählen: Dienstplansicherheit, faire Bezahlung, kein Einspringen. Mobile Bewerbung in 2 Minuten, DSGVO-konform.",
+  },
+  {
+    path: "/immobilien-funnel",
+    label: "Immobilien-Funnel",
+    metaTitle: "Immobilien-Funnel: Verkäufer-Leads per Wertermittlung",
+    metaDescription:
+      "Kostenlose Wertermittlung als Einstieg: Objektdaten Schritt für Schritt, Verkäufer-Leads statt Anfrageformular — DSGVO-konform aus der EU. 14 Tage gratis.",
+  },
+  {
+    path: "/quiz-funnel",
+    label: "Quiz-Funnel",
+    metaTitle: "Quiz-Funnel erstellen: Leads spielerisch qualifizieren",
+    metaDescription:
+      "Interaktives Quiz mit Ergebnis-Mapping statt Formular: Produktfinder und Selbsttests qualifizieren und unterhalten zugleich — DSGVO-konform, in 1 Stunde live.",
   },
 ] as const satisfies readonly (SeoStaticPage & { label: string })[];
 
@@ -107,6 +151,19 @@ export const marketingRoutePatterns: string[] = [
 export interface SeoFaq {
   q: string;
   a: string;
+}
+
+/** BreadcrumbList-Knoten für JSON-LD — Pfade relativ zu SITE_ORIGIN. */
+export function breadcrumbJsonLd(items: { name: string; path: string }[]): object {
+  return {
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((it, idx) => ({
+      "@type": "ListItem",
+      position: idx + 1,
+      name: it.name,
+      item: it.path === "/" ? SITE_ORIGIN : `${SITE_ORIGIN}${it.path}`,
+    })),
+  };
 }
 
 /** FAQPage-Knoten für JSON-LD (schema.org) — von beiden SEO-Seiten genutzt. */

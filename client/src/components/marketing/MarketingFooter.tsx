@@ -57,13 +57,21 @@ export function MarketingFooter() {
                   Funnel-Builder
                 </Link>
               </li>
-              {comparisonLinks.map((link) => (
+              {/* Bei inzwischen 8 Vergleichsseiten: Top 3 + Link auf die Übersicht,
+                  sonst bläht der Footer auf. Die Registry bleibt vollständig
+                  (Konsistenztest), nur die UI kürzt. */}
+              {comparisonLinks.slice(0, 3).map((link) => (
                 <li key={link.path}>
                   <Link href={link.path} className="hover:text-foreground">
                     {link.competitor}-Alternative
                   </Link>
                 </li>
               ))}
+              <li>
+                <Link href="/vergleich" className="hover:text-foreground">
+                  Alle Vergleiche
+                </Link>
+              </li>
             </ul>
           </div>
           <div>
