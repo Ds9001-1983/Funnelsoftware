@@ -552,12 +552,9 @@ export default function Funnels() {
               data-testid="input-search-funnels"
             />
           </div>
-          <Link href="/funnels/new">
-            <Button className="gap-2" data-testid="button-new-funnel">
-              <Plus className="h-4 w-4" />
-              Neuer Funnel
-            </Button>
-          </Link>
+          {/* „Neuer Funnel" sitzt global in der Topbar (top-navigation.tsx) und
+              stand sonst direkt darunter noch einmal. Bei leerer Liste führt
+              der Empty-State-CTA weiter unten zum Anlegen. */}
         </div>
       </div>
 

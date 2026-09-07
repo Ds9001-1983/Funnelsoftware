@@ -217,17 +217,11 @@ export default function Dashboard() {
       {/* Trial-Ablauf Warnung (dismissible, 3-Tages-Vorlauf)
           payment-required + expired werden global in AppShell gerendert */}
       <UpgradeBanner variant="warning" />
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Willkommen zurück! Hier ist deine Übersicht.</p>
-        </div>
-        <Link href="/funnels/new">
-          <Button className="gap-2" data-testid="button-new-funnel">
-            <Plus className="h-4 w-4" />
-            Neuer Funnel
-          </Button>
-        </Link>
+      {/* Kein „Neuer Funnel"-Button hier: Die Topbar trägt ihn global und stand
+          sonst direkt über diesem — siehe top-navigation.tsx. */}
+      <div>
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground">Willkommen zurück! Hier ist deine Übersicht.</p>
       </div>
 
       {/* Aktivierungs-Checkliste, sobald mind. ein Funnel existiert */}
