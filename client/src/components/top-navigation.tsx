@@ -55,12 +55,16 @@ export function TopNavigation() {
 
         {/* Right: New Funnel + User */}
         <div className="flex items-center gap-3 shrink-0">
+          {/* Einziger „Neuer Funnel"-Einstieg der App: Dashboard und Funnel-Liste
+              hatten den Button zusätzlich im Seitenkopf — direkt unterhalb von
+              diesem hier, was doppelt wirkte. Leere Listen führen weiter über
+              ihren eigenen Empty-State-CTA zum Anlegen. */}
           <Link href="/funnels/new">
-            <Button size="sm" className="gap-1.5 hidden sm:flex">
+            <Button size="sm" className="gap-1.5 hidden sm:flex" data-testid="button-new-funnel">
               <Plus className="h-3.5 w-3.5" />
               Neuer Funnel
             </Button>
-            <Button size="icon" className="sm:hidden h-8 w-8">
+            <Button size="icon" className="sm:hidden h-8 w-8" data-testid="button-new-funnel-mobile" aria-label="Neuer Funnel">
               <Plus className="h-4 w-4" />
             </Button>
           </Link>
