@@ -617,7 +617,7 @@ export const defaultTemplates: ClientTemplate[] = [
         title: "Erhalte kostenlosen Zugang zu unserem exklusiven Agentur-Bundle!",
         subtitle: "Bewährte Vorlagen, Checklisten und Strategien für dein Wachstum",
         elements: [
-          { id: "el-hero", type: "image", imageUrl: "/templates/heroes/lead-magnet.webp", imageAlt: "Checkliste auf Tablet neben Kaffee" },
+          { id: "el-hero", type: "image", imageUrl: "/templates/heroes/lead-magnet.webp", imageAlt: "Auswertung auf einem Tablet neben einer Tasse Kaffee" },
           { id: "el-1", type: "list", listStyle: "check", listItems: [
             { id: "li-1", text: "10+ bewährte Vorlagen" },
             { id: "li-2", text: "Schritt-für-Schritt Anleitungen" },
