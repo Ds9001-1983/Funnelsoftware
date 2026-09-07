@@ -156,7 +156,9 @@ function LeadRow({ lead }: { lead: Lead }) {
 
     if (diffMins < 60) return `vor ${diffMins} Min`;
     if (diffHours < 24) return `vor ${diffHours} Std`;
-    return `vor ${diffDays} Tagen`;
+    // Singular ausschreiben: „vor 1 Tagen" wäre falsch — und landet sonst im
+    // Hero-Screenshot der Startseite (scripts/capture-hero-screenshot.ts).
+    return diffDays === 1 ? "vor 1 Tag" : `vor ${diffDays} Tagen`;
   };
 
   return (
