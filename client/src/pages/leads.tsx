@@ -505,6 +505,7 @@ function LeadRow({
 
     if (diffMins < 60) return `vor ${diffMins} Min`;
     if (diffHours < 24) return `vor ${diffHours} Std`;
+    if (diffDays === 1) return "vor 1 Tag";
     if (diffDays < 7) return `vor ${diffDays} Tagen`;
     return date.toLocaleDateString("de-DE", { day: "2-digit", month: "short" });
   };

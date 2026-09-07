@@ -471,7 +471,7 @@ export default function Landing() {
               <source srcSet="/images/hero-dashboard.webp" type="image/webp" />
               <img
                 src="/images/hero-dashboard.png"
-                alt="Trichterwerk Dashboard mit Funnel Performance"
+                alt="Das Trichterwerk-Dashboard: Views, Leads und Conversion-Rate der aktiven Funnels auf einen Blick"
                 width={1200}
                 height={800}
                 className="w-full h-auto"
