@@ -74,7 +74,7 @@ export default function AVV() {
               <h2 className="text-xl font-semibold text-slate-800 mb-4">2. Art, Zweck und Dauer der Verarbeitung</h2>
               <ul className="list-disc list-inside text-slate-600 text-sm space-y-2 ml-4 mb-4">
                 <li><strong>Art:</strong> Speicherung, Anzeige, Export und Löschung von Formulardaten; Versand von Benachrichtigungen; optional Übermittlung an vom Auftraggeber konfigurierte Drittsysteme (Webhooks, Meta Conversions API).</li>
-                <li><strong>Zweck:</strong> Bereitstellung der Funnel- und Lead-Verwaltungsfunktionen der Plattform.</li>
+                <li><strong>Zweck:</strong> Bereitstellung der Funnel- und Lead-Verwaltungsfunktionen der Plattform sowie Support und Fehleranalyse, wenn der Auftraggeber selbst eine Fehlermeldung inklusive Bildschirmaufnahme absendet.</li>
                 <li><strong>Dauer:</strong> Für die Dauer des Nutzungsvertrags. Mit Löschung des Kontos werden die Auftragsdaten gelöscht, soweit keine gesetzlichen Aufbewahrungspflichten bestehen.</li>
               </ul>
             </section>
@@ -85,6 +85,14 @@ export default function AVV() {
                 <li><strong>Betroffene:</strong> Besucher und Interessenten (Leads) der Funnel-Seiten des Auftraggebers.</li>
                 <li><strong>Datenkategorien:</strong> Kontaktdaten (Name, E-Mail-Adresse, Telefonnummer, Firma), Formularantworten/Freitexte, technische Daten (IP-Adresse, User-Agent, Zeitstempel), Einwilligungsstatus.</li>
               </ul>
+              <p className="text-slate-600 text-sm leading-relaxed mt-4">
+                Sendet der Auftraggeber eine Fehlermeldung aus der Anwendung, kann die
+                beigefügte Bildschirmaufnahme Daten der oben genannten Kategorien
+                enthalten. Die Lead-Ansicht wird bei der Aufnahme automatisch
+                unkenntlich gemacht, und der Auftraggeber sieht das Bild vor dem
+                Absenden und kann es entfernen. Solche Aufnahmen werden spätestens nach
+                90 Tagen gelöscht, die Meldung selbst nach 12 Monaten.
+              </p>
             </section>
 
             <section className="mb-8">
@@ -125,7 +133,7 @@ export default function AVV() {
                     </tr>
                     <tr>
                       <td className="px-3 py-2 border-b">Alfahosting GmbH</td>
-                      <td className="px-3 py-2 border-b">E-Mail-Versand (SMTP)</td>
+                      <td className="px-3 py-2 border-b">E-Mail-Versand (SMTP), einschließlich Bildschirmaufnahmen aus Fehlermeldungen</td>
                       <td className="px-3 py-2 border-b">Deutschland</td>
                     </tr>
                     <tr>
