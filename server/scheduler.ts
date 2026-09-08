@@ -10,6 +10,8 @@
  * DISABLE_SCHEDULER=1 schaltet ihn ab (Playwright-E2E, Zweitinstanzen).
  */
 
+import fs from "fs";
+import path from "path";
 import { storage } from "./storage";
 import { FREE_MAX_PUBLISHED_FUNNELS } from "@shared/schema";
 import {
@@ -118,12 +120,51 @@ export async function runReEngagementJob(): Promise<void> {
   }
 }
 
+/** Bilder einer Fehlermeldung leben 90 Tage, der Datensatz 12 Monate. */
+export const BUG_FILE_RETENTION_MS = 90 * DAY_MS;
+export const BUG_REPORT_RETENTION_MS = 365 * DAY_MS;
+
+/**
+ * Aufbewahrung der Fehlermeldungen. Screenshots können Kontaktdaten der Leads
+ * unserer Kunden zeigen, deshalb fliegen die Bilder deutlich früher als der
+ * Text. Erst Bilder löschen, dann Pfade leeren — bricht der Lauf dazwischen ab,
+ * zeigt der Admin-Bereich ein fehlendes Bild an (404), statt dass eine Datei
+ * unbemerkt liegen bleibt.
+ */
+export async function runBugReportRetentionJob(now: Date = new Date()): Promise<void> {
+  const bugFilesDir = path.join(process.cwd(), "private-uploads", "bug-reports");
+
+  const fileCutoff = new Date(now.getTime() - BUG_FILE_RETENTION_MS);
+  const withFiles = await storage.getBugReportsWithFilesBefore(fileCutoff);
+  const cleared: number[] = [];
+  for (const report of withFiles) {
+    const names = [report.screenshotPath, report.attachmentPath].filter(
+      (name): name is string => !!name,
+    );
+    await Promise.all(
+      names.map((name) =>
+        fs.promises.unlink(path.join(bugFilesDir, path.basename(name))).catch(() => {}),
+      ),
+    );
+    cleared.push(report.id);
+  }
+  await storage.clearBugReportFiles(cleared);
+
+  const rowCutoff = new Date(now.getTime() - BUG_REPORT_RETENTION_MS);
+  const deleted = await storage.deleteBugReportsBefore(rowCutoff);
+
+  if (cleared.length || deleted) {
+    console.log(`[scheduler] Fehlermeldungen: ${cleared.length} Bilder gelöscht, ${deleted} Meldungen entfernt`);
+  }
+}
+
 /** Ein Tick = alle Jobs, jeder für sich gefangen. Exportiert für Tests. */
 export async function tick(): Promise<void> {
   const jobs: Array<[string, () => Promise<void>]> = [
     ["Free-Downgrade", runFreeDowngradeJob],
     ["Trial-Ende-Mail", runTrialEndingJob],
     ["Re-Engagement-Mail", runReEngagementJob],
+    ["Fehlermeldungs-Aufbewahrung", () => runBugReportRetentionJob()],
   ];
   for (const [name, job] of jobs) {
     try {

@@ -2610,6 +2610,94 @@ export async function registerRoutes(
     }
   });
 
+  // ---- Fehlermeldungen (Bug-Melder) ----
+
+  app.get("/api/admin/bug-reports", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const statusParam = String(req.query.status ?? "open");
+      const status = (BUG_REPORT_STATUSES as readonly string[]).includes(statusParam) || statusParam === "all"
+        ? (statusParam as "open" | "done" | "all")
+        : "open";
+      const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? "25"), 10) || 25, 1), 100);
+      const offset = Math.max(parseInt(String(req.query.offset ?? "0"), 10) || 0, 0);
+
+      const { reports, total } = await storage.getBugReports(status, limit, offset);
+      res.json({ reports, total, limit, offset });
+    } catch (error) {
+      console.error("Admin bug reports error:", error);
+      res.status(500).json({ error: "Fehlermeldungen konnten nicht geladen werden" });
+    }
+  });
+
+  app.patch("/api/admin/bug-reports/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const parsed = updateBugReportSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Ungültiger Status", details: parsed.error.errors });
+      }
+      const updated = await storage.setBugReportStatus(Number(req.params.id), parsed.data.status);
+      if (!updated) return res.status(404).json({ error: "Meldung nicht gefunden" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Admin bug report update error:", error);
+      res.status(500).json({ error: "Status konnte nicht geändert werden" });
+    }
+  });
+
+  /** Bild einer Meldung ausliefern. Nur hier — das Verzeichnis ist bewusst nicht
+   *  statisch gemountet, weil ein Screenshot Kundendaten zeigen kann. */
+  async function serveBugFile(req: Request, res: Response, kind: "screenshot" | "attachment") {
+    try {
+      const report = await storage.getBugReport(Number(req.params.id));
+      if (!report) return res.status(404).json({ error: "Meldung nicht gefunden" });
+
+      const stored = kind === "screenshot" ? report.screenshotPath : report.attachmentPath;
+      if (!stored) return res.status(404).json({ error: "Kein Bild vorhanden" });
+
+      // Nur der Dateiname aus der DB zählt; ein manipulierter Wert wie
+      // "../../.env" darf das Verzeichnis nicht verlassen.
+      const resolved = path.resolve(bugFilesDir, path.basename(stored));
+      if (!resolved.startsWith(path.resolve(bugFilesDir) + path.sep)) {
+        return res.status(400).json({ error: "Ungültiger Dateiname" });
+      }
+      if (!fs.existsSync(resolved)) {
+        return res.status(404).json({ error: "Bild wurde bereits gelöscht" });
+      }
+
+      res.setHeader("Cache-Control", "private, no-store");
+      res.setHeader("Content-Type", "image/webp");
+      res.sendFile(resolved);
+    } catch (error) {
+      console.error("Admin bug file error:", error);
+      res.status(500).json({ error: "Bild konnte nicht geladen werden" });
+    }
+  }
+
+  app.get("/api/admin/bug-reports/:id/screenshot", isAuthenticated, isAdmin, (req, res) => {
+    void serveBugFile(req, res, "screenshot");
+  });
+
+  app.get("/api/admin/bug-reports/:id/attachment", isAuthenticated, isAdmin, (req, res) => {
+    void serveBugFile(req, res, "attachment");
+  });
+
+  app.delete("/api/admin/bug-reports/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const removed = await storage.deleteBugReport(Number(req.params.id));
+      if (!removed) return res.status(404).json({ error: "Meldung nicht gefunden" });
+
+      await Promise.all(
+        [removed.screenshotPath, removed.attachmentPath]
+          .filter((name): name is string => !!name)
+          .map((name) => fs.promises.unlink(path.join(bugFilesDir, path.basename(name))).catch(() => {})),
+      );
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Admin bug report delete error:", error);
+      res.status(500).json({ error: "Meldung konnte nicht gelöscht werden" });
+    }
+  });
+
   app.get("/api/admin/stats", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const stats = await storage.getAdminStats();

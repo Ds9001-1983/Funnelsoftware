@@ -11,6 +11,9 @@ vi.mock("./storage", () => ({
     getFunnels: vi.fn(),
     getUsersForTrialEndingMail: vi.fn(),
     getInactiveUsersSince: vi.fn(),
+    getBugReportsWithFilesBefore: vi.fn(),
+    clearBugReportFiles: vi.fn(),
+    deleteBugReportsBefore: vi.fn(),
   },
 }));
 vi.mock("./email", () => ({
@@ -25,7 +28,14 @@ import {
   sendReEngagementEmail,
   sendTrialEndingSoonEmail,
 } from "./email";
-import { runFreeDowngradeJob, runReEngagementJob, runTrialEndingJob } from "./scheduler";
+import {
+  runFreeDowngradeJob,
+  runReEngagementJob,
+  runTrialEndingJob,
+  runBugReportRetentionJob,
+  BUG_FILE_RETENTION_MS,
+  BUG_REPORT_RETENTION_MS,
+} from "./scheduler";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -45,6 +55,8 @@ beforeEach(() => {
   vi.mocked(storage.demoteExtraPublishedFunnels).mockResolvedValue([]);
   vi.mocked(storage.getFunnels).mockResolvedValue([]);
   vi.mocked(storage.tryLogEmail).mockResolvedValue(true);
+  vi.mocked(storage.getBugReportsWithFilesBefore).mockResolvedValue([]);
+  vi.mocked(storage.deleteBugReportsBefore).mockResolvedValue(0);
 });
 
 describe("runFreeDowngradeJob", () => {
@@ -143,5 +155,37 @@ describe("runReEngagementJob", () => {
     await runReEngagementJob();
 
     expect(sendReEngagementEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe("runBugReportRetentionJob", () => {
+  const now = new Date("2026-09-08T12:00:00Z");
+
+  it("fragt Bilder mit 90-Tage-Stichtag und Meldungen mit 12-Monats-Stichtag ab", async () => {
+    await runBugReportRetentionJob(now);
+
+    const fileCutoff = vi.mocked(storage.getBugReportsWithFilesBefore).mock.calls[0][0] as Date;
+    const rowCutoff = vi.mocked(storage.deleteBugReportsBefore).mock.calls[0][0] as Date;
+
+    expect(fileCutoff.getTime()).toBe(now.getTime() - BUG_FILE_RETENTION_MS);
+    expect(rowCutoff.getTime()).toBe(now.getTime() - BUG_REPORT_RETENTION_MS);
+    // Der Text überlebt das Bild deutlich — sonst wäre die Historie sofort weg.
+    expect(rowCutoff.getTime()).toBeLessThan(fileCutoff.getTime());
+  });
+
+  it("leert die Dateipfade der abgelaufenen Meldungen", async () => {
+    vi.mocked(storage.getBugReportsWithFilesBefore).mockResolvedValue([
+      { id: 3, screenshotPath: "screenshot-a.webp", attachmentPath: null },
+      { id: 9, screenshotPath: null, attachmentPath: "anhang-b.webp" },
+    ] as any);
+
+    await runBugReportRetentionJob(now);
+
+    expect(storage.clearBugReportFiles).toHaveBeenCalledWith([3, 9]);
+  });
+
+  it("räumt nichts auf, wenn keine Meldung abgelaufen ist", async () => {
+    await runBugReportRetentionJob(now);
+    expect(storage.clearBugReportFiles).toHaveBeenCalledWith([]);
   });
 });
