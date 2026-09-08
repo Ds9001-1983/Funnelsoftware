@@ -1261,6 +1261,29 @@ export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
 export const BUG_REPORT_STATUSES = ["open", "done"] as const;
 export type BugReportStatus = (typeof BUG_REPORT_STATUSES)[number];
 
+/** Query-Parameter, die eine Fehlermeldung niemals enthalten darf — sie sind
+ *  Zugangsdaten (Passwort-Reset-Link, Team-Einladung, Stripe-Sitzung). Der
+ *  Client entfernt sie schon vor dem Absenden; die Bereinigung wird zusätzlich
+ *  serverseitig erzwungen, damit ein manipulierter Aufruf sie nicht in die
+ *  Datenbank und in die Benachrichtigungs-Mail schreiben kann. */
+export const BUG_REPORT_SECRET_PARAMS = ["token", "code", "session_id", "invite"] as const;
+
+/** Ersetzt die Werte der Zugangsparameter in einem Pfad durch "…". */
+export function stripSecretsFromPageUrl(pageUrl: string): string {
+  const [path, query] = pageUrl.split("?");
+  if (!query) return path;
+  const params = new URLSearchParams(query);
+  let changed = false;
+  for (const key of BUG_REPORT_SECRET_PARAMS) {
+    if (params.has(key)) {
+      params.set(key, "…");
+      changed = true;
+    }
+  }
+  if (!changed) return pageUrl;
+  return `${path}?${decodeURIComponent(params.toString())}`;
+}
+
 /** Vom Client gesendete Felder. Nutzer-ID, E-Mail und Plan setzt der Server
  *  aus der Session — der Client darf sie nicht bestimmen. */
 export const insertBugReportSchema = z.object({
@@ -1269,7 +1292,7 @@ export const insertBugReportSchema = z.object({
     .trim()
     .min(5, "Bitte beschreibe das Problem in mindestens 5 Zeichen")
     .max(BUG_REPORT_MAX_DESCRIPTION, `Die Beschreibung darf höchstens ${BUG_REPORT_MAX_DESCRIPTION} Zeichen lang sein`),
-  pageUrl: z.string().trim().min(1, "Seitenangabe fehlt").max(500),
+  pageUrl: z.string().trim().min(1, "Seitenangabe fehlt").max(500).transform(stripSecretsFromPageUrl),
   userAgent: z.string().trim().max(500).optional(),
   viewport: z.string().trim().max(32).optional(),
   clientErrors: z.string().trim().max(2000).optional(),

@@ -9,18 +9,15 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { captureViewport } from "@/lib/screenshot";
 import { getRecentClientErrors } from "@/lib/error-log";
-import { BUG_REPORT_MAX_DESCRIPTION, MAX_BUG_ATTACHMENT_BYTES } from "@shared/schema";
+import {
+  BUG_REPORT_MAX_DESCRIPTION,
+  MAX_BUG_ATTACHMENT_BYTES,
+  stripSecretsFromPageUrl,
+} from "@shared/schema";
 
-/** Query-Parameter, die niemals mitgeschickt werden — sie sind Zugangsdaten. */
-const SECRET_QUERY_PARAMS = ["token", "code", "session_id", "invite"];
-
-/** Aktuelle Adresse ohne Secrets in der Query. */
+/** Aktuelle Adresse ohne Zugangsparameter. Der Server bereinigt zusätzlich. */
 function currentPage(): string {
-  const url = new URL(window.location.href);
-  for (const key of SECRET_QUERY_PARAMS) {
-    if (url.searchParams.has(key)) url.searchParams.set(key, "…");
-  }
-  return `${url.pathname}${url.search}`;
+  return stripSecretsFromPageUrl(`${window.location.pathname}${window.location.search}`);
 }
 
 function viewportInfo(): string {

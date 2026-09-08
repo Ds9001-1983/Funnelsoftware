@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { insertBugReportSchema, updateBugReportSchema, BUG_REPORT_MAX_DESCRIPTION } from "@shared/schema";
+import {
+  insertBugReportSchema,
+  updateBugReportSchema,
+  stripSecretsFromPageUrl,
+  BUG_REPORT_MAX_DESCRIPTION,
+} from "@shared/schema";
 import { escapeHtml } from "./email";
 
 describe("insertBugReportSchema", () => {
@@ -68,5 +73,28 @@ describe("escapeHtml in der Meldungs-Mail", () => {
     const escaped = escapeHtml('<script>alert("x")</script>');
     expect(escaped).not.toContain("<script>");
     expect(escaped).toContain("&lt;script&gt;");
+  });
+});
+
+describe("stripSecretsFromPageUrl", () => {
+  it("ersetzt Zugangsparameter, behält aber den Rest", () => {
+    expect(stripSecretsFromPageUrl("/reset-password?token=abc123")).toBe("/reset-password?token=…");
+    expect(stripSecretsFromPageUrl("/register?invite=1&template=quiz")).toBe("/register?invite=…&template=quiz");
+  });
+
+  it("lässt unverdächtige Adressen unverändert", () => {
+    expect(stripSecretsFromPageUrl("/funnels/12")).toBe("/funnels/12");
+    expect(stripSecretsFromPageUrl("/leads?status=neu")).toBe("/leads?status=neu");
+  });
+
+  it("greift auch im Schema — ein manipulierter Aufruf schreibt kein Token in die Datenbank", () => {
+    const result = insertBugReportSchema.safeParse({
+      description: "Bestätigungslink funktioniert nicht",
+      pageUrl: "/verify-email?token=geheim",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.pageUrl).not.toContain("geheim");
+    }
   });
 });
