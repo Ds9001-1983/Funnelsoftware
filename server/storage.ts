@@ -1,14 +1,16 @@
-import { eq, desc, and, sql, gte, inArray } from "drizzle-orm";
+import { eq, desc, and, sql, gte, lt, inArray } from "drizzle-orm";
 import { quizTemplateElement } from "@shared/quiz-template";
 import { db } from "./db";
 import {
   users, funnels, leads, templates, analyticsEvents, passwordResetTokens,
   teams, teamMembers, apiKeys, domains, platformVisits, aiCredentials, emailLog,
+  bugReports,
   type User, type InsertUser, type Funnel, type InsertFunnel,
   type Lead, type InsertLead, type AnalyticsEvent, type Template,
   type FunnelPage, type Theme, type ABTest,
   type Team, type InsertTeam, type TeamMember, type ApiKey, type InsertApiKey,
   type Domain, type InsertPlatformVisit, type InsertAiCredential,
+  type BugReport, type InsertBugReport, type BugReportStatus,
 } from "@shared/schema";
 
 type AiCredentialRow = typeof aiCredentials.$inferSelect;
@@ -96,6 +98,22 @@ export interface IStorage {
   getUsersForTrialEndingMail(from: Date, to: Date): Promise<User[]>;
   getInactiveUsersSince(cutoff: Date): Promise<User[]>;
   claimTeamInvites(email: string, userId: number): Promise<number>;
+
+  // Fehlermeldungen aus dem Produkt ("Problem melden"-Widget)
+  createBugReport(report: InsertBugReport & {
+    userId: number;
+    screenshotPath?: string | null;
+    attachmentPath?: string | null;
+  }): Promise<BugReport>;
+  getBugReports(status: BugReportStatus | "all", limit: number, offset: number): Promise<{ reports: BugReport[]; total: number }>;
+  getBugReport(id: number): Promise<BugReport | undefined>;
+  setBugReportStatus(id: number, status: BugReportStatus): Promise<BugReport | undefined>;
+  setBugReportEmailSent(id: number): Promise<void>;
+  deleteBugReport(id: number): Promise<{ screenshotPath: string | null; attachmentPath: string | null } | undefined>;
+  /** Meldungen mit Bildern, die älter als der Stichtag sind (Aufbewahrungsjob). */
+  getBugReportsWithFilesBefore(cutoff: Date): Promise<{ id: number; screenshotPath: string | null; attachmentPath: string | null }[]>;
+  clearBugReportFiles(ids: number[]): Promise<void>;
+  deleteBugReportsBefore(cutoff: Date): Promise<number>;
 
   // Funnels
   getFunnels(userId: number): Promise<Funnel[]>;
@@ -1580,6 +1598,114 @@ export class DatabaseStorage implements IStorage {
       .delete(domains)
       .where(and(eq(domains.id, id), eq(domains.userId, userId)));
     return (result as any).rowCount > 0;
+  }
+
+  // ============ FEHLERMELDUNGEN ============
+
+  async createBugReport(report: InsertBugReport & {
+    userId: number;
+    screenshotPath?: string | null;
+    attachmentPath?: string | null;
+  }): Promise<BugReport> {
+    const [row] = await db.insert(bugReports).values({
+      userId: report.userId,
+      description: report.description,
+      pageUrl: report.pageUrl,
+      userAgent: report.userAgent ?? null,
+      viewport: report.viewport ?? null,
+      clientErrors: report.clientErrors ?? null,
+      screenshotPath: report.screenshotPath ?? null,
+      attachmentPath: report.attachmentPath ?? null,
+    }).returning();
+    return row as BugReport;
+  }
+
+  /** Admin-Liste inkl. Melder-Adresse (Join) und Gesamtzahl für die Blätterung. */
+  async getBugReports(status: BugReportStatus | "all", limit: number, offset: number): Promise<{ reports: BugReport[]; total: number }> {
+    const where = status === "all" ? undefined : eq(bugReports.status, status);
+
+    const rows = await db
+      .select({
+        id: bugReports.id,
+        userId: bugReports.userId,
+        description: bugReports.description,
+        pageUrl: bugReports.pageUrl,
+        userAgent: bugReports.userAgent,
+        viewport: bugReports.viewport,
+        clientErrors: bugReports.clientErrors,
+        screenshotPath: bugReports.screenshotPath,
+        attachmentPath: bugReports.attachmentPath,
+        status: bugReports.status,
+        emailSentAt: bugReports.emailSentAt,
+        resolvedAt: bugReports.resolvedAt,
+        createdAt: bugReports.createdAt,
+        reporterEmail: users.email,
+        reporterUsername: users.username,
+      })
+      .from(bugReports)
+      .leftJoin(users, eq(bugReports.userId, users.id))
+      .where(where)
+      .orderBy(desc(bugReports.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const [countRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(bugReports)
+      .where(where);
+
+    return { reports: rows as unknown as BugReport[], total: countRow?.count ?? 0 };
+  }
+
+  async getBugReport(id: number): Promise<BugReport | undefined> {
+    const [row] = await db.select().from(bugReports).where(eq(bugReports.id, id));
+    return row as BugReport | undefined;
+  }
+
+  async setBugReportStatus(id: number, status: BugReportStatus): Promise<BugReport | undefined> {
+    const [row] = await db.update(bugReports)
+      .set({ status, resolvedAt: status === "done" ? new Date() : null })
+      .where(eq(bugReports.id, id))
+      .returning();
+    return row as BugReport | undefined;
+  }
+
+  async setBugReportEmailSent(id: number): Promise<void> {
+    await db.update(bugReports).set({ emailSentAt: new Date() }).where(eq(bugReports.id, id));
+  }
+
+  /** Löscht die Zeile und meldet die Dateinamen zurück, damit der Aufrufer die
+   *  Bilder von der Platte räumen kann. */
+  async deleteBugReport(id: number): Promise<{ screenshotPath: string | null; attachmentPath: string | null } | undefined> {
+    const [row] = await db.delete(bugReports)
+      .where(eq(bugReports.id, id))
+      .returning({ screenshotPath: bugReports.screenshotPath, attachmentPath: bugReports.attachmentPath });
+    return row;
+  }
+
+  async getBugReportsWithFilesBefore(cutoff: Date): Promise<{ id: number; screenshotPath: string | null; attachmentPath: string | null }[]> {
+    return db.select({
+      id: bugReports.id,
+      screenshotPath: bugReports.screenshotPath,
+      attachmentPath: bugReports.attachmentPath,
+    })
+      .from(bugReports)
+      .where(and(
+        lt(bugReports.createdAt, cutoff),
+        sql`(${bugReports.screenshotPath} IS NOT NULL OR ${bugReports.attachmentPath} IS NOT NULL)`,
+      ));
+  }
+
+  async clearBugReportFiles(ids: number[]): Promise<void> {
+    if (ids.length === 0) return;
+    await db.update(bugReports)
+      .set({ screenshotPath: null, attachmentPath: null })
+      .where(inArray(bugReports.id, ids));
+  }
+
+  async deleteBugReportsBefore(cutoff: Date): Promise<number> {
+    const result = await db.delete(bugReports).where(lt(bugReports.createdAt, cutoff));
+    return (result as any).rowCount ?? 0;
   }
 }
 

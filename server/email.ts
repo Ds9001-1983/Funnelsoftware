@@ -6,6 +6,9 @@ const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const FROM_EMAIL = process.env.FROM_EMAIL || "noreply@trichterwerk.de";
 const APP_URL = process.env.APP_URL || "http://localhost:5000";
+/** Postfach fuer Fehlermeldungen aus dem Produkt. Fallback ist die Adresse, die
+ *  auch im Impressum und in den Marketing-Seiten steht. */
+const BUG_REPORT_TO = process.env.BUG_REPORT_EMAIL || "info@superbrand.marketing";
 
 const isConfigured = !!(SMTP_HOST && SMTP_USER && SMTP_PASS);
 
@@ -67,7 +70,21 @@ function baseTemplate(content: string): string {
 </html>`;
 }
 
-async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+/** Optionale Zusaetze fuer einzelne Mails. Bewusst schmal gehalten: bis auf die
+ *  Fehlermeldungen kommt jede Mail dieses Moduls ohne Anhang und ohne Reply-To aus. */
+interface SendEmailOptions {
+  /** Antwortadresse — bei Fehlermeldungen der Melder, damit eine Antwort direkt bei ihm landet. */
+  replyTo?: string;
+  /** Dateianhaenge (nodemailer-Format). Nur mit In-Memory-Buffern verwenden. */
+  attachments?: { filename: string; content: Buffer; contentType?: string }[];
+}
+
+async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  options?: SendEmailOptions,
+): Promise<boolean> {
   if (!transporter) {
     console.log(`[Email] SMTP nicht konfiguriert. E-Mail an ${to} wird nicht gesendet.`);
     console.log(`[Email] Betreff: ${subject}`);
@@ -80,6 +97,8 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
       to,
       subject,
       html,
+      ...(options?.replyTo ? { replyTo: options.replyTo } : {}),
+      ...(options?.attachments?.length ? { attachments: options.attachments } : {}),
     });
     console.log(`[Email] Erfolgreich gesendet an ${to}: ${subject}`);
     return true;
@@ -397,4 +416,71 @@ export async function sendTeamInviteEmail(
   `);
 
   return sendEmail(email, `Einladung ins Team „${teamName}“ bei Trichterwerk`, html);
+}
+
+// ============ FEHLERMELDUNGEN (Bug-Report-Widget) ============
+
+/**
+ * Meldet eine Fehlermeldung aus dem Produkt an das Betreiber-Postfach.
+ *
+ * Der Screenshot geht als Anhang mit, damit das Problem ohne Login sichtbar ist.
+ * Das bedeutet: liegt auf dem Screenshot ein Kundendatensatz, landet er auch im
+ * Postfach beim SMTP-Anbieter. Deshalb maskiert das Widget Lead-Daten vor der
+ * Aufnahme (client/src/lib/screenshot.ts) und die Datenschutzerklaerung nennt
+ * den Versandweg. Reply-To ist der Melder, damit eine Antwort direkt ankommt.
+ */
+export async function sendBugReportNotification(report: {
+  id: number;
+  description: string;
+  pageUrl: string;
+  userAgent?: string | null;
+  viewport?: string | null;
+  clientErrors?: string | null;
+  reporterEmail: string;
+  reporterName?: string | null;
+  plan: string;
+  screenshot?: { filename: string; content: Buffer; contentType: string } | null;
+  attachment?: { filename: string; content: Buffer; contentType: string } | null;
+}): Promise<boolean> {
+  const adminLink = `${APP_URL}/admin#bug-${report.id}`;
+  const row = (label: string, value: string) =>
+    `<tr><td style="padding:8px 12px;color:#52525b;font-size:14px;border-bottom:1px solid #f4f4f5;white-space:nowrap;"><strong>${label}:</strong></td><td style="padding:8px 12px;color:#18181b;font-size:14px;border-bottom:1px solid #f4f4f5;word-break:break-word;">${value}</td></tr>`;
+
+  const rows = [
+    row("Melder", `${escapeHtml(report.reporterName || report.reporterEmail)} (${escapeHtml(report.reporterEmail)})`),
+    row("Plan", escapeHtml(report.plan)),
+    row("Seite", escapeHtml(report.pageUrl)),
+    report.viewport ? row("Fenster", escapeHtml(report.viewport)) : "",
+    report.userAgent ? row("Browser", escapeHtml(report.userAgent)) : "",
+  ].filter(Boolean).join("");
+
+  const attachments = [report.screenshot, report.attachment].filter(
+    (file): file is { filename: string; content: Buffer; contentType: string } => !!file,
+  );
+
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 16px;color:#18181b;font-size:20px;">Neue Fehlermeldung #${report.id}</h2>
+    <div style="margin:0 0 24px;padding:16px;background:#fef2f2;border-left:4px solid #ef4444;border-radius:6px;color:#18181b;font-size:15px;line-height:1.6;white-space:pre-wrap;">${escapeHtml(report.description)}</div>
+    <table style="width:100%;border-collapse:collapse;background:#f9fafb;border-radius:8px;overflow:hidden;margin:0 0 24px;">
+      ${rows}
+    </table>
+    ${attachments.length
+      ? `<p style="margin:0 0 24px;color:#52525b;font-size:14px;">Screenshot und Anhang liegen dieser E-Mail bei.</p>`
+      : `<p style="margin:0 0 24px;color:#52525b;font-size:14px;">Zu dieser Meldung wurde kein Bild übermittelt.</p>`}
+    ${report.clientErrors
+      ? `<p style="margin:0 0 8px;color:#52525b;font-size:13px;"><strong>Zuletzt protokollierte Browser-Fehler:</strong></p>
+         <pre style="margin:0 0 24px;padding:12px;background:#18181b;color:#e4e4e7;border-radius:6px;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-word;">${escapeHtml(report.clientErrors)}</pre>`
+      : ""}
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${adminLink}" style="display:inline-block;background:#6366f1;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;">
+        Im Admin-Bereich öffnen
+      </a>
+    </div>
+  `);
+
+  const subjectPage = report.pageUrl.slice(0, 60);
+  return sendEmail(BUG_REPORT_TO, `Fehlermeldung #${report.id} von ${report.reporterEmail} (${subjectPage})`, html, {
+    replyTo: report.reporterEmail,
+    attachments,
+  });
 }

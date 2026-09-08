@@ -15,6 +15,7 @@ import {
   sendLeadLimitReachedEmail,
   sendPaymentFailedEmail,
   sendTeamInviteEmail,
+  sendBugReportNotification,
 } from "./email";
 import {
   stripe,
@@ -35,7 +36,8 @@ import {
   insertFunnelSchema, insertLeadSchema, funnelSchema, leadSchema, insertDomainSchema,
   loginSchema, registerSchema, slugSchema, passwordSchema, trackEventSchema,
   aiCredentialInputSchema, generateFunnelInputSchema,
-  MAX_IMAGE_UPLOAD_BYTES, MAX_AUDIO_UPLOAD_BYTES,
+  MAX_IMAGE_UPLOAD_BYTES, MAX_AUDIO_UPLOAD_BYTES, MAX_BUG_ATTACHMENT_BYTES,
+  insertBugReportSchema, updateBugReportSchema, BUG_REPORT_STATUSES,
   FREE_MAX_PUBLISHED_FUNNELS, FREE_MONTHLY_LEAD_LIMIT, PLAN_ERROR_CODES,
   type Domain, type Lead,
 } from "@shared/schema";
@@ -172,6 +174,17 @@ const aiTestLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+// Fehlermeldungen verschicken eine E-Mail und legen Dateien an — deshalb pro
+// angemeldetem Nutzer eng drosseln (Vorbild: emailFlowLimiter in server/index.ts).
+const bugReportLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 Minuten
+  max: 5,
+  keyGenerator: aiUserKey,
+  message: { error: "Zu viele Meldungen in kurzer Zeit. Bitte in einigen Minuten erneut versuchen." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 const updateLeadSchema = leadSchema.partial().omit({ id: true, uuid: true, funnelId: true, userId: true, createdAt: true, funnelName: true });
 
 export async function registerRoutes(
@@ -838,6 +851,114 @@ export async function registerRoutes(
     maxAge: "30d",
     immutable: true,
   }));
+
+  // ============ FEHLERMELDUNGEN ("Problem melden"-Widget) ============
+
+  // Bewusst NICHT unter uploads/: dieses Verzeichnis liefert nginx und
+  // express.static ohne jede Auth aus. Ein Screenshot kann Kontaktdaten der
+  // Leads unseres Kunden zeigen, also ist er nur über die Admin-Route abrufbar.
+  const bugFilesDir = path.join(process.cwd(), "private-uploads", "bug-reports");
+  if (!fs.existsSync(bugFilesDir)) {
+    fs.mkdirSync(bugFilesDir, { recursive: true });
+  }
+
+  const bugUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_BUG_ATTACHMENT_BYTES },
+    fileFilter: (_req, file, cb) => {
+      // Nur Bilder: alles läuft danach durch sharp, was Metadaten (EXIF/GPS)
+      // und eingebettete Nutzlasten entfernt.
+      const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      cb(null, allowed.includes(file.mimetype));
+    },
+  });
+
+  /** Bild normalisieren und unter private-uploads ablegen; gibt Dateiname + Buffer zurück. */
+  async function storeBugImage(buffer: Buffer, prefix: string): Promise<{ filename: string; content: Buffer }> {
+    const filename = `${prefix}-${randomUUID()}.webp`;
+    const content = await sharp(buffer)
+      .resize({ width: 1600, withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer();
+    await fs.promises.writeFile(path.join(bugFilesDir, filename), content);
+    return { filename, content };
+  }
+
+  // Kein requireVerifiedEmail: Wer ein Problem MIT der Verifizierung hat, muss
+  // es melden können. Der Limiter deckelt Missbrauch.
+  app.post(
+    "/api/bug-reports",
+    isAuthenticated,
+    bugReportLimiter,
+    bugUpload.fields([
+      { name: "screenshot", maxCount: 1 },
+      { name: "attachment", maxCount: 1 },
+    ]),
+    async (req, res) => {
+      const written: string[] = [];
+      try {
+        const parsed = insertBugReportSchema.safeParse(req.body);
+        if (!parsed.success) {
+          return res.status(400).json({ error: "Ungültige Meldung", details: parsed.error.errors });
+        }
+
+        const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+        const screenshotFile = files?.screenshot?.[0];
+        const attachmentFile = files?.attachment?.[0];
+
+        let screenshot: { filename: string; content: Buffer } | null = null;
+        let attachment: { filename: string; content: Buffer } | null = null;
+        if (screenshotFile) {
+          screenshot = await storeBugImage(screenshotFile.buffer, "screenshot");
+          written.push(screenshot.filename);
+        }
+        if (attachmentFile) {
+          attachment = await storeBugImage(attachmentFile.buffer, "anhang");
+          written.push(attachment.filename);
+        }
+
+        const user = (req as any).user;
+        const report = await storage.createBugReport({
+          ...parsed.data,
+          userId: user.id,
+          screenshotPath: screenshot?.filename ?? null,
+          attachmentPath: attachment?.filename ?? null,
+        });
+
+        // Bewusst await statt fire-and-forget: ob die Mail rausging, ist Teil
+        // des Datensatzes. Schlägt SMTP fehl, bleibt die Meldung trotzdem stehen.
+        const sent = await sendBugReportNotification({
+          id: report.id,
+          description: report.description,
+          pageUrl: report.pageUrl,
+          userAgent: report.userAgent,
+          viewport: report.viewport,
+          clientErrors: report.clientErrors,
+          reporterEmail: user.email,
+          reporterName: user.displayName || user.username,
+          plan: getUserPlan(user),
+          screenshot: screenshot
+            ? { filename: "screenshot.webp", content: screenshot.content, contentType: "image/webp" }
+            : null,
+          attachment: attachment
+            ? { filename: "anhang.webp", content: attachment.content, contentType: "image/webp" }
+            : null,
+        });
+        if (sent) {
+          await storage.setBugReportEmailSent(report.id);
+        }
+
+        res.status(201).json({ id: report.id, emailSent: sent });
+      } catch (error) {
+        console.error("Bug-Report error:", error);
+        // Bereits geschriebene Bilder aufräumen, sonst bleiben verwaiste Dateien liegen.
+        await Promise.all(
+          written.map((name) => fs.promises.unlink(path.join(bugFilesDir, name)).catch(() => {})),
+        );
+        res.status(500).json({ error: "Meldung konnte nicht gespeichert werden" });
+      }
+    },
+  );
 
   // ============ FUNNELS (Protected) ============
 
