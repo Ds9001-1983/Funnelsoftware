@@ -355,10 +355,42 @@ export default function Datenschutz() {
               </p>
             </section>
 
-            {/* 11. Ihre Rechte */}
+            {/* 11. Fehlermeldungen aus der Anwendung */}
             <section className="mb-8">
               <h2 className="text-xl font-semibold text-slate-800 mb-4">
-                11. Ihre Rechte
+                11. Fehlermeldungen aus der Anwendung
+              </h2>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                Im eingeloggten Bereich können Sie über den Melde-Knopf ein Problem
+                melden. Die Nutzung ist freiwillig; ohne Meldung werden diese Daten
+                nicht erhoben. Übermittelt werden: Ihre Beschreibung, ein automatisch
+                erzeugtes Bild der Seite (Sie sehen es vorher und können es entfernen),
+                optional ein von Ihnen angehängtes Bild, die aufgerufene Seite ohne
+                Zugangsparameter, Browserkennung, Fenstergröße, die zuletzt im Browser
+                protokollierten Fehlermeldungen sowie Ihre Kontodaten (E-Mail-Adresse
+                und Tarif), damit wir antworten können.
+              </p>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Bereitstellung und
+                Instandhaltung der vertraglich geschuldeten Leistung), hilfsweise
+                Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der
+                Fehlerbehebung). Die Meldung geht per E-Mail an unser Support-Postfach;
+                das übernimmt unser E-Mail-Dienstleister (siehe{" "}
+                <Link href="/avv" className="text-purple-600 underline">AVV</Link>).
+                Ein beigefügtes Bild ist Teil dieser E-Mail.
+              </p>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                Damit Kontaktdaten Ihrer Leads nicht in einer Fehlermeldung landen,
+                werden die entsprechenden Bereiche der Lead-Ansicht bei der Aufnahme
+                automatisch unkenntlich gemacht. Bilder löschen wir spätestens nach
+                90 Tagen, die Meldung selbst nach 12 Monaten; auf Anfrage auch früher.
+              </p>
+            </section>
+
+            {/* 12. Ihre Rechte */}
+            <section className="mb-8">
+              <h2 className="text-xl font-semibold text-slate-800 mb-4">
+                12. Ihre Rechte
               </h2>
               <p className="text-slate-600 text-sm leading-relaxed mb-4">
                 Sie haben jederzeit das Recht:

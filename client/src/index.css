@@ -511,3 +511,12 @@
     transform: scale(0.8);
   }
 }
+
+/* Maskierung für die Bildschirmaufnahme der Fehlermeldung
+   (client/src/lib/screenshot.ts). Nur während der Aufnahme aktiv: Elemente mit
+   data-bug-mask — etwa die Lead-Tabelle — werden unscharf, damit Kontaktdaten
+   unserer Kunden nicht im Screenshot und damit nicht in der E-Mail landen.
+   Blur statt Ausblenden, damit das Layout im Bild erhalten bleibt. */
+.bug-mask-active [data-bug-mask] {
+  filter: blur(8px);
+}

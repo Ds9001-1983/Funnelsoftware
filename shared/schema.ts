@@ -42,6 +42,12 @@ export const safeUrlSchema = z
 export const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
 /** Max. Audiogröße in Bytes (wird im Originalformat gespeichert). */
 export const MAX_AUDIO_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MB
+/** Max. Größe je Bild einer Fehlermeldung (Screenshot + optionaler Anhang).
+ *  Bewusst kleiner als MAX_IMAGE_UPLOAD_BYTES: der automatische Screenshot ist
+ *  bereits WebP-komprimiert, und die Datei geht zusätzlich als Mail-Anhang raus. */
+export const MAX_BUG_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5 MB
+/** Max. Länge der Fehlerbeschreibung (Freitext des Nutzers). */
+export const BUG_REPORT_MAX_DESCRIPTION = 2000;
 
 // ============ PLÄNE & LIMITS ============
 // Client (Preisseite, Limit-Dialoge) und Server (Enforcement) teilen sich
@@ -342,6 +348,34 @@ export const emailLog = pgTable("email_log", {
   sentAt: timestamp("sent_at").defaultNow().notNull(),
 }, (table) => [
   uniqueIndex("email_log_dedupe_idx").on(table.userId, table.emailType, table.periodKey),
+]);
+
+// Fehlermeldungen aus dem eingeloggten Bereich ("Problem melden"-Widget).
+// Screenshot und Anhang liegen bewusst NICHT unter uploads/ — das Verzeichnis
+// wird von nginx und express.static ohne jede Auth ausgeliefert, und ein
+// Screenshot kann Kontaktdaten der Leads unseres Kunden zeigen. Sie landen in
+// private-uploads/bug-reports/ und sind nur über die Admin-Route abrufbar.
+// Aufbewahrung (server/scheduler.ts): Bilder 90 Tage, Datensatz 12 Monate.
+export const bugReports = pgTable("bug_reports", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  description: text("description").notNull(),
+  /** Pfad + Query der Seite, auf der gemeldet wurde — Query ist clientseitig um
+   *  Secrets (token, code, session_id) bereinigt. */
+  pageUrl: text("page_url").notNull(),
+  userAgent: text("user_agent"),
+  viewport: text("viewport"), // "1440x900@2"
+  clientErrors: text("client_errors"), // letzte Konsolenfehler, gekürzt
+  screenshotPath: text("screenshot_path"), // Dateiname in private-uploads/bug-reports
+  attachmentPath: text("attachment_path"),
+  status: text("status").notNull().default("open"), // open | done
+  emailSentAt: timestamp("email_sent_at"),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  // Admin-Liste filtert nach Status und sortiert nach Datum.
+  index("bug_reports_status_created_at_idx").on(table.status, table.createdAt),
+  index("bug_reports_user_id_idx").on(table.userId),
 ]);
 
 // API Keys table (Enterprise feature)
@@ -1220,3 +1254,75 @@ export const insertApiKeySchema = z.object({
 });
 
 export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
+
+// ============ FEHLERMELDUNGEN (Bug-Report-Widget) ============
+
+/** Erlaubte Zustände einer Fehlermeldung. */
+export const BUG_REPORT_STATUSES = ["open", "done"] as const;
+export type BugReportStatus = (typeof BUG_REPORT_STATUSES)[number];
+
+/** Query-Parameter, die eine Fehlermeldung niemals enthalten darf — sie sind
+ *  Zugangsdaten (Passwort-Reset-Link, Team-Einladung, Stripe-Sitzung). Der
+ *  Client entfernt sie schon vor dem Absenden; die Bereinigung wird zusätzlich
+ *  serverseitig erzwungen, damit ein manipulierter Aufruf sie nicht in die
+ *  Datenbank und in die Benachrichtigungs-Mail schreiben kann. */
+export const BUG_REPORT_SECRET_PARAMS = ["token", "code", "session_id", "invite"] as const;
+
+/** Ersetzt die Werte der Zugangsparameter in einem Pfad durch "…". */
+export function stripSecretsFromPageUrl(pageUrl: string): string {
+  const [path, query] = pageUrl.split("?");
+  if (!query) return path;
+  const params = new URLSearchParams(query);
+  let changed = false;
+  for (const key of BUG_REPORT_SECRET_PARAMS) {
+    if (params.has(key)) {
+      params.set(key, "…");
+      changed = true;
+    }
+  }
+  if (!changed) return pageUrl;
+  return `${path}?${decodeURIComponent(params.toString())}`;
+}
+
+/** Vom Client gesendete Felder. Nutzer-ID, E-Mail und Plan setzt der Server
+ *  aus der Session — der Client darf sie nicht bestimmen. */
+export const insertBugReportSchema = z.object({
+  description: z
+    .string()
+    .trim()
+    .min(5, "Bitte beschreibe das Problem in mindestens 5 Zeichen")
+    .max(BUG_REPORT_MAX_DESCRIPTION, `Die Beschreibung darf höchstens ${BUG_REPORT_MAX_DESCRIPTION} Zeichen lang sein`),
+  pageUrl: z.string().trim().min(1, "Seitenangabe fehlt").max(500).transform(stripSecretsFromPageUrl),
+  userAgent: z.string().trim().max(500).optional(),
+  viewport: z.string().trim().max(32).optional(),
+  clientErrors: z.string().trim().max(2000).optional(),
+});
+
+export type InsertBugReport = z.infer<typeof insertBugReportSchema>;
+
+/** Statuswechsel im Admin-Bereich. */
+export const updateBugReportSchema = z.object({
+  status: z.enum(BUG_REPORT_STATUSES),
+});
+
+/** Eine Fehlermeldung, wie der Admin-Bereich sie liest (inkl. Melder-Angaben). */
+export const bugReportSchema = z.object({
+  id: z.number(),
+  userId: z.number(),
+  description: z.string(),
+  pageUrl: z.string(),
+  userAgent: z.string().nullable().optional(),
+  viewport: z.string().nullable().optional(),
+  clientErrors: z.string().nullable().optional(),
+  screenshotPath: z.string().nullable().optional(),
+  attachmentPath: z.string().nullable().optional(),
+  status: z.enum(BUG_REPORT_STATUSES),
+  emailSentAt: z.string().or(z.date()).nullable().optional(),
+  resolvedAt: z.string().or(z.date()).nullable().optional(),
+  createdAt: z.string().or(z.date()),
+  // Joined
+  reporterEmail: z.string().optional(),
+  reporterUsername: z.string().optional(),
+});
+
+export type BugReport = z.infer<typeof bugReportSchema>;

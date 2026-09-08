@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import { tryRecoverFromChunkError } from "./lib/chunk-reload";
+import { installErrorLog } from "./lib/error-log";
 import "./index.css";
 // UI-Font selbst gehostet (DSGVO) — weitere Theme-Fonts lädt lib/font-loader on demand
 import "@fontsource/inter/400.css";
@@ -22,5 +23,9 @@ window.addEventListener("vite:preloadError", (event) => {
     event.preventDefault();
   }
 });
+
+// Browser-Fehler in einem lokalen Ringpuffer sammeln. Sie verlassen den Browser
+// nur, wenn der Nutzer selbst eine Fehlermeldung abschickt (BugReportWidget).
+installErrorLog();
 
 createRoot(document.getElementById("root")!).render(<App />);

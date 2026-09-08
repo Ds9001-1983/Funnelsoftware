@@ -21,6 +21,13 @@ playwright/.cache/
 # Test-Coverage (lokal generiert)
 coverage/
 
+# Hochgeladene Dateien zur Laufzeit — gehören nie ins Repo.
+# private-uploads/ enthält Screenshots aus Fehlermeldungen und kann
+# personenbezogene Daten zeigen (siehe server/routes.ts, Bug-Melder).
+uploads/*
+!uploads/.gitkeep
+private-uploads/
+
 # macOS/iCloud-Sync-Duplikate ("Name 2.ext") nie committen
 **/* 2.png
 **/* 2.webp

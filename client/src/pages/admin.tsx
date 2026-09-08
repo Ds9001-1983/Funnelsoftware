@@ -23,6 +23,11 @@ import {
   ChevronRight,
   LogOut,
   RefreshCw,
+  Bug,
+  Check,
+  Undo2,
+  Trash2,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -596,6 +601,8 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
+        <BugReportAdminCard />
+
         <ReferralAdminCard />
       </main>
 
@@ -740,6 +747,254 @@ interface ReferralPartner {
  * Grundlage der manuellen 25-%-Abrechnung (25 % von 49 € = 12,25 €/Monat
  * pro zahlendem Geworbenen, Auszahlung per Überweisung).
  */
+interface AdminBugReport {
+  id: number;
+  description: string;
+  pageUrl: string;
+  userAgent?: string | null;
+  viewport?: string | null;
+  clientErrors?: string | null;
+  screenshotPath?: string | null;
+  attachmentPath?: string | null;
+  status: "open" | "done";
+  emailSentAt?: string | null;
+  createdAt: string;
+  reporterEmail?: string;
+  reporterUsername?: string;
+}
+
+/**
+ * Eingegangene Fehlermeldungen aus dem Produkt. Die Bilder liegen außerhalb des
+ * öffentlichen uploads-Verzeichnisses und kommen nur über die Admin-Route —
+ * ein Screenshot kann Kontaktdaten der Leads unserer Kunden zeigen.
+ */
+function BugReportAdminCard() {
+  const queryClient = useQueryClient();
+  const [status, setStatus] = useState<"open" | "done" | "all">("open");
+  const [selected, setSelected] = useState<AdminBugReport | null>(null);
+
+  const { data, isLoading } = useQuery<{ reports: AdminBugReport[]; total: number }>({
+    queryKey: ["/api/admin/bug-reports", status],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/bug-reports?status=${status}&limit=50`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Fehlermeldungen konnten nicht geladen werden");
+      return res.json();
+    },
+  });
+
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: ["/api/admin/bug-reports"] });
+
+  const setStatusMutation = useMutation({
+    mutationFn: async ({ id, next }: { id: number; next: "open" | "done" }) => {
+      await apiRequest("PATCH", `/api/admin/bug-reports/${id}`, { status: next });
+    },
+    onSuccess: invalidate,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/admin/bug-reports/${id}`);
+    },
+    onSuccess: () => {
+      setSelected(null);
+      invalidate();
+    },
+  });
+
+  const reports = data?.reports ?? [];
+  const filters: { key: "open" | "done" | "all"; label: string }[] = [
+    { key: "open", label: "Offen" },
+    { key: "done", label: "Erledigt" },
+    { key: "all", label: "Alle" },
+  ];
+
+  return (
+    <Card className="mt-6">
+      <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
+        <CardTitle className="flex items-center gap-2">
+          <Bug className="h-5 w-5" /> Fehlermeldungen
+          {data ? <span className="text-sm font-normal text-muted-foreground">({data.total})</span> : null}
+        </CardTitle>
+        <div className="flex gap-1">
+          {filters.map((f) => (
+            <Button
+              key={f.key}
+              size="sm"
+              variant={status === f.key ? "default" : "outline"}
+              onClick={() => setStatus(f.key)}
+            >
+              {f.label}
+            </Button>
+          ))}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Wird geladen…</p>
+        ) : reports.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {status === "open"
+              ? "Keine offenen Meldungen."
+              : "Keine Meldungen in dieser Ansicht."}
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/30 text-left">
+                  <th className="p-2 font-medium">Datum</th>
+                  <th className="p-2 font-medium">Melder</th>
+                  <th className="p-2 font-medium">Seite</th>
+                  <th className="p-2 font-medium">Beschreibung</th>
+                  <th className="p-2 font-medium">Bild</th>
+                  <th className="p-2 font-medium">Mail</th>
+                  <th className="p-2 font-medium">Status</th>
+                  <th className="p-2 font-medium text-right">Aktion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reports.map((report) => (
+                  <tr key={report.id} id={`bug-${report.id}`} className="border-b last:border-0 align-top">
+                    <td className="p-2 whitespace-nowrap">
+                      {new Date(report.createdAt).toLocaleDateString("de-DE", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                    <td className="p-2">{report.reporterEmail ?? "—"}</td>
+                    <td className="p-2 max-w-[12rem] truncate" title={report.pageUrl}>
+                      {report.pageUrl}
+                    </td>
+                    <td className="p-2 max-w-[20rem]">
+                      <button
+                        type="button"
+                        className="text-left line-clamp-2 hover:underline"
+                        onClick={() => setSelected(report)}
+                      >
+                        {report.description}
+                      </button>
+                    </td>
+                    <td className="p-2">
+                      {report.screenshotPath ? (
+                        <button type="button" onClick={() => setSelected(report)}>
+                          <img
+                            src={`/api/admin/bug-reports/${report.id}/screenshot`}
+                            alt=""
+                            className="h-10 w-16 rounded border object-cover"
+                          />
+                        </button>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="p-2">
+                      {report.emailSentAt ? (
+                        <Mail className="h-4 w-4 text-green-600" aria-label="E-Mail versendet" />
+                      ) : (
+                        <span className="text-muted-foreground" title="Keine E-Mail versendet">—</span>
+                      )}
+                    </td>
+                    <td className="p-2">
+                      <Badge variant={report.status === "open" ? "default" : "secondary"}>
+                        {report.status === "open" ? "offen" : "erledigt"}
+                      </Badge>
+                    </td>
+                    <td className="p-2 text-right whitespace-nowrap">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={setStatusMutation.isPending}
+                        onClick={() =>
+                          setStatusMutation.mutate({
+                            id: report.id,
+                            next: report.status === "open" ? "done" : "open",
+                          })
+                        }
+                      >
+                        {report.status === "open" ? (
+                          <><Check className="mr-1 h-3.5 w-3.5" /> Erledigt</>
+                        ) : (
+                          <><Undo2 className="mr-1 h-3.5 w-3.5" /> Öffnen</>
+                        )}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+
+      <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Fehlermeldung #{selected?.id}</DialogTitle>
+            <DialogDescription>
+              {selected?.reporterEmail} · {selected?.pageUrl}
+            </DialogDescription>
+          </DialogHeader>
+          {selected && (
+            <div className="space-y-4 text-sm">
+              <p className="whitespace-pre-wrap rounded-lg border bg-muted/30 p-3">
+                {selected.description}
+              </p>
+              {selected.screenshotPath && (
+                <img
+                  src={`/api/admin/bug-reports/${selected.id}/screenshot`}
+                  alt="Screenshot der Meldung"
+                  className="w-full rounded-lg border"
+                />
+              )}
+              {selected.attachmentPath && (
+                <img
+                  src={`/api/admin/bug-reports/${selected.id}/attachment`}
+                  alt="Angehängtes Bild der Meldung"
+                  className="w-full rounded-lg border"
+                />
+              )}
+              <dl className="grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1 text-muted-foreground">
+                <dt>Fenster</dt><dd>{selected.viewport || "—"}</dd>
+                <dt>Browser</dt><dd className="break-words">{selected.userAgent || "—"}</dd>
+                <dt>E-Mail</dt>
+                <dd>
+                  {selected.emailSentAt
+                    ? new Date(selected.emailSentAt).toLocaleString("de-DE")
+                    : "nicht versendet"}
+                </dd>
+              </dl>
+              {selected.clientErrors && (
+                <pre className="overflow-x-auto rounded-lg bg-zinc-900 p-3 text-xs text-zinc-100 whitespace-pre-wrap">
+                  {selected.clientErrors}
+                </pre>
+              )}
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => {
+                    if (window.confirm("Meldung und Bilder endgültig löschen?")) {
+                      deleteMutation.mutate(selected.id);
+                    }
+                  }}
+                >
+                  <Trash2 className="mr-1 h-3.5 w-3.5" /> Endgültig löschen
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
 function ReferralAdminCard() {
   const { data } = useQuery<{ partners: ReferralPartner[] }>({
     queryKey: ["/api/admin/referrals"],
