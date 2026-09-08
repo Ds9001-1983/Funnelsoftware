@@ -105,7 +105,10 @@ function LeadDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-hidden flex flex-col p-0">
+      {/* data-bug-mask: In der Bildschirmaufnahme einer Fehlermeldung werden
+          diese Kontaktdaten unscharf (client/src/lib/screenshot.ts) — sie
+          gehören unseren Kunden, nicht uns. */}
+      <DialogContent data-bug-mask className="sm:max-w-md max-h-[85vh] overflow-hidden flex flex-col p-0">
         {/* Header */}
         <div className="p-6 pb-4 border-b">
           <div className="flex items-center gap-4">
@@ -735,8 +738,8 @@ export default function Leads() {
         </div>
       </div>
 
-      {/* Kanban Board */}
-      <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2">
+      {/* Kanban Board — data-bug-mask, siehe LeadDetailDialog */}
+      <div data-bug-mask className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2">
         {(Object.entries(statusLabels) as [Lead["status"], string][]).map(([status, label]) => {
           const columnLeads = filteredLeads.filter(l => l.status === status);
           return (
@@ -839,7 +842,8 @@ export default function Leads() {
         </Select>
       </div>
 
-      <Card className="overflow-hidden">
+      {/* data-bug-mask, siehe LeadDetailDialog */}
+      <Card data-bug-mask className="overflow-hidden">
         <div className="hidden md:flex items-center gap-4 px-4 py-3 border-b border-border bg-muted/30 text-sm font-medium text-muted-foreground">
           <div className="h-10 w-10 shrink-0" />
           <div className="flex-1">Lead</div>

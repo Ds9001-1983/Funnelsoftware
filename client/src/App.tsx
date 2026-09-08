@@ -50,6 +50,9 @@ const FunnelBuilderGuide = lazy(() => import("@/pages/funnel-builder"));
 const Vorlagen = lazy(() => import("@/pages/vorlagen"));
 const AudienceFunnel = lazy(() => import("@/pages/audience-funnel"));
 const Partner = lazy(() => import("@/pages/partner"));
+// Melde-Widget: lazy, damit weder der Dialog noch die Screenshot-Bibliothek
+// (wird ihrerseits erst beim Klick geladen) im Haupt-Bundle landen.
+const BugReportWidget = lazy(() => import("@/components/support/BugReportWidget"));
 
 // Loading spinner component for Suspense fallback
 function PageLoader() {
@@ -294,6 +297,22 @@ function isPublicRoute(location: string, isAuthenticated: boolean): boolean {
 }
 
 /**
+ * Der „Problem melden"-Knopf gehört in den eingeloggten Arbeitsbereich — also
+ * überall dort, wo NICHT der Cookie-Banner steht: nicht auf Marketing-/
+ * Rechtsseiten, nicht im veröffentlichten Kundenfunnel und nicht in der
+ * Owner-Vorschau, die 1:1 aussehen soll wie der spätere Funnel.
+ *
+ * Bewusst hier statt in TopNavigation: der Funnel-Editor, /funnels/new,
+ * /admin und die Metrik-Seite rendern ohne Navigation (ProtectedFull) — genau
+ * dort werden Fehler aber am ehesten gemeldet.
+ */
+function showBugWidget(location: string, isAuthenticated: boolean): boolean {
+  if (!isAuthenticated) return false;
+  if (location.startsWith("/preview/")) return false;
+  return !isPublicRoute(location, isAuthenticated);
+}
+
+/**
  * Wenn die App unter einer Custom-Domain (CNAME) aufgerufen wird, fragen wir
  * beim Server, welcher Funnel zu diesem Host gehört, und routen direkt auf
  * `/f/<uuid>`. Greift nur einmal pro Mount.
@@ -398,6 +417,12 @@ function AppShell() {
       <UpgradeBanner variant="expired" />
       {/* Cookie-Banner nur auf öffentlichen Seiten — blockiert sonst den App-Bereich */}
       {showCookieConsent && <CookieConsent />}
+      {/* Fehlermeldung aus dem Produkt — nur im eingeloggten Arbeitsbereich */}
+      {!isLoading && showBugWidget(location, isAuthenticated) && (
+        <Suspense fallback={null}>
+          <BugReportWidget />
+        </Suspense>
+      )}
     </ErrorBoundary>
   );
 }
