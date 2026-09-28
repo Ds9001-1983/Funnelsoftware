@@ -23,10 +23,8 @@ test -s dist/index.cjs
 test -s dist/public/index.html
 
 # Laufzeitdateien bleiben am bisherigen Ort und werden gemeinsam gesichert.
-rm uploads/.gitkeep
-rmdir uploads
+mkdir -p "$APP_DIR/uploads" "$APP_DIR/private-uploads"
 ln -s "$APP_DIR/uploads" uploads
-mkdir -p "$APP_DIR/private-uploads"
 ln -s "$APP_DIR/private-uploads" private-uploads
 
 DB_NAME="$(node --input-type=module <<'NODE'
