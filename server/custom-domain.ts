@@ -15,6 +15,7 @@
 import { storage } from "./storage";
 import { hasProFeatures } from "./auth";
 import type { Domain, Funnel } from "@shared/schema";
+import { publishedDocument } from "./funnel-revisions";
 
 export interface ResolvedCustomDomain {
   host: string;
@@ -53,8 +54,10 @@ async function resolveUncached(host: string): Promise<ResolvedCustomDomain | nul
   const domain = await storage.getDomainByHostname(host);
   if (!domain?.verified) return null;
 
-  const funnel = await storage.getFunnel(domain.funnelId, domain.userId);
-  if (!funnel || funnel.status !== "published") return null;
+  const draft = await storage.getFunnel(domain.funnelId, domain.userId);
+  if (!draft || draft.status !== "published") return null;
+  const funnel = await publishedDocument(draft);
+  if (!funnel) return null;
 
   const owner = await storage.getUser(domain.userId);
   if (!owner || owner.deletedAt) return null;

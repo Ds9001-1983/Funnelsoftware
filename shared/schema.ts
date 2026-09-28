@@ -140,6 +140,10 @@ export const funnels = pgTable("funnels", {
   name: text("name").notNull(),
   description: text("description"),
   status: text("status").notNull().default("draft"), // draft, published, archived
+  documentVersion: integer("document_version").notNull().default(1),
+  editVersion: integer("edit_version").notNull().default(0),
+  editorProtocol: boolean("editor_protocol").notNull().default(false),
+  publishedRevisionId: integer("published_revision_id"),
   pages: jsonb("pages").notNull().default([]),
   theme: jsonb("theme").notNull().default({}),
   abTests: jsonb("ab_tests").notNull().default([]),
@@ -174,6 +178,22 @@ export const funnels = pgTable("funnels", {
 }, (table) => [
   index("funnels_user_id_idx").on(table.userId),
   index("funnels_slug_idx").on(table.slug),
+]);
+
+// Unveränderliche Inhaltsrevisionen, ohne Leads und Integrationsgeheimnisse.
+export const funnelRevisions = pgTable("funnel_revisions", {
+  id: serial("id").primaryKey(),
+  funnelId: integer("funnel_id").notNull().references(() => funnels.id, { onDelete: "cascade" }),
+  version: integer("version").notNull(),
+  action: text("action").notNull(),
+  content: jsonb("content").notNull(),
+  mutationId: text("mutation_id"),
+  fingerprint: text("fingerprint"),
+  actorId: integer("actor_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, table => [
+  uniqueIndex("funnel_revisions_version_idx").on(table.funnelId, table.version),
+  uniqueIndex("funnel_revisions_mutation_idx").on(table.funnelId, table.mutationId),
 ]);
 
 // Custom Domains table — pro Funnel kann eine eigene Domain hinterlegt werden.
@@ -981,6 +1001,10 @@ export const funnelSchema = z.object({
   name: z.string(),
   description: z.string().optional().nullable(),
   status: z.enum(["draft", "published", "archived"]),
+  documentVersion: z.number().int().positive().optional(),
+  editVersion: z.number().int().nonnegative().optional(),
+  editorProtocol: z.boolean().optional(),
+  publishedRevisionId: z.number().int().positive().nullable().optional(),
   pages: z.array(funnelPageSchema),
   theme: themeSchema,
   // A/B Tests

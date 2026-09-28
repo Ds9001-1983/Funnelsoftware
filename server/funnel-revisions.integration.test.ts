@@ -1,0 +1,103 @@
+// @vitest-environment node
+import { beforeAll, afterAll, describe, expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
+import { eq, inArray } from "drizzle-orm";
+import { users, funnels, leads, analyticsEvents, funnelRevisions, type Funnel } from "@shared/schema";
+import type { WriteControl } from "@shared/funnel-document";
+
+const connection = process.env.REVISION_TEST_DATABASE_URL;
+if (connection) {
+  const url = new URL(connection);
+  if (!["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) || !/^\/funnelsoftware_e2e(?:_[a-z0-9_]+)?$/.test(url.pathname) || url.search || url.hash) throw new Error("Revision tests require a dedicated local database");
+}
+describe.skipIf(!connection)("versioned drafts, live content and recovery", () => {
+  let database: typeof import("./db");
+  let storage: (typeof import("./storage"))["storage"];
+  let service: typeof import("./funnel-revisions");
+  const owners: number[] = [];
+  const previous = process.env.DATABASE_URL;
+  beforeAll(async () => {
+    process.env.DATABASE_URL = connection;
+    database = await import("./db"); storage = (await import("./storage")).storage;
+    service = await import("./funnel-revisions");
+  });
+  afterAll(async () => {
+    if (database) { if (owners.length) await database.db.delete(users).where(inArray(users.id, owners)); await database.pool.end(); }
+    if (previous === undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL = previous;
+  });
+  const control = (version = 0, publish = false): WriteControl => ({ expectedVersion: version, documentVersion: 1, mutationId: randomUUID(), publish });
+  async function fixture(pro = true) {
+    const id = randomUUID();
+    const [owner] = await database.db.insert(users).values({ username: id, email: `${id}@example.test`, password: "fixture", isPro: pro, emailVerifiedAt: new Date() }).returning();
+    owners.push(owner.id);
+    const funnel = await storage.createFunnel({ name: "Live A", status: "draft", pages: [{ id: "welcome", type: "welcome", title: "Bestehender Inhalt", elements: [] }], theme: { primaryColor: "#123456", backgroundColor: "#ffffff", textColor: "#000000", fontFamily: "Inter" } }, owner.id);
+    return { owner, funnel };
+  }
+  it("keeps public content stable until an explicit version is published", async () => {
+    const f = await fixture();
+    const live = (await storage.updateFunnel(f.funnel.id, f.owner.id, {}, control(0, true)))!;
+    const draft = (await storage.updateFunnel(f.funnel.id, f.owner.id, { name: "Entwurf B" }, control(1)))!;
+    expect(draft.name).toBe("Entwurf B");
+    expect((await storage.getFunnelByUuid(f.funnel.uuid))?.name).toBe("Live A");
+    expect(draft.publishedRevisionId).toBe(live.publishedRevisionId);
+    await storage.updateFunnel(f.funnel.id, f.owner.id, {}, control(2, true));
+    expect((await storage.getFunnelByUuid(f.funnel.uuid))?.name).toBe("Entwurf B");
+  });
+  it("accepts old clients only until a funnel adopts the new editor protocol", async () => {
+    const f = await fixture();
+    const legacy = (await storage.updateFunnel(f.funnel.id, f.owner.id, { status: "published", name: "Alter Editor" }))!;
+    expect(legacy.editorProtocol).toBe(false);
+    expect((await storage.getFunnelByUuid(f.funnel.uuid))?.name).toBe("Alter Editor");
+    await storage.updateFunnel(f.funnel.id, f.owner.id, { name: "Neuer Entwurf" }, control(legacy.editVersion));
+    await expect(storage.updateFunnel(f.funnel.id, f.owner.id, { name: "Alter Tab" })).rejects.toMatchObject({ status: 409, code: "EDITOR_UPDATE_REQUIRED" });
+    expect((await storage.getFunnelByUuid(f.funnel.uuid))?.name).toBe("Alter Editor");
+  });
+  it("serializes competing saves and handles an identical request retry once", async () => {
+    const f = await fixture();
+    const retryControl = control();
+    const first = await storage.updateFunnel(f.funnel.id, f.owner.id, { name: "Einmal" }, retryControl);
+    const retry = await storage.updateFunnel(f.funnel.id, f.owner.id, { name: "Einmal" }, retryControl);
+    expect(retry?.editVersion).toBe(first?.editVersion);
+    const results = await Promise.allSettled([
+      storage.updateFunnel(f.funnel.id, f.owner.id, { name: "Tab A" }, control(1)),
+      storage.updateFunnel(f.funnel.id, f.owner.id, { name: "Tab B" }, control(1)),
+    ]);
+    expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter(result => result.status === "rejected")).toHaveLength(1);
+  });
+  it("restores content as a draft while retaining newer leads, measurements and private settings", async () => {
+    const f = await fixture();
+    const live = (await storage.updateFunnel(f.funnel.id, f.owner.id, { webhookSecret: "keep-private", metaCapiToken: "private-token" }, control(0, true)))!;
+    const history = await service.listFunnelRevisions(f.funnel.id, f.owner.id);
+    await storage.updateFunnel(f.funnel.id, f.owner.id, { name: "Neuer Live-Inhalt" }, control(1, true));
+    const [lead] = await database.db.insert(leads).values({ funnelId: f.funnel.id, userId: f.owner.id, name: "Später eingegangen", answers: { welcome: "Behalten" } }).returning();
+    const [event] = await database.db.insert(analyticsEvents).values({ funnelId: f.funnel.id, eventType: "view" }).returning();
+    const restored = await storage.restoreFunnelRevision(f.funnel.id, f.owner.id, history[0].id, control(2));
+    expect(restored?.name).toBe(live.name);
+    expect(restored?.webhookSecret).toBe("keep-private");
+    expect((await storage.getFunnelByUuid(f.funnel.uuid))?.name).toBe("Neuer Live-Inhalt");
+    expect((await database.db.select().from(leads).where(eq(leads.id, lead.id)))[0].answers).toEqual({ welcome: "Behalten" });
+    expect(await database.db.select().from(analyticsEvents).where(eq(analyticsEvents.id, event.id))).toHaveLength(1);
+    const all = await database.db.select().from(funnelRevisions).where(eq(funnelRevisions.funnelId, f.funnel.id));
+    expect(JSON.stringify(all)).not.toContain("private-token");
+    expect(JSON.stringify(all)).not.toContain("keep-private");
+  });
+  it("rejects foreign history/restore and a malformed publication without moving live content", async () => {
+    const a = await fixture(); const b = await fixture();
+    const live = await storage.updateFunnel(a.funnel.id, a.owner.id, {}, control(0, true));
+    await expect(service.listFunnelRevisions(a.funnel.id, b.owner.id)).rejects.toMatchObject({ status: 404 });
+    expect(await storage.restoreFunnelRevision(a.funnel.id, b.owner.id, live!.publishedRevisionId!, control(1))).toBeUndefined();
+    await expect(storage.updateFunnel(a.funnel.id, a.owner.id, { pages: [] }, control(1, true))).rejects.toMatchObject({ code: "INVALID_DOCUMENT" });
+    expect((await storage.getFunnel(a.funnel.id, a.owner.id))?.publishedRevisionId).toBe(live?.publishedRevisionId);
+  });
+  it("allows only one of two concurrent Free publications", async () => {
+    const f = await fixture(false);
+    const other = await storage.createFunnel({ name: "Zweiter", pages: f.funnel.pages, theme: f.funnel.theme, status: "draft" }, f.owner.id);
+    const results = await Promise.allSettled([
+      storage.updateFunnel(f.funnel.id, f.owner.id, {}, control(0, true)),
+      storage.updateFunnel(other.id, f.owner.id, {}, control(0, true)),
+    ]);
+    expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
+    expect((await database.db.select().from(funnels).where(eq(funnels.userId, f.owner.id))).filter(row => row.status === "published")).toHaveLength(1);
+  });
+});
