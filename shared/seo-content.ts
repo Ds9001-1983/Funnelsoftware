@@ -193,7 +193,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       "Trichterwerk bietet als deutscher Funnel-Builder dieselbe Kernidee — mobile-optimierte, mehrstufige Funnels per Drag & Drop — für 49 € im Monat: mit unbegrenzten Funnels und Leads, A/B-Tests, eingebauten Analytics und eigener Domain. Ebenfalls DSGVO-konform mit EU-Hosting, ebenfalls auf Deutsch.",
     ],
     verdict:
-      "Trichterwerk Pro bietet für 49 € pro Monat unbegrenzte Funnels und Leads, eigene Domains, A/B-Tests und ein Kanban-Board mit festen Spalten. Automatische Bewerberbestätigungen, E-Mails bei Statuswechseln und getrennte Kunden-Workspaces sind derzeit noch nicht verfügbar. Prüfe vor einem Wechsel, welche dieser Funktionen du brauchst.",
+      "Trichterwerk Pro bietet für 49 € pro Monat unbegrenzte Funnels und Leads, eigene Domains, A/B-Tests und ein Kanban-Board mit eigenen Spalten und Drag-and-drop. Bewerberbestätigungen, E-Mails bei Statuswechseln und getrennte Kundenbereiche für die gemeinsame Bewerberverwaltung sind enthalten.",
     painPoints: [
       {
         title: "Modulare Add-ons statt Festpreis",
@@ -239,7 +239,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         title: "Das ist in Trichterwerk Pro enthalten",
-        text: "Für 49 € pro Monat erhältst du unbegrenzte Funnels und Leads, Templates und Elemente, Conditional Logic, Analytics, eigene Domains, Webhooks und das Kanban-Board. E-Mail-Benachrichtigungen informieren dich als Betreiber über neue Leads. Automatische Nachrichten an Bewerber und getrennte Kunden-Workspaces gehören derzeit noch nicht dazu.",
+        text: "Für 49 € pro Monat erhältst du unbegrenzte Funnels und Leads, Templates und Elemente, Conditional Logic, Analytics, eigene Domains, Webhooks und das Kanban-Board. E-Mail-Benachrichtigungen informieren dich als Betreiber über neue Leads. Automatische Bewerberbestätigungen, Status-Mails und getrennte Kundenbereiche sind ebenfalls enthalten. Kunden können freigegebene Bewerbungen ansehen und ihren Status ändern; Editor und Mailregeln bleiben beim Betreiber.",
       },
       {
         title: "DSGVO-konform aus Deutschland",
@@ -250,12 +250,12 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       title: "Preisvergleich: Perspective vs. Trichterwerk",
       text: [
         "Perspective startet mit dem Base-Plan bei 59 € pro Monat (47 € bei Jahreszahlung) — bewusst schlank: 2 Live-Funnels und 100 Leads pro Monat sind enthalten, jeder weitere Lead kostet 0,25 €. Erweiterungen gibt es als Add-on-Suiten für 67–84 € monatlich; die größeren Pläne Grow und Expand liegen bei 184 € bzw. 369 € pro Monat.",
-        "Trichterwerk kostet 0 € im Free-Plan (1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar, alle Editor-Features) und 49 € pro Monat inklusive Mehrwertsteuer im Pro-Plan. Pro umfasst unbegrenzte Funnels und Leads, Domains und A/B-Tests. Monatlich kündbar, 14 Tage Pro ohne Kreditkarte. Bewerbermails, Status-Automationen und Kunden-Workspaces sind noch nicht enthalten.",
+        "Trichterwerk kostet 0 € im Free-Plan (1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar, alle Editor-Features) und 49 € pro Monat inklusive Mehrwertsteuer im Pro-Plan. Pro umfasst unbegrenzte Funnels und Leads, Domains und A/B-Tests. Monatlich kündbar, 14 Tage Pro ohne Kreditkarte. Bewerbermails, Status-Automationen und getrennte Kundenbereiche sind in Pro enthalten.",
       ],
     },
     honestSection: {
-      title: "Wann Perspective trotzdem die bessere Wahl ist",
-      text: "Wenn du heute automatische Eingangsbestätigungen, Einladungen oder Absagen nach Statuswechsel und getrennte Kunden-Workspaces benötigst, bietet Perspective diese Funktionen bereits. Trichterwerk hat dafür noch keinen zugesagten Veröffentlichungstermin. Unser Kanban-Board arbeitet mit fünf festen Spalten und Statuswechsel per Menü; eigene Spalten und Drag-and-drop sind noch nicht enthalten.",
+      title: "Prüfe deinen Kundenprozess vor dem Wechsel",
+      text: "Trichterwerk-Kundenbereiche geben deinen Kunden Zugriff auf freigegebene Bewerberboards und Statusänderungen. Editor, Mailregeln und Abrechnung bleiben bei dir. Automatische Nachrichten werden pro Bewerbung und Regel höchstens einmal vorgemerkt; der Versand nutzt Trichterwerk mit deiner bestätigten E-Mail als Antwortadresse. Prüfe diese Abläufe während der Pro-Testphase an einem eigenen Testfunnel.",
     },
     migrationSteps: [
       {
@@ -274,7 +274,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
     faqs: [
       {
         q: "Was kostet Perspective im Vergleich zu Trichterwerk?",
-        a: "Perspective startet im Base-Plan bei 59 € pro Monat (47 € bei Jahreszahlung) mit 2 Live-Funnels und 100 Leads pro Monat. Bewerberbestätigungen, Status-Mails und Workspaces sind bereits ab Base enthalten. Trichterwerk Pro kostet 49 € pro Monat mit unbegrenzten Funnels und Leads, Domains und A/B-Tests; diese drei Recruiting-Funktionen fehlen derzeit noch.",
+        a: "Perspective startet im Base-Plan bei 59 € pro Monat (47 € bei Jahreszahlung) mit 2 Live-Funnels und 100 Leads pro Monat. Bewerberbestätigungen, Status-Mails und Workspaces sind bereits ab Base enthalten. Trichterwerk Pro kostet 49 € pro Monat mit unbegrenzten Funnels und Leads, Domains, A/B-Tests, Bewerberbestätigungen, Status-Mails und getrennten Kundenbereichen für Bewerberboards.",
       },
       {
         q: "Ist Trichterwerk wie Perspective DSGVO-konform?",
@@ -290,7 +290,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         q: "Für wen eignet sich Trichterwerk als Perspective-Alternative?",
-        a: "Für Nutzer, die mobile Funnels, unbegrenzte Leads, eigene Domains und A/B-Tests für 49 € pro Monat suchen und mit einer einfachen Kanban-Verwaltung arbeiten können. Wenn du automatische Bewerbermails oder getrennte Kunden-Workspaces brauchst, deckt Trichterwerk deinen Ablauf derzeit noch nicht vollständig ab.",
+        a: "Für Nutzer, die mobile Funnels, unbegrenzte Leads, eigene Domains und A/B-Tests für 49 € pro Monat suchen. In Pro kannst du außerdem Bewerbungen in eigenen Spalten verwalten, Bestätigungen und Status-Mails automatisieren und ausgewählte Bewerberboards mit Kunden teilen.",
       },
       ...recruitingFaqs,
     ],

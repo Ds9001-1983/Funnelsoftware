@@ -37,6 +37,7 @@ const NewFunnel = lazy(() => import("@/pages/new-funnel"));
 const FunnelEditor = lazy(() => import("@/pages/funnel-editor"));
 const FunnelMetrics = lazy(() => import("@/pages/funnel-metrics"));
 const Leads = lazy(() => import("@/pages/leads"));
+const WorkspacesPage = lazy(() => import("@/pages/workspaces"));
 const Analytics = lazy(() => import("@/pages/analytics"));
 const Settings = lazy(() => import("@/pages/settings"));
 const Admin = lazy(() => import("@/pages/admin"));
@@ -244,6 +245,12 @@ function Router() {
         <SidebarPage>
           <Leads />
         </SidebarPage>
+      </Route>
+      <Route path="/workspaces/:id">
+        <SidebarPage><WorkspacesPage /></SidebarPage>
+      </Route>
+      <Route path="/workspaces">
+        <SidebarPage><WorkspacesPage /></SidebarPage>
       </Route>
       <Route path="/analytics">
         <SidebarPage>

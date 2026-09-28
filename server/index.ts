@@ -13,6 +13,7 @@ import { createServer } from "http";
 import { setupAuth, apiKeyAuth } from "./auth";
 import { storage } from "./storage";
 import { startScheduler } from "./scheduler";
+import { startRecruitingMailWorker } from "./recruiting-mail";
 import { pool } from "./db";
 
 // ============ ENV-VALIDIERUNG ============
@@ -230,7 +231,7 @@ app.use((req, res, next) => {
 app.get("/api/health", async (_req, res) => {
   try {
     await pool.query("SELECT 1");
-    res.json({ status: "ok" });
+    res.json({ status: "ok", ...(process.env.APP_RELEASE_SHA ? { release: process.env.APP_RELEASE_SHA } : {}) });
   } catch (error) {
     console.error("Health check failed:", error);
     res.status(503).json({ status: "error", reason: "database" });
@@ -289,7 +290,7 @@ app.get("/api/health", async (_req, res) => {
   httpServer.listen(
     {
       port,
-      host: "0.0.0.0",
+      host: process.env.HOST || "0.0.0.0",
       // SO_REUSEPORT gibt es nur auf Linux — macOS (lokale Entwicklung,
       // Playwright-E2E) wirft sonst ENOTSUP beim listen().
       reusePort: process.platform === "linux",
@@ -299,6 +300,7 @@ app.get("/api/health", async (_req, res) => {
       // Hintergrund-Jobs (Free-Downgrade nach Trial-Ende) — nach dem Listen,
       // damit ein Job-Fehler den Serverstart nie verhindert.
       startScheduler();
+      startRecruitingMailWorker();
     },
   );
 

@@ -207,6 +207,8 @@ export const leads = pgTable("leads", {
   message: text("message"),
   answers: jsonb("answers").default({}),
   status: text("status").notNull().default("new"), // new, contacted, qualified, converted, lost
+  stageId: text("stage_id"),
+  stageVersion: integer("stage_version").notNull().default(0),
   source: text("source"),
   // Einwilligungsnachweis (Art. 7 Abs. 1 DSGVO): Der Marketing-Consent des
   // Besuchers gated die CAPI-Übermittlung — ohne Persistierung ist die
@@ -217,6 +219,88 @@ export const leads = pgTable("leads", {
 }, (table) => [
   index("leads_user_id_idx").on(table.userId),
   index("leads_funnel_id_idx").on(table.funnelId),
+]);
+
+// Additive Recruiting-Daten; bestehende Eigentümer und Statuswerte bleiben erhalten.
+export const funnelRecruitingConfigs = pgTable("funnel_recruiting_configs", {
+  funnelId: integer("funnel_id").primaryKey().references(() => funnels.id, { onDelete: "cascade" }),
+  stages: jsonb("stages").notNull(),
+  version: integer("version").notNull().default(1),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export const recruitingMailRules = pgTable("recruiting_mail_rules", {
+  id: serial("id").primaryKey(),
+  funnelId: integer("funnel_id").notNull().references(() => funnels.id, { onDelete: "cascade" }),
+  ruleKey: text("rule_key").notNull(),
+  trigger: text("trigger").notNull(),
+  stageId: text("stage_id"),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  senderName: text("sender_name").notNull(),
+  enabled: boolean("enabled").notNull().default(false),
+  version: integer("version").notNull().default(1),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, table => [uniqueIndex("recruiting_mail_rules_key_idx").on(table.funnelId, table.ruleKey)]);
+export const leadStageEvents = pgTable("lead_stage_events", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id").notNull().references(() => leads.id, { onDelete: "cascade" }),
+  actorId: integer("actor_id").references(() => users.id, { onDelete: "set null" }),
+  fromStageId: text("from_stage_id").notNull(),
+  toStageId: text("to_stage_id").notNull(),
+  version: integer("version").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, table => [uniqueIndex("lead_stage_events_version_idx").on(table.leadId, table.version)]);
+export const recruitingMailJobs = pgTable("recruiting_mail_jobs", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id").notNull().references(() => leads.id, { onDelete: "cascade" }),
+  ruleId: integer("rule_id").notNull().references(() => recruitingMailRules.id, { onDelete: "cascade" }),
+  ownerId: integer("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  stageId: text("stage_id"),
+  recipient: text("recipient").notNull(),
+  replyTo: text("reply_to").notNull(),
+  senderName: text("sender_name").notNull(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  status: text("status").notNull().default("pending"),
+  attempts: integer("attempts").notNull().default(0),
+  nextAttemptAt: timestamp("next_attempt_at").defaultNow().notNull(),
+  processingAt: timestamp("processing_at"),
+  sentAt: timestamp("sent_at"),
+  errorCode: text("error_code"),
+  messageId: text("message_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, table => [
+  uniqueIndex("recruiting_mail_jobs_once_idx").on(table.leadId, table.ruleId),
+  index("recruiting_mail_jobs_pending_idx").on(table.status, table.nextAttemptAt),
+]);
+export const workspaces = pgTable("workspaces", {
+  id: serial("id").primaryKey(),
+  ownerId: integer("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, table => [index("workspaces_owner_idx").on(table.ownerId)]);
+export const workspaceMembers = pgTable("workspace_members", {
+  id: serial("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  invitedEmail: text("invited_email").notNull(),
+  role: text("role").notNull().default("client"),
+  acceptedAt: timestamp("accepted_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, table => [
+  uniqueIndex("workspace_members_email_idx").on(table.workspaceId, table.invitedEmail),
+  uniqueIndex("workspace_members_user_idx").on(table.workspaceId, table.userId),
+]);
+export const workspaceFunnels = pgTable("workspace_funnels", {
+  id: serial("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  funnelId: integer("funnel_id").notNull().references(() => funnels.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, table => [
+  uniqueIndex("workspace_funnels_funnel_idx").on(table.funnelId),
+  index("workspace_funnels_workspace_idx").on(table.workspaceId),
 ]);
 
 // Templates table (global, not user-specific)
@@ -992,6 +1076,8 @@ export const leadSchema = z.object({
   message: z.string().optional().nullable(),
   answers: z.record(z.string(), z.any()).optional().nullable(),
   status: z.enum(["new", "contacted", "qualified", "converted", "lost"]),
+  stageId: z.string().nullable().optional(),
+  stageVersion: z.number().int().nonnegative().optional(),
   source: z.string().optional().nullable(),
   // Einwilligungsnachweis (Art. 7 Abs. 1 DSGVO)
   marketingConsent: z.boolean().optional(),

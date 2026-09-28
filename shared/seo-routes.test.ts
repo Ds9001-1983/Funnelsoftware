@@ -43,6 +43,7 @@ const ALLOWLIST = new Set([
   "/funnels",
   "/funnels/new",
   "/leads",
+  "/workspaces",
   "/analytics",
   "/settings",
 ]);

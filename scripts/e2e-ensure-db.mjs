@@ -3,25 +3,25 @@
 // damit der Dev-Server nur mit existierender, migrierter DB hochkommen kann.
 // In CI ist das ein No-op — der Postgres-Service-Container erstellt die DB selbst.
 import pg from "pg";
+import { validateE2EDatabaseUrl } from "./e2e-env.mjs";
 
-const url = process.env.DATABASE_URL;
-if (!url) {
-  console.error("e2e-ensure-db: DATABASE_URL ist nicht gesetzt.");
-  process.exit(1);
-}
-
+// Never accept DATABASE_URL as a fallback: it may refer to production.
+const url = validateE2EDatabaseUrl(process.env.E2E_DATABASE_URL);
 const target = new URL(url);
 const dbName = target.pathname.replace(/^\//, "");
-if (!dbName) {
-  console.error(`e2e-ensure-db: Kein Datenbankname in DATABASE_URL (${target.host}).`);
-  process.exit(1);
-}
 
 // Verbindung zur Maintenance-DB "postgres" auf demselben Host.
 const admin = new URL(url);
 admin.pathname = "/postgres";
 
-const client = new pg.Client({ connectionString: admin.toString() });
+// Explicit fields prevent inherited PGHOST/PGPORT/PGUSER values from supplying
+// missing URL parts. The isolated runner additionally drops all PG* variables.
+const client = new pg.Client({
+  connectionString: admin.toString(),
+  port: Number(admin.port || 5432),
+  password: decodeURIComponent(admin.password),
+  connectionTimeoutMillis: 5000,
+});
 try {
   await client.connect();
   const { rows } = await client.query("SELECT 1 FROM pg_database WHERE datname = $1", [dbName]);

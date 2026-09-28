@@ -8,7 +8,7 @@ afterEach(() => {
 });
 
 // Mock für window.matchMedia (für responsive Komponenten)
-Object.defineProperty(window, "matchMedia", {
+if (typeof window !== "undefined") Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: vi.fn().mockImplementation((query) => ({
     matches: false,

@@ -62,6 +62,7 @@ const mainMenuItems = [
     url: "/analytics",
     icon: BarChart3,
   },
+  { title: "Kundenbereiche", description: "Bewerbungen mit Kunden bearbeiten", url: "/workspaces", icon: Users },
 ];
 
 const settingsItems = [
