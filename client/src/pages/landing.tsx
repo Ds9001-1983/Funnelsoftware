@@ -41,6 +41,7 @@ import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { CONTACT_EMAIL } from "@/components/marketing/constants";
 import { comparisonLinks, faqPageJsonLd, TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
+import { recruitingCapabilities, recruitingFaqs } from "@shared/recruiting-content";
 import { trackPlatformEvent } from "@/lib/platform-tracker";
 
 /**
@@ -214,10 +215,11 @@ const pricingPlans: PricingPlan[] = [
       "Unbegrenzte veröffentlichte Funnels",
       "Unbegrenzte Leads",
       "Alle Templates & Elemente",
-      "Eigene Domain",
+      "Mehrere eigene Domains & Subdomains",
       "KI-Funnel-Generator",
       "A/B-Tests & Conditional Logic",
-      "Teams & E-Mail-Benachrichtigungen",
+      "Kanban-Board mit fünf Statusspalten",
+      "Lead-Benachrichtigungen an dich",
       "Badge entfernbar · Support per E-Mail",
     ],
     cta: "14 Tage kostenlos testen",
@@ -237,15 +239,14 @@ const pricingPlans: PricingPlan[] = [
       "Team-Seats (bis 10 Nutzer)",
       "White-Label Branding",
       "API-Zugang",
-      "Mehrere Domains",
       "Priority Support",
     ],
     cta: "Auf Warteliste setzen",
     ctaHref: `mailto:${CONTACT_EMAIL}?subject=Agency-Plan%20Warteliste%20(2026)`,
     popular: false,
     comingSoon: true,
-    comingSoonLabel: "Kommt 2026",
-    note: "Frühen Zugang sichern — wir melden uns zum Launch",
+    comingSoonLabel: "In Planung",
+    note: "Geplanter Funktionsumfang · noch kein Veröffentlichungstermin",
   },
   {
     name: "Enterprise",
@@ -269,7 +270,7 @@ const integrations = [
   { icon: CreditCard, label: "Stripe", note: "Zahlungen & Trial-Abo" },
   { icon: Webhook, label: "Webhooks", note: "Beliebige Endpoints" },
   { icon: Zap, label: "Zapier & Make", note: "5 000+ Apps via Webhook" },
-  { icon: Send, label: "SMTP / E-Mail", note: "Auto-Benachrichtigungen" },
+  { icon: Send, label: "E-Mail an dich", note: "Benachrichtigung bei neuen Leads" },
   { icon: Server, label: "Eigene Domain", note: "Mit SSL inklusive" },
   { icon: BarChart3, label: "CSV-Export", note: "Deine Leads, deine Daten" },
 ];
@@ -304,7 +305,7 @@ const comparisonRows: ComparisonRow[] = [
   { label: "Live-Handy-Vorschau im Editor", trichterwerk: true, typeform: true, perspective: true, webflow: false },
   { label: "Conditional Logic & Quiz", trichterwerk: true, typeform: true, perspective: true, webflow: false },
   { label: "Eigene Domain inklusive", trichterwerk: true, typeform: false, perspective: true, webflow: true },
-  { label: "A/B-Tests", trichterwerk: true, typeform: false, perspective: "ab 184 €-Plan", webflow: "mit Add-on" },
+  { label: "A/B-Tests", trichterwerk: true, typeform: false, perspective: "ab Grow inklusive; Base mit Add-on", webflow: "mit Add-on" },
   { label: "Setup-Zeit bis Launch", trichterwerk: "< 1 h", typeform: "1–2 h", perspective: "2–4 h", webflow: "Tage" },
   { label: "Monatspreis", trichterwerk: "0–49 €", typeform: "ab 25 $", perspective: "ab 59 € + Add-ons", webflow: "ab 29 $ + Design" },
 ];
@@ -332,8 +333,9 @@ const faqs = [
   },
   {
     q: "Wie funktioniert „Eigene Domain“?",
-    a: "Du hinterlegst deine Domain (z. B. funnel.deine-firma.de) im Funnel-Editor und trägst einen einzigen CNAME-Eintrag bei deinem Provider ein. Nach der Verifizierung wird das SSL-Zertifikat automatisch ausgestellt — in der Regel innerhalb weniger Minuten, ohne Aufpreis.",
+    a: "Im Pro-Plan hinterlegst du deine Domain im Funnel-Editor. Für eine Subdomain wie funnel.deine-firma.de setzt du einen CNAME-Eintrag bei deinem Provider; für eine Hauptdomain einen A-Eintrag. Nach der Verifizierung wird das SSL-Zertifikat automatisch eingerichtet, ohne Aufpreis.",
   },
+  ...recruitingFaqs,
   {
     q: "Kann ich meinen Plan später wechseln?",
     a: "Ja — Upgrade jederzeit direkt im Dashboard. Downgrade oder Kündigung über das Stripe-Kundenportal.",
@@ -609,6 +611,41 @@ export default function Landing() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section id="recruiting-funktionen" aria-labelledby="recruiting-funktionen-title" className="py-20 px-4 border-y bg-muted/20 scroll-mt-24">
+        <div className="container mx-auto max-w-5xl">
+          <div className="text-center mb-10">
+            <Badge variant="secondary" className="mb-4">Für Recruiting & Agenturen</Badge>
+            <h2 id="recruiting-funktionen-title" className="text-3xl md:text-4xl font-bold mb-4">
+              Was du heute nutzen kannst
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Domains, Bewerberverwaltung und Kundenzugänge: Prüfe hier, welche Funktionen deinen Arbeitsablauf bereits unterstützen.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            {recruitingCapabilities.map((capability, index) => (
+              <Card key={capability.id} className={index === recruitingCapabilities.length - 1 ? "md:col-span-2" : undefined}>
+                <CardHeader className="pb-3">
+                  <Badge variant={capability.status === "Noch nicht verfügbar" ? "outline" : "secondary"} className="w-fit mb-2">
+                    {capability.status}
+                  </Badge>
+                  <CardTitle className="text-lg">{capability.label}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{capability.summary}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <p className="text-sm text-muted-foreground text-center mt-6">
+            Für noch nicht verfügbare Funktionen gibt es keinen zugesagten Veröffentlichungstermin.{" "}
+            <Link href="/vergleich/perspective-alternative" className="underline hover:text-foreground">
+              Zum ausführlichen Perspective-Vergleich
+            </Link>
+          </p>
         </div>
       </section>
 
