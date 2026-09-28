@@ -183,6 +183,8 @@ import { CustomDomainPanel } from "@/components/funnel-editor/CustomDomainPanel"
 import { CommandPalette } from "@/components/funnel-editor/CommandPalette";
 import { ShortcutOverlay } from "@/components/funnel-editor/ShortcutOverlay";
 import { ThemePresetPicker } from "@/components/funnel-editor/ThemePresetPicker";
+import { RevisionDialog } from "@/components/funnel-editor/RevisionDialog";
+import { EditorRecoveryBar } from "@/components/funnel-editor/EditorRecoveryBar";
 import { PublishDialog } from "@/components/funnel-editor/PublishDialog";
 
 const LogicFlowView = lazy(() =>
@@ -222,7 +224,7 @@ export default function FunnelEditor() {
     lastSavedAt,
     saveMutation,
     saveStatus,
-    noteServerUpdate,
+    saveCurrent, saveBeforeLeave, restoreRevision, pendingWrites, conflict, recovery, discardRecovery, recoveryUnavailable,
     updateLocalFunnel,
     updatePage,
   } = useFunnelEditor(params?.id);
@@ -254,6 +256,7 @@ export default function FunnelEditor() {
   }, []);
 
   // Publish dialog
+  const [showRevisions, setShowRevisions] = useState(false);
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [showABTests, setShowABTests] = useState(false);
 
@@ -306,19 +309,8 @@ export default function FunnelEditor() {
   );
 
   const publishMutation = useMutation({
-    mutationFn: async (slug: string) => {
-      const response = await apiRequest("PATCH", `/api/funnels/${params?.id}`, {
-        status: "published",
-        slug,
-      });
-      return response.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
-      noteServerUpdate(data);
-      if (localFunnel) {
-        setLocalFunnel({ ...localFunnel, status: "published", slug: data.slug });
-      }
+    mutationFn: (slug: string) => saveCurrent({ status: "published", slug }, true),
+    onSuccess: () => {
       setShowPublishDialog(false);
       toast({
         title: "Veröffentlicht",
@@ -335,29 +327,6 @@ export default function FunnelEditor() {
     onError: (error) => {
       toast({
         title: "Veröffentlichen fehlgeschlagen",
-        description: error instanceof Error ? error.message : "Bitte versuche es erneut.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateSlugMutation = useMutation({
-    mutationFn: async (slug: string) => {
-      const response = await apiRequest("PATCH", `/api/funnels/${params?.id}`, { slug });
-      return response.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
-      noteServerUpdate(data);
-      if (localFunnel) {
-        setLocalFunnel({ ...localFunnel, slug: data.slug });
-      }
-      setShowPublishDialog(false);
-      toast({ title: "Slug aktualisiert", description: "Die URL wurde geändert." });
-    },
-    onError: (error) => {
-      toast({
-        title: "URL konnte nicht geändert werden",
         description: error instanceof Error ? error.message : "Bitte versuche es erneut.",
         variant: "destructive",
       });
@@ -907,25 +876,21 @@ export default function FunnelEditor() {
   }, [leftPanelWidth]);
 
   const handleSave = useCallback(() => {
-    if (localFunnel) {
-      // Gemeinsamer Payload mit dem Autosave (buildSavePayload) — plus status,
-      // der nur beim expliziten Speichern mitgeht (Autosave-Race vermeiden).
-      saveMutation.mutate({
-        ...buildSavePayload(localFunnel),
-        status: localFunnel.status,
-      });
-    }
+    if (localFunnel) saveMutation.mutate(buildSavePayload(localFunnel));
   }, [localFunnel, saveMutation]);
 
-  // Beim Verlassen ungespeicherte Änderungen sichern — der Unmount verwarf
-  // sonst den anstehenden Autosave kommentarlos (Datenverlust bei "Zurück").
-  // Der Request läuft nach der Navigation weiter (fire-and-forget).
-  const handleBackToFunnels = useCallback(() => {
-    if (localFunnel && hasChanges && !saveMutation.isPending) {
-      saveMutation.mutate({ ...buildSavePayload(localFunnel), status: localFunnel.status });
-    }
-    navigate("/funnels");
-  }, [localFunnel, hasChanges, saveMutation, navigate]);
+  const handleBackToFunnels = useCallback(async () => {
+    try {
+      if (hasChanges || pendingWrites) await saveBeforeLeave();
+      navigate("/funnels");
+    } catch { /* Stay in the editor with the local draft intact. */ }
+  }, [hasChanges, pendingWrites, saveBeforeLeave, navigate]);
+
+  const openDraftPreview = useCallback(async () => {
+    const preview = window.open("about:blank", "_blank");
+    try { await saveCurrent(); if (preview) preview.location.href = `/preview/${params?.id}`; }
+    catch { preview?.close(); }
+  }, [params?.id, saveCurrent]);
 
   // Undo/Redo überall mit Dirty-Flag — Toolbar und CommandPalette riefen
   // bisher das rohe undo()/redo() auf: Der zurückgesetzte Stand galt als
@@ -1078,7 +1043,7 @@ export default function FunnelEditor() {
         saveStatus={saveStatus}
         lastSavedAt={lastSavedAt}
         hasChanges={hasChanges}
-        isSavePending={saveMutation.isPending}
+        isSavePending={pendingWrites > 0}
         isPublishPending={publishMutation.isPending}
         previewMode={previewMode}
         setPreviewMode={setPreviewMode}
@@ -1099,15 +1064,12 @@ export default function FunnelEditor() {
         onOpenABTests={AB_TESTS_ENABLED ? () => setShowABTests(true) : undefined}
         onOpenSettings={() => setShowSettings(true)}
         onOpenPublish={() => setShowPublishDialog(true)}
-        onOpenPreview={() => {
-          // Draft → auth-Preview-Route; Published → öffentliche Route
-          const url =
-            localFunnel.status === "published"
-              ? `/f/${localFunnel.slug || localFunnel.uuid}`
-              : `/preview/${localFunnel.id}`;
-          window.open(url, "_blank");
-        }}
+        onOpenRevisions={() => setShowRevisions(true)}
+        onOpenPreview={openDraftPreview}
       />
+      <EditorRecoveryBar funnel={localFunnel} recovery={recovery} conflict={conflict} unavailable={recoveryUnavailable} onDiscard={discardRecovery} />
+      {localFunnel.status === "published" && <p className="text-xs text-muted-foreground px-4 py-1 border-b">Du bearbeitest den Entwurf. Inhaltsänderungen werden erst mit „Veröffentlichen“ live.</p>}
+      <RevisionDialog open={showRevisions} onOpenChange={setShowRevisions} funnelId={localFunnel.id} onRestore={restoreRevision} />
 
       {/* Main content - 3-Panel Layout */}
       <div className="flex-1 flex overflow-hidden">
@@ -1397,14 +1359,7 @@ export default function FunnelEditor() {
         onSave={handleSave}
         canSave={hasChanges && !saveMutation.isPending}
         onPublish={() => setShowPublishDialog(true)}
-        onPreview={() =>
-          window.open(
-            localFunnel.status === "published"
-              ? `/f/${localFunnel.slug || localFunnel.uuid}`
-              : `/preview/${localFunnel.id}`,
-            "_blank",
-          )
-        }
+        onPreview={openDraftPreview}
         onUndo={handleUndo}
         canUndo={canUndo}
         onRedo={handleRedo}
@@ -1611,20 +1566,11 @@ export default function FunnelEditor() {
             </div>
 
             <div className="space-y-2">
-              <Label>Status</Label>
-              <Select
-                value={localFunnel.status}
-                onValueChange={(v) => updateLocalFunnel({ status: v as Funnel["status"] })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Entwurf</SelectItem>
-                  <SelectItem value="published">Veröffentlicht</SelectItem>
-                  <SelectItem value="archived">Archiviert</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Veröffentlichung</Label>
+              <p className="text-sm">{localFunnel.status === "published" ? "Der Funnel ist live. Speichern aktualisiert deinen Entwurf." : "Dieser Funnel ist noch nicht veröffentlicht."}</p>
+              {localFunnel.status === "published" && <Button variant="outline" disabled={pendingWrites > 0} onClick={() => {
+                if (window.confirm("Funnel offline nehmen? Der gespeicherte Inhalt bleibt erhalten.")) void saveCurrent({ status: "draft" }).catch(() => undefined);
+              }}>Funnel offline nehmen</Button>}
             </div>
 
             {/* Rechtliches — Pflicht für veröffentlichte Funnels */}
@@ -1805,14 +1751,7 @@ export default function FunnelEditor() {
             </button>
             <button
               className="flex flex-col items-center gap-1 p-2 rounded-lg text-muted-foreground"
-              onClick={() => {
-                if (!localFunnel) return;
-                const url =
-                  localFunnel.status === "published"
-                    ? `/f/${localFunnel.slug || localFunnel.uuid}`
-                    : `/preview/${localFunnel.id}`;
-                window.open(url, "_blank");
-              }}
+              onClick={openDraftPreview}
             >
               <Eye className="h-5 w-5" />
               <span className="text-xs">Vorschau</span>
@@ -1828,7 +1767,6 @@ export default function FunnelEditor() {
           onOpenChange={setShowPublishDialog}
           funnel={localFunnel}
           onPublish={async (slug) => { await publishMutation.mutateAsync(slug); }}
-          onUpdateSlug={async (slug) => { await updateSlugMutation.mutateAsync(slug); }}
         />
       )}
     </div>

@@ -1,8 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { useFunnelEditor } from "./use-funnel-editor";
 import type { Funnel, FunnelPage, Theme } from "@shared/schema";
+
+vi.mock("@/lib/queryClient", () => ({ apiRequest: vi.fn() }));
+beforeEach(() => { localStorage.clear(); vi.mocked(apiRequest).mockReset(); });
 
 const theme: Theme = {
   primaryColor: "#7C3AED",
@@ -23,6 +27,7 @@ function makePage(id: string, title = "Page"): FunnelPage {
 }
 
 const sampleFunnel = {
+  editVersion: 0,
   id: 1,
   uuid: "u1",
   userId: 1,
@@ -125,4 +130,47 @@ describe("useFunnelEditor", () => {
     });
     expect(result.current.autoSaveEnabled).toBe(false);
   });
+});
+
+it("behält Änderungen während eines Saves als ungespeichert und sendet sie mit der nächsten Version", async () => {
+  let respond!: (value: Response) => void;
+  vi.mocked(apiRequest).mockImplementationOnce(() => new Promise(resolve => { respond = resolve; }));
+  const { result } = renderHook(() => useFunnelEditor("1"), { wrapper: createWrapper() });
+  await waitFor(() => expect(result.current.localFunnel).not.toBeNull());
+  act(() => result.current.updateLocalFunnel({ name: "Erster Entwurf", metaCapiToken: "privates-geheimnis" }));
+  let saving!: Promise<Funnel>;
+  act(() => { saving = result.current.saveCurrent(); });
+  await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(1));
+  act(() => result.current.updateLocalFunnel({ name: "Zweiter Entwurf" }));
+  await act(async () => {
+    respond({ json: async () => ({ ...sampleFunnel, name: "Erster Entwurf", metaCapiToken: "privates-geheimnis", editVersion: 1 }) } as Response);
+    await saving;
+  });
+  expect(result.current.localFunnel?.name).toBe("Zweiter Entwurf");
+  expect(result.current.hasChanges).toBe(true);
+  expect(JSON.stringify(localStorage)).not.toContain("privates-geheimnis");
+  vi.mocked(apiRequest).mockResolvedValueOnce({ json: async () => ({ ...sampleFunnel, name: "Zweiter Entwurf", metaCapiToken: "privates-geheimnis", editVersion: 2 }) } as Response);
+  await act(async () => { await result.current.saveCurrent(); });
+  expect(apiRequest).toHaveBeenLastCalledWith("PATCH", "/api/funnels/1", expect.objectContaining({ name: "Zweiter Entwurf", expectedVersion: 1, documentVersion: 1, mutationId: expect.any(String) }));
+  expect(result.current.hasChanges).toBe(false);
+});
+
+it("wartet beim Verlassen auch auf Änderungen, die während des ersten Saves entstehen", async () => {
+  let respond!: (value: Response) => void;
+  vi.mocked(apiRequest).mockImplementationOnce(() => new Promise(resolve => { respond = resolve; }));
+  const { result } = renderHook(() => useFunnelEditor("1"), { wrapper: createWrapper() });
+  await waitFor(() => expect(result.current.localFunnel).not.toBeNull());
+  act(() => result.current.updateLocalFunnel({ name: "A" }));
+  let leaving!: Promise<void>;
+  act(() => { leaving = result.current.saveBeforeLeave(); });
+  await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(1));
+  act(() => result.current.updateLocalFunnel({ name: "B" }));
+  vi.mocked(apiRequest).mockResolvedValueOnce({ json: async () => ({ ...sampleFunnel, name: "B", editVersion: 2 }) } as Response);
+  await act(async () => {
+    respond({ json: async () => ({ ...sampleFunnel, name: "A", editVersion: 1 }) } as Response);
+    await leaving;
+  });
+  expect(apiRequest).toHaveBeenCalledTimes(2);
+  expect(result.current.hasChanges).toBe(false);
+  expect(result.current.localFunnel?.name).toBe("B");
 });

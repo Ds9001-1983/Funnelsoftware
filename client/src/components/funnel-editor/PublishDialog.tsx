@@ -22,7 +22,6 @@ interface PublishDialogProps {
   onOpenChange: (open: boolean) => void;
   funnel: Funnel;
   onPublish: (slug: string) => Promise<void>;
-  onUpdateSlug: (slug: string) => Promise<void>;
 }
 
 export function PublishDialog({
@@ -30,7 +29,6 @@ export function PublishDialog({
   onOpenChange,
   funnel,
   onPublish,
-  onUpdateSlug,
 }: PublishDialogProps) {
   const { toast } = useToast();
   const isPublished = funnel.status === "published";
@@ -143,17 +141,13 @@ export function PublishDialog({
     if (!slug || slug.length < 3 || isAvailable === false) return;
     setIsSubmitting(true);
     try {
-      if (isPublished) {
-        await onUpdateSlug(slug);
-      } else {
-        await onPublish(slug);
-      }
+      await onPublish(slug);
     } catch {
       // Error handled by parent
     } finally {
       setIsSubmitting(false);
     }
-  }, [slug, isAvailable, isPublished, onPublish, onUpdateSlug]);
+  }, [slug, isAvailable, onPublish]);
 
   const isSlugValid = slug.length >= 3 && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug);
 
@@ -163,11 +157,11 @@ export function PublishDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5 text-primary" />
-            {isPublished ? "Funnel teilen" : "Funnel veröffentlichen"}
+            {isPublished ? "Änderungen veröffentlichen" : "Funnel veröffentlichen"}
           </DialogTitle>
           <DialogDescription>
             {isPublished
-              ? "Teile deinen Funnel per URL, Embed-Code oder QR-Code."
+              ? "Veröffentliche den aktuellen Entwurf. Du kannst hier auch den Live-Link teilen."
               : "Wähle eine URL für deinen Funnel und veröffentliche ihn."}
           </DialogDescription>
         </DialogHeader>
@@ -288,12 +282,11 @@ export function PublishDialog({
                   isSubmitting ||
                   !isSlugValid ||
                   isAvailable === false ||
-                  isChecking ||
-                  (isPublished && slug === funnel.slug)
+                  isChecking
                 }
               >
                 {isSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {isPublished ? "Slug speichern" : "Jetzt veröffentlichen"}
+                {isPublished ? "Änderungen veröffentlichen" : "Jetzt veröffentlichen"}
               </Button>
             </div>
           </div>

@@ -1,3 +1,4 @@
+import { clearAllEditorRecovery } from "@/lib/editor-recovery";
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { useLocation } from "wouter";
 import { queryClient } from "@/lib/queryClient";
@@ -156,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await queryClient.cancelQueries();
       queryClient.clear();
       sessionUserId.current = null;
+      clearAllEditorRecovery();
       setUser(null);
       setLocation("/login");
     }

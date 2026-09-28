@@ -12,6 +12,7 @@ import {
   Cloud,
   CloudOff,
   FlaskConical,
+  History,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,7 @@ interface EditorToolbarProps {
   onOpenABTests?: () => void;
   onOpenSettings: () => void;
   onOpenPublish: () => void;
+  onOpenRevisions: () => void;
   onOpenPreview: () => void;
 }
 
@@ -88,6 +90,7 @@ export function EditorToolbar({
   onOpenABTests,
   onOpenSettings,
   onOpenPublish,
+  onOpenRevisions,
   onOpenPreview,
 }: EditorToolbarProps) {
   const hasRunningABTest = (localFunnel.abTests || []).some(
@@ -156,6 +159,7 @@ export function EditorToolbar({
 
       {/* Right - Actions */}
       <div className="flex items-center gap-1">
+        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Gespeicherte Versionen" title="Gespeicherte Versionen" onClick={onOpenRevisions}><History className="h-4 w-4" /></Button>
         <HistoryIndicator
           canUndo={canUndo}
           canRedo={canRedo}
@@ -272,7 +276,7 @@ export function EditorToolbar({
         >
           <Globe className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">
-            {localFunnel.status === "published" ? "URL verwalten" : "Veröffentlichen"}
+            Veröffentlichen
           </span>
         </Button>
       </div>

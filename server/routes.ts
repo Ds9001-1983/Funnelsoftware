@@ -1155,8 +1155,13 @@ export async function registerRoutes(
   });
 
   app.get("/api/funnels/:id/revisions", isAuthenticated, async (req, res) => {
-    try { res.json(await listFunnelRevisions(Number(req.params.id), getUserId(req)!)); }
+    try {
+      const id = z.coerce.number().int().positive().parse(req.params.id);
+      const before = z.coerce.number().int().nonnegative().optional().parse(req.query.before);
+      res.json(await listFunnelRevisions(id, getUserId(req)!, before));
+    }
     catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Ungültige Eingabe" });
       if (error instanceof FunnelWriteError) return res.status(error.status).json({ error: error.message, code: error.code });
       res.status(500).json({ error: "Versionen konnten nicht geladen werden." });
     }

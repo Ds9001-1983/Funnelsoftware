@@ -423,10 +423,16 @@ export default function Funnels() {
     },
   });
 
+  function writeControlFor(id: number) {
+    const funnel = funnels?.find(funnel => funnel.id === id);
+    if (!funnel) throw new Error("Bitte lade die Funnel-Liste neu.");
+    return { documentVersion: funnel.documentVersion ?? 1, expectedVersion: funnel.editVersion ?? 0, mutationId: crypto.randomUUID() };
+  }
+
   const archiveMutation = useMutation({
     mutationFn: async ({ id, archived }: { id: number; archived: boolean }) => {
       await apiRequest("PATCH", `/api/funnels/${id}`, {
-        status: archived ? "archived" : "draft",
+        status: archived ? "archived" : "draft", ...writeControlFor(id),
       });
     },
     onSuccess: (_data, { archived }) => {
@@ -460,7 +466,7 @@ export default function Funnels() {
         ids.map((id) => {
           if (action === "delete") return apiRequest("DELETE", `/api/funnels/${id}`);
           if (action === "clone") return apiRequest("POST", `/api/funnels/${id}/clone`);
-          return apiRequest("PATCH", `/api/funnels/${id}`, { status: "archived" });
+          return apiRequest("PATCH", `/api/funnels/${id}`, { status: "archived", ...writeControlFor(id) });
         }),
       );
       const failed = results.filter((r) => r.status === "rejected").length;

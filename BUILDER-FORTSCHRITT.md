@@ -15,7 +15,10 @@ Der Nutzer hat die Fortsetzung am 28.09.2026 ausdrücklich bestätigt.
   `~/TrichterwerkBackups/releases/20260928T131051-1348cd61f571/`;
   SHA-256 mit Serverkopie identisch. Neue Versandwarteschlange bei Abnahme leer.
 
-## Laufender Abschnitt: Versionierte Inhalte
+- Kompatible Revisionsgrundlage: [PR #173](https://github.com/Ds9001-1983/Funnelsoftware/pull/173),
+  Produktion `94b7b7d1706766691cca5102a732ef83740b2d4e`, Deployment 36429672059 erfolgreich.
+
+## Laufender Abschnitt: Editor mit Entwurfsschutz
 
 Die Servergrundlage unterstützt bereits beide Speicherprotokolle:
 
@@ -54,12 +57,15 @@ ließen alle 22 bestehenden Tabellen in ihren bisherigen Spalten unverändert.
 
 ## Noch zu erledigen
 
-1. Servergrundlage vollständig prüfen, Restore-Probe auf aktueller Kopie, CI
-   und Veröffentlichung als kompatiblen Ausgangsstand abschließen.
-2. Editor: serialisierte Speicherung/Veröffentlichung, Revisionsübersicht,
-   Wiederherstellung, verständlicher Konfliktzustand und lokale Notfallkopie
-   ausschließlich eigener Inhaltsdaten. Vor Navigation Speichern abwarten;
-   Änderungen während des Speicherns müssen als ungespeichert erkennbar bleiben.
+1. Servergrundlage mit Restore-Probe, CI und Live-Health abgeschlossen.
+2. Editor umgesetzt, lokale Abnahme läuft: gemeinsame Schreibwarteschlange,
+   ausdrückliche Veröffentlichung, paginierte Revisionsübersicht/Wiederherstellung,
+   Konfliktanzeige mit Kopie/Download, nutzerbezogene lokale Inhaltssicherung ohne
+   Integrationsgeheimnisse. Navigation wartet auf das Speichern, Vorschau öffnet
+   den Entwurf. Änderungen während des Speicherns bleiben ungespeichert markiert.
+   Neue Queue-/Hook-Tests und vollständiger UI-Test einschließlich Konfliktkopie
+   bestanden. Gesamtabnahme: 378 Tests, 15 E2E-Abläufe, TypeScript und Build grün.
+   Noch CI und Veröffentlichung abschließen.
 3. Gemeinsamer versionierter Dokumentzugriff und ID-/Referenzhelfer.
 4. Abschnitte/Layouts und gemeinsamer responsiver Renderer, bestehende Formulare
    und Antworten erhalten. Bearbeitung bleibt Desktop/Laptop.
