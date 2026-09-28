@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { z } from "zod";
 
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587");
@@ -23,6 +24,132 @@ const transporter = isConfigured
       },
     })
   : null;
+
+// Kürzere, feste Zeitgrenzen als der Standardtransporter: Ein Worker-Lease
+// darf nicht während eines zehnminütigen SMTP-Socket-Timeouts auslaufen.
+const recruitingTransporter = isConfigured
+  ? nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_PORT === 465,
+      auth: { user: SMTP_USER, pass: SMTP_PASS },
+      connectionTimeout: 20_000,
+      greetingTimeout: 20_000,
+      socketTimeout: 30_000,
+      dnsTimeout: 10_000,
+      disableFileAccess: true,
+      disableUrlAccess: true,
+    })
+  : null;
+
+export interface RecruitingEmail {
+  recipient: string;
+  replyTo: string;
+  senderName: string;
+  subject: string;
+  body: string;
+  messageId?: string;
+}
+
+/** Ausschließlich In-Memory-/JSON-Transporte in isolierten lokalen Tests. */
+export interface RecruitingEmailTransport {
+  sendMail(options: nodemailer.SendMailOptions): Promise<{
+    messageId?: string;
+    accepted?: unknown[];
+    rejected?: unknown[];
+  }>;
+}
+
+export type RecruitingEmailResult =
+  | { status: "sent"; messageId: string | null }
+  | { status: "retryable" | "failed" | "uncertain"; errorCode: string };
+
+export function assertRecruitingTestTransportAllowed(): void {
+  let databaseUrl: URL;
+  try { databaseUrl = new URL(process.env.DATABASE_URL || ""); }
+  catch { throw new Error("Recruiting test transport requires an isolated loopback test database"); }
+  const database = decodeURIComponent(databaseUrl.pathname.slice(1));
+  if (process.env.NODE_ENV !== "test"
+    || !["postgres:", "postgresql:"].includes(databaseUrl.protocol)
+    || !["localhost", "127.0.0.1", "[::1]"].includes(databaseUrl.hostname)
+    || databaseUrl.hash || Array.from(databaseUrl.searchParams).some(([key, value]) => key !== "options" || !/^-c search_path=recruiting_mail_test_[a-f0-9]+$/.test(value))
+    || !(database === "funnelsoftware_e2e" || /^[a-zA-Z0-9_]+_test$/.test(database))) {
+    throw new Error("Recruiting test transport requires an isolated loopback test database");
+  }
+}
+
+/** Keine Rohfehlermeldungen speichern: SMTP-Fehler können Empfänger und Text enthalten. */
+function recruitingEmailFailure(error: unknown): RecruitingEmailResult {
+  const smtp = error && typeof error === "object"
+    ? error as { code?: string; responseCode?: number }
+    : {};
+  if (typeof smtp.responseCode === "number" && smtp.responseCode >= 400 && smtp.responseCode < 500) {
+    return { status: "retryable", errorCode: `smtp_${smtp.responseCode}` };
+  }
+  if (typeof smtp.responseCode === "number" && smtp.responseCode >= 500 && smtp.responseCode < 600) {
+    return { status: "failed", errorCode: `smtp_${smtp.responseCode}` };
+  }
+  // Diese Fehler entstehen vor einer SMTP-Annahme. CONN allein genügt nicht:
+  // Nodemailer bezeichnet auch Socket-Timeouts nach DATA als CONN.
+  if (["EDNS", "ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED"].includes(smtp.code || "")) {
+    return { status: "retryable", errorCode: "smtp_connection_unavailable" };
+  }
+  if (smtp.code === "EAUTH") return { status: "failed", errorCode: "smtp_authentication_failed" };
+  if (smtp.code === "ETLS") return { status: "failed", errorCode: "smtp_tls_failed" };
+  if (smtp.code === "EENVELOPE") return { status: "failed", errorCode: "smtp_envelope_rejected" };
+  return { status: "uncertain", errorCode: "smtp_acceptance_unknown" };
+}
+
+/** Sendet ausschließlich gespeicherte Text-Snapshots, nie Besucher-HTML. */
+export async function sendRecruitingEmail(
+  message: RecruitingEmail,
+  options: { transport?: RecruitingEmailTransport } = {},
+): Promise<RecruitingEmailResult> {
+  if (options.transport) assertRecruitingTestTransportAllowed();
+  const activeTransport = options.transport || recruitingTransporter;
+  if (!activeTransport) return { status: "failed", errorCode: "smtp_not_configured" };
+  const email = z.string().email();
+  if (![message.recipient, message.replyTo, FROM_EMAIL].every(value => email.safeParse(value).success)
+    || /[\r\n\u0000]/.test(`${message.subject}${message.senderName}${message.messageId || ""}`)
+    || !message.subject.trim() || !message.senderName.trim()
+    || message.subject.length > 1_000 || message.senderName.length > 200 || message.body.length > 30_000) {
+    return { status: "failed", errorCode: "invalid_message" };
+  }
+  try {
+    const result = await activeTransport.sendMail({
+      from: { name: message.senderName, address: FROM_EMAIL },
+      to: { name: "", address: message.recipient },
+      replyTo: { name: "", address: message.replyTo },
+      subject: message.subject,
+      text: message.body,
+      html: `<!doctype html><html lang="de"><meta charset="utf-8"><body><div style="font-family:Arial,sans-serif;line-height:1.6;white-space:pre-wrap">${escapeHtml(message.body)}</div></body></html>`,
+      ...(message.messageId ? { messageId: message.messageId } : {}),
+      disableFileAccess: true,
+      disableUrlAccess: true,
+    });
+    if (result.accepted && result.accepted.length === 0) {
+      return { status: "failed", errorCode: "smtp_recipient_rejected" };
+    }
+    return { status: "sent", messageId: result.messageId || message.messageId || null };
+  } catch (error) {
+    return recruitingEmailFailure(error);
+  }
+}
+
+export async function sendWorkspaceInviteEmail(
+  email: string,
+  workspaceName: string,
+  inviterName: string,
+): Promise<boolean> {
+  const result = await sendRecruitingEmail({
+    recipient: email,
+    replyTo: FROM_EMAIL,
+    senderName: "Trichterwerk",
+    subject: "Einladung in einen Kundenbereich bei Trichterwerk",
+    body: `${inviterName} hat dich in den Kundenbereich „${workspaceName}“ eingeladen.\n\nMelde dich mit dieser E-Mail-Adresse an oder registriere dich kostenlos. Öffne anschließend die Einladung unter:\n${APP_URL}/workspaces\n\nDu erhältst Zugriff, sobald du die Einladung annimmst.`,
+  });
+  return result.status === "sent";
+}
 
 /**
  * HTML-Escaping für nutzer-/besuchergesteuerte Werte in E-Mail-Templates.

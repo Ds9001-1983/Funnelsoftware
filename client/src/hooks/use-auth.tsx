@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { useLocation } from "wouter";
+import { queryClient } from "@/lib/queryClient";
 
 import type { PlanId } from "@shared/schema";
 
@@ -55,6 +56,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const sessionUserId = useRef<number | null>(null);
   const [, setLocation] = useLocation();
 
   // Fetch current user on mount
@@ -64,6 +66,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: "include",
       });
       const data = await response.json();
+      if (sessionUserId.current !== (data.user?.id ?? null)) {
+        await queryClient.cancelQueries();
+        queryClient.clear();
+        sessionUserId.current = data.user?.id ?? null;
+      }
       setUser(data.user);
     } catch (error) {
       console.error("Failed to fetch user:", error);
@@ -93,6 +100,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: data.error || "Login fehlgeschlagen" };
       }
 
+      await queryClient.cancelQueries();
+      queryClient.clear();
+      sessionUserId.current = data.user.id;
       setUser(data.user);
       return { success: true };
     } catch (error) {
@@ -117,6 +127,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: result.error || "Registrierung fehlgeschlagen" };
       }
 
+      await queryClient.cancelQueries();
+      queryClient.clear();
+      sessionUserId.current = result.user.id;
       setUser(result.user);
       return {
         success: true,
@@ -140,6 +153,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
+      await queryClient.cancelQueries();
+      queryClient.clear();
+      sessionUserId.current = null;
       setUser(null);
       setLocation("/login");
     }

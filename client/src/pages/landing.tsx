@@ -218,7 +218,9 @@ const pricingPlans: PricingPlan[] = [
       "Mehrere eigene Domains & Subdomains",
       "KI-Funnel-Generator",
       "A/B-Tests & Conditional Logic",
-      "Kanban-Board mit fünf Statusspalten",
+      "Kanban mit Drag-and-drop & eigenen Spalten",
+      "Bewerbermails bei Eingang & Statuswechsel",
+      "Getrennte Kundenbereiche",
       "Lead-Benachrichtigungen an dich",
       "Badge entfernbar · Support per E-Mail",
     ],
@@ -629,7 +631,7 @@ export default function Landing() {
             {recruitingCapabilities.map((capability, index) => (
               <Card key={capability.id} className={index === recruitingCapabilities.length - 1 ? "md:col-span-2" : undefined}>
                 <CardHeader className="pb-3">
-                  <Badge variant={capability.status === "Noch nicht verfügbar" ? "outline" : "secondary"} className="w-fit mb-2">
+                  <Badge variant="secondary" className="w-fit mb-2">
                     {capability.status}
                   </Badge>
                   <CardTitle className="text-lg">{capability.label}</CardTitle>
@@ -641,7 +643,7 @@ export default function Landing() {
             ))}
           </div>
           <p className="text-sm text-muted-foreground text-center mt-6">
-            Für noch nicht verfügbare Funktionen gibt es keinen zugesagten Veröffentlichungstermin.{" "}
+            Alle Pro-Funktionen sind während der 14-tägigen Testphase enthalten.{" "}
             <Link href="/vergleich/perspective-alternative" className="underline hover:text-foreground">
               Zum ausführlichen Perspective-Vergleich
             </Link>

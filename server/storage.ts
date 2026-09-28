@@ -1,6 +1,7 @@
 import { eq, desc, and, sql, gte, lt, inArray } from "drizzle-orm";
 import { quizTemplateElement } from "@shared/quiz-template";
 import { db } from "./db";
+import { queueRecruitingEmails } from "./recruiting";
 import {
   users, funnels, leads, templates, analyticsEvents, passwordResetTokens,
   teams, teamMembers, apiKeys, domains, platformVisits, aiCredentials, emailLog,
@@ -132,7 +133,7 @@ export interface IStorage {
   getLeads(userId: number): Promise<Lead[]>;
   getLeadsByFunnel(funnelId: number, userId: number): Promise<Lead[]>;
   getLead(id: number, userId: number): Promise<Lead | undefined>;
-  createLead(lead: InsertLead, userId: number): Promise<Lead>;
+  createLead(lead: InsertLead, userId: number): Promise<Lead & { deduplicated?: boolean }>;
   findRecentLead(funnelId: number, email: string, withinMs: number): Promise<Lead | undefined>;
   updateLead(id: number, userId: number, lead: Partial<Lead>): Promise<Lead | undefined>;
   deleteLead(id: number, userId: number): Promise<boolean>;
@@ -641,12 +642,24 @@ export class DatabaseStorage implements IStorage {
     return row ? this.mapLeadToResponse(row) : undefined;
   }
 
-  async createLead(insertLead: InsertLead, userId: number): Promise<Lead> {
+  async createLead(insertLead: InsertLead, userId: number): Promise<Lead & { deduplicated?: boolean }> {
     // Transaction: Lead erstellen + Counter erhöhen atomar
     return await db.transaction(async (tx) => {
+      // Serialisiert Wiederholungen derselben Bewerbung; die bisherige
+      // Vorabprüfung allein war bei parallelen Formular-Requests nicht atomar.
+      if (insertLead.email) {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`lead:${insertLead.funnelId}:${insertLead.email.trim().toLowerCase()}`}))`);
+        const [recent] = await tx.select().from(leads).where(and(
+          eq(leads.funnelId, insertLead.funnelId),
+          sql`lower(${leads.email}) = ${insertLead.email.trim().toLowerCase()}`,
+          gte(leads.createdAt, new Date(Date.now() - 30_000)),
+        )).limit(1);
+        if (recent) return { ...this.mapLeadToResponse(recent), deduplicated: true };
+      }
       const [lead] = await tx.insert(leads).values({
         ...insertLead,
         userId,
+        status: "new",
         // Einwilligungsnachweis explizit persistieren (Art. 7 Abs. 1 DSGVO)
         marketingConsent: insertLead.marketingConsent ?? false,
         consentAt: insertLead.marketingConsent ? new Date() : null,
@@ -662,6 +675,7 @@ export class DatabaseStorage implements IStorage {
         .from(funnels)
         .where(eq(funnels.id, insertLead.funnelId));
 
+      await queueRecruitingEmails(tx, lead, "created");
       return this.mapLeadToResponse(lead, funnel?.name);
     });
   }
@@ -759,6 +773,8 @@ export class DatabaseStorage implements IStorage {
       message: lead.message,
       answers: lead.answers as Record<string, any> | null,
       status: lead.status as "new" | "contacted" | "qualified" | "converted" | "lost",
+      stageId: lead.stageId,
+      stageVersion: lead.stageVersion,
       source: lead.source,
       marketingConsent: lead.marketingConsent,
       consentAt: lead.consentAt ? lead.consentAt.toISOString() : null,

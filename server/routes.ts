@@ -49,6 +49,9 @@ import { resolveCustomDomainFunnel } from "./custom-domain";
 import { dailyVisitorHash, deriveReferrerHost, deriveDeviceClass, deriveCountry, isTrackablePath, isClientTrackableEvent } from "./tracking";
 import { encryptSecret, decryptSecret, last4 } from "./crypto";
 import { verifyDomainDns } from "./domain-verify";
+import { registerWorkspaceRoutes } from "./workspace-routes";
+import { registerRecruitingRoutes } from "./recruiting-routes";
+import { changeRecruitingStage, RecruitingError } from "./recruiting";
 import { generateFunnel, testConnection, AiError, type DecryptedCredential } from "./ai";
 import { z } from "zod";
 
@@ -185,12 +188,14 @@ const bugReportLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const updateLeadSchema = leadSchema.partial().omit({ id: true, uuid: true, funnelId: true, userId: true, createdAt: true, funnelName: true });
+const updateLeadSchema = leadSchema.partial().omit({ id: true, uuid: true, funnelId: true, userId: true, createdAt: true, funnelName: true, stageId: true, stageVersion: true }).extend({ expectedVersion: z.number().int().nonnegative().optional() });
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  registerWorkspaceRoutes(app);
+  registerRecruitingRoutes(app);
 
   // ============ SEO ============
 
@@ -1600,6 +1605,7 @@ export async function registerRoutes(
       const result = insertLeadSchema.safeParse({
         ...req.body,
         funnelId: funnel.id,
+        status: "new",
       });
 
       if (!result.success) {
@@ -1616,6 +1622,7 @@ export async function registerRoutes(
       }
 
       const lead = await storage.createLead(result.data, funnel.userId);
+      if (lead.deduplicated) return res.status(200).json({ success: true, id: lead.uuid, deduplicated: true });
       res.status(201).json({ success: true, id: lead.uuid });
 
       // Free-Plan-Sperre gilt für JEDEN Egress: Ein Lead über dem Monatslimit
@@ -1718,13 +1725,21 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Ungültige Update-Daten", details: result.error.errors });
       }
 
-      const lead = await storage.updateLead(leadId, userId, result.data);
+      const { status, expectedVersion, ...updates } = result.data;
+      if (status !== undefined) {
+        if (expectedVersion === undefined) return res.status(409).json({ error: "Bitte lade die Bewerberübersicht neu, bevor du den Status änderst.", code: "VERSION_REQUIRED" });
+        if (Object.keys(updates).length) return res.status(400).json({ error: "Status und Kontaktdaten bitte getrennt ändern." });
+        const lead = await changeRecruitingStage({ leadId, ownerId: userId, actorId: userId, stageId: status, expectedVersion });
+        return res.json(lead);
+      }
+      const lead = await storage.updateLead(leadId, userId, updates);
       if (!lead) {
         return res.status(404).json({ error: "Lead nicht gefunden" });
       }
       res.json(lead);
     } catch (error) {
       console.error("Update lead error:", error);
+      if (error instanceof RecruitingError) return res.status(error.status).json({ error: error.message, code: error.code });
       res.status(500).json({ error: "Lead konnte nicht aktualisiert werden" });
     }
   });

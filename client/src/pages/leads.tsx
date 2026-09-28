@@ -53,6 +53,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { GdprRequestDialog } from "@/components/leads/GdprRequestDialog";
+import { RecruitingBoard } from "@/components/recruiting/RecruitingBoard";
 import { useAuth } from "@/hooks/use-auth";
 import { FREE_MONTHLY_LEAD_LIMIT } from "@shared/schema";
 import type { Lead, Funnel } from "@shared/schema";
@@ -629,7 +630,8 @@ export default function Leads() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: Lead["status"] }) => {
-      await apiRequest("PATCH", `/api/leads/${id}`, { status });
+      const lead = leads?.find(item => item.id === id);
+      await apiRequest("PATCH", `/api/leads/${id}`, { status, expectedVersion: lead?.stageVersion ?? 0 });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
@@ -637,6 +639,10 @@ export default function Leads() {
         title: "Status aktualisiert",
         description: "Der Lead-Status wurde erfolgreich geändert.",
       });
+    },
+    onError: (error: Error) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({ title: "Status nicht geändert", description: error.message, variant: "destructive" });
     },
   });
 
@@ -739,6 +745,18 @@ export default function Leads() {
       </div>
 
       {/* Kanban Board — data-bug-mask, siehe LeadDetailDialog */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Label htmlFor="recruiting-funnel">Bewerberprozess</Label>
+        <Select value={funnelFilter} onValueChange={setFunnelFilter}>
+          <SelectTrigger id="recruiting-funnel" className="w-full sm:w-72"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Gesamtansicht aller Funnels</SelectItem>
+            {funnels?.map(funnel => <SelectItem key={funnel.id} value={String(funnel.id)}>{funnel.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        {funnelFilter === "all" && <p className="text-sm text-muted-foreground">Wähle einen Funnel für eigene Spalten, Drag-and-drop und automatische Bewerbermails.</p>}
+      </div>
+      {funnelFilter !== "all" ? <RecruitingBoard funnelId={Number(funnelFilter)} /> : (
       <div data-bug-mask className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2">
         {(Object.entries(statusLabels) as [Lead["status"], string][]).map(([status, label]) => {
           const columnLeads = filteredLeads.filter(l => l.status === status);
@@ -806,6 +824,7 @@ export default function Leads() {
           );
         })}
       </div>
+      )}
 
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-md">

@@ -17,6 +17,7 @@ export async function setupVite(server: Server, app: Express) {
 
   const vite = await createViteServer({
     ...viteConfig,
+    envDir: process.env.E2E_TEST_MODE === "1" ? false : viteConfig.envDir,
     configFile: false,
     customLogger: {
       ...viteLogger,

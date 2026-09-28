@@ -6,17 +6,12 @@ import { E2E_BASE_URL, E2E_DATABASE_URL, E2E_PORT } from "./tests-e2e/helpers/en
  *
  * Lokal ausführen:
  *   npm run test:e2e:install  # einmalig: Chromium herunterladen
- *   npm run test:e2e          # startet Server + E2E-DB automatisch
+ *   E2E_DATABASE_URL=postgresql://testuser@127.0.0.1:55437/funnelsoftware_e2e npm run test:e2e
  *
- * Voraussetzung lokal: ein laufendes PostgreSQL (Homebrew/Postgres.app). Die
- * Wegwerf-Datenbank `funnelsoftware_e2e` wird vom webServer-Command selbst
- * angelegt und migriert (scripts/e2e-ensure-db.mjs + drizzle-kit push) —
- * die eigene Dev-/Prod-DB wird nie angefasst. In CI übernimmt ein
+ * E2E_DATABASE_URL muss explizit auf eine lokale Wegwerf-Datenbank zeigen.
+ * Der Runner prüft das Ziel und startet mit einer eigenen Umgebung ohne .env.
+ * Fremde laufende Server werden nicht wiederverwendet. In CI übernimmt ein
  * Postgres-Service-Container die DB (siehe .github/workflows/ci.yml).
- *
- * PLAYWRIGHT_NO_SERVER=1 überspringt den verwalteten Server — dann muss der
- * Zielserver mit DERSELBEN Datenbank laufen wie E2E_DATABASE_URL, sonst lesen
- * die DB-Helper (Verifikations-Token, Lead-Checks) die falsche Datenbank.
  */
 export default defineConfig({
   testDir: "./tests-e2e",
@@ -36,33 +31,17 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: process.env.PLAYWRIGHT_NO_SERVER
-    ? undefined
-    : {
-        command: "npm run test:e2e:server",
-        url: E2E_BASE_URL,
-        reuseExistingServer: !process.env.CI,
-        // ensure-db + drizzle-kit push + Vite-Boot brauchen mehr als den Default.
-        timeout: 180_000,
-        env: {
-          DATABASE_URL: E2E_DATABASE_URL,
-          PORT: String(E2E_PORT),
-          // Stripe MUSS leer sein: mit konfiguriertem Stripe leitet /register
-          // hart zu Stripe Checkout um — der Browser verließe die App. Leere
-          // Strings überstimmen die lokale .env (dotenv überschreibt gesetzte
-          // Variablen nicht, auch leere nicht).
-          STRIPE_SECRET_KEY: "",
-          STRIPE_PRICE_ID: "",
-          STRIPE_WEBHOOK_SECRET: "",
-          // Ohne SMTP bleibt der Verifikations-Token nur in der DB — genau da
-          // holen ihn die Tests ab (helpers/db.ts).
-          SMTP_HOST: "",
-          SENTRY_DSN: "",
-          // Hintergrund-Jobs (Free-Downgrade) würden Testdaten während der
-          // Läufe verändern — im E2E-Server deshalb aus.
-          DISABLE_SCHEDULER: "1",
-          SESSION_SECRET: "e2e-session-secret",
-          CSRF_SECRET: "e2e-csrf-secret",
-        },
-      },
+  webServer: {
+    command: "npm run test:e2e:server",
+    url: `${E2E_BASE_URL}/api/health`,
+    reuseExistingServer: false,
+    gracefulShutdown: { signal: "SIGTERM", timeout: 10_000 },
+    // ensure-db + drizzle-kit push + Vite-Boot brauchen mehr als den Default.
+    timeout: 180_000,
+    env: {
+      E2E_DATABASE_URL,
+      E2E_PORT: String(E2E_PORT),
+      PLAYWRIGHT_BASE_URL: E2E_BASE_URL,
+    },
+  },
 });

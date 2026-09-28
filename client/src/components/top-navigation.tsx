@@ -14,6 +14,7 @@ const navItems = [
   { label: "Funnels", href: "/funnels" },
   { label: "Analytics", href: "/analytics" },
   { label: "Leads", href: "/leads" },
+  { label: "Kundenbereiche", href: "/workspaces" },
 ];
 
 export function TopNavigation() {
@@ -22,7 +23,7 @@ export function TopNavigation() {
 
   return (
     <header className="sticky top-0 z-50 bg-background border-b border-border">
-      <div className="max-w-screen-2xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
+      <div className="max-w-screen-2xl mx-auto px-4 min-h-14 flex flex-wrap items-center justify-between gap-x-4">
         {/* Left: Logo */}
         <Link href="/funnels" className="flex items-center gap-2 shrink-0">
           <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
@@ -32,15 +33,15 @@ export function TopNavigation() {
         </Link>
 
         {/* Center: Navigation */}
-        <nav className="flex items-center gap-1">
+        <nav aria-label="Hauptnavigation" className="order-last sm:order-none w-full sm:w-auto flex items-center gap-1 overflow-x-auto py-1">
           {navItems.map((item) => {
             const isActive =
-              location === item.href ||
+              location === item.href || location.startsWith(`${item.href}/`) ||
               (item.href === "/funnels" && location === "/");
             return (
               <Link key={item.href} href={item.href}>
                 <button
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                     isActive
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -54,7 +55,7 @@ export function TopNavigation() {
         </nav>
 
         {/* Right: New Funnel + User */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-3 shrink-0 py-2">
           {/* Einziger „Neuer Funnel"-Einstieg der App: Dashboard und Funnel-Liste
               hatten den Button zusätzlich im Seitenkopf — direkt unterhalb von
               diesem hier, was doppelt wirkte. Leere Listen führen weiter über
