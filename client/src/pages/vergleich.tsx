@@ -278,6 +278,19 @@ function ComparisonContent({ c }: { c: ComparisonPageContent }) {
             Preise und Features von {c.competitorName}: Stand {COMPETITOR_DATA_DATE}.
             Ohne Gewähr — aktuelle Details auf der Anbieter-Website.
           </p>
+          {c.slug === "perspective-alternative" && (
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              Domains, Bewerbermails, Status-Auslöser und Workspaces: Angaben nach der{" "}
+              <a
+                href="https://intercom.help/perspective-funnels/en/articles/15191355-which-features-are-included-in-the-plans"
+                className="underline hover:text-foreground"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                offiziellen Perspective-Funktionsübersicht
+              </a>.
+            </p>
+          )}
         </div>
       </section>
 

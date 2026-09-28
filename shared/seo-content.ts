@@ -21,6 +21,7 @@ import {
 } from "./seo-links";
 import { templateSeoPages } from "./template-meta";
 import { funnelBuilderFaqs, partnerFaqs } from "./seo-faqs";
+import { recruitingCapabilities, recruitingFaqs } from "./recruiting-content";
 import {
   renderAudienceHtml,
   renderComparisonHtml,
@@ -183,28 +184,28 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
   "perspective-alternative": {
     slug: "perspective-alternative",
     competitorName: "Perspective",
-    metaTitle: "Perspective-Alternative: alles inklusive für 49 €",
+    metaTitle: "Perspective-Alternative: Funktionen & Preise vergleichen",
     metaDescription:
-      "Perspective-Alternative gesucht? Trichterwerk: Mobile-Funnels mit A/B-Tests, Gratis-Plan, Pro 49 €/Monat — ohne Add-ons, ohne Lead-Gebühren.",
-    h1: "Die Perspective-Alternative: alles inklusive statt modularer Add-ons",
+      "Trichterwerk und Perspective vergleichen: Domains, Kanban, Bewerbermails und Kunden-Workspaces. Aktueller Funktionsumfang und Pro für 49 €/Monat.",
+    h1: "Trichterwerk und Perspective: Funktionen und Preise im Vergleich",
     intro: [
       "Perspective hat Mobile-Funnels im DACH-Raum populär gemacht — und ist ein gutes Tool. Aber das Preismodell ist modular: Der Base-Plan startet bei 59 € pro Monat (47 € bei Jahreszahlung), enthält aber nur 2 Live-Funnels und 100 Leads pro Monat. Zusatzfunktionen kommen als Add-on-Suiten für 67–84 € monatlich dazu, zusätzliche Leads kosten 0,25 € pro Kontakt — so wird aus dem Einstiegspreis schnell ein dreistelliger Monatsbetrag.",
       "Trichterwerk bietet als deutscher Funnel-Builder dieselbe Kernidee — mobile-optimierte, mehrstufige Funnels per Drag & Drop — für 49 € im Monat: mit unbegrenzten Funnels und Leads, A/B-Tests, eingebauten Analytics und eigener Domain. Ebenfalls DSGVO-konform mit EU-Hosting, ebenfalls auf Deutsch.",
     ],
     verdict:
-      "Kurz gesagt: Wer Mobile-First-Funnels wie bei Perspective will, aber einen kalkulierbaren Fixpreis statt Base-Plan plus Add-ons plus Lead-Gebühren, bekommt mit Trichterwerk alle Features — inklusive A/B-Tests und unbegrenzter Funnels — für 49 €. Free-Plan dauerhaft kostenlos, 14 Tage Pro ohne Kreditkarte.",
+      "Trichterwerk Pro bietet für 49 € pro Monat unbegrenzte Funnels und Leads, eigene Domains, A/B-Tests und ein Kanban-Board mit festen Spalten. Automatische Bewerberbestätigungen, E-Mails bei Statuswechseln und getrennte Kunden-Workspaces sind derzeit noch nicht verfügbar. Prüfe vor einem Wechsel, welche dieser Funktionen du brauchst.",
     painPoints: [
       {
         title: "Modulare Add-ons statt Festpreis",
-        text: "Der Base-Plan kostet 59 € pro Monat (47 € bei Jahreszahlung), deckt aber nur die Grundfunktionen ab: Erweiterungen wie Whitelabel oder Personalisierung gibt es als Add-on-Suiten für 67–84 € monatlich. Wer mehr will, landet im Grow-Plan für 184 €. Trichterwerk kostet 49 € — alle Features inklusive.",
+        text: "Perspective Base kostet 59 € pro Monat (47 € bei Jahreszahlung). Automatische Bewerbermails, Status-Auslöser und Workspaces sind bereits enthalten. Zusätzliche Premium-Funktionen gibt es über höhere Pläne oder Add-ons. Trichterwerk Pro kostet 49 € pro Monat; die Unterschiede bei Bewerbermails und Kundenbereichen siehst du in der Tabelle.",
       },
       {
         title: "Funnel- und Lead-Limits je Plan",
         text: "Base enthält 2 Live-Funnels und 100 Leads pro Monat; jeder weitere Lead kostet 0,25 €. Wer erfolgreich Kampagnen fährt, zahlt also pro Erfolg mit. Bei Trichterwerk sind Funnels und Leads unbegrenzt — der Preis bleibt gleich.",
       },
       {
-        title: "A/B-Tests erst ab dem Grow-Plan",
-        text: "Wer wissen will, welche Headline oder welches Angebot besser konvertiert, braucht A/B-Tests — bei Perspective gibt es sie erst ab Grow (184 €/Monat). Trichterwerk hat sie im 49-€-Plan eingebaut: Zwei Seiten-Varianten gegeneinander testen und datenbasiert entscheiden.",
+        title: "A/B-Tests im Tarifvergleich",
+        text: "Bei Perspective sind A/B-Tests ab Grow inklusive und im Base-Plan über das Advanced-Metrics-Add-on erhältlich. Trichterwerk hat sie im 49-€-Pro-Plan eingebaut: Zwei Seiten-Varianten gegeneinander testen und datenbasiert entscheiden.",
       },
     ],
     comparisonRows: [
@@ -212,12 +213,20 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       { label: "Hosting in der EU / DSGVO-konform", trichterwerk: true, competitor: true },
       { label: "Live-Handy-Vorschau im Editor", trichterwerk: true, competitor: true },
       { label: "Conditional Logic & Quiz", trichterwerk: true, competitor: true },
-      { label: "A/B-Tests", trichterwerk: true, competitor: "erst ab Grow (184 €)" },
-      { label: "Eigene Domain inklusive", trichterwerk: true, competitor: true },
-      { label: "Unbegrenzte Funnels & Leads", trichterwerk: true, competitor: "2–20 Funnels, dann 0,25 €/Lead" },
+      { label: "A/B-Tests", trichterwerk: true, competitor: "ab Grow inklusive; Base mit Add-on" },
+      ...recruitingCapabilities.map(({ label, comparison, id }) => ({
+        label,
+        trichterwerk: comparison,
+        competitor: id === "domains"
+          ? "Unbegrenzte Domains ab Base"
+          : id === "kanban"
+            ? "Ja, mit eigenen Statusstufen und Drag-and-drop"
+            : "Ja, ab Base",
+      })),
+      { label: "Unbegrenzte Funnels & Leads", trichterwerk: true, competitor: "Tarifabhängige Funnel- und Lead-Limits" },
       { label: "Analytics eingebaut (cookieless)", trichterwerk: true, competitor: true },
       { label: "Setup-Zeit bis Launch", trichterwerk: "< 1 h", competitor: "1–2 h" },
-      { label: "Monatspreis", trichterwerk: "49 €, alles inklusive", competitor: "ab 59 € + Add-ons (67–84 €)" },
+      { label: "Monatspreis", trichterwerk: "Pro: 49 €", competitor: "ab 59 € + optionale Add-ons" },
     ],
     featureSections: [
       {
@@ -226,11 +235,11 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         title: "A/B-Tests inklusive — ohne Plan-Upgrade",
-        text: "Bei Perspective gibt es A/B-Testing erst ab dem Grow-Plan für 184 € pro Monat. Trichterwerk bringt A/B-Tests im 49-€-Plan mit: Teste zwei Varianten einer Seite gegeneinander und finde heraus, welche Headline, welches Bild oder welches Angebot mehr Leads bringt — ohne Aufpreis.",
+        text: "Bei Perspective ist A/B-Testing ab Grow inklusive und im Base-Plan über das Advanced-Metrics-Add-on erhältlich. Trichterwerk bringt A/B-Tests im 49-€-Pro-Plan mit: Teste zwei Varianten einer Seite gegeneinander und finde heraus, welche Headline, welches Bild oder welches Angebot mehr Leads bringt — ohne Aufpreis.",
       },
       {
-        title: "Ein Plan, alle Features",
-        text: "49 € pro Monat, Punkt. Unbegrenzte Funnels, unbegrenzte Leads, alle Templates und Elemente, Conditional Logic, Analytics, eigene Domain, Webhooks. Du musst nie überlegen, ob ein Feature „in deinem Plan“ ist.",
+        title: "Das ist in Trichterwerk Pro enthalten",
+        text: "Für 49 € pro Monat erhältst du unbegrenzte Funnels und Leads, Templates und Elemente, Conditional Logic, Analytics, eigene Domains, Webhooks und das Kanban-Board. E-Mail-Benachrichtigungen informieren dich als Betreiber über neue Leads. Automatische Nachrichten an Bewerber und getrennte Kunden-Workspaces gehören derzeit noch nicht dazu.",
       },
       {
         title: "DSGVO-konform aus Deutschland",
@@ -241,12 +250,12 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       title: "Preisvergleich: Perspective vs. Trichterwerk",
       text: [
         "Perspective startet mit dem Base-Plan bei 59 € pro Monat (47 € bei Jahreszahlung) — bewusst schlank: 2 Live-Funnels und 100 Leads pro Monat sind enthalten, jeder weitere Lead kostet 0,25 €. Erweiterungen gibt es als Add-on-Suiten für 67–84 € monatlich; die größeren Pläne Grow und Expand liegen bei 184 € bzw. 369 € pro Monat.",
-        "Trichterwerk kostet 0 € im Free-Plan (1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar, alle Editor-Features) und 49 € pro Monat inklusive Mehrwertsteuer im Pro-Plan — alles inklusive, monatlich kündbar, 14 Tage Pro ohne Kreditkarte. Keine Add-ons, keine Lead-Gebühren, keine Funnel-Limits: Der Preis, den du siehst, ist der Preis, den du zahlst.",
+        "Trichterwerk kostet 0 € im Free-Plan (1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar, alle Editor-Features) und 49 € pro Monat inklusive Mehrwertsteuer im Pro-Plan. Pro umfasst unbegrenzte Funnels und Leads, Domains und A/B-Tests. Monatlich kündbar, 14 Tage Pro ohne Kreditkarte. Bewerbermails, Status-Automationen und Kunden-Workspaces sind noch nicht enthalten.",
       ],
     },
     honestSection: {
       title: "Wann Perspective trotzdem die bessere Wahl ist",
-      text: "Ehrlich verglichen: Perspective ist länger am Markt, hat ein größeres Template-Ökosystem und Features wie native Terminbuchung tief integriert. Große Agenturen mit hohem Budget und speziellen Workflow-Anforderungen sind dort gut aufgehoben. Wer dagegen schlanke, konvertierende Funnels zum fairen Preis will, fährt mit Trichterwerk besser.",
+      text: "Wenn du heute automatische Eingangsbestätigungen, Einladungen oder Absagen nach Statuswechsel und getrennte Kunden-Workspaces benötigst, bietet Perspective diese Funktionen bereits. Trichterwerk hat dafür noch keinen zugesagten Veröffentlichungstermin. Unser Kanban-Board arbeitet mit fünf festen Spalten und Statuswechsel per Menü; eigene Spalten und Drag-and-drop sind noch nicht enthalten.",
     },
     migrationSteps: [
       {
@@ -265,7 +274,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
     faqs: [
       {
         q: "Was kostet Perspective im Vergleich zu Trichterwerk?",
-        a: "Perspective startet im Base-Plan bei 59 € pro Monat (47 € bei Jahreszahlung) mit 2 Live-Funnels und 100 Leads/Monat; zusätzliche Leads kosten 0,25 €, Add-on-Suiten 67–84 € monatlich, die Pläne Grow und Expand 184 € bzw. 369 €. Trichterwerk kostet 49 € pro Monat mit allen Features, unbegrenzten Funnels und Leads. Beide sind monatlich kündbar.",
+        a: "Perspective startet im Base-Plan bei 59 € pro Monat (47 € bei Jahreszahlung) mit 2 Live-Funnels und 100 Leads pro Monat. Bewerberbestätigungen, Status-Mails und Workspaces sind bereits ab Base enthalten. Trichterwerk Pro kostet 49 € pro Monat mit unbegrenzten Funnels und Leads, Domains und A/B-Tests; diese drei Recruiting-Funktionen fehlen derzeit noch.",
       },
       {
         q: "Ist Trichterwerk wie Perspective DSGVO-konform?",
@@ -280,9 +289,10 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
         a: "Einen automatischen Import gibt es nicht, aber die Struktur (Seiten, Fragen, Formulare) ist in unter einer Stunde nachgebaut. Deine Bestands-Leads exportierst du bei Perspective als CSV.",
       },
       {
-        q: "Was hat Trichterwerk, das Perspective nicht hat?",
-        a: "Vor allem einen einzigen All-inclusive-Plan für 49 € statt Base-Plan plus kostenpflichtiger Add-ons und Lead-Gebühren — mit unbegrenzten Funnels, unbegrenzten Leads und A/B-Tests, die es bei Perspective erst ab dem Grow-Plan (184 €) gibt.",
+        q: "Für wen eignet sich Trichterwerk als Perspective-Alternative?",
+        a: "Für Nutzer, die mobile Funnels, unbegrenzte Leads, eigene Domains und A/B-Tests für 49 € pro Monat suchen und mit einer einfachen Kanban-Verwaltung arbeiten können. Wenn du automatische Bewerbermails oder getrennte Kunden-Workspaces brauchst, deckt Trichterwerk deinen Ablauf derzeit noch nicht vollständig ab.",
       },
+      ...recruitingFaqs,
     ],
     relatedSlugs: ["typeform-alternative", "clickfunnels-alternative"],
   },
@@ -1081,6 +1091,7 @@ export const audiencePagesContent: Record<string, AudiencePageContent> = {
         q: "Wie schnell ist ein Recruiting-Funnel live?",
         a: "Mit einer fertigen Vorlage in unter einer Stunde: Vorlage übernehmen, Texte und Farben anpassen, veröffentlichen. Die Vorlagen kannst du vorher live durchklicken — ohne Anmeldung.",
       },
+      ...recruitingFaqs,
     ],
   },
 
