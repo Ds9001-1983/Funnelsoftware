@@ -73,14 +73,15 @@ jobs:
       - name: Run E2E tests
         run: npm run test:e2e
 
-      - name: Recruiting and workspace database tests
+      - name: Database integration and migration tests
         env:
           DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
           WORKSPACE_TEST_DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
           RECRUITING_TEST_DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
           RECRUITING_MAIL_INTEGRATION: "1"
           MIGRATION_TEST_DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
-        run: npm run test:run -- server/recruiting.integration.test.ts server/workspaces.integration.test.ts server/recruiting-mail.integration.test.ts scripts/migrate.test.mjs
+          REVISION_TEST_DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
+        run: npm run test:run -- server/recruiting.integration.test.ts server/workspaces.integration.test.ts server/recruiting-mail.integration.test.ts server/funnel-revisions.integration.test.ts scripts/migrate.test.mjs
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

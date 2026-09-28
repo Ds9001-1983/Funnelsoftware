@@ -27,7 +27,7 @@ import {
   findBlockingSubscription,
   cancelAllSubscriptions,
 } from "./stripe";
-import { sendWebhook, buildWebhookPayload, generateWebhookSecret } from "./webhooks";
+import { sendWebhook, buildWebhookPayload } from "./webhooks";
 import { sendCapiEvent, extractCapiRequestContext, buildPurchaseEvent } from "./capi";
 import { TRICHTERWERK_PIXEL_ID } from "@shared/meta";
 import { aggregateAbTestStats } from "./ab-stats";
@@ -45,19 +45,21 @@ import { computeLockedLeadIds, maskLockedLeads, monthKeyUtc } from "./lead-limit
 import { seoStaticPages } from "@shared/seo-content";
 import { SITE_ORIGIN, sitemapStaticPaths } from "@shared/seo-links";
 import { isPlatformHost } from "@shared/platform-host";
-import { resolveCustomDomainFunnel } from "./custom-domain";
+import { resolveCustomDomainFunnel, clearCustomDomainCache } from "./custom-domain";
 import { dailyVisitorHash, deriveReferrerHost, deriveDeviceClass, deriveCountry, isTrackablePath, isClientTrackableEvent } from "./tracking";
 import { encryptSecret, decryptSecret, last4 } from "./crypto";
 import { verifyDomainDns } from "./domain-verify";
 import { registerWorkspaceRoutes } from "./workspace-routes";
 import { registerRecruitingRoutes } from "./recruiting-routes";
 import { changeRecruitingStage, RecruitingError } from "./recruiting";
+import { writeControlSchema } from "@shared/funnel-document";
+import { listFunnelRevisions, FunnelWriteError } from "./funnel-revisions";
 import { generateFunnel, testConnection, AiError, type DecryptedCredential } from "./ai";
 import { z } from "zod";
 
 // Partial update schemas for PATCH endpoints
 // views/leads sind server-verwaltete Zähler — nicht vom Client setzbar (Mass-Assignment)
-const updateFunnelSchema = funnelSchema.partial().omit({ id: true, uuid: true, userId: true, createdAt: true, updatedAt: true, views: true, leads: true });
+const updateFunnelSchema = funnelSchema.partial().omit({ id: true, uuid: true, userId: true, createdAt: true, updatedAt: true, views: true, leads: true, documentVersion: true, editVersion: true, publishedRevisionId: true, editorProtocol: true });
 
 /**
  * Leitet einen freien Benutzernamen aus einer E-Mail ab.
@@ -1057,6 +1059,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Ungültige Funnel-Daten", details: result.error.errors });
       }
 
+      if (result.data.status === "published") return res.status(400).json({ error: "Lege den Funnel zunächst als Entwurf an und veröffentliche den gespeicherten Stand." });
       if (await isOverFreePublishLimit(req.user, result.data.status)) {
         return res.status(403).json(freePublishLimitResponse);
       }
@@ -1085,33 +1088,17 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Ungültige Update-Daten", details: result.error.errors });
       }
 
-      // Konfliktschutz (zwei Tabs/Geräte): Schickt der Client den ihm
-      // bekannten Stand mit und der Server hat inzwischen einen neueren,
-      // würde Last-Write-Wins die fremden Änderungen still überschreiben.
-      const expectedUpdatedAt =
-        typeof req.body.expectedUpdatedAt === "string" ? req.body.expectedUpdatedAt : null;
-      if (expectedUpdatedAt) {
-        const current = await storage.getFunnel(funnelId, userId);
-        if (!current) {
-          return res.status(404).json({ error: "Funnel nicht gefunden" });
-        }
-        const serverTime = new Date(String(current.updatedAt)).getTime();
-        const clientTime = new Date(expectedUpdatedAt).getTime();
-        if (!isNaN(clientTime) && serverTime !== clientTime) {
-          return res.status(409).json({
-            error: "Der Funnel wurde zwischenzeitlich in einer anderen Sitzung geändert.",
-            code: "EDIT_CONFLICT",
-          });
-        }
-      }
-
-      // Auto-generate webhook secret when enabling webhook
-      if (result.data.webhookEnabled && !result.data.webhookSecret) {
-        const existingFunnel = await storage.getFunnel(funnelId, userId);
-        if (existingFunnel && !existingFunnel.webhookSecret) {
-          result.data.webhookSecret = generateWebhookSecret();
-        }
-      }
+      const protocol = writeControlSchema.safeParse(req.body);
+      if (!protocol.success && (req.body.expectedVersion !== undefined || req.body.documentVersion !== undefined || req.body.mutationId !== undefined)) return res.status(409).json({
+        error: "Diese Editorversion kann nicht mehr speichern. Sichere deinen lokalen Entwurf und lade den Editor neu.",
+        code: "EDITOR_UPDATE_REQUIRED",
+      });
+      // Bereits gespeicherte Zusatzfelder innerhalb alter Dokumente erhalten.
+      // Die bekannten Felder wurden oben validiert; unbekannte Daten bleiben
+      // unangetastet, bis eine ausdrückliche Dokumentmigration erfolgt.
+      if (result.data.pages) result.data.pages = req.body.pages;
+      if (result.data.theme) result.data.theme = req.body.theme;
+      if (result.data.abTests) result.data.abTests = req.body.abTests;
 
       // Validate slug if provided
       if (result.data.slug !== undefined && result.data.slug !== null) {
@@ -1147,10 +1134,11 @@ export async function registerRoutes(
       }
 
       try {
-        const funnel = await storage.updateFunnel(funnelId, userId, result.data);
+        const funnel = await storage.updateFunnel(funnelId, userId, result.data, protocol.success ? protocol.data : undefined, typeof req.body.expectedUpdatedAt === "string" ? req.body.expectedUpdatedAt : undefined);
         if (!funnel) {
           return res.status(404).json({ error: "Funnel nicht gefunden" });
         }
+        clearCustomDomainCache();
         res.json(funnel);
       } catch (dbError: any) {
         // Handle unique constraint violation (slug already taken - race condition)
@@ -1160,8 +1148,29 @@ export async function registerRoutes(
         throw dbError;
       }
     } catch (error) {
-      console.error("Update funnel error:", error);
+      if (error instanceof FunnelWriteError) return res.status(error.status).json({ error: error.message, code: error.code });
+      console.error("Update funnel error:", error instanceof Error ? error.name : "unknown");
       res.status(500).json({ error: "Funnel konnte nicht aktualisiert werden" });
+    }
+  });
+
+  app.get("/api/funnels/:id/revisions", isAuthenticated, async (req, res) => {
+    try { res.json(await listFunnelRevisions(Number(req.params.id), getUserId(req)!)); }
+    catch (error) {
+      if (error instanceof FunnelWriteError) return res.status(error.status).json({ error: error.message, code: error.code });
+      res.status(500).json({ error: "Versionen konnten nicht geladen werden." });
+    }
+  });
+  app.post("/api/funnels/:id/revisions/:revisionId/restore", isAuthenticated, async (req, res) => {
+    try {
+      const control = writeControlSchema.omit({ publish: true }).strict().parse(req.body);
+      const funnel = await storage.restoreFunnelRevision(Number(req.params.id), getUserId(req)!, Number(req.params.revisionId), control);
+      if (!funnel) return res.status(404).json({ error: "Funnel nicht gefunden" });
+      res.json(funnel);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Ungültige Eingabe" });
+      if (error instanceof FunnelWriteError) return res.status(error.status).json({ error: error.message, code: error.code });
+      res.status(500).json({ error: "Version konnte nicht wiederhergestellt werden." });
     }
   });
 
@@ -1212,7 +1221,7 @@ export async function registerRoutes(
           funnel?.status === "published" &&
           (await isOverFreePublishLimit(req.user, "published", funnelId))
         ) {
-          await storage.updateFunnel(funnelId, userId, { status: "draft" });
+          await storage.unpublishRestoredFunnel(funnelId, userId);
           demotedToDraft = true;
         }
       }

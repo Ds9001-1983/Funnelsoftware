@@ -2,8 +2,10 @@ import { eq, desc, and, sql, gte, lt, inArray } from "drizzle-orm";
 import { quizTemplateElement } from "@shared/quiz-template";
 import { db } from "./db";
 import { queueRecruitingEmails } from "./recruiting";
+import { publishedDocument, writeFunnel } from "./funnel-revisions";
+import { documentFromFunnel, type WriteControl } from "@shared/funnel-document";
 import {
-  users, funnels, leads, templates, analyticsEvents, passwordResetTokens,
+  users, funnels, funnelRevisions, leads, templates, analyticsEvents, passwordResetTokens,
   teams, teamMembers, apiKeys, domains, platformVisits, aiCredentials, emailLog,
   bugReports,
   type User, type InsertUser, type Funnel, type InsertFunnel,
@@ -125,7 +127,9 @@ export interface IStorage {
   getPublishedFunnelsForSitemap(): Promise<{ slug: string | null; uuid: string; updatedAt: Date }[]>;
   isSlugAvailable(slug: string, excludeFunnelId?: number): Promise<boolean>;
   createFunnel(funnel: InsertFunnel, userId: number): Promise<Funnel>;
-  updateFunnel(id: number, userId: number, funnel: Partial<Funnel>): Promise<Funnel | undefined>;
+  updateFunnel(id: number, userId: number, funnel: Partial<Funnel>, control?: WriteControl, expectedUpdatedAt?: string): Promise<Funnel | undefined>;
+  restoreFunnelRevision(id: number, userId: number, revisionId: number, control: WriteControl): Promise<Funnel | undefined>;
+  unpublishRestoredFunnel(id: number, userId: number): Promise<void>;
   setCapiError(funnelId: number, error: string | null): Promise<void>;
   deleteFunnel(id: number, userId: number): Promise<boolean>;
 
@@ -441,13 +445,13 @@ export class DatabaseStorage implements IStorage {
   async getFunnelByUuid(uuid: string): Promise<Funnel | undefined> {
     const [funnel] = await db.select().from(funnels)
       .where(and(eq(funnels.uuid, uuid), sql`${funnels.deletedAt} IS NULL`));
-    return funnel ? this.mapFunnelToResponse(funnel) : undefined;
+    return funnel ? publishedDocument(this.mapFunnelToResponse(funnel)) : undefined;
   }
 
   async getFunnelBySlug(slug: string): Promise<Funnel | undefined> {
     const [funnel] = await db.select().from(funnels)
       .where(and(eq(funnels.slug, slug), sql`${funnels.deletedAt} IS NULL`));
-    return funnel ? this.mapFunnelToResponse(funnel) : undefined;
+    return funnel ? publishedDocument(this.mapFunnelToResponse(funnel)) : undefined;
   }
 
   async getFunnelBySlugOrUuid(identifier: string): Promise<Funnel | undefined> {
@@ -480,54 +484,39 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFunnel(insertFunnel: InsertFunnel, userId: number): Promise<Funnel> {
-    const [funnel] = await db.insert(funnels).values({
-      userId,
-      name: insertFunnel.name,
-      description: insertFunnel.description || null,
-      status: insertFunnel.status || "draft",
-      pages: insertFunnel.pages || [],
-      theme: insertFunnel.theme || {
-        primaryColor: "#7C3AED",
-        backgroundColor: "#ffffff",
-        textColor: "#1a1a1a",
-        fontFamily: "Inter",
-      },
-    }).returning();
+    return db.transaction(async tx => {
+      const [funnel] = await tx.insert(funnels).values({
+        userId,
+        name: insertFunnel.name,
+        description: insertFunnel.description || null,
+        status: "draft",
+        pages: insertFunnel.pages || [],
+        theme: insertFunnel.theme || {
+          primaryColor: "#7C3AED",
+          backgroundColor: "#ffffff",
+          textColor: "#1a1a1a",
+          fontFamily: "Inter",
+        },
+      }).returning();
 
-    return this.mapFunnelToResponse(funnel);
+      const mapped = this.mapFunnelToResponse(funnel);
+      await tx.insert(funnelRevisions).values({ funnelId: funnel.id, version: 0, action: "initial", content: documentFromFunnel(mapped), actorId: userId });
+      return mapped;
+    });
   }
 
-  async updateFunnel(id: number, userId: number, updates: Partial<Funnel>): Promise<Funnel | undefined> {
-    // Only allow updating specific fields
-    const updateData: Record<string, any> = {};
-    if (updates.name !== undefined) updateData.name = updates.name;
-    if (updates.description !== undefined) updateData.description = updates.description;
-    if (updates.slug !== undefined) updateData.slug = updates.slug;
-    if (updates.status !== undefined) updateData.status = updates.status;
-    if (updates.pages !== undefined) updateData.pages = updates.pages;
-    if (updates.theme !== undefined) updateData.theme = updates.theme;
-    if (updates.abTests !== undefined) updateData.abTests = updates.abTests;
-    if (updates.webhookUrl !== undefined) updateData.webhookUrl = updates.webhookUrl;
-    if (updates.webhookEnabled !== undefined) updateData.webhookEnabled = updates.webhookEnabled;
-    if (updates.webhookSecret !== undefined) updateData.webhookSecret = updates.webhookSecret;
-    if (updates.gtmId !== undefined) updateData.gtmId = updates.gtmId;
-    // Meta-CAPI-Einstellungen (wurden bisher verschluckt → CAPI feuerte nie).
-    if (updates.metaPixelId !== undefined) updateData.metaPixelId = updates.metaPixelId;
-    if (updates.metaCapiToken !== undefined) updateData.metaCapiToken = updates.metaCapiToken;
-    if (updates.capiEnabled !== undefined) updateData.capiEnabled = updates.capiEnabled;
-    if (updates.impressumUrl !== undefined) updateData.impressumUrl = updates.impressumUrl;
-    if (updates.datenschutzUrl !== undefined) updateData.datenschutzUrl = updates.datenschutzUrl;
-    // views/leads bewusst NICHT übernehmbar: server-verwaltete Zähler,
-    // werden ausschließlich intern per SQL-Inkrement geschrieben.
+  async restoreFunnelRevision(id: number, userId: number, revisionId: number, control: WriteControl): Promise<Funnel | undefined> {
+    const row = await writeFunnel(id, userId, {}, control, revisionId);
+    return row ? this.mapFunnelToResponse(row) : undefined;
+  }
 
-    updateData.updatedAt = new Date();
+  async unpublishRestoredFunnel(id: number, userId: number): Promise<void> {
+    await db.update(funnels).set({ status: "draft", updatedAt: new Date() }).where(and(eq(funnels.id, id), eq(funnels.userId, userId)));
+  }
 
-    const [funnel] = await db.update(funnels)
-      .set(updateData)
-      .where(and(eq(funnels.id, id), eq(funnels.userId, userId)))
-      .returning();
-
-    return funnel ? this.mapFunnelToResponse(funnel) : undefined;
+  async updateFunnel(id: number, userId: number, updates: Partial<Funnel>, control?: WriteControl, expectedUpdatedAt?: string): Promise<Funnel | undefined> {
+    const row = await writeFunnel(id, userId, updates, control, undefined, expectedUpdatedAt);
+    return row ? this.mapFunnelToResponse(row) : undefined;
   }
 
   /**
@@ -559,6 +548,10 @@ export class DatabaseStorage implements IStorage {
       name: funnel.name,
       description: funnel.description,
       status: funnel.status as "draft" | "published" | "archived",
+      documentVersion: funnel.documentVersion,
+      editVersion: funnel.editVersion,
+      editorProtocol: funnel.editorProtocol,
+      publishedRevisionId: funnel.publishedRevisionId,
       pages: funnel.pages as FunnelPage[],
       theme: funnel.theme as Theme,
       abTests: (funnel.abTests as ABTest[] | null) ?? [],
