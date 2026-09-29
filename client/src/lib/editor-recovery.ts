@@ -24,8 +24,9 @@ export function clearRecovery(funnel: Funnel) {
 export function clearAllEditorRecovery() {
   try { Object.keys(localStorage).filter(key => key.startsWith(prefix)).forEach(key => localStorage.removeItem(key)); } catch { /* storage unavailable */ }
 }
-export function downloadRecovery(funnel: Partial<Funnel>) {
-  const url = URL.createObjectURL(new Blob([JSON.stringify(documentFromFunnel(funnel), null, 2)], { type: "application/json" }));
+export function downloadRecovery(funnel: Partial<Funnel> | FunnelDocument) {
+  const source = "version" in funnel ? { ...funnel, documentVersion: funnel.version } : funnel;
+  const url = URL.createObjectURL(new Blob([JSON.stringify(documentFromFunnel(source), null, 2)], { type: "application/json" }));
   const link = document.createElement("a"); link.href = url; link.download = "funnel-inhaltssicherung.json"; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

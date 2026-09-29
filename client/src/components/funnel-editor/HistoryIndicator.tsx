@@ -34,6 +34,7 @@ export function HistoryIndicator({
             size="icon"
             className="h-8 w-8"
             onClick={onUndo}
+            aria-label="Rückgängig"
             disabled={!canUndo}
           >
             <Undo2 className="h-4 w-4" />
@@ -50,6 +51,7 @@ export function HistoryIndicator({
             size="icon"
             className="h-8 w-8"
             onClick={onRedo}
+            aria-label="Wiederholen"
             disabled={!canRedo}
           >
             <Redo2 className="h-4 w-4" />

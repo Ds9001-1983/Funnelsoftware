@@ -3,6 +3,7 @@ import { quizTemplateElement } from "@shared/quiz-template";
 import { db } from "./db";
 import { queueRecruitingEmails } from "./recruiting";
 import { publishedDocument, writeFunnel } from "./funnel-revisions";
+import { needsLayoutDocument } from "@shared/funnel-layout";
 import { documentFromFunnel, type WriteControl } from "@shared/funnel-document";
 import {
   users, funnels, funnelRevisions, leads, templates, analyticsEvents, passwordResetTokens,
@@ -490,6 +491,8 @@ export class DatabaseStorage implements IStorage {
         name: insertFunnel.name,
         description: insertFunnel.description || null,
         status: "draft",
+        documentVersion: needsLayoutDocument(insertFunnel.pages, insertFunnel.theme, insertFunnel.abTests) ? 2 : (insertFunnel.documentVersion ?? 1),
+        abTests: insertFunnel.abTests ?? [],
         pages: insertFunnel.pages || [],
         theme: insertFunnel.theme || {
           primaryColor: "#7C3AED",

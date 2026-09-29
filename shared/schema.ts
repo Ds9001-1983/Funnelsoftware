@@ -808,6 +808,24 @@ export const pageConditionSchema = z.object({
 
 export type PageCondition = z.infer<typeof pageConditionSchema>;
 
+// Layout v1 references the canonical flat element list. No duplicated content.
+export const pageLayoutSchema = z.object({
+  version: z.literal(1),
+  width: z.enum(["narrow", "wide", "full"]).default("wide"),
+  sections: z.array(z.object({
+    id: z.string().min(1).max(100),
+    name: z.string().max(100).optional(),
+    columns: z.array(z.object({
+      id: z.string().min(1).max(100), elementIds: z.array(z.string().min(1)).max(500),
+    })).min(1).max(3),
+    backgroundColor: z.string().max(80).optional(),
+    textColor: z.string().max(80).optional(),
+    padding: z.number().min(0).max(96).optional(),
+    gap: z.number().min(0).max(64).optional(),
+  })).max(100),
+});
+export type PageLayout = z.infer<typeof pageLayoutSchema>;
+
 // Funnel page schema - Extended with sections support
 export const funnelPageSchema = z.object({
   id: z.string(),
@@ -816,7 +834,8 @@ export const funnelPageSchema = z.object({
   subtitle: z.string().optional(),
   // Legacy flat elements array (backward compatible)
   elements: z.array(pageElementSchema),
-  // New: Sections with columns for flexible layouts (OpenFunnels style)
+  layout: pageLayoutSchema.optional(),
+  // Legacy sections remain opaque until explicitly converted.
   sections: z.array(sectionSchema).optional(),
   // Use sections mode or flat elements mode
   useAdvancedLayout: z.boolean().optional(),
@@ -855,6 +874,7 @@ export const abTestVariantSchema = z.object({
   elements: z.array(pageElementSchema).optional(),
   backgroundColor: z.string().optional(),
   buttonText: z.string().optional(),
+  layout: pageLayoutSchema.optional(),
   // Traffic allocation percentage (0-100)
   trafficAllocation: z.number().min(0).max(100).default(50),
   // Variant-specific metrics
@@ -892,8 +912,18 @@ export const abTestSchema = z.object({
 
 export type ABTest = z.infer<typeof abTestSchema>;
 
+export const designTokensSchema = z.object({
+  version: z.literal(1),
+  headingSize: z.number().min(20).max(64),
+  bodySize: z.number().min(14).max(24),
+  radius: z.number().min(0).max(32),
+  spacing: z.number().min(8).max(48),
+  buttonStyle: z.enum(["solid", "outline", "soft"]),
+});
+
 // Theme schema
 export const themeSchema = z.object({
+  design: designTokensSchema.optional(),
   primaryColor: z.string(),
   backgroundColor: z.string(),
   textColor: z.string(),
@@ -1070,6 +1100,7 @@ export type Funnel = z.infer<typeof funnelSchema>;
 
 // Insert funnel schema
 export const insertFunnelSchema = z.object({
+  documentVersion: z.union([z.literal(1), z.literal(2)]).optional(),
   name: z.string().min(1, "Name ist erforderlich"),
   description: z.string().optional(),
   slug: slugSchema.optional(),

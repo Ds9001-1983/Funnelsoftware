@@ -27,7 +27,8 @@ import {
   UserRound,
   Settings,
 } from "lucide-react";
-import type { PageElement, Section } from "@shared/schema";
+import type { PageElement, Section, Theme } from "@shared/schema";
+import { designButtonStyle } from "@shared/funnel-layout";
 import { ElementWrapper, elementTypeLabels } from "./ElementWrapper";
 import { FormFieldWithValidation } from "./FormFieldWithValidation";
 import { InlineEditable } from "./InlineEditable";
@@ -204,6 +205,7 @@ export interface ElementActions {
 
 interface ElementPreviewRendererProps extends ElementActions {
   element: PageElement;
+  design?: Theme["design"];
   textColor: string;
   primaryColor: string;
   selectedElementId?: string | null;
@@ -221,6 +223,7 @@ interface ElementPreviewRendererProps extends ElementActions {
  */
 function ElementPreviewRendererBase({
   element: el,
+  design,
   textColor,
   primaryColor,
   selectedElementId,
@@ -288,6 +291,7 @@ function ElementPreviewRendererBase({
             value={formValues[el.id] || ""}
             onChange={(value) => updateFormValue?.(el.id, value)}
             className="shadow-sm"
+            style={design ? { borderRadius: el.styles?.borderRadius ?? design.radius, fontSize: el.styles?.fontSize ?? design.bodySize } : undefined}
           />
         </ElementWrapper>
       );
@@ -683,7 +687,7 @@ function ElementPreviewRendererBase({
     case "heading": {
       const headingStyle = {
         color: el.styles?.color || textColor,
-        fontSize: el.styles?.fontSize || "1.25rem",
+        fontSize: el.styles?.fontSize || design?.headingSize || "1.25rem",
         fontWeight: el.styles?.fontWeight || "bold",
         fontStyle: el.styles?.fontStyle || "normal",
         textAlign: (el.styles?.textAlign as "left" | "center" | "right") || "center",
@@ -715,7 +719,7 @@ function ElementPreviewRendererBase({
     case "text": {
       const textStyle = {
         color: el.styles?.color || textColor,
-        fontSize: el.styles?.fontSize || "0.875rem",
+        fontSize: el.styles?.fontSize || design?.bodySize || "0.875rem",
         fontWeight: el.styles?.fontWeight || "normal",
         fontStyle: el.styles?.fontStyle || "normal",
         textAlign: (el.styles?.textAlign as "left" | "center" | "right") || "center",
@@ -855,10 +859,18 @@ function ElementPreviewRendererBase({
           ? "bg-transparent text-primary hover:bg-primary/10"
           : "bg-primary text-white"
       }`;
-      const btnStyle =
+      const legacyBtnStyle =
         el.buttonVariant === "primary" || !el.buttonVariant
           ? { backgroundColor: primaryColor }
           : undefined;
+      const btnStyle = design ? {
+        ...(!el.buttonVariant ? designButtonStyle(primaryColor, design)
+          : el.buttonVariant === "primary" || el.buttonVariant === "outline"
+            ? designButtonStyle(primaryColor, { ...design, buttonStyle: el.buttonVariant === "primary" ? "solid" : "outline" })
+            : { borderRadius: design.radius, fontSize: design.bodySize }),
+        ...Object.fromEntries(Object.entries(el.styles ?? {}).filter(([key]) =>
+          ["color", "backgroundColor", "fontSize", "borderRadius", "padding"].includes(key))),
+      } : legacyBtnStyle;
       const handleClick = (e: React.MouseEvent) => {
         if (!onButtonClick) return;
         e.stopPropagation();

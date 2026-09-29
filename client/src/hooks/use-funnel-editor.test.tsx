@@ -56,6 +56,47 @@ function createWrapper(seedFunnel: Funnel = sampleFunnel) {
 }
 
 describe("useFunnelEditor", () => {
+  it("erkennt gespeicherte Inhalte trotz anders sortierter JSON-Schlüssel der Datenbank", async () => {
+    const { result } = renderHook(() => useFunnelEditor("1", true), { wrapper: createWrapper(sampleFunnel) });
+    await waitFor(() => expect(result.current.localFunnel).not.toBeNull());
+    act(() => result.current.updatePage(0, { title: "Gespeichert", layout: { version: 1, width: "wide", sections: [{ id: "s", columns: [{ id: "c", elementIds: [] }] }] } }));
+    const saved = JSON.parse(JSON.stringify({ ...result.current.localFunnel!, documentVersion: 2, editVersion: 1 }, (_key, value) => value && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value).reverse()) : value));
+    vi.mocked(apiRequest).mockResolvedValueOnce({ json: async () => saved } as Response);
+    await act(async () => { await result.current.saveCurrent(); });
+    expect(result.current.hasChanges).toBe(false);
+    expect(result.current.saveStatus).toBe("saved");
+    expect(localStorage.getItem("tw-editor-recovery:1:1")).toBeNull();
+  });
+
+  it("speichert neue Layouts mit v2 und behält die Serverversion bei Undo/Redo", async () => {
+    const { result } = renderHook(() => useFunnelEditor("1", true), { wrapper: createWrapper({ ...sampleFunnel, documentVersion: 1 }) });
+    await waitFor(() => expect(result.current.localFunnel).not.toBeNull());
+    const layout: NonNullable<FunnelPage["layout"]> = { version: 1, width: "wide", sections: [{ id: "s", columns: [{ id: "c", elementIds: [] }] }] };
+    act(() => result.current.updatePage(0, { layout }));
+    expect(JSON.parse(localStorage.getItem("tw-editor-recovery:1:1")!).version).toBe(2);
+    const saved = { ...result.current.localFunnel!, documentVersion: 2, editVersion: 1 };
+    vi.mocked(apiRequest).mockResolvedValueOnce({ json: async () => saved } as Response);
+    await act(async () => { await result.current.saveCurrent(); });
+    expect(apiRequest).toHaveBeenLastCalledWith("PATCH", "/api/funnels/1", expect.objectContaining({ documentVersion: 2 }));
+    act(() => result.current.undo());
+    expect(result.current.localFunnel?.pages[0].layout).toBeUndefined();
+    expect(result.current.localFunnel?.documentVersion).toBe(2);
+    act(() => result.current.redo());
+    expect(result.current.localFunnel?.pages[0].layout).toEqual(layout);
+    expect(result.current.localFunnel?.documentVersion).toBe(2);
+  });
+
+  it("öffnet neuere Dokumente ohne Schreibzugriffe und bewahrt ihre lokale Sicherung", async () => {
+    const readOnly = { ...sampleFunnel, documentVersion: 2 };
+    const recoveryKey = `tw-editor-recovery:${readOnly.userId}:${readOnly.id}`;
+    localStorage.setItem(recoveryKey, "Sicherung einer neueren Editorversion");
+    const { result } = renderHook(() => useFunnelEditor("1"), { wrapper: createWrapper(readOnly) });
+    await waitFor(() => expect(result.current.localFunnel?.documentVersion).toBe(2));
+    await expect(result.current.saveCurrent()).rejects.toThrow("nur angesehen");
+    expect(apiRequest).not.toHaveBeenCalled();
+    expect(localStorage.getItem(recoveryKey)).toBe("Sicherung einer neueren Editorversion");
+  });
+
   it("lädt den Funnel und initialisiert localFunnel + History", async () => {
     const { result } = renderHook(() => useFunnelEditor("1"), {
       wrapper: createWrapper(),

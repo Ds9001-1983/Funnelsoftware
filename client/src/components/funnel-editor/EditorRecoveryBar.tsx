@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { downloadRecovery } from "@/lib/editor-recovery";
-import { DOCUMENT_VERSION, documentFromFunnel, type FunnelDocument } from "@shared/funnel-document";
+import { documentFromFunnel, type FunnelDocument } from "@shared/funnel-document";
 import type { Funnel } from "@shared/schema";
 
 export function EditorRecoveryBar({ funnel, recovery, conflict, unavailable, onDiscard }: {
@@ -22,9 +22,9 @@ export function EditorRecoveryBar({ funnel, recovery, conflict, unavailable, onD
     <Button variant="outline" size="sm" disabled={busy} onClick={async () => {
       setBusy(true); setError("");
       try {
-        const created: Funnel = await (await apiRequest("POST", "/api/funnels", { ...content, description: content.description ?? undefined, name: `${content.name} (Sicherung)`, status: "draft" })).json();
+        const created: Funnel = await (await apiRequest("POST", "/api/funnels", { ...content, documentVersion: content.version, description: content.description ?? undefined, name: `${content.name} (Sicherung)`, status: "draft" })).json();
         const { version: _, ...fields } = content;
-        await apiRequest("PATCH", `/api/funnels/${created.id}`, { ...fields, name: created.name, expectedVersion: created.editVersion, documentVersion: DOCUMENT_VERSION, mutationId: crypto.randomUUID() });
+        await apiRequest("PATCH", `/api/funnels/${created.id}`, { ...fields, name: created.name, expectedVersion: created.editVersion, documentVersion: content.version, mutationId: crypto.randomUUID() });
         onDiscard(); navigate(`/funnels/${created.id}`);
       } catch { setError("Die Kopie konnte nicht vollständig gesichert werden. Deine lokalen Daten bleiben erhalten."); }
       finally { setBusy(false); }

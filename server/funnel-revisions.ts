@@ -2,7 +2,8 @@ import { createHash, randomUUID, randomBytes } from "node:crypto";
 import { and, desc, eq, lt, sql } from "drizzle-orm";
 import { db } from "./db";
 import { funnels, funnelRevisions, users, FREE_MAX_PUBLISHED_FUNNELS, type Funnel } from "@shared/schema";
-import { documentFromFunnel, documentSchema, DOCUMENT_VERSION, type WriteControl, type FunnelRevisionSummary, type FunnelDocument } from "@shared/funnel-document";
+import { documentFromFunnel, documentSchema, documentVersionSchema, DOCUMENT_VERSION, type WriteControl, type FunnelRevisionSummary, type FunnelDocument } from "@shared/funnel-document";
+import { documentLayoutErrors, documentReferenceErrors, needsLayoutDocument } from "@shared/funnel-layout";
 import { hasProFeatures } from "./auth";
 
 type FunnelRow = typeof funnels.$inferSelect;
@@ -34,7 +35,7 @@ export async function writeFunnel(id: number, userId: number, updates: Partial<F
       expectedVersion: current.editVersion, documentVersion: DOCUMENT_VERSION,
       mutationId: randomUUID(), publish: (updates.status ?? current.status) === "published",
     };
-    if (current.documentVersion !== DOCUMENT_VERSION || control.documentVersion !== DOCUMENT_VERSION) throw new FunnelWriteError(409, "Dieser Dokumentstand benötigt eine neuere Editorversion.", "EDITOR_UPDATE_REQUIRED");
+    if (!documentVersionSchema.safeParse(current.documentVersion).success || !documentVersionSchema.safeParse(control.documentVersion).success || control.documentVersion < current.documentVersion) throw new FunnelWriteError(409, "Dieser Dokumentstand benötigt eine neuere Editorversion.", "EDITOR_UPDATE_REQUIRED");
     const digest = fingerprint({ updates, control: { expectedVersion: control.expectedVersion, documentVersion: control.documentVersion, publish: !!control.publish }, restoreId });
     const [receipt] = await tx.select().from(funnelRevisions).where(and(eq(funnelRevisions.funnelId, id), eq(funnelRevisions.mutationId, control.mutationId)));
     if (receipt && receipt.fingerprint !== digest) throw new FunnelWriteError(409, "Diese Anfrage wurde bereits mit anderem Inhalt verwendet.");
@@ -49,15 +50,21 @@ export async function writeFunnel(id: number, userId: number, updates: Partial<F
       const [revision] = await tx.select().from(funnelRevisions).where(and(eq(funnelRevisions.id, restoreId), eq(funnelRevisions.funnelId, id)));
       if (!revision) throw new FunnelWriteError(404, "Version nicht gefunden");
       const content = revision.content as FunnelDocument;
-      if (content.version !== DOCUMENT_VERSION) throw new FunnelWriteError(409, "Diese Version kann mit diesem Editor nicht wiederhergestellt werden.");
+      if (!documentVersionSchema.safeParse(content.version).success || content.version > control.documentVersion) throw new FunnelWriteError(409, "Diese Version kann mit diesem Editor nicht wiederhergestellt werden.", "EDITOR_UPDATE_REQUIRED");
       const { version: _, ...restored } = content;
       Object.assign(values, restored, {
+        documentVersion: Math.max(current.documentVersion, content.version),
         // Alte laufende Tests werden als pausierter Entwurf wiederhergestellt;
         // bestehende Messereignisse und der laufende Live-Stand bleiben bestehen.
         abTests: (content.abTests ?? []).map(test => ({ ...test, status: test.status === "running" ? "paused" : test.status })),
       });
     }
     const candidate = { ...current, ...values } as FunnelRow;
+    if (needsLayoutDocument(candidate.pages as Funnel["pages"], candidate.theme as Funnel["theme"], candidate.abTests as Funnel["abTests"])) {
+      if (control.documentVersion < 2) throw new FunnelWriteError(409, "Dieses Layout benötigt die neue Editorversion.", "EDITOR_UPDATE_REQUIRED");
+      values.documentVersion = 2;
+      candidate.documentVersion = 2;
+    }
     const content = snapshot(candidate);
     if (control.publish) {
       const [owner] = await tx.select().from(users).where(and(eq(users.id, userId), sql`${users.deletedAt} IS NULL`));
@@ -67,6 +74,10 @@ export async function writeFunnel(id: number, userId: number, updates: Partial<F
         if (count >= FREE_MAX_PUBLISHED_FUNNELS) throw new FunnelWriteError(403, "Dein Free-Plan erlaubt einen veröffentlichten Funnel.", "FREE_LIMIT_REACHED");
       }
       if (!documentSchema.safeParse(content).success || !content.pages.length) throw new FunnelWriteError(400, "Bitte prüfe den Inhalt vor der Veröffentlichung.", "INVALID_DOCUMENT");
+      const layoutErrors = documentLayoutErrors(content.pages, content.abTests);
+      if (layoutErrors.length) throw new FunnelWriteError(400, layoutErrors.slice(0, 5).join(" "), "INVALID_LAYOUT");
+      const referenceErrors = content.version >= 2 ? documentReferenceErrors(content.pages, content.abTests) : [];
+      if (referenceErrors.length) throw new FunnelWriteError(400, referenceErrors.slice(0, 5).join(" "), "INVALID_REFERENCES");
       values.status = "published";
     }
     let publishedRevisionId = current.publishedRevisionId;
@@ -94,8 +105,8 @@ export async function publishedDocument(funnel: Funnel): Promise<Funnel | undefi
   const [revision] = await db.select().from(funnelRevisions).where(and(eq(funnelRevisions.id, funnel.publishedRevisionId), eq(funnelRevisions.funnelId, funnel.id)));
   if (!revision) return undefined;
   const { version, ...content } = revision.content as FunnelDocument;
-  if (version !== DOCUMENT_VERSION) return undefined;
-  return { ...funnel, ...content };
+  if (!documentVersionSchema.safeParse(version).success) return undefined;
+  return { ...funnel, ...content, documentVersion: version };
 }
 
 export async function listFunnelRevisions(id: number, userId: number, before?: number): Promise<FunnelRevisionSummary[]> {

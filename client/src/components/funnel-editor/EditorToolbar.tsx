@@ -136,6 +136,7 @@ export function EditorToolbar({
           variant={previewMode === "phone" ? "secondary" : "ghost"}
           className="h-7 w-7"
           onClick={() => setPreviewMode("phone")}
+          aria-label="Handyvorschau"
         >
           <Smartphone className="h-3.5 w-3.5" />
         </Button>
@@ -144,6 +145,7 @@ export function EditorToolbar({
           variant={previewMode === "tablet" ? "secondary" : "ghost"}
           className="h-7 w-7"
           onClick={() => setPreviewMode("tablet")}
+          aria-label="Tablet-Vorschau"
         >
           <Tablet className="h-3.5 w-3.5" />
         </Button>
@@ -152,6 +154,7 @@ export function EditorToolbar({
           variant={previewMode === "desktop" ? "secondary" : "ghost"}
           className="h-7 w-7"
           onClick={() => setPreviewMode("desktop")}
+          aria-label="Desktop-Vorschau"
         >
           <Monitor className="h-3.5 w-3.5" />
         </Button>

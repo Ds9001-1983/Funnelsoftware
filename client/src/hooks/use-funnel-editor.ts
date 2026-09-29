@@ -7,7 +7,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { loadFont } from "@/lib/font-loader";
 import { FunnelWriteQueue, type FunnelWrite } from "@/lib/funnel-write-queue";
 import { readRecovery, storeRecovery, clearRecovery } from "@/lib/editor-recovery";
-import { documentFromFunnel, type FunnelDocument } from "@shared/funnel-document";
+import { canEditFunnelDocument, contentKey, documentFromFunnel, type FunnelDocument } from "@shared/funnel-document";
 import type { Funnel, FunnelPage } from "@shared/schema";
 
 /**
@@ -37,7 +37,7 @@ export function buildSavePayload(funnel: Funnel): Partial<Funnel> {
 }
 
 /** All writes share a queue; local edits are never replaced by an older response. */
-export function useFunnelEditor(id: string | undefined) {
+export function useFunnelEditor(id: string | undefined, layoutEditing = false) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
@@ -62,12 +62,13 @@ export function useFunnelEditor(id: string | undefined) {
 
   useEffect(() => {
     if (!funnel || queue.current) return;
-    savedPayload.current = JSON.stringify(buildSavePayload(funnel));
-    serverMetadata.current = { status: funnel.status, slug: funnel.slug, editVersion: funnel.editVersion,
+    savedPayload.current = contentKey(buildSavePayload(funnel));
+    serverMetadata.current = { documentVersion: funnel.documentVersion, status: funnel.status, slug: funnel.slug, editVersion: funnel.editVersion,
       publishedRevisionId: funnel.publishedRevisionId, updatedAt: funnel.updatedAt, webhookSecret: funnel.webhookSecret };
     resetHistory(funnel);
+    if (!canEditFunnelDocument(funnel, layoutEditing)) return;
     const recovered = readRecovery(funnel);
-    if (recovered && JSON.stringify(recovered) !== JSON.stringify(documentFromFunnel(funnel))) setRecovery(recovered);
+    if (recovered && contentKey(recovered) !== contentKey(documentFromFunnel(funnel))) setRecovery(recovered);
     else clearRecovery(funnel);
     queue.current = new FunnelWriteQueue(funnel.editVersion ?? 0, async ({ data, control, restoreId }) => {
       const url = `/api/funnels/${funnel.id}`;
@@ -76,14 +77,14 @@ export function useFunnelEditor(id: string | undefined) {
         : await apiRequest("POST", `${url}/revisions/${restoreId}/restore`, control);
       return response.json();
     }, (updated, write) => {
-      savedPayload.current = JSON.stringify(buildSavePayload(updated));
-      serverMetadata.current = { status: updated.status, slug: updated.slug, editVersion: updated.editVersion,
+      savedPayload.current = contentKey(buildSavePayload(updated));
+      serverMetadata.current = { documentVersion: updated.documentVersion, status: updated.status, slug: updated.slug, editVersion: updated.editVersion,
         publishedRevisionId: updated.publishedRevisionId, updatedAt: updated.updatedAt, webhookSecret: updated.webhookSecret };
       // Metadata always follows the server. Content changed while the request
       // was in flight stays local, including edits made during publication.
       setLocalFunnel(current => {
         if (!current) return current;
-        const merged = { ...current, editVersion: updated.editVersion, editorProtocol: updated.editorProtocol,
+        const merged = { ...current, documentVersion: updated.documentVersion, editVersion: updated.editVersion, editorProtocol: updated.editorProtocol,
           updatedAt: updated.updatedAt, publishedRevisionId: updated.publishedRevisionId,
           status: updated.status, slug: updated.slug, webhookSecret: updated.webhookSecret };
         if (write.restoreId !== undefined) return updated;
@@ -94,25 +95,26 @@ export function useFunnelEditor(id: string | undefined) {
       queryClient.setQueryData(["/api/funnels", id], updated);
       void queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
     });
-  }, [funnel, id, resetHistory, setLocalFunnel, queryClient]);
+  }, [funnel, id, resetHistory, setLocalFunnel, queryClient, layoutEditing]);
 
   useEffect(() => {
-    if (localFunnel) setHasChanges(JSON.stringify(buildSavePayload(localFunnel)) !== savedPayload.current);
+    if (localFunnel) setHasChanges(contentKey(buildSavePayload(localFunnel)) !== savedPayload.current);
   }, [localFunnel]);
   useEffect(() => {
     if (localFunnel?.theme?.fontFamily) loadFont(localFunnel.theme.fontFamily);
   }, [localFunnel?.theme?.fontFamily]);
   useEffect(() => {
-    if (!localFunnel || recovery) return;
+    if (!localFunnel || !canEditFunnelDocument(localFunnel, layoutEditing) || recovery) return;
     // Synchronous storage also covers a tab close directly after the last edit.
     if (hasChanges) setRecoveryUnavailable(!storeRecovery(localFunnel));
     else if (!pendingWrites) clearRecovery(localFunnel);
-  }, [localFunnel, hasChanges, pendingWrites, recovery]);
+  }, [localFunnel, hasChanges, pendingWrites, recovery, layoutEditing]);
 
   const write = useCallback(async (request: FunnelWrite) => {
+    if (localRef.current && !canEditFunnelDocument(localRef.current, layoutEditing)) throw new Error("Dieser Funnel kann mit dieser Editorversion nur angesehen werden.");
     if (!queue.current) throw new Error("Funnel wird noch geladen.");
     setPendingWrites(count => count + 1);
-    try { return await queue.current.write(request); }
+    try { return await queue.current.write({ ...request, documentVersion: layoutEditing ? 2 : 1 }); }
     catch (error) {
       const isConflict = (error as { status?: number })?.status === 409;
       if (isConflict) setConflict(true);
@@ -123,7 +125,7 @@ export function useFunnelEditor(id: string | undefined) {
         variant: "destructive" });
       throw error;
     } finally { setPendingWrites(count => count - 1); }
-  }, [toast]);
+  }, [toast, layoutEditing]);
 
   const saveMutation = useMutation({ mutationFn: (data: Partial<Funnel>) => write({ data }), retry: false });
   const saveCurrent = useCallback(async (extra: Partial<Funnel> = {}, publish = false) => {
@@ -132,7 +134,7 @@ export function useFunnelEditor(id: string | undefined) {
   }, [write]);
   const saveBeforeLeave = useCallback(async () => {
     do { await saveCurrent(); }
-    while (localRef.current && JSON.stringify(buildSavePayload(localRef.current)) !== savedPayload.current);
+    while (localRef.current && contentKey(buildSavePayload(localRef.current)) !== savedPayload.current);
   }, [saveCurrent]);
   const restoreRevision = useCallback(async (revisionId: number) => {
     // The dialog blocks editing while restoration runs; the current draft is
@@ -142,12 +144,12 @@ export function useFunnelEditor(id: string | undefined) {
   }, [saveCurrent, write]);
 
   useEffect(() => {
-    if (!autoSaveEnabled || !hasChanges || pendingWrites || saveError || recovery) return;
+    if (!localFunnel || !canEditFunnelDocument(localFunnel, layoutEditing) || !autoSaveEnabled || !hasChanges || pendingWrites || saveError || recovery) return;
     const timer = setTimeout(() => {
       void saveCurrent().then(() => setLastAutoSave(new Date())).catch(() => undefined);
     }, 5000);
     return () => clearTimeout(timer);
-  }, [localFunnel, autoSaveEnabled, hasChanges, pendingWrites, saveError, recovery, saveCurrent]);
+  }, [localFunnel, autoSaveEnabled, hasChanges, pendingWrites, saveError, recovery, saveCurrent, layoutEditing]);
 
   const updateLocalFunnel = useCallback((updates: Partial<Funnel>) => {
     setLocalFunnel(prev => prev ? { ...prev, ...updates } : prev);

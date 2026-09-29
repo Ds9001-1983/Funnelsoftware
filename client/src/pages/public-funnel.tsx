@@ -16,6 +16,7 @@ import {
   type FunnelLeadPayload,
 } from "@/components/funnel-viewer/FunnelRenderer";
 import type { FunnelPage, Theme, ABTest } from "@shared/schema";
+import { applyVariantOverrides } from "@shared/funnel-layout";
 import { SITE_ORIGIN } from "@shared/seo-links";
 
 declare global {
@@ -105,39 +106,6 @@ function getVariantAssignments(funnelUuid: string, abTests: ABTest[]): Record<st
   }
 
   return assignments;
-}
-
-/**
- * Wendet A/B-Test-Varianten auf Seiten an (Title, Subtitle, Elements Override).
- */
-function applyVariantOverrides(
-  pages: FunnelPage[],
-  abTests: ABTest[],
-  assignments: Record<string, string>
-): FunnelPage[] {
-  return pages.map((page) => {
-    for (const test of abTests) {
-      if (test.pageId !== page.id || test.status !== "running") continue;
-      const variantId = assignments[test.id];
-      if (!variantId) continue;
-
-      const variant = test.variants.find((v) => v.id === variantId);
-      if (!variant) continue;
-
-      // Variante 0 (Kontrolle) = keine Änderung
-      if (test.variants[0]?.id === variantId) continue;
-
-      return {
-        ...page,
-        title: variant.title || page.title,
-        subtitle: variant.subtitle || page.subtitle,
-        elements: variant.elements || page.elements,
-        backgroundColor: variant.backgroundColor || page.backgroundColor,
-        buttonText: variant.buttonText || page.buttonText,
-      };
-    }
-    return page;
-  });
 }
 
 export default function PublicFunnelView() {
