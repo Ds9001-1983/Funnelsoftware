@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useHistory, useAutoSave } from "@/hooks/use-history";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useHistory } from "@/hooks/use-history";
 import { useBeforeUnload } from "@/hooks/use-before-unload";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import { loadFont } from "@/lib/font-loader";
+import { FunnelWriteQueue, type FunnelWrite } from "@/lib/funnel-write-queue";
+import { readRecovery, storeRecovery, clearRecovery } from "@/lib/editor-recovery";
+import { documentFromFunnel, type FunnelDocument } from "@shared/funnel-document";
 import type { Funnel, FunnelPage } from "@shared/schema";
 
 /**
@@ -29,230 +32,145 @@ export function buildSavePayload(funnel: Funnel): Partial<Funnel> {
     capiEnabled: funnel.capiEnabled,
     impressumUrl: funnel.impressumUrl,
     datenschutzUrl: funnel.datenschutzUrl,
+    ogImageUrl: funnel.ogImageUrl,
   };
 }
 
-/**
- * Daten-/Persistenz-Layer des Funnel-Editors: Funnel-Query, History (Undo/Redo),
- * Auto-Save mit Retry, sowie generische Update-Helfer für Funnel und einzelne
- * Seiten. Aus dem 1800-Zeilen-Monolithen extrahiert (Verhalten 1:1).
- *
- * Bewusst NICHT enthalten: UI-gekoppelte Mutationen (Veröffentlichen, Slug),
- * Clipboard, Tastatur-Shortcuts und alles JSX — die bleiben in der Page.
- */
+/** All writes share a queue; local edits are never replaced by an older response. */
 export function useFunnelEditor(id: string | undefined) {
   const { toast } = useToast();
-
-  // Auto-save toggles
+  const queryClient = useQueryClient();
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
-
-  // History state for undo/redo
-  const {
-    state: localFunnel,
-    set: setLocalFunnel,
-    undo,
-    redo,
-    reset: resetHistory,
-    canUndo,
-    canRedo,
-    historyLength,
-  } = useHistory<Funnel | null>(null);
-
-  const [hasChanges, setHasChanges] = useState(false);
-
-  useBeforeUnload(hasChanges, "Es gibt ungespeicherte Änderungen. Trotzdem schließen?");
-
-  const { data: funnel, isLoading } = useQuery<Funnel>({
-    queryKey: ["/api/funnels", id],
-    enabled: !!id,
-  });
-
-  // Aktueller localFunnel für Mutation-Callbacks (stale-closure-sicher)
-  const localFunnelRef = useRef<Funnel | null>(null);
-  localFunnelRef.current = localFunnel;
-
-  // Server-Stand für die Konfliktprüfung: Saves schicken das zuletzt bekannte
-  // updatedAt mit; weicht es serverseitig ab, hat ein anderer Tab/Gerät
-  // zwischenzeitlich gespeichert → 409 statt Last-Write-Wins.
-  const expectedUpdatedAtRef = useRef<string | null>(null);
-
-  // Initialize funnel from query
-  useEffect(() => {
-    if (funnel && !localFunnel) {
-      resetHistory(funnel);
-      expectedUpdatedAtRef.current = funnel.updatedAt ? String(funnel.updatedAt) : null;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [funnel]);
-
-  // Load selected font on funnel load
-  useEffect(() => {
-    if (localFunnel?.theme?.fontFamily) {
-      loadFont(localFunnel.theme.fontFamily);
-    }
-  }, [localFunnel?.theme?.fontFamily]);
-
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [pendingWrites, setPendingWrites] = useState(0);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState(false);
+  const [recovery, setRecovery] = useState<FunnelDocument | null>(null);
+  const [recoveryUnavailable, setRecoveryUnavailable] = useState(false);
+  const history = useHistory<Funnel | null>(null);
+  const { state: localFunnel, set: setLocalFunnel, reset: resetHistory } = history;
+  const localRef = useRef(localFunnel);
+  localRef.current = localFunnel;
+  const savedPayload = useRef("");
+  const serverMetadata = useRef<Partial<Funnel>>({});
+  const queue = useRef<FunnelWriteQueue | null>(null);
+  const { data: funnel, isLoading } = useQuery<Funnel>({ queryKey: ["/api/funnels", id], enabled: !!id });
 
-  const saveMutation = useMutation({
-    mutationFn: async (data: Partial<Funnel>) => {
-      const body = {
-        ...data,
-        ...(expectedUpdatedAtRef.current
-          ? { expectedUpdatedAt: expectedUpdatedAtRef.current }
-          : {}),
-      };
-      const response = await apiRequest("PATCH", `/api/funnels/${id}`, body);
-      return response.json() as Promise<Funnel>;
-    },
-    // Exponential backoff: 1s → 2s → 4s, max 3 Versuche.
-    // CSRF-/Auth-/Konflikt-Fehler werden nicht retried (gleiche Antwort).
-    retry: (failureCount, error) => {
-      if (failureCount >= 3) return false;
-      const status = (error as { status?: number } | null)?.status;
-      if (status === 401 || status === 403 || status === 404 || status === 409) return false;
-      return true;
-    },
-    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 4000),
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/funnels", id] });
-      if (data?.updatedAt) {
-        expectedUpdatedAtRef.current = String(data.updatedAt);
-      }
+  useBeforeUnload(hasChanges || pendingWrites > 0, "Es gibt ungespeicherte Änderungen. Trotzdem schließen?");
 
-      const current = localFunnelRef.current;
-
-      // Dirty-Flag nur zurücksetzen, wenn seit dem Absenden nichts mehr
-      // geändert wurde — sonst gelten Edits während eines laufenden Saves
-      // fälschlich als gespeichert und gehen beim Schließen verloren.
-      const { status: _status, ...sentPayload } = variables as Partial<Funnel>;
-      const stillEqual = current
-        ? JSON.stringify(buildSavePayload(current)) === JSON.stringify(sentPayload)
-        : true;
-      setHasChanges(!stillEqual);
-      setLastSavedAt(new Date());
-
-      // Server-generierte Felder übernehmen — das Webhook-Secret entsteht
-      // erst beim Speichern und war sonst bis zum Reload unsichtbar.
-      if (current && data?.webhookSecret && current.webhookSecret !== data.webhookSecret) {
-        setLocalFunnel({ ...current, webhookSecret: data.webhookSecret });
-      }
-    },
-    onError: (error) => {
-      const status = (error as { status?: number } | null)?.status;
-      if (status === 409) {
-        toast({
-          title: "Konflikt: Funnel wurde woanders geändert",
-          description:
-            "Dieser Funnel wurde in einem anderen Tab oder auf einem anderen Gerät gespeichert. Bitte lade die Seite neu, bevor du weiterarbeitest.",
-          variant: "destructive",
-        });
-        return;
-      }
-      toast({
-        title: "Speichern fehlgeschlagen",
-        description: "Nach mehreren Versuchen nicht gespeichert. Bitte Speichern-Button erneut drücken.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const saveStatus: "saved" | "dirty" | "saving" | "error" = saveMutation.isPending
-    ? "saving"
-    : saveMutation.isError
-      ? "error"
-      : hasChanges
-        ? "dirty"
-        : "saved";
-
-  // Auto-save functionality
-  const performAutoSave = useCallback(() => {
-    if (localFunnel && hasChanges && autoSaveEnabled) {
-      // KEIN status im Autosave: Ein im Hintergrund laufender Autosave mit
-      // lokalem (altem) Status könnte einen frisch veröffentlichten Funnel
-      // wieder auf "draft" setzen. Status wird nur explizit gespeichert.
-      saveMutation.mutate(buildSavePayload(localFunnel));
-      setLastAutoSave(new Date());
-    }
-    // saveMutation absichtlich nicht in den Deps — sonst läuft der Effekt zu oft;
-    // saveMutation ist eine stabile Referenz mit eigenem State.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localFunnel, hasChanges, autoSaveEnabled]);
-
-  const { scheduleAutoSave } = useAutoSave(
-    localFunnel,
-    performAutoSave,
-    5000, // 5 Sekunden nach letzter Änderung
-    autoSaveEnabled && hasChanges,
-  );
-
-  // Schedule auto-save when changes occur
   useEffect(() => {
-    if (hasChanges && autoSaveEnabled) {
-      scheduleAutoSave();
-    }
-  }, [hasChanges, autoSaveEnabled, scheduleAutoSave]);
+    if (!funnel || queue.current) return;
+    savedPayload.current = JSON.stringify(buildSavePayload(funnel));
+    serverMetadata.current = { status: funnel.status, slug: funnel.slug, editVersion: funnel.editVersion,
+      publishedRevisionId: funnel.publishedRevisionId, updatedAt: funnel.updatedAt, webhookSecret: funnel.webhookSecret };
+    resetHistory(funnel);
+    const recovered = readRecovery(funnel);
+    if (recovered && JSON.stringify(recovered) !== JSON.stringify(documentFromFunnel(funnel))) setRecovery(recovered);
+    else clearRecovery(funnel);
+    queue.current = new FunnelWriteQueue(funnel.editVersion ?? 0, async ({ data, control, restoreId }) => {
+      const url = `/api/funnels/${funnel.id}`;
+      const response = restoreId === undefined
+        ? await apiRequest("PATCH", url, { ...data, ...control })
+        : await apiRequest("POST", `${url}/revisions/${restoreId}/restore`, control);
+      return response.json();
+    }, (updated, write) => {
+      savedPayload.current = JSON.stringify(buildSavePayload(updated));
+      serverMetadata.current = { status: updated.status, slug: updated.slug, editVersion: updated.editVersion,
+        publishedRevisionId: updated.publishedRevisionId, updatedAt: updated.updatedAt, webhookSecret: updated.webhookSecret };
+      // Metadata always follows the server. Content changed while the request
+      // was in flight stays local, including edits made during publication.
+      setLocalFunnel(current => {
+        if (!current) return current;
+        const merged = { ...current, editVersion: updated.editVersion, editorProtocol: updated.editorProtocol,
+          updatedAt: updated.updatedAt, publishedRevisionId: updated.publishedRevisionId,
+          status: updated.status, slug: updated.slug, webhookSecret: updated.webhookSecret };
+        if (write.restoreId !== undefined) return updated;
+        return merged;
+      }, false);
+      setLastSavedAt(new Date());
+      setSaveError(null);
+      queryClient.setQueryData(["/api/funnels", id], updated);
+      void queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
+    });
+  }, [funnel, id, resetHistory, setLocalFunnel, queryClient]);
 
-  // Externe PATCHes (Veröffentlichen, Slug) erhöhen updatedAt am Server —
-  // ohne Sync würde der nächste Save fälschlich als Konflikt (409) abgelehnt.
-  const noteServerUpdate = useCallback((updated: { updatedAt?: string | Date | null }) => {
-    if (updated?.updatedAt) {
-      expectedUpdatedAtRef.current = String(updated.updatedAt);
-    }
-  }, []);
+  useEffect(() => {
+    if (localFunnel) setHasChanges(JSON.stringify(buildSavePayload(localFunnel)) !== savedPayload.current);
+  }, [localFunnel]);
+  useEffect(() => {
+    if (localFunnel?.theme?.fontFamily) loadFont(localFunnel.theme.fontFamily);
+  }, [localFunnel?.theme?.fontFamily]);
+  useEffect(() => {
+    if (!localFunnel || recovery) return;
+    // Synchronous storage also covers a tab close directly after the last edit.
+    if (hasChanges) setRecoveryUnavailable(!storeRecovery(localFunnel));
+    else if (!pendingWrites) clearRecovery(localFunnel);
+  }, [localFunnel, hasChanges, pendingWrites, recovery]);
 
-  const updateLocalFunnel = useCallback(
-    (updates: Partial<Funnel>) => {
-      setLocalFunnel((prev) => {
-        if (!prev) return prev;
-        return { ...prev, ...updates };
-      });
-      setHasChanges(true);
-    },
-    [setLocalFunnel],
-  );
+  const write = useCallback(async (request: FunnelWrite) => {
+    if (!queue.current) throw new Error("Funnel wird noch geladen.");
+    setPendingWrites(count => count + 1);
+    try { return await queue.current.write(request); }
+    catch (error) {
+      const isConflict = (error as { status?: number })?.status === 409;
+      if (isConflict) setConflict(true);
+      const message = error instanceof Error ? error.message : "Speichern fehlgeschlagen.";
+      setSaveError(message);
+      toast({ title: isConflict ? "Änderungen aus einer anderen Sitzung" : "Nicht gespeichert",
+        description: isConflict ? "Dein lokaler Inhalt bleibt erhalten. Sichere ihn als Kopie, bevor du den aktuellen Stand lädst." : message,
+        variant: "destructive" });
+      throw error;
+    } finally { setPendingWrites(count => count - 1); }
+  }, [toast]);
 
-  const updatePage = useCallback(
-    (index: number, updates: Partial<FunnelPage>) => {
-      setLocalFunnel((prev) => {
-        if (!prev) return prev;
-        const newPages = [...prev.pages];
-        newPages[index] = { ...newPages[index], ...updates };
-        return { ...prev, pages: newPages };
-      });
-      setHasChanges(true);
-    },
-    [setLocalFunnel],
-  );
+  const saveMutation = useMutation({ mutationFn: (data: Partial<Funnel>) => write({ data }), retry: false });
+  const saveCurrent = useCallback(async (extra: Partial<Funnel> = {}, publish = false) => {
+    if (!localRef.current) throw new Error("Funnel wird noch geladen.");
+    return write({ data: { ...buildSavePayload(localRef.current), ...extra }, publish });
+  }, [write]);
+  const saveBeforeLeave = useCallback(async () => {
+    do { await saveCurrent(); }
+    while (localRef.current && JSON.stringify(buildSavePayload(localRef.current)) !== savedPayload.current);
+  }, [saveCurrent]);
+  const restoreRevision = useCallback(async (revisionId: number) => {
+    // The dialog blocks editing while restoration runs; the current draft is
+    // saved first so that it too remains recoverable in the version history.
+    await saveCurrent();
+    return write({ data: {}, restoreId: revisionId });
+  }, [saveCurrent, write]);
+
+  useEffect(() => {
+    if (!autoSaveEnabled || !hasChanges || pendingWrites || saveError || recovery) return;
+    const timer = setTimeout(() => {
+      void saveCurrent().then(() => setLastAutoSave(new Date())).catch(() => undefined);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [localFunnel, autoSaveEnabled, hasChanges, pendingWrites, saveError, recovery, saveCurrent]);
+
+  const updateLocalFunnel = useCallback((updates: Partial<Funnel>) => {
+    setLocalFunnel(prev => prev ? { ...prev, ...updates } : prev);
+    setHasChanges(true);
+  }, [setLocalFunnel]);
+  const updatePage = useCallback((index: number, updates: Partial<FunnelPage>) => {
+    setLocalFunnel(prev => prev ? { ...prev, pages: prev.pages.map((page, i) => i === index ? { ...page, ...updates } : page) } : prev);
+    setHasChanges(true);
+  }, [setLocalFunnel]);
+  const undo = useCallback(() => {
+    history.undo(); setLocalFunnel(current => current ? { ...current, ...serverMetadata.current } : current, false);
+  }, [history.undo, setLocalFunnel]);
+  const redo = useCallback(() => {
+    history.redo(); setLocalFunnel(current => current ? { ...current, ...serverMetadata.current } : current, false);
+  }, [history.redo, setLocalFunnel]);
+  const discardRecovery = useCallback(() => { if (localRef.current) clearRecovery(localRef.current); setRecovery(null); }, []);
+  const saveStatus: "saved" | "dirty" | "saving" | "error" = pendingWrites ? "saving" : saveError ? "error" : hasChanges ? "dirty" : "saved";
 
   return {
-    // Query
-    funnel,
-    isLoading,
-    // History
-    localFunnel,
-    setLocalFunnel,
-    undo,
-    redo,
-    resetHistory,
-    canUndo,
-    canRedo,
-    historyLength,
-    // Change tracking
-    hasChanges,
-    setHasChanges,
-    // Auto-save
-    autoSaveEnabled,
-    setAutoSaveEnabled,
-    lastAutoSave,
-    // Save
-    lastSavedAt,
-    saveMutation,
-    saveStatus,
-    noteServerUpdate,
-    // Updaters
-    updateLocalFunnel,
-    updatePage,
+    funnel, isLoading, localFunnel, setLocalFunnel, resetHistory,
+    undo, redo, canUndo: history.canUndo, canRedo: history.canRedo, historyLength: history.historyLength,
+    hasChanges, setHasChanges, autoSaveEnabled, setAutoSaveEnabled, lastAutoSave, lastSavedAt,
+    saveMutation, saveStatus, saveCurrent, saveBeforeLeave, restoreRevision, pendingWrites, conflict, saveError,
+    recovery, discardRecovery, recoveryUnavailable, updateLocalFunnel, updatePage,
   };
 }

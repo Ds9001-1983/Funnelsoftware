@@ -1,5 +1,5 @@
 import { createHash, randomUUID, randomBytes } from "node:crypto";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, lt, sql } from "drizzle-orm";
 import { db } from "./db";
 import { funnels, funnelRevisions, users, FREE_MAX_PUBLISHED_FUNNELS, type Funnel } from "@shared/schema";
 import { documentFromFunnel, documentSchema, DOCUMENT_VERSION, type WriteControl, type FunnelRevisionSummary, type FunnelDocument } from "@shared/funnel-document";
@@ -98,11 +98,11 @@ export async function publishedDocument(funnel: Funnel): Promise<Funnel | undefi
   return { ...funnel, ...content };
 }
 
-export async function listFunnelRevisions(id: number, userId: number): Promise<FunnelRevisionSummary[]> {
+export async function listFunnelRevisions(id: number, userId: number, before?: number): Promise<FunnelRevisionSummary[]> {
   const [funnel] = await db.select().from(funnels).where(and(eq(funnels.id, id), eq(funnels.userId, userId), sql`${funnels.deletedAt} IS NULL`));
   if (!funnel) throw new FunnelWriteError(404, "Funnel nicht gefunden");
   const rows = await db.select({ id: funnelRevisions.id, version: funnelRevisions.version, action: funnelRevisions.action, createdAt: funnelRevisions.createdAt,
     name: sql<string>`${funnelRevisions.content}->>'name'`,
-  }).from(funnelRevisions).where(eq(funnelRevisions.funnelId, id)).orderBy(desc(funnelRevisions.version));
+  }).from(funnelRevisions).where(and(eq(funnelRevisions.funnelId, id), before === undefined ? undefined : lt(funnelRevisions.version, before))).orderBy(desc(funnelRevisions.version)).limit(100);
   return rows.map(row => ({ ...row, createdAt: row.createdAt.toISOString(), published: row.id === funnel.publishedRevisionId }));
 }

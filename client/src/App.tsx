@@ -103,6 +103,7 @@ function SidebarPage({ children }: { children: React.ReactNode }) {
 }
 
 function Router() {
+  const [routeLocation] = useLocation();
   const { isAuthenticated, isLoading } = useAuth();
 
   // Show loading spinner while checking auth
@@ -213,7 +214,7 @@ function Router() {
       </Route>
       <Route path="/funnels/:id">
         <ProtectedFull>
-          <FunnelEditor />
+          <FunnelEditor key={routeLocation} />
         </ProtectedFull>
       </Route>
 
