@@ -6,7 +6,56 @@ Der Nutzer hat die Fortsetzung am 28.09.2026 ausdrücklich bestätigt.
 
 ## Fortsetzung am 29.09.2026
 
-### Aktueller Stand: Abschnittsbearbeitung abgeschlossen
+### Aktueller Stand: ausgeliefert und freigeschaltet
+
+Am 29.09.2026 wurden beide geprüften Pakete nacheinander ausgeliefert:
+
+- [PR #174](https://github.com/Ds9001-1983/Funnelsoftware/pull/174):
+  Editor-Grundlage, Release `cd5b9583bf8be10897463971129b88ad3fb7f38e`.
+  [Deployment 36581854221](https://github.com/Ds9001-1983/Funnelsoftware/actions/runs/36581854221)
+  erfolgreich.
+- [PR #175](https://github.com/Ds9001-1983/Funnelsoftware/pull/175):
+  Layouts und Abschnittsbearbeitung, aktueller Produktionsrelease
+  `2055359d8a6b03218a4514e049576b0cc344bc15`.
+  [Deployment 36582302537](https://github.com/Ds9001-1983/Funnelsoftware/actions/runs/36582302537)
+  erfolgreich, einschließlich CI und Datenbank-/Browserprüfungen.
+- Erst den kompatiblen Leser mit ausgeschalteter Bearbeitung geprüft;
+  anschließend `BUILDER_LAYOUT_EDITOR=true` in der Produktionskonfiguration
+  gesetzt, PM2 mit aktualisierter Umgebung neu gestartet und gespeichert.
+  Prozessstatus, Release und aktives Flag bestätigt; öffentlicher Health-Check grün.
+- Live-HTML und ausgelieferter JavaScript-Einstieg geprüft; dessen SHA-256
+  stimmt mit dem aktuellen Server-Release überein. Nicht angemeldete Zugriffe
+  auf die Editor-Fähigkeiten antworten mit 401.
+- Sechs Browserprüfungen gegen die ausgelieferten Live-Assets bestanden,
+  zusätzlich die aktive Editoransicht mit Abschnitten, Spalten und Vorlagen
+  geprüft. Dafür ausschließlich synthetische Inhalte verwendet und alle
+  API-/externen Aufrufe im Browser abgefangen. Keine Test-Leads oder Test-Funnels
+  auf Produktion angelegt.
+- Beide Deployments erstellten frische Backups. Restore und zweimaliger
+  Migrationslauf ließen jeweils alle 23 bestehenden Tabellen der Restore-Kopie
+  unverändert. Datenbank und Uploads zusätzlich lokal kopiert; SHA-256 jeweils
+  mit der Serverkopie identisch.
+
+Backups: `~/TrichterwerkBackups/releases/20260929T142217-cd5b9583bf8b/` und
+`~/TrichterwerkBackups/releases/20260929T142600-2055359d8a6b/`.
+Die entsprechenden Serverkopien liegen unter `/var/backups/funnelflow/releases/`;
+die Konfiguration vor Freischaltung zusätzlich unter
+`/var/backups/funnelflow/layout-enable-20260929T142743.environment`.
+
+Für die nächste Fortsetzung: Arbeitsverzeichnis `../Funnelsoftware-builder`,
+Dokumentationsbranch `docs/builder-layout-rollout` auf dem aktuellen `origin/main`.
+Diese Auslieferungsnotiz ist lokal versioniert. Nächstes Umsetzungspaket sind
+wiederverwendbare Designvorgaben und eigene Markenstile aus der ursprünglichen
+Übergabe. Besucherregeln, Personalisierung sowie Vorlagen-/Medienverwaltung folgen.
+
+Geöffnete Editoren einmal neu laden, damit die neue Fähigkeit abgefragt wird.
+Bestandsseiten werden weiterhin nur auf ausdrücklichen Klick auf
+„Abschnitte für diese Seite aktivieren“ umgestellt. Zum Abschalten der neuen
+Bearbeitung das Flag auf `false` setzen und PM2 mit aktualisierter Umgebung neu
+starten. Der kompatible Leser ab Release `2055359` bleibt die Mindestbasis für
+Code-Rollbacks, sobald Version-2-Dokumente existieren.
+
+### Umsetzung und Abnahme vor der Auslieferung
 
 Arbeitsverzeichnis `../Funnelsoftware-builder`, Branch `feat/builder-layout-reader`,
 aufbauend auf PR #174 (`feat/builder-editor-revisions`). Der folgende Stand ist
