@@ -1,0 +1,25 @@
+.funnel-layout {
+  container-type: inline-size;
+  container-name: funnel-layout;
+  display: flex;
+  flex-direction: column;
+}
+
+.funnel-layout-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.funnel-layout-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* An embedded phone preview stacks even inside a wide desktop viewport. */
+@container funnel-layout (min-width: 640px) {
+  .funnel-layout-columns {
+    grid-template-columns: repeat(var(--funnel-columns), minmax(0, 1fr));
+  }
+}

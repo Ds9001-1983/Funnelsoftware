@@ -1,0 +1,72 @@
+import type { FunnelPage, PageElement, PageLayout } from "./schema";
+
+const newId = () => crypto.randomUUID();
+
+/** Only known ID references are remapped. Text, URLs and unknown fields survive. */
+export function copyElements(elements: PageElement[], pageIds = new Map<string, string>()) {
+  const ids = new Map(elements.map(element => [element.id, newId()]));
+  const target = (id: string) => pageIds.get(id) ?? id;
+  const copies = structuredClone(elements).map(element => {
+    element.id = ids.get(element.id)!;
+    if (element.buttonNextPageId) element.buttonNextPageId = target(element.buttonNextPageId);
+    if (element.optionRouting) element.optionRouting = Object.fromEntries(Object.entries(element.optionRouting).map(([option, id]) => [option, target(id)]));
+    for (const item of element.listItems ?? []) {
+      item.id = newId();
+      if (item.targetPageId) item.targetPageId = target(item.targetPageId);
+    }
+    for (const items of [element.slides, element.faqItems, element.socialProofItems, element.teamMembers]) {
+      for (const item of items ?? []) item.id = newId();
+    }
+    if (element.quizConfig) {
+      const resultIds = new Map(element.quizConfig.results.map(result => [result.id, newId()]));
+      for (const result of element.quizConfig.results) result.id = resultIds.get(result.id)!;
+      for (const question of element.quizConfig.questions) {
+        question.id = newId();
+        for (const answer of question.answers) {
+          answer.id = newId();
+          answer.points = Object.fromEntries(Object.entries(answer.points).map(([id, points]) => [resultIds.get(id) ?? id, points]));
+        }
+      }
+    }
+    return element;
+  });
+  return { elements: copies, ids };
+}
+
+export function copyLayout(layout: PageLayout, ids: Map<string, string>): PageLayout {
+  return { ...structuredClone(layout), sections: layout.sections.map(section => ({
+    ...structuredClone(section), id: newId(), columns: section.columns.map(column => ({
+      ...structuredClone(column), id: newId(), elementIds: column.elementIds.map(id => ids.get(id) ?? id),
+    })),
+  })) };
+}
+
+/** Copies inside the same funnel retain references to pages outside the copy. */
+export function copyPages(pages: FunnelPage[], replacePageIds = true): FunnelPage[] {
+  const pageIds = new Map(pages.map(page => [page.id, replacePageIds ? newId() : page.id]));
+  const elementIds = new Map<string, string>();
+  const scopedIds = new Map<string, Map<string, string>>();
+  const copies = pages.map(source => {
+    const page = structuredClone(source);
+    page.id = pageIds.get(source.id)!;
+    const copied = copyElements(source.elements, pageIds);
+    scopedIds.set(page.id, copied.ids);
+    copied.ids.forEach((id, oldId) => elementIds.set(oldId, id));
+    page.elements = copied.elements;
+    if (source.layout) page.layout = copyLayout(source.layout, copied.ids);
+    // Legacy nested sections stay separate, including any opaque properties.
+    page.sections = source.sections?.map(section => ({ ...structuredClone(section), id: newId(), columns: section.columns.map(column => {
+      const nested = copyElements(column.elements, pageIds);
+      nested.ids.forEach((id, oldId) => { if (!elementIds.has(oldId)) elementIds.set(oldId, id); });
+      return { ...structuredClone(column), id: newId(), elements: nested.elements };
+    }) }));
+    return page;
+  });
+  const target = (id: string) => pageIds.get(id) ?? id;
+  return copies.map(page => ({
+    ...page,
+    ...(page.nextPageId ? { nextPageId: target(page.nextPageId) } : {}),
+    ...(page.conditionalRouting ? { conditionalRouting: Object.fromEntries(Object.entries(page.conditionalRouting).map(([value, id]) => [value, target(id)])) } : {}),
+    ...(page.conditions ? { conditions: page.conditions.map(condition => ({ ...condition, elementId: scopedIds.get(page.id)?.get(condition.elementId) ?? elementIds.get(condition.elementId) ?? condition.elementId, targetPageId: target(condition.targetPageId) })) } : {}),
+  }));
+}

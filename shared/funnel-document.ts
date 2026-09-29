@@ -1,18 +1,27 @@
 import { z } from "zod";
 import { funnelSchema, type Funnel } from "./schema";
+import { needsLayoutDocument } from "./funnel-layout";
 
-export const DOCUMENT_VERSION = 1;
+export const DOCUMENT_VERSION = 1; // Default writers stay on v1 until layout editing is enabled.
+export const documentVersionSchema = z.union([z.literal(1), z.literal(2)]);
 // Ausschließlich Inhalt und öffentliche Darstellung. Zugangsdaten, Eigentümer,
 // Slug, Freigabestatus, Leads und Messwerte gehören niemals in eine Revision.
 export const documentSchema = funnelSchema.pick({
   name: true, description: true, pages: true, theme: true, abTests: true,
   impressumUrl: true, datenschutzUrl: true, ogImageUrl: true,
-}).extend({ version: z.literal(DOCUMENT_VERSION) }).strict();
+}).extend({ version: documentVersionSchema }).strict();
 export type FunnelDocument = z.infer<typeof documentSchema>;
+
+/** PostgreSQL jsonb reorders object keys; only content and array order matter. */
+export function contentKey(value: unknown): string {
+  return JSON.stringify(value, (_key, item: unknown) => item && typeof item === "object" && !Array.isArray(item)
+    ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b)))
+    : item);
+}
 
 export function documentFromFunnel(funnel: Partial<Funnel>): FunnelDocument {
   return {
-    version: DOCUMENT_VERSION,
+    version: documentVersionSchema.parse(Math.max(funnel.documentVersion ?? DOCUMENT_VERSION, needsLayoutDocument(funnel.pages, funnel.theme, funnel.abTests) ? 2 : 1)),
     name: funnel.name!, description: funnel.description ?? null,
     pages: structuredClone(funnel.pages ?? []), theme: structuredClone(funnel.theme!),
     abTests: structuredClone(funnel.abTests ?? []).map(test => ({
@@ -23,9 +32,16 @@ export function documentFromFunnel(funnel: Partial<Funnel>): FunnelDocument {
   };
 }
 
+/** Layout editing requires an explicit server capability; future versions stay read-only. */
+export function canEditFunnelDocument(funnel: Partial<Funnel>, layoutEditing = false): boolean {
+  const version = funnel.documentVersion ?? DOCUMENT_VERSION;
+  return documentVersionSchema.safeParse(version).success && version <= (layoutEditing ? 2 : 1)
+    && (layoutEditing || !needsLayoutDocument(funnel.pages, funnel.theme, funnel.abTests));
+}
+
 export const writeControlSchema = z.object({
   expectedVersion: z.number().int().nonnegative(),
-  documentVersion: z.literal(DOCUMENT_VERSION),
+  documentVersion: documentVersionSchema,
   mutationId: z.string().uuid(),
   publish: z.boolean().optional(),
 });

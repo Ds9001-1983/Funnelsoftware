@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type CSSProperties } from "react";
 import { AlertCircle, Check } from "lucide-react";
 import type { PageElement } from "@shared/schema";
 
@@ -7,6 +7,7 @@ interface FormFieldWithValidationProps {
   value: string;
   onChange: (value: string) => void;
   className?: string;
+  style?: CSSProperties;
   disabled?: boolean;
 }
 
@@ -139,6 +140,7 @@ export function FormFieldWithValidation({
   value,
   onChange,
   className = "",
+  style,
   disabled = false,
 }: FormFieldWithValidationProps) {
   const [touched, setTouched] = useState(false);
@@ -190,6 +192,7 @@ export function FormFieldWithValidation({
             onChange={(e) => handleChange(e.target.value)}
             onBlur={handleBlur}
             className={`${baseClassName} resize-none`}
+            style={style}
             rows={3}
             disabled={disabled}
             maxLength={element.validation?.maxLength}
@@ -226,6 +229,7 @@ export function FormFieldWithValidation({
           onChange={(e) => handleChange(e.target.value)}
           onBlur={handleBlur}
           className={baseClassName}
+          style={style}
           disabled={disabled}
           maxLength={element.validation?.maxLength}
           min={element.validation?.min}

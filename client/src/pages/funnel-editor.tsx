@@ -143,6 +143,12 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useHistory, useAutoSave } from "@/hooks/use-history";
 import { useBeforeUnload } from "@/hooks/use-before-unload";
 import { useFunnelEditor, buildSavePayload } from "@/hooks/use-funnel-editor";
+import { canEditFunnelDocument, documentVersionSchema } from "@shared/funnel-document";
+import { LayoutEditor } from "@/components/funnel-editor/LayoutEditor";
+import { copyElements, copyPages } from "@shared/funnel-copy";
+import { addLayoutSection, enablePageLayout, layoutBlockReason, moveLayoutElement, moveLayoutElementBy, reconcilePageLayout, removedFieldReference } from "@shared/funnel-layout-edit";
+import { layoutErrors, pageWithVariant } from "@shared/funnel-layout";
+import { FunnelRenderer } from "@/components/funnel-viewer/FunnelRenderer";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Funnel, FunnelPage, PageElement, PageAnimation, Section, Column } from "@shared/schema";
 import confetti from "canvas-confetti";
@@ -203,6 +209,19 @@ export default function FunnelEditor() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
+  const { data: editorCapabilities, isLoading: capabilitiesLoading } = useQuery({
+    queryKey: ["/api/funnels/editor-capabilities"],
+    queryFn: async () => {
+      try {
+        const response = await fetch("/api/funnels/editor-capabilities", { credentials: "include" });
+        const data = response.ok ? await response.json() : null;
+        return { layoutEditing: data?.layoutEditing === true };
+      } catch { return { layoutEditing: false }; }
+    },
+    staleTime: Infinity,
+  });
+  const layoutEditing = editorCapabilities?.layoutEditing === true;
+
   // Daten-/Persistenz-Layer extrahiert in einen Hook (Stufe 3.1). Die alten
   // Namen bleiben via Destructuring identisch, damit der restliche Editor-Code
   // unverändert weiterläuft.
@@ -226,10 +245,25 @@ export default function FunnelEditor() {
     saveStatus,
     saveCurrent, saveBeforeLeave, restoreRevision, pendingWrites, conflict, recovery, discardRecovery, recoveryUnavailable,
     updateLocalFunnel,
-    updatePage,
-  } = useFunnelEditor(params?.id);
+    updatePage: persistPage,
+  } = useFunnelEditor(params?.id, layoutEditing);
 
   const [selectedPageIndex, setSelectedPageIndex] = useState(0);
+  const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
+  const [convertingLayout, setConvertingLayout] = useState(false);
+  const updatePage = useCallback((index: number, updates: Partial<FunnelPage>, columnId?: string) => {
+    const page = localFunnel?.pages[index];
+    if (!page || !localFunnel) return false;
+    const next = reconcilePageLayout(page, updates, columnId ?? activeColumnId ?? undefined);
+    if (page.layout || next.layout) {
+      const structural = JSON.stringify(page.layout) !== JSON.stringify(next.layout)
+        || JSON.stringify(page.elements.map(element => element.id)) !== JSON.stringify(next.elements.map(element => element.id));
+      const error = (structural && layoutBlockReason(localFunnel, page)) || removedFieldReference(localFunnel, page, next) || layoutErrors(next)[0];
+      if (error) { toast({ title: "Änderung nicht möglich", description: error, variant: "destructive" }); return false; }
+    }
+    persistPage(index, next);
+    return true;
+  }, [localFunnel, activeColumnId, persistPage, toast]);
   const [showAddPage, setShowAddPage] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [editorTab, setEditorTab] = useState<"overview" | "design">("overview");
@@ -398,14 +432,7 @@ export default function FunnelEditor() {
       ? localFunnel.pages
       : localFunnel.pages.map((page) =>
           page.id === test.pageId
-            ? {
-                ...page,
-                title: winner.title || page.title,
-                subtitle: winner.subtitle || page.subtitle,
-                elements: winner.elements || page.elements,
-                backgroundColor: winner.backgroundColor || page.backgroundColor,
-                buttonText: winner.buttonText || page.buttonText,
-              }
+            ? pageWithVariant(page, winner)
             : page,
         );
 
@@ -425,6 +452,26 @@ export default function FunnelEditor() {
         : "Gewinner angewendet — die Varianten-Inhalte wurden in die Seite übernommen. Speichern nicht vergessen.",
     });
   }, [localFunnel, updateLocalFunnel, toast]);
+
+  const enableSections = async () => {
+    if (!localFunnel || !layoutEditing || convertingLayout) return;
+    const page = localFunnel.pages[selectedPageIndex];
+    if (!page) return;
+    const reason = layoutBlockReason(localFunnel, page);
+    if (reason) { toast({ title: "Umstellung nicht möglich", description: reason, variant: "destructive" }); return; }
+    setConvertingLayout(true);
+    try {
+      await saveCurrent();
+      setLocalFunnel(current => {
+        if (!current) return current;
+        const currentPage = current.pages.find(candidate => candidate.id === page.id);
+        if (!currentPage || layoutBlockReason(current, currentPage)) return current;
+        return { ...current, pages: current.pages.map(candidate => candidate.id === page.id ? enablePageLayout(candidate) : candidate) };
+      });
+      setHasChanges(true);
+    } catch { /* Save failure is shown by the shared persistence hook. */ }
+    finally { setConvertingLayout(false); }
+  };
 
   // Get selected element from current page
   const selectedElement = useMemo(() => {
@@ -447,8 +494,7 @@ export default function FunnelEditor() {
     if (!localFunnel || !selectedElementId) return;
     const page = localFunnel.pages[selectedPageIndex];
     const newElements = page.elements.filter(el => el.id !== selectedElementId);
-    setSelectedElementId(null);
-    updatePage(selectedPageIndex, { elements: newElements });
+    if (updatePage(selectedPageIndex, { elements: newElements })) setSelectedElementId(null);
   }, [localFunnel, selectedPageIndex, selectedElementId, updatePage]);
 
   const duplicateSelectedElement = useCallback(() => {
@@ -459,10 +505,13 @@ export default function FunnelEditor() {
     const element = page.elements[elementIndex];
     // Zufallssuffix wie an den anderen Duplizier-/Paste-Stellen — sonst kollidieren
     // mehrere Duplikate innerhalb derselben Millisekunde auf dieselbe ID.
-    const newElement = { ...element, id: `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` };
+    const [newElement] = copyElements([element]).elements;
     const newElements = [...page.elements];
     newElements.splice(elementIndex + 1, 0, newElement);
-    updatePage(selectedPageIndex, { elements: newElements });
+    let nextPage = reconcilePageLayout(page, { elements: newElements });
+    const column = page.layout?.sections.flatMap(section => section.columns).find(column => column.elementIds.includes(element.id));
+    if (column) nextPage = moveLayoutElement(nextPage, newElement.id, column.id, column.elementIds.indexOf(element.id) + 1);
+    if (!updatePage(selectedPageIndex, nextPage)) return;
     setSelectedElementId(newElement.id);
   }, [localFunnel, selectedPageIndex, selectedElementId, updatePage]);
 
@@ -472,7 +521,7 @@ export default function FunnelEditor() {
     const page = localFunnel.pages[selectedPageIndex];
     const element = page.elements.find(el => el.id === selectedElementId);
     if (element) {
-      setClipboard({ type: "element", data: element });
+      setClipboard({ type: "element", data: structuredClone(element) });
       toast({
         title: "Element kopiert",
         description: "Das Element wurde in die Zwischenablage kopiert.",
@@ -485,9 +534,9 @@ export default function FunnelEditor() {
     const page = localFunnel.pages[selectedPageIndex];
     const element = page.elements.find((el) => el.id === selectedElementId);
     if (!element) return;
-    setClipboard({ type: "element", data: element });
+    setClipboard({ type: "element", data: structuredClone(element) });
     const newElements = page.elements.filter((el) => el.id !== selectedElementId);
-    updatePage(selectedPageIndex, { elements: newElements });
+    if (!updatePage(selectedPageIndex, { elements: newElements })) return;
     setSelectedElementId(null);
     toast({
       title: "Element ausgeschnitten",
@@ -498,7 +547,7 @@ export default function FunnelEditor() {
   const copyCurrentPage = useCallback(() => {
     if (!localFunnel) return;
     const page = localFunnel.pages[selectedPageIndex];
-    setClipboard({ type: "page", data: page });
+    setClipboard({ type: "page", data: structuredClone(page) });
     toast({
       title: "Seite kopiert",
       description: `"${page.title}" wurde in die Zwischenablage kopiert.`,
@@ -510,9 +559,9 @@ export default function FunnelEditor() {
 
     if (clipboard.type === "element") {
       const element = clipboard.data as PageElement;
-      const newElement = { ...element, id: `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` };
+      const [newElement] = copyElements([element]).elements;
       const page = localFunnel.pages[selectedPageIndex];
-      updatePage(selectedPageIndex, { elements: [...page.elements, newElement] });
+      if (!updatePage(selectedPageIndex, { elements: [...page.elements, newElement] })) return;
       setSelectedElementId(newElement.id);
       toast({
         title: "Element eingefügt",
@@ -520,15 +569,8 @@ export default function FunnelEditor() {
       });
     } else if (clipboard.type === "page") {
       const pageToCopy = clipboard.data as FunnelPage;
-      const newPage: FunnelPage = {
-        ...pageToCopy,
-        id: `page-${Date.now()}`,
-        title: `${pageToCopy.title} (Kopie)`,
-        elements: pageToCopy.elements.map(el => ({
-          ...el,
-          id: `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        })),
-      };
+      const [newPage] = copyPages([pageToCopy]);
+      newPage.title = `${pageToCopy.title} (Kopie)`;
       const newPages = [...localFunnel.pages];
       newPages.splice(selectedPageIndex + 1, 0, newPage);
       setLocalFunnel({ ...localFunnel, pages: newPages });
@@ -544,6 +586,7 @@ export default function FunnelEditor() {
   // Keyboard shortcuts for copy/paste and undo/redo
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (localFunnel && !canEditFunnelDocument(localFunnel, layoutEditing)) return;
       // Check if we're in an input field
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
@@ -581,11 +624,12 @@ export default function FunnelEditor() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedElementId, copySelectedElement, copyCurrentPage, pasteFromClipboard, deleteSelectedElement, duplicateSelectedElement]);
+  }, [localFunnel, layoutEditing, selectedElementId, copySelectedElement, copyCurrentPage, pasteFromClipboard, deleteSelectedElement, duplicateSelectedElement]);
 
   const moveElementUp = useCallback(() => {
     if (!localFunnel || !selectedElementId) return;
     const page = localFunnel.pages[selectedPageIndex];
+    if (page.layout) { updatePage(selectedPageIndex, moveLayoutElementBy(page, selectedElementId, -1)); return; }
     const elementIndex = page.elements.findIndex(el => el.id === selectedElementId);
     if (elementIndex <= 0) return;
     const newElements = [...page.elements];
@@ -596,6 +640,7 @@ export default function FunnelEditor() {
   const moveElementDown = useCallback(() => {
     if (!localFunnel || !selectedElementId) return;
     const page = localFunnel.pages[selectedPageIndex];
+    if (page.layout) { updatePage(selectedPageIndex, moveLayoutElementBy(page, selectedElementId, 1)); return; }
     const elementIndex = page.elements.findIndex(el => el.id === selectedElementId);
     if (elementIndex === -1 || elementIndex >= page.elements.length - 1) return;
     const newElements = [...page.elements];
@@ -604,7 +649,7 @@ export default function FunnelEditor() {
   }, [localFunnel, selectedPageIndex, selectedElementId, updatePage]);
 
   // Add element to current page from Design tab - Extended with OpenFunnels block types
-  const addElementToPage = useCallback((type: PageElement["type"]) => {
+  const addElementToPage = useCallback((type: PageElement["type"], columnId?: string) => {
     if (!localFunnel) return;
     // Nach Undo (Seite gelöscht) kann selectedPageIndex out-of-range sein
     const page = localFunnel.pages[selectedPageIndex];
@@ -716,13 +761,14 @@ export default function FunnelEditor() {
       buttonAction: type === "button" ? "next" : undefined,
     };
     const newElements = [...page.elements, newElement];
-    updatePage(selectedPageIndex, { elements: newElements });
+    if (!updatePage(selectedPageIndex, { elements: newElements }, columnId)) return;
     setSelectedElementId(newElement.id);
   }, [localFunnel, selectedPageIndex, updatePage]);
 
   // Clear element selection when page changes
   useEffect(() => {
     setSelectedElementId(null);
+    setActiveColumnId(null);
   }, [selectedPageIndex]);
 
   const addPage = useCallback((type: PageType) => {
@@ -754,15 +800,8 @@ export default function FunnelEditor() {
   const duplicatePage = useCallback((index: number) => {
     if (localFunnel) {
       const pageToDuplicate = localFunnel.pages[index];
-      const newPage: FunnelPage = {
-        ...pageToDuplicate,
-        id: `page-${Date.now()}`,
-        title: `${pageToDuplicate.title} (Kopie)`,
-        elements: pageToDuplicate.elements.map(el => ({
-          ...el,
-          id: `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-        })),
-      };
+      const [newPage] = copyPages([pageToDuplicate]);
+      newPage.title = `${pageToDuplicate.title} (Kopie)`;
       const newPages = [...localFunnel.pages];
       newPages.splice(index + 1, 0, newPage);
       updateLocalFunnel({ pages: newPages });
@@ -910,6 +949,7 @@ export default function FunnelEditor() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (localFunnel && !canEditFunnelDocument(localFunnel, layoutEditing)) return;
       const target = e.target as HTMLElement;
       const isEditing =
         target.tagName === "INPUT" ||
@@ -958,7 +998,7 @@ export default function FunnelEditor() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [hasChanges, handleUndo, handleRedo, handleSave, moveElementUp, moveElementDown, selectedElementId]);
+  }, [localFunnel, layoutEditing, hasChanges, handleUndo, handleRedo, handleSave, moveElementUp, moveElementDown, selectedElementId]);
 
   // Der Builder ist für kleine Viewports nicht bedienbar — statt einer kaputten
   // Oberfläche einen klaren Hinweis zeigen (Desktop-Editor bleibt unverändert).
@@ -996,7 +1036,7 @@ export default function FunnelEditor() {
     );
   }
 
-  if (isLoading) {
+  if (isLoading || capabilitiesLoading) {
     return (
       <div className="h-screen flex">
         <div className="w-80 border-r border-border p-4 space-y-4">
@@ -1032,6 +1072,21 @@ export default function FunnelEditor() {
   }
 
   const selectedPage = localFunnel.pages[selectedPageIndex];
+
+  if (!canEditFunnelDocument(localFunnel, layoutEditing)) {
+    return (
+      <ErrorBoundary>
+        <div className="p-4 border-b space-y-2">
+          <Button variant="outline" onClick={() => navigate("/funnels")}>Zurück zu Funnels</Button>
+          <p>Dieser Funnel verwendet neue Layout-Funktionen. Die Bearbeitung ist in dieser Editorversion noch nicht verfügbar.</p>
+          <p className="text-sm text-muted-foreground">Du kannst den gespeicherten Entwurf hier durchspielen.</p>
+        </div>
+        {documentVersionSchema.safeParse(localFunnel.documentVersion ?? 1).success && (
+          <FunnelRenderer funnel={localFunnel} mode="preview" />
+        )}
+      </ErrorBoundary>
+    );
+  }
 
   return (
     <ErrorBoundary>
@@ -1159,6 +1214,10 @@ export default function FunnelEditor() {
                     if (!localFunnel) return;
                     const page = localFunnel.pages[selectedPageIndex];
                     if (!page) return;
+                    if (page.layout) {
+                      updatePage(selectedPageIndex, addLayoutSection(page, "Vorlage", [elements as PageElement[]]));
+                      return;
+                    }
                     const newElements = elements.map((el) => ({
                       ...el,
                       id: `el-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -1283,7 +1342,30 @@ export default function FunnelEditor() {
                 A/B-Test läuft
               </button>
             )}
-            <PhonePreview
+            {layoutEditing && selectedPage && !selectedPage.layout && (
+              <div className="mb-3 rounded-lg border bg-card p-3 space-y-2">
+                <Button variant="outline" size="sm" onClick={enableSections} disabled={convertingLayout || !!layoutBlockReason(localFunnel, selectedPage)}>
+                  {convertingLayout ? "Stand wird gesichert …" : "Abschnitte für diese Seite aktivieren"}
+                </Button>
+                <p className="text-xs text-muted-foreground">{layoutBlockReason(localFunnel, selectedPage) || "Die vorhandenen Inhalte bleiben erhalten. Der bisherige Stand wird vorher als Version gesichert."}</p>
+              </div>
+            )}
+            {selectedPage?.layout ? <LayoutEditor
+              page={selectedPage} theme={localFunnel.theme}
+              onChange={page => updatePage(selectedPageIndex, page)}
+              selectedElementId={selectedElementId}
+              onSelectElement={id => {
+                setSelectedElementId(id); setShowRightPanel(!!id);
+                const column = selectedPage.layout?.sections.flatMap(section => section.columns).find(column => column.elementIds.includes(id ?? ""));
+                if (column) setActiveColumnId(column.id);
+              }}
+              activeColumnId={activeColumnId} onChooseColumn={setActiveColumnId}
+              onAddElement={addElementToPage}
+              blockedReason={layoutBlockReason(localFunnel, selectedPage)}
+              elementActions={{ onDelete: deleteSelectedElement, onDuplicate: duplicateSelectedElement,
+                onCopy: copySelectedElement, onCut: cutSelectedElement, onPaste: pasteFromClipboard,
+                canPaste: clipboard?.type === "element", onMoveUp: moveElementUp, onMoveDown: moveElementDown }}
+            /> : <PhonePreview
               page={selectedPage}
               pageIndex={selectedPageIndex}
               totalPages={localFunnel.pages.length}
@@ -1320,7 +1402,7 @@ export default function FunnelEditor() {
                 newElements.splice(newIndex, 0, moved);
                 updatePage(selectedPageIndex, { elements: newElements });
               }}
-            />
+            />}
           </div>
         </div>
 

@@ -40,6 +40,7 @@ export default defineConfig({
     timeout: 180_000,
     env: {
       E2E_DATABASE_URL,
+      BUILDER_LAYOUT_EDITOR: process.env.BUILDER_LAYOUT_EDITOR ?? "false",
       E2E_PORT: String(E2E_PORT),
       PLAYWRIGHT_BASE_URL: E2E_BASE_URL,
     },

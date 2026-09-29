@@ -52,7 +52,7 @@ import { verifyDomainDns } from "./domain-verify";
 import { registerWorkspaceRoutes } from "./workspace-routes";
 import { registerRecruitingRoutes } from "./recruiting-routes";
 import { changeRecruitingStage, RecruitingError } from "./recruiting";
-import { writeControlSchema } from "@shared/funnel-document";
+import { writeControlSchema, documentVersionSchema } from "@shared/funnel-document";
 import { listFunnelRevisions, FunnelWriteError } from "./funnel-revisions";
 import { generateFunnel, testConnection, AiError, type DecryptedCredential } from "./ai";
 import { z } from "zod";
@@ -1009,6 +1009,11 @@ export async function registerRoutes(
   });
 
   // Get single funnel
+  // The reader can be rolled out before activating structural editing.
+  app.get("/api/funnels/editor-capabilities", isAuthenticated, (_req, res) => {
+    res.json({ layoutEditing: process.env.BUILDER_LAYOUT_EDITOR === "true" });
+  });
+
   app.get("/api/funnels/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
@@ -1054,6 +1059,9 @@ export async function registerRoutes(
       const userId = getUserId(req);
       if (!userId || !req.user) return res.status(401).json({ error: "Nicht autorisiert" });
 
+      if (req.body.documentVersion !== undefined && !documentVersionSchema.safeParse(req.body.documentVersion).success) {
+        return res.status(409).json({ error: "Dieses Dokument benötigt eine neuere Editorversion.", code: "EDITOR_UPDATE_REQUIRED" });
+      }
       const result = insertFunnelSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ error: "Ungültige Funnel-Daten", details: result.error.errors });
@@ -1064,6 +1072,10 @@ export async function registerRoutes(
         return res.status(403).json(freePublishLimitResponse);
       }
 
+      // Keep validated, unknown legacy properties when creating a copy.
+      if (req.body.pages) result.data.pages = req.body.pages;
+      if (req.body.theme) result.data.theme = req.body.theme;
+      if (req.body.abTests) result.data.abTests = req.body.abTests;
       const funnel = await storage.createFunnel(result.data, userId);
       res.status(201).json(funnel);
     } catch (error) {
@@ -1260,7 +1272,11 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Funnel nicht gefunden" });
       }
 
+      if (!documentVersionSchema.safeParse(original.documentVersion ?? 1).success) {
+        return res.status(409).json({ error: "Dieses Dokument benötigt eine neuere Editorversion.", code: "EDITOR_UPDATE_REQUIRED" });
+      }
       const cloned = await storage.createFunnel({
+        documentVersion: original.documentVersion as 1 | 2 | undefined,
         name: `${original.name} (Kopie)`,
         description: original.description ?? undefined,
         pages: original.pages,

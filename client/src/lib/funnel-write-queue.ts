@@ -5,6 +5,7 @@ export interface FunnelWrite {
   data: Partial<Funnel>;
   publish?: boolean;
   restoreId?: number;
+  documentVersion?: 1 | 2;
 }
 type Request = FunnelWrite & { control: WriteControl };
 export type FunnelSender = (request: Request) => Promise<Funnel>;
@@ -26,7 +27,7 @@ export class FunnelWriteQueue {
       // exact mutation first, before choosing the version for any later write.
       if (this.unresolved) await this.perform(this.unresolved);
       const request: Request = { ...captured, control: {
-        documentVersion: DOCUMENT_VERSION, expectedVersion: this.version,
+        documentVersion: captured.documentVersion ?? DOCUMENT_VERSION, expectedVersion: this.version,
         mutationId: crypto.randomUUID(), ...(captured.publish ? { publish: true } : {}),
       } };
       return this.perform(request);

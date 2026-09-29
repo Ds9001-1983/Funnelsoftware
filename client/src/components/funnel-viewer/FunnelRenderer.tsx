@@ -19,6 +19,8 @@ import { validateField } from "@/components/funnel-editor/FormFieldWithValidatio
 import { FunnelProgress } from "@/components/funnel-editor/FunnelProgress";
 import { getQuizAnswersFromFormValues } from "@/components/funnel-editor/QuizElementView";
 import type { FunnelPage, Theme, PageElement } from "@shared/schema";
+import { designButtonStyle, resolveDesign } from "@shared/funnel-layout";
+import { PageLayout } from "./PageLayout";
 
 /** Minimale Funnel-Daten, die der Renderer braucht — erfüllt sowohl der
  *  Public-API-Response als auch ein ClientTemplate aus templates.ts. */
@@ -93,10 +95,10 @@ export function FunnelRenderer({
 
   // Theme-Font laden (Google Fonts) — gilt für Live wie Vorschau
   useEffect(() => {
-    if (funnel.theme?.fontFamily) {
-      loadFont(funnel.theme.fontFamily);
-    }
-  }, [funnel.theme?.fontFamily]);
+    const page = funnel.pages[currentPageIndex];
+    const font = page ? resolveDesign(funnel.theme, page).fontFamily : funnel.theme.fontFamily;
+    if (font) loadFont(font);
+  }, [funnel.theme, funnel.pages, currentPageIndex]);
 
   const updateFormValue = useCallback((elementId: string, value: string) => {
     setFormValues((prev) => ({ ...prev, [elementId]: value }));
@@ -293,6 +295,7 @@ export function FunnelRenderer({
   if (!currentPage) return null;
 
   const { theme } = funnel;
+  const design = resolveDesign(theme, currentPage);
   const isLastPage = currentPageIndex === funnel.pages.length - 1;
   const isFirstPage = currentPageIndex === 0;
   const isContactPage = currentPage.type === "contact";
@@ -304,7 +307,7 @@ export function FunnelRenderer({
       style={{
         backgroundColor: currentPage.backgroundColor || theme.backgroundColor,
         color: theme.textColor,
-        fontFamily: theme.fontFamily || "system-ui, sans-serif",
+        fontFamily: design.fontFamily,
       }}
     >
       {header}
@@ -326,6 +329,7 @@ export function FunnelRenderer({
           key={currentPageIndex}
           className="w-full max-w-lg mx-auto my-auto space-y-6"
           style={{
+            maxWidth: design.width,
             animation: `${slideDirection === "left" ? "slideInFromRight" : "slideInFromLeft"} 0.35s ease-out`,
           }}
         >
@@ -333,7 +337,7 @@ export function FunnelRenderer({
           {currentPage.title && (
             <h1
               className="text-2xl md:text-3xl font-bold text-center leading-tight"
-              style={{ color: theme.textColor }}
+              style={{ color: theme.textColor, fontSize: design.headingSize }}
             >
               {currentPage.title}
             </h1>
@@ -341,19 +345,20 @@ export function FunnelRenderer({
 
           {/* Page subtitle */}
           {currentPage.subtitle && (
-            <p className="text-center text-base opacity-70">
+            <p className="text-center text-base opacity-70" style={{ fontSize: design.bodySize }}>
               {currentPage.subtitle}
             </p>
           )}
 
           {/* Elements */}
-          <div className="space-y-4">
-            {currentPage.elements.map((element: PageElement) => (
-              <div key={element.id}>
+          <PageLayout page={currentPage} spacing={design.spacing} textColor={theme.textColor}
+            renderElement={(element: PageElement, textColor) => (
+              <>
                 <ElementPreviewRenderer
                   element={element}
-                  textColor={theme.textColor}
+                  textColor={textColor}
                   primaryColor={theme.primaryColor}
+                  design={theme.design}
                   formValues={formValues}
                   updateFormValue={(id, value) => {
                     updateFormValue(id, value);
@@ -390,9 +395,9 @@ export function FunnelRenderer({
                 {validationErrors[element.id] && (
                   <p className="text-red-500 text-xs mt-1 px-1">{validationErrors[element.id]}</p>
                 )}
-              </div>
-            ))}
-          </div>
+              </>
+            )}
+          />
 
           {/* Honeypot: für Menschen unsichtbar (aria-hidden, tabindex -1, off-screen).
               Bots füllen es aus → der Server verwirft die Übermittlung stumm. */}
@@ -421,7 +426,7 @@ export function FunnelRenderer({
                   onClick={handlePrevPage}
                   data-testid="button-funnel-back"
                   className="flex items-center gap-1 px-5 py-3 rounded-xl text-sm font-medium opacity-70 hover:opacity-100 transition-opacity"
-                  style={{ color: theme.textColor }}
+                  style={{ color: theme.textColor, borderRadius: design.radius, fontSize: design.bodySize }}
                 >
                   <ChevronLeft className="h-4 w-4" />
                   Zurück
@@ -435,7 +440,7 @@ export function FunnelRenderer({
                 data-testid={isContactPage || isLastPage ? "button-funnel-submit" : "button-funnel-next"}
                 disabled={isSubmitting}
                 className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
-                style={{ backgroundColor: theme.primaryColor }}
+                style={designButtonStyle(theme.primaryColor, theme.design)}
               >
                 {isSubmitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

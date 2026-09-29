@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
 import { users, funnels, leads, analyticsEvents, funnelRevisions, type Funnel } from "@shared/schema";
 import type { WriteControl } from "@shared/funnel-document";
+import { enablePageLayout } from "@shared/funnel-layout-edit";
 
 const connection = process.env.REVISION_TEST_DATABASE_URL;
 if (connection) {
@@ -42,6 +43,23 @@ describe.skipIf(!connection)("versioned drafts, live content and recovery", () =
     expect(draft.publishedRevisionId).toBe(live.publishedRevisionId);
     await storage.updateFunnel(f.funnel.id, f.owner.id, {}, control(2, true));
     expect((await storage.getFunnelByUuid(f.funnel.uuid))?.name).toBe("Entwurf B");
+  });
+  it("publishes layout snapshots atomically and rejects incompatible editors or broken references", async () => {
+    const f = await fixture();
+    const page = enablePageLayout({ ...f.funnel.pages[0], elements: [{ id: "field", type: "input", required: true }] });
+    const modern = (version: number, publish = false): WriteControl => ({ ...control(version, publish), documentVersion: 2 });
+    const live = (await storage.updateFunnel(f.funnel.id, f.owner.id, { pages: [page] }, modern(0, true)))!;
+    expect(live.documentVersion).toBe(2);
+    expect((await storage.getFunnelByUuid(live.uuid))?.pages).toEqual([page]);
+    await expect(storage.updateFunnel(live.id, f.owner.id, { name: "Alter Tab" }, control(1))).rejects.toMatchObject({ code: "EDITOR_UPDATE_REQUIRED" });
+    const broken = structuredClone(page);
+    broken.layout!.sections[0].columns[0].elementIds = [];
+    await expect(storage.updateFunnel(live.id, f.owner.id, { pages: [broken] }, modern(1, true))).rejects.toMatchObject({ code: "INVALID_LAYOUT" });
+    await expect(storage.updateFunnel(live.id, f.owner.id, { pages: [{ ...page, nextPageId: "deleted" }] }, modern(1, true))).rejects.toMatchObject({ code: "INVALID_REFERENCES" });
+    const current = await storage.getFunnel(live.id, f.owner.id);
+    expect(current?.editVersion).toBe(1);
+    expect(current?.publishedRevisionId).toBe(live.publishedRevisionId);
+    expect(await service.listFunnelRevisions(live.id, f.owner.id)).toHaveLength(2);
   });
   it("accepts old clients only until a funnel adopts the new editor protocol", async () => {
     const f = await fixture();
