@@ -6,9 +6,20 @@ Der Nutzer hat die Fortsetzung am 28.09.2026 ausdrücklich bestätigt.
 
 ## Fortsetzung am 30.09.2026
 
-### Besucherregeln: Umsetzung und Abnahme
+### Aktueller Stand: Besucherregeln veröffentlicht und freigeschaltet
 
-Arbeitsbranch `feat/builder-visitor-rules` in `../Funnelsoftware-builder`.
+Veröffentlicht über [PR #177](https://github.com/Ds9001-1983/Funnelsoftware/pull/177)
+und die A/B-Ergänzung [PR #178](https://github.com/Ds9001-1983/Funnelsoftware/pull/178).
+Aktueller Produktionsrelease: `3c8858abf318e623ff84c53072c2d76f9834c2a5`.
+[Deployment 36729011007](https://github.com/Ds9001-1983/Funnelsoftware/actions/runs/36729011007)
+einschließlich CI, Browser- und Datenbanktests erfolgreich. Der Health-Check
+bestätigt den Release; PM2 läuft online mit `BUILDER_ROUTING_EDITOR=true` und
+dem bisherigen `BUILDER_LAYOUT_EDITOR=true`.
+
+Arbeitsverzeichnis für die Fortsetzung: `../Funnelsoftware-builder`, lokaler
+Dokumentationsbranch `docs/builder-visitor-rollout` auf `origin/main`.
+Diese Abschlussnotiz ist lokal versioniert; beide Umsetzungen sind in `main`.
+
 Das Paket ergänzt die Flow-Ansicht um geordnete UND/ODER-Regeln, typisierte
 Vergleiche mit Antworten früherer Seiten, ein Standardziel und einen Testmodus
 mit Ziel und Begründung je Bedingung. Die Aktivierung zeigt die Übernahme alter
@@ -31,16 +42,28 @@ Weiterleitungen an, ist rückgängig machbar und wirkt erst nach Veröffentlichu
   rekonstruiert. Antwortstatistiken nutzen bei neuen Leads den Snapshot.
   Migration `20260930_visitor_answers.sql` ergänzt ausschließlich diese Spalte.
 - Neuer Leser funktioniert mit ausgeschaltetem `BUILDER_ROUTING_EDITOR`;
-  unbekannte/gesperrte Versionen bleiben im Editor schreibgeschützt. Erst den
-  Leser veröffentlichen und prüfen, danach das Flag in Produktion aktivieren.
-  Sobald Version-3-Dokumente existieren, keinen älteren v1/v2-Leser zurückrollen.
+  unbekannte/gesperrte Versionen bleiben im Editor schreibgeschützt. Leser mit
+  ausgeschaltetem Flag geprüft, anschließend die Bearbeitung freigeschaltet.
+  Sobald Version-3-Dokumente existieren, keinen älteren v1/v2-Leser zurückrollen;
+  der aktuelle Release enthält zusätzlich die Korrektur für A/B-Auswahlfelder.
 
 Abnahme: 442 Tests einschließlich 51 Datenbank-/Migrationstests, unveränderte
 alte Routingtests, 26 Browserabläufe. Typecheck und Produktionsbuild erfolgreich.
 Der Browsergesamtlauf respektiert die getrennten Wartezeiten beider bestehenden
 Versandbegrenzungen; Produktionslimits bleiben unverändert.
-Veröffentlichung und Live-Abnahme folgen über PR/Deployment mit frischem Backup,
-Restore-Test und Prüfung aller bisherigen Tabellenspalten.
+Beide Deployments erstellten frische Backups. Restore und zweimaliger
+Migrationslauf bestätigten jeweils unveränderte Inhalte aller bisherigen
+Spalten der 24 Tabellen. Datenbank und Uploads zusätzlich lokal gesichert;
+SHA-256 jeweils gegen die Serverkopie geprüft:
+
+- `~/TrichterwerkBackups/releases/20260930T141911-62570f35fa92/`
+- `~/TrichterwerkBackups/releases/20260930T142829-3c8858abf318/`
+
+Serverkopien einschließlich Konfiguration liegen unter
+`/var/backups/funnelflow/releases/` mit denselben Verzeichnisnamen.
+Vor Freischaltung zusätzliches Konfigurationsbackup:
+`/var/backups/funnelflow/visitor-rules-activation-20260930T142930/`.
+Das eigene temporäre PostgreSQL-Testcluster wurde beendet.
 
 Nachprüfung vor Freischaltung: Auch Auswahlfelder, die ausschließlich in einer
 A/B-Alternative vorkommen, aktivieren den versionierten Besucherweg für den
@@ -49,7 +72,27 @@ Variantendefinitionen vor der Auswahl/Überlagerung. Zwei zusätzliche
 Browserprüfungen bestätigen Snapshot, Options-ID und Variantenzuordnung für
 Kontrolle und Alternative; ein Renderer-Test deckt die Vorschau ab.
 
-### Aktueller Stand: Markenstile veröffentlicht
+Live-Abnahme: schreibgeschützter v3-Leser bei deaktivierter Fähigkeit,
+Regelbearbeitung und Testmodus bei aktivierter Fähigkeit, mobile Vorschau,
+öffentliche Verzweigung, besuchter Zurück-Pfad, verworfene Antworten,
+Pflichtfelder bei direkten Sprüngen, fehlgeschlagenes Absenden mit erneutem
+Versuch sowie Antwort-Snapshot einschließlich beider A/B-Fälle bestanden.
+Alle API- und externen Browseraufrufe abgefangen; keine Testdaten in Produktion.
+Keine JavaScript-Fehler. SHA-256 des ausgelieferten JavaScript-Einstiegs
+`index-oJKlN1iz.js` entspricht dem aktiven Server-Release. Fähigkeiten-API ohne
+Anmeldung: 401. PM2-Konfiguration und Health nach Freischaltung erneut geprüft.
+
+Der vollständige PR-Prüflauf für #178 und der finale Deployment-Prüflauf sind
+grün. Der redundante Push-Lauf 36728162760 hing bei der Chromium-Installation
+und wurde nach erfolgreicher Prüfung desselben Commits im PR beendet.
+
+Editor neu laden; unter „Flow-Ansicht“ die Regelseite auswählen und
+„Besucherregeln aktivieren“. Einzelne Funnels bleiben bis zur ausdrücklichen
+Aktivierung/Veröffentlichung bei ihrer bisherigen Semantik.
+Als nächstes offen: Personalisierung, danach Vorlagen-/Medienverwaltung aus
+der ursprünglichen Übergabe.
+
+### Vorheriger Stand: Markenstile veröffentlicht
 
 Das Paket ist über [PR #176](https://github.com/Ds9001-1983/Funnelsoftware/pull/176)
 veröffentlicht. Aktueller Produktionsrelease:
