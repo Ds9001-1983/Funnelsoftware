@@ -6,9 +6,17 @@ Der Nutzer hat die Fortsetzung am 28.09.2026 ausdrücklich bestätigt.
 
 ## Fortsetzung am 30.09.2026
 
-Arbeitsverzeichnis `../Funnelsoftware-builder`, Branch `feat/builder-brand-styles`.
-Das Paket für wiederverwendbare Designs ist implementiert und lokal abgenommen;
-Veröffentlichung erfolgt nach grüner CI über den bestehenden Deployment-Ablauf.
+### Aktueller Stand: Markenstile veröffentlicht
+
+Das Paket ist über [PR #176](https://github.com/Ds9001-1983/Funnelsoftware/pull/176)
+veröffentlicht. Aktueller Produktionsrelease:
+`8f771a0bbe46be1154d7807f9cb8f537a6e4cef4`.
+[Deployment 36675969933](https://github.com/Ds9001-1983/Funnelsoftware/actions/runs/36675969933)
+einschließlich erneuter CI erfolgreich. Health-Check bestätigt diesen Release.
+
+Arbeitsverzeichnis für die Fortsetzung: `../Funnelsoftware-builder`, lokaler
+Dokumentationsbranch `docs/builder-brand-rollout` auf dem aktuellen `origin/main`.
+Diese Abschlussnotiz ist lokal versioniert; die Umsetzung selbst ist in `main`.
 
 - Designbereich mit vier abgestimmten Vorlagen, Farben, vorhandenen Schriften,
   Textgrößen, Button-Stilen, Rundungen und Elementabständen.
@@ -35,7 +43,24 @@ Geprüft sind Vorschau/Abbrechen, Erhalt und Zurücksetzen individueller Werte,
 Undo/Redo, Neuladen, Wiederverwendung, fremde Kontozugriffe, Versionskonflikte
 und unabhängige Veröffentlichung nach Änderung/Archivierung einer Vorlage.
 
-Danach offen: Besucherregeln, Personalisierung sowie Vorlagen-/Medienverwaltung.
+Produktionsprüfung: Designbereich mit Bibliothek und Vorschau/Abbrechen sowie
+mobile Funktionsvorschau und öffentliche Ausgabe mit den echten Live-Assets
+geprüft, ohne JavaScript-Fehler. Alle API- und externen Browseraufrufe abgefangen;
+keine Test-Leads oder Test-Funnels auf Produktion angelegt. SHA-256 des
+ausgelieferten JavaScript-Einstiegs entspricht dem aktiven Server-Release.
+Markenstil-API ohne Anmeldung antwortet mit 401.
+
+Frisches Backup vor Migration erstellt, Restore und zwei Migrationsläufe
+bestätigen unveränderte Inhalte aller 23 bisherigen Tabellen. Datenbank und
+Uploads zusätzlich lokal unter
+`~/TrichterwerkBackups/releases/20260930T060141-8f771a0bbe46/` gesichert;
+SHA-256 beider Dateien gegen die Serverkopie geprüft. Serverbackup einschließlich
+Konfiguration: `/var/backups/funnelflow/releases/20260930T060141-8f771a0bbe46/`.
+Das eigene temporäre lokale PostgreSQL-Cluster wurde beendet.
+
+Editor neu laden; eigene Markenstile stehen links im Reiter „Design“ bereit.
+Als nächstes offen: Besucherregeln, danach Personalisierung sowie
+Vorlagen-/Medienverwaltung aus der ursprünglichen Übergabe.
 
 ## Fortsetzung am 29.09.2026
 
