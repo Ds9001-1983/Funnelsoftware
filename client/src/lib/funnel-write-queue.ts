@@ -5,7 +5,7 @@ export interface FunnelWrite {
   data: Partial<Funnel>;
   publish?: boolean;
   restoreId?: number;
-  documentVersion?: 1 | 2;
+  documentVersion?: 1 | 2 | 3;
 }
 type Request = FunnelWrite & { control: WriteControl };
 export type FunnelSender = (request: Request) => Promise<Funnel>;

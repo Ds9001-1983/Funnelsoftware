@@ -1,4 +1,6 @@
-import { useState, useCallback, useEffect, useRef, type ReactNode } from "react";
+import { needsRoutingDocument, resolveVisitorTransition, answersOnPath, captureAnswers, answerText } from "@shared/funnel-routing";
+import type { AnswerSnapshot } from "@shared/schema";
+import { useState, useMemo, useCallback, useEffect, useRef, type ReactNode } from "react";
 import confetti from "canvas-confetti";
 import { Loader2, ChevronRight, ChevronLeft } from "lucide-react";
 
@@ -27,6 +29,9 @@ import { PageLayout } from "./PageLayout";
 export interface RenderableFunnel {
   pages: FunnelPage[];
   theme: Theme;
+  publishedRevisionId?: number | null;
+  routingEnabled?: boolean;
+  variantAssignments?: Record<string, string>;
 }
 
 /** Lead-Daten, die der Renderer beim Absenden aus den Formularwerten baut.
@@ -38,6 +43,7 @@ export interface FunnelLeadPayload {
   company?: string;
   message?: string;
   answers: Record<string, string>;
+  answerSnapshot?: AnswerSnapshot;
   /** Honeypot-Wert — bei Menschen immer leer; nur Bots befüllen ihn. */
   website?: string;
 }
@@ -74,7 +80,7 @@ interface FunnelRendererProps {
  * durchspielbaren Funnel (Template-/Owner-Vorschau).
  */
 export function FunnelRenderer({
-  funnel,
+  funnel: sourceFunnel,
   mode,
   onSubmit,
   onPageView,
@@ -82,6 +88,12 @@ export function FunnelRenderer({
   renderFooter,
   className,
 }: FunnelRendererProps) {
+  const modernRouting = sourceFunnel.routingEnabled ?? needsRoutingDocument(sourceFunnel.pages);
+  const funnel = useMemo(() => modernRouting ? { ...sourceFunnel, pages: sourceFunnel.pages.filter(page => !page.hidden) } : sourceFunnel, [sourceFunnel, modernRouting]);
+  const [visitedPath, setVisitedPath] = useState<string[]>(() => funnel.pages[0] ? [funnel.pages[0].id] : []);
+  const navigationLock = useRef(false);
+  const submissionLock = useRef(false);
+  const completedSubmission = useRef(false);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [slideDirection, setSlideDirection] = useState<"left" | "right">("left");
   const [isAnimating, setIsAnimating] = useState(false);
@@ -148,19 +160,21 @@ export function FunnelRenderer({
   }, [funnel, currentPageIndex, formValues]);
 
   const navigateToPage = useCallback((targetIndex: number, direction: "left" | "right") => {
-    if (isAnimating) return;
+    if (navigationLock.current) return;
+    navigationLock.current = true;
     setIsAnimating(true);
     setSlideDirection(direction);
     setTimeout(() => {
       setCurrentPageIndex(targetIndex);
       setIsAnimating(false);
+      navigationLock.current = false;
       if (mode === "live") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
         contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
       }
     }, 50);
-  }, [isAnimating, mode]);
+  }, [mode]);
 
   const handleNextPage = useCallback(() => {
     if (!validateCurrentPage()) return;
@@ -172,10 +186,18 @@ export function FunnelRenderer({
   }, [funnel, validateCurrentPage, resolveNextPageIndex, onPageView, navigateToPage]);
 
   const handlePrevPage = useCallback(() => {
-    if (currentPageIndex > 0) {
-      navigateToPage(currentPageIndex - 1, "right");
-    }
-  }, [currentPageIndex, navigateToPage]);
+    if (navigationLock.current || submissionLock.current || (modernRouting && completedSubmission.current)) return;
+    if (modernRouting) {
+      if (visitedPath.length < 2) return;
+      const path = visitedPath.slice(0, -1);
+      const index = funnel.pages.findIndex(page => page.id === path[path.length - 1]);
+      setVisitedPath(path);
+      setFormValues(values => answersOnPath(funnel.pages, path, values));
+      setValidationErrors({});
+      setSubmitError(null);
+      navigateToPage(index, "right");
+    } else if (currentPageIndex > 0) navigateToPage(currentPageIndex - 1, "right");
+  }, [modernRouting, visitedPath, funnel.pages, currentPageIndex, navigateToPage]);
 
   // Honeypot gegen Bot-Submissions: für Menschen unsichtbar (siehe Render unten),
   // nur Bots füllen es aus. Der Server (POST /api/public/leads) verwirft solche
@@ -194,8 +216,10 @@ export function FunnelRenderer({
     let message = "";
 
     for (const page of funnel.pages) {
+      if (modernRouting && !visitedPath.includes(page.id)) continue;
       for (const el of page.elements) {
-        const value = formValues[el.id];
+        const rawValue = formValues[el.id];
+        const value = rawValue === undefined ? undefined : answerText(el, rawValue);
 
         // Quiz: pro Frage die Antwort-Texte (statt IDs) + Ergebnis menschen-
         // lesbar in die answers legen. Muss VOR dem !value-Guard laufen — die
@@ -245,18 +269,19 @@ export function FunnelRenderer({
       company: company || undefined,
       message: message || undefined,
       answers: formData,
+      ...(modernRouting ? { answerSnapshot: captureAnswers(funnel.pages, visitedPath, formValues, funnel.publishedRevisionId ?? 0, funnel.variantAssignments) } : {}),
       website: honeypotRef.current?.value || undefined,
     };
-  }, [funnel, formValues]);
+  }, [funnel, formValues, modernRouting, visitedPath]);
 
-  const handleSubmit = useCallback(async () => {
-    if (isSubmitting) return;
+  const handleSubmit = useCallback(async (resultIndex?: number) => {
+    if (submissionLock.current || (modernRouting && completedSubmission.current)) return;
 
     // Validierung
     if (!validateCurrentPage()) return;
 
     const jumpToThankyou = () => {
-      const thankyouIndex = funnel.pages.findIndex((p) => p.type === "thankyou");
+      const thankyouIndex = modernRouting ? resultIndex ?? -1 : funnel.pages.findIndex((p) => p.type === "thankyou");
       if (thankyouIndex >= 0) {
         setCurrentPageIndex(thankyouIndex);
       }
@@ -266,10 +291,16 @@ export function FunnelRenderer({
       }, 300);
     };
 
+    if (modernRouting && (resultIndex === undefined || funnel.pages[resultIndex]?.type !== "thankyou")) {
+      setSubmitError("Das Ergebnisziel ist nicht verfügbar. Bitte wende dich an den Anbieter."); return;
+    }
+    submissionLock.current = true;
     // Ohne onSubmit (Vorschau): Erfolg simulieren, kein Lead, kein Netzwerk-Call
     if (!onSubmit) {
+      completedSubmission.current = true;
       setSubmitted(true);
       jumpToThankyou();
+      submissionLock.current = false;
       return;
     }
 
@@ -279,6 +310,7 @@ export function FunnelRenderer({
     try {
       const ok = await onSubmit(buildLeadPayload());
       if (ok) {
+        completedSubmission.current = true;
         setSubmitted(true);
         jumpToThankyou();
       } else {
@@ -287,9 +319,26 @@ export function FunnelRenderer({
     } catch {
       setSubmitError("Verbindungsfehler. Bitte prüfe deine Internetverbindung.");
     } finally {
+      submissionLock.current = false;
       setIsSubmitting(false);
     }
-  }, [funnel, isSubmitting, validateCurrentPage, onSubmit, buildLeadPayload]);
+  }, [funnel, modernRouting, validateCurrentPage, onSubmit, buildLeadPayload]);
+
+  const advanceVisitor = (explicitTarget?: string) => {
+    if (navigationLock.current || submissionLock.current || completedSubmission.current || !validateCurrentPage()) return;
+    const next = resolveVisitorTransition(funnel.pages, currentPageIndex, formValues, explicitTarget);
+    if (next === null || visitedPath.includes(funnel.pages[next].id)) {
+      setSubmitError("Dieser Besucherweg hat kein gültiges Ziel. Bitte wende dich an den Anbieter."); return;
+    }
+    if (funnel.pages[next].type === "thankyou" || funnel.pages[currentPageIndex].type === "contact") {
+      void handleSubmit(next); return;
+    }
+    setSubmitError(null);
+    setValidationErrors({});
+    setVisitedPath(path => [...path, funnel.pages[next].id]);
+    navigateToPage(next, "left");
+    onPageView?.(funnel.pages[next].id, next);
+  };
 
   const currentPage = funnel.pages[currentPageIndex];
   if (!currentPage) return null;
@@ -297,9 +346,11 @@ export function FunnelRenderer({
   const { theme } = funnel;
   const design = resolveDesign(theme, currentPage);
   const isLastPage = currentPageIndex === funnel.pages.length - 1;
-  const isFirstPage = currentPageIndex === 0;
+  const isFirstPage = modernRouting ? visitedPath.length <= 1 : currentPageIndex === 0;
   const isContactPage = currentPage.type === "contact";
   const isThankyouPage = currentPage.type === "thankyou";
+  const nextTarget = modernRouting ? resolveVisitorTransition(funnel.pages, currentPageIndex, formValues) : null;
+  const submits = modernRouting ? isContactPage || (nextTarget !== null && funnel.pages[nextTarget].type === "thankyou") : isContactPage || isLastPage;
 
   return (
     <div
@@ -371,6 +422,7 @@ export function FunnelRenderer({
                     }
                   }}
                   onButtonClick={(el) => {
+                    if (modernRouting && el.buttonAction !== "url") { advanceVisitor(el.buttonAction === "page" ? el.buttonNextPageId : undefined); return; }
                     if (el.buttonAction === "page" && el.buttonNextPageId) {
                       const targetIdx = funnel.pages.findIndex(p => p.id === el.buttonNextPageId);
                       if (targetIdx >= 0) {
@@ -384,6 +436,7 @@ export function FunnelRenderer({
                   onListItemClick={(el, itemId) => {
                     const item = el.listItems?.find(i => i.id === itemId);
                     if (item?.targetPageId) {
+                      if (modernRouting) { advanceVisitor(item.targetPageId); return; }
                       const targetIdx = funnel.pages.findIndex(p => p.id === item.targetPageId);
                       if (targetIdx >= 0) {
                         navigateToPage(targetIdx, targetIdx > currentPageIndex ? "left" : "right");
@@ -435,16 +488,16 @@ export function FunnelRenderer({
 
               <button
                 onClick={
-                  isContactPage || isLastPage ? handleSubmit : handleNextPage
+                  modernRouting ? () => advanceVisitor() : submits ? () => void handleSubmit() : handleNextPage
                 }
-                data-testid={isContactPage || isLastPage ? "button-funnel-submit" : "button-funnel-next"}
-                disabled={isSubmitting}
+                data-testid={submits ? "button-funnel-submit" : "button-funnel-next"}
+                disabled={isSubmitting || (modernRouting && submitted)}
                 className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
                 style={designButtonStyle(theme.primaryColor, theme.design)}
               >
                 {isSubmitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
-                ) : isContactPage || isLastPage ? (
+                ) : submits ? (
                   currentPage.buttonText || "Absenden"
                 ) : (
                   <>

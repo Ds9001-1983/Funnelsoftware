@@ -1,3 +1,4 @@
+import { needsRoutingDocument } from "@shared/funnel-routing";
 import { useState, useEffect, useCallback } from "react";
 import { useLocation, Link } from "wouter";
 import {
@@ -26,6 +27,9 @@ declare global {
 }
 
 interface PublicFunnel {
+  documentVersion?: number;
+  publishedRevisionId?: number | null;
+  routingEnabled?: boolean;
   uuid: string;
   name: string;
   pages: FunnelPage[];
@@ -162,6 +166,7 @@ export default function PublicFunnelView() {
         }
 
         const data = await res.json();
+        data.routingEnabled = needsRoutingDocument(data.pages);
         // Versteckte Seiten herausfiltern (Preview zeigt Owner auch versteckte — Audit-freundlich)
         if (!isPreviewMode) {
           data.pages = data.pages.filter((p: FunnelPage) => !p.hidden);
@@ -341,6 +346,7 @@ export default function PublicFunnelView() {
           company: payload.company,
           message: payload.message,
           answers: payload.answers,
+          answerSnapshot: payload.answerSnapshot,
           source: document.referrer || "direct",
           marketingConsent,
         }),
@@ -451,7 +457,7 @@ export default function PublicFunnelView() {
 
   return (
     <FunnelRenderer
-      funnel={funnel}
+      funnel={{ ...funnel, variantAssignments }}
       mode="live"
       onSubmit={isPreviewMode ? undefined : submitLead}
       onPageView={isPreviewMode ? undefined : trackPageView}

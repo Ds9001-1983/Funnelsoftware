@@ -1,8 +1,9 @@
+import { visitorRoutingErrors } from "@shared/funnel-routing";
 import { createHash, randomUUID, randomBytes } from "node:crypto";
 import { and, desc, eq, lt, sql } from "drizzle-orm";
 import { db } from "./db";
 import { funnels, funnelRevisions, users, FREE_MAX_PUBLISHED_FUNNELS, type Funnel } from "@shared/schema";
-import { documentFromFunnel, documentSchema, documentVersionSchema, DOCUMENT_VERSION, type WriteControl, type FunnelRevisionSummary, type FunnelDocument } from "@shared/funnel-document";
+import { requiredDocumentVersion, documentFromFunnel, documentSchema, documentVersionSchema, DOCUMENT_VERSION, type WriteControl, type FunnelRevisionSummary, type FunnelDocument } from "@shared/funnel-document";
 import { documentLayoutErrors, documentReferenceErrors, needsLayoutDocument } from "@shared/funnel-layout";
 import { hasProFeatures } from "./auth";
 
@@ -60,11 +61,10 @@ export async function writeFunnel(id: number, userId: number, updates: Partial<F
       });
     }
     const candidate = { ...current, ...values } as FunnelRow;
-    if (needsLayoutDocument(candidate.pages as Funnel["pages"], candidate.theme as Funnel["theme"], candidate.abTests as Funnel["abTests"])) {
-      if (control.documentVersion < 2) throw new FunnelWriteError(409, "Dieses Layout benötigt die neue Editorversion.", "EDITOR_UPDATE_REQUIRED");
-      values.documentVersion = 2;
-      candidate.documentVersion = 2;
-    }
+    const requiredVersion = Math.max(candidate.documentVersion, requiredDocumentVersion(candidate as unknown as Funnel));
+    if (control.documentVersion < requiredVersion) throw new FunnelWriteError(409, "Dieses Dokument benötigt die neue Editorversion.", "EDITOR_UPDATE_REQUIRED");
+    values.documentVersion = requiredVersion;
+    candidate.documentVersion = requiredVersion;
     const content = snapshot(candidate);
     if (control.publish) {
       const [owner] = await tx.select().from(users).where(and(eq(users.id, userId), sql`${users.deletedAt} IS NULL`));
@@ -78,6 +78,8 @@ export async function writeFunnel(id: number, userId: number, updates: Partial<F
       if (layoutErrors.length) throw new FunnelWriteError(400, layoutErrors.slice(0, 5).join(" "), "INVALID_LAYOUT");
       const referenceErrors = content.version >= 2 ? documentReferenceErrors(content.pages, content.abTests) : [];
       if (referenceErrors.length) throw new FunnelWriteError(400, referenceErrors.slice(0, 5).join(" "), "INVALID_REFERENCES");
+      const routingErrors = visitorRoutingErrors(content.pages, content.abTests);
+      if (routingErrors.length) throw new FunnelWriteError(400, routingErrors.slice(0, 5).join(" "), "INVALID_ROUTING");
       values.status = "published";
     }
     let publishedRevisionId = current.publishedRevisionId;

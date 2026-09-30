@@ -74,6 +74,7 @@ export function maskLockedLeads<T extends LeadLike & Record<string, unknown>>(
           company: null,
           message: null,
           answers: {},
+          answerSnapshot: null,
           locked: true,
         }
       : lead,

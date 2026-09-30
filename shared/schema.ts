@@ -226,6 +226,7 @@ export const leads = pgTable("leads", {
   company: text("company"),
   message: text("message"),
   answers: jsonb("answers").default({}),
+  answerSnapshot: jsonb("answer_snapshot").$type<AnswerSnapshot>(),
   status: text("status").notNull().default("new"), // new, contacted, qualified, converted, lost
   stageId: text("stage_id"),
   stageVersion: integer("stage_version").notNull().default(0),
@@ -590,6 +591,7 @@ export const pageElementSchema = z.object({
     errorMessage: z.string().optional(), // Custom error message
   }).optional(),
   options: z.array(z.string()).optional(),
+  choices: z.array(z.object({ id: z.string().min(1).max(100), label: z.string().min(1).max(500) })).max(100).optional(),
   optionRouting: z.record(z.string(), z.string()).optional(), // option-text → targetPageId
   label: z.string().optional(),
   acceptedFileTypes: z.array(z.string()).optional(),
@@ -808,6 +810,41 @@ export const pageConditionSchema = z.object({
 
 export type PageCondition = z.infer<typeof pageConditionSchema>;
 
+const ruleField = { id: z.string().min(1).max(100), fieldId: z.string().min(1).max(100) };
+export const visitorConditionSchema = z.discriminatedUnion("kind", [
+  z.object({ ...ruleField, kind: z.literal("text"), operator: z.enum(["equals", "notEquals", "contains", "isEmpty", "isNotEmpty"]), value: z.string().max(1000).optional() }),
+  z.object({ ...ruleField, kind: z.literal("number"), operator: z.enum(["equals", "notEquals", "greater", "atLeast", "less", "atMost"]), value: z.number().finite() }),
+  z.object({ ...ruleField, kind: z.literal("choice"), operator: z.enum(["equals", "notEquals"]), value: z.string().min(1).max(500) }),
+]);
+export const visitorRoutingSchema = z.object({
+  version: z.literal(1),
+  rules: z.array(z.object({
+    id: z.string().min(1).max(100), name: z.string().max(100),
+    match: z.enum(["all", "any"]), conditions: z.array(visitorConditionSchema).min(1).max(20),
+    targetPageId: z.string().max(100),
+  })).max(50),
+  fallbackPageId: z.string().max(100),
+});
+export type VisitorCondition = z.infer<typeof visitorConditionSchema>;
+export type VisitorRouting = z.infer<typeof visitorRoutingSchema>;
+
+export const answerSnapshotSchema = z.object({
+  version: z.literal(1), documentVersion: z.literal(3),
+  contentRevisionId: z.number().int().nonnegative(),
+  path: z.array(z.string().min(1).max(100)).min(1).max(500),
+  fields: z.array(z.object({
+    pageId: z.string().min(1).max(100), elementId: z.string().min(1).max(100),
+    label: z.string().max(500), value: z.string().max(5000),
+    optionId: z.string().max(100).optional(), optionText: z.string().max(500).optional(),
+  })).max(1000),
+  variants: z.record(z.string().max(100), z.string().max(100)).optional(),
+}).superRefine((snapshot, ctx) => {
+  if (new Set(snapshot.path).size !== snapshot.path.length || new Set(snapshot.fields.map(field => field.elementId)).size !== snapshot.fields.length || snapshot.fields.some(field => !snapshot.path.includes(field.pageId))) {
+    ctx.addIssue({ code: "custom", message: "Antworten und besuchter Pfad müssen eindeutig zusammengehören." });
+  }
+});
+export type AnswerSnapshot = z.infer<typeof answerSnapshotSchema>;
+
 // Layout v1 references the canonical flat element list. No duplicated content.
 export const pageLayoutSchema = z.object({
   version: z.literal(1),
@@ -846,6 +883,7 @@ export const funnelPageSchema = z.object({
   animation: z.enum(["fade", "slide", "scale", "none"]).optional(),
   // Conditional logic for branching
   conditions: z.array(pageConditionSchema).optional(),
+  routing: visitorRoutingSchema.optional(),
   // Simple conditional routing (option -> pageId mapping)
   conditionalRouting: z.record(z.string(), z.string()).optional(),
   // Default next page ID (overrides sequential navigation)
@@ -1113,7 +1151,7 @@ export type Funnel = z.infer<typeof funnelSchema>;
 
 // Insert funnel schema
 export const insertFunnelSchema = z.object({
-  documentVersion: z.union([z.literal(1), z.literal(2)]).optional(),
+  documentVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
   name: z.string().min(1, "Name ist erforderlich"),
   description: z.string().optional(),
   slug: slugSchema.optional(),
@@ -1143,6 +1181,7 @@ export const leadSchema = z.object({
   company: z.string().optional().nullable(),
   message: z.string().optional().nullable(),
   answers: z.record(z.string(), z.any()).optional().nullable(),
+  answerSnapshot: answerSnapshotSchema.optional().nullable(),
   status: z.enum(["new", "contacted", "qualified", "converted", "lost"]),
   stageId: z.string().nullable().optional(),
   stageVersion: z.number().int().nonnegative().optional(),
@@ -1165,6 +1204,7 @@ export const insertLeadSchema = z.object({
   company: z.string().max(200).optional(),
   message: z.string().max(5000).optional(),
   answers: z.record(z.string().max(200), z.any()).optional(),
+  answerSnapshot: answerSnapshotSchema.optional(),
   status: z.enum(["new", "contacted", "qualified", "converted", "lost"]).default("new"),
   source: z.string().max(500).optional(),
   // DSGVO-Marketing-Einwilligung des Besuchers (Cookie-Consent). Wird vom

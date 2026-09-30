@@ -1,3 +1,4 @@
+import { routingEdges } from "@shared/funnel-routing";
 import { useMemo, useCallback } from "react";
 import {
   ReactFlow,
@@ -66,10 +67,10 @@ function PageNode({ data }: { data: PageNodeData }) {
             verborgen
           </Badge>
         )}
-        {page.conditions?.length ? (
+        {(page.routing?.rules.length ?? page.conditions?.length) ? (
           <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">
-            {page.conditions.length} Regel
-            {page.conditions.length === 1 ? "" : "n"}
+            {page.routing?.rules.length ?? page.conditions?.length} Regel
+            {(page.routing?.rules.length ?? page.conditions?.length) === 1 ? "" : "n"}
           </Badge>
         ) : null}
       </div>
@@ -80,39 +81,9 @@ function PageNode({ data }: { data: PageNodeData }) {
 
 const nodeTypes = { page: PageNode };
 
-function collectOptionRouting(
-  elements: PageElement[] | undefined,
-): Array<{ label: string; target: string }> {
-  const out: Array<{ label: string; target: string }> = [];
-  if (!elements) return out;
-  for (const el of elements) {
-    if (el.optionRouting) {
-      for (const [option, target] of Object.entries(el.optionRouting)) {
-        if (target) out.push({ label: option, target });
-      }
-    }
-    if (el.listItems) {
-      for (const item of el.listItems) {
-        if (item.targetPageId) out.push({ label: item.text || "List-Item", target: item.targetPageId });
-      }
-    }
-  }
-  return out;
-}
-
 export function LogicFlowView({ pages, selectedPageId, onSelectPage }: LogicFlowViewProps) {
-  const pageById = useMemo(() => new Map(pages.map((p) => [p.id, p])), [pages]);
-
-  const incomingTargets = useMemo(() => {
-    const set = new Set<string>();
-    pages.forEach((p, idx) => {
-      if (p.nextPageId) set.add(p.nextPageId);
-      else if (idx < pages.length - 1) set.add(pages[idx + 1].id);
-      if (p.conditionalRouting) Object.values(p.conditionalRouting).forEach((id) => id && set.add(id));
-      collectOptionRouting(p.elements).forEach((r) => set.add(r.target));
-    });
-    return set;
-  }, [pages]);
+  const routes = useMemo(() => routingEdges(pages), [pages]);
+  const incomingTargets = useMemo(() => new Set(routes.map(route => route.target)), [routes]);
 
   const { nodes, edges } = useMemo(() => {
     const nodes: Node<PageNodeData>[] = pages.map((page, idx) => ({
@@ -129,58 +100,15 @@ export function LogicFlowView({ pages, selectedPageId, onSelectPage }: LogicFlow
       selectable: false,
     }));
 
-    const edges: Edge[] = [];
-
-    pages.forEach((page, idx) => {
-      const defaultNext = page.nextPageId ?? pages[idx + 1]?.id;
-      if (defaultNext && pageById.has(defaultNext)) {
-        edges.push({
-          id: `${page.id}->${defaultNext}`,
-          source: page.id,
-          target: defaultNext,
-          type: "smoothstep",
-          animated: false,
-          style: { stroke: "hsl(var(--muted-foreground))", strokeWidth: 1.5 },
-        });
-      }
-
-      if (page.conditionalRouting) {
-        Object.entries(page.conditionalRouting).forEach(([opt, target]) => {
-          if (!target || !pageById.has(target)) return;
-          edges.push({
-            id: `${page.id}:${opt}->${target}`,
-            source: page.id,
-            target,
-            label: opt,
-            type: "smoothstep",
-            style: { stroke: "hsl(var(--primary))", strokeWidth: 1.5 },
-            labelBgPadding: [4, 2],
-            labelBgBorderRadius: 4,
-            labelBgStyle: { fill: "hsl(var(--popover))", fillOpacity: 0.9 },
-            labelStyle: { fontSize: 10 },
-          });
-        });
-      }
-
-      collectOptionRouting(page.elements).forEach(({ label, target }) => {
-        if (!pageById.has(target)) return;
-        edges.push({
-          id: `${page.id}:opt:${label}->${target}`,
-          source: page.id,
-          target,
-          label,
-          type: "smoothstep",
-          style: { stroke: "hsl(var(--primary) / 0.7)", strokeWidth: 1.2, strokeDasharray: "4 2" },
-          labelBgPadding: [4, 2],
-          labelBgBorderRadius: 4,
-          labelBgStyle: { fill: "hsl(var(--popover))", fillOpacity: 0.9 },
-          labelStyle: { fontSize: 10 },
-        });
-      });
-    });
-
+    const pageIds = new Set(pages.map(page => page.id));
+    const edges: Edge[] = routes.filter(route => pageIds.has(route.target)).map(route => ({
+      ...route, type: "smoothstep", animated: false,
+      style: { stroke: route.kind === "default" ? "hsl(var(--muted-foreground))" : "hsl(var(--primary))", strokeWidth: 1.5, ...(route.kind === "direct" ? { strokeDasharray: "4 2" } : {}) },
+      labelBgPadding: [4, 2], labelBgBorderRadius: 4,
+      labelBgStyle: { fill: "hsl(var(--popover))", fillOpacity: 0.9 }, labelStyle: { fontSize: 10 },
+    }));
     return { nodes, edges };
-  }, [pages, pageById, incomingTargets, selectedPageId, onSelectPage]);
+  }, [pages, routes, incomingTargets, selectedPageId, onSelectPage]);
 
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node<PageNodeData>) => {

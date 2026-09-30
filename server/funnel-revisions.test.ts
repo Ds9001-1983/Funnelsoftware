@@ -48,7 +48,7 @@ describe("Versionsschutz beim Speichern und Wiederherstellen", () => {
 
   it("lehnt unbekannte Schreibprotokolle auch innerhalb des Storage-Aufrufs ab", async () => {
     results = [[row]];
-    await expect(writeFunnel(1, 1, {}, { ...control(), documentVersion: 3 } as unknown as WriteControl)).rejects.toMatchObject({ code: "EDITOR_UPDATE_REQUIRED" });
+    await expect(writeFunnel(1, 1, {}, { ...control(), documentVersion: 99 } as unknown as WriteControl)).rejects.toMatchObject({ code: "EDITOR_UPDATE_REQUIRED" });
     expect(mocked.insert).not.toHaveBeenCalled();
   });
 
@@ -107,7 +107,7 @@ describe("Versionsschutz beim Speichern und Wiederherstellen", () => {
     expect(await publishedDocument(row)).toMatchObject({ documentVersion: 1, pages: content.pages });
     results = [[{ content: { ...content, version: 2 } }]];
     expect((await publishedDocument(row))?.documentVersion).toBe(2);
-    results = [[{ content: { ...content, version: 3 } }]];
+    results = [[{ content: { ...content, version: 99 } }]];
     expect(await publishedDocument(row)).toBeUndefined();
   });
 });

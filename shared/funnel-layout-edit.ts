@@ -113,6 +113,6 @@ export function moveLayoutElementBy(page: FunnelPage, id: string, offset: number
 export function removedFieldReference(funnel: Pick<Funnel, "pages">, page: FunnelPage, next: FunnelPage): string | null {
   const remaining = new Set(next.elements.map(element => element.id));
   const removed = new Set(page.elements.filter(element => !remaining.has(element.id)).map(element => element.id));
-  const referrer = funnel.pages.find(p => p.conditions?.some(condition => removed.has(condition.elementId)));
+  const referrer = funnel.pages.find(p => p.routing ? p.routing.rules.some(rule => rule.conditions.some(condition => removed.has(condition.fieldId))) : p.conditions?.some(condition => removed.has(condition.elementId)));
   return referrer ? `Ein Feld wird noch in einer Regel auf „${referrer.title}“ verwendet. Passe zuerst die Regel an.` : null;
 }

@@ -6,9 +6,53 @@ Der Nutzer hat die Fortsetzung am 28.09.2026 ausdrücklich bestätigt.
 
 ## Fortsetzung am 30.09.2026
 
-Arbeitsverzeichnis `../Funnelsoftware-builder`, Branch `feat/builder-brand-styles`.
-Das Paket für wiederverwendbare Designs ist implementiert und lokal abgenommen;
-Veröffentlichung erfolgt nach grüner CI über den bestehenden Deployment-Ablauf.
+### Besucherregeln: Umsetzung und Abnahme
+
+Arbeitsbranch `feat/builder-visitor-rules` in `../Funnelsoftware-builder`.
+Das Paket ergänzt die Flow-Ansicht um geordnete UND/ODER-Regeln, typisierte
+Vergleiche mit Antworten früherer Seiten, ein Standardziel und einen Testmodus
+mit Ziel und Begründung je Bedingung. Die Aktivierung zeigt die Übernahme alter
+Weiterleitungen an, ist rückgängig machbar und wirkt erst nach Veröffentlichung.
+
+- Neue Regeldokumente verwenden Version 3. Bestehende Regeln behalten ohne
+  Aktivierung ihre Semantik; neue Auswahlfelder erhalten feste Options-IDs.
+  Umbenennen ändert die Zuordnung nicht. Referenzierte Felder/Optionen können
+  nicht versehentlich gelöscht werden. Seitenkopien erhalten neue Zuordnungen.
+- Neue Besucherwege teilen sich Auswertung, Testmodus und Ablaufgrafik.
+  Direkte Sprünge prüfen Pflichtfelder. Zurück folgt dem tatsächlich besuchten
+  Weg und verwirft verlassene Antworten. Das passende Ergebnis erscheint erst
+  nach erfolgreichem Absenden; paralleles/doppeltes Absenden wird verhindert.
+- Veröffentlichung prüft Ziele, Quellen, vollständige Wege und Zyklen auch
+  über gleichzeitig aktive A/B-Varianten. Bearbeitung der Regeln während
+  laufender A/B-Tests ist gesperrt.
+- Nullable `leads.answer_snapshot` speichert zusätzlich Feld-/Options-IDs,
+  erfasste Texte, Pfad, Varianten und Inhaltsrevision. Altes `answers`,
+  Webhooks und CSV bleiben erhalten; historische Antworten werden nicht
+  rekonstruiert. Antwortstatistiken nutzen bei neuen Leads den Snapshot.
+  Migration `20260930_visitor_answers.sql` ergänzt ausschließlich diese Spalte.
+- Neuer Leser funktioniert mit ausgeschaltetem `BUILDER_ROUTING_EDITOR`;
+  unbekannte/gesperrte Versionen bleiben im Editor schreibgeschützt. Erst den
+  Leser veröffentlichen und prüfen, danach das Flag in Produktion aktivieren.
+  Sobald Version-3-Dokumente existieren, keinen älteren v1/v2-Leser zurückrollen.
+
+Abnahme: 441 Tests einschließlich 51 Datenbank-/Migrationstests, unveränderte
+alte Routingtests, 24 Browserabläufe. Typecheck und Produktionsbuild erfolgreich.
+Der Browsergesamtlauf respektiert die getrennten Wartezeiten beider bestehenden
+Versandbegrenzungen; Produktionslimits bleiben unverändert.
+Veröffentlichung und Live-Abnahme folgen über PR/Deployment mit frischem Backup,
+Restore-Test und Prüfung aller bisherigen Tabellenspalten.
+
+### Aktueller Stand: Markenstile veröffentlicht
+
+Das Paket ist über [PR #176](https://github.com/Ds9001-1983/Funnelsoftware/pull/176)
+veröffentlicht. Aktueller Produktionsrelease:
+`8f771a0bbe46be1154d7807f9cb8f537a6e4cef4`.
+[Deployment 36675969933](https://github.com/Ds9001-1983/Funnelsoftware/actions/runs/36675969933)
+einschließlich erneuter CI erfolgreich. Health-Check bestätigt diesen Release.
+
+Arbeitsverzeichnis für die Fortsetzung: `../Funnelsoftware-builder`, lokaler
+Dokumentationsbranch `docs/builder-brand-rollout` auf dem aktuellen `origin/main`.
+Diese Abschlussnotiz ist lokal versioniert; die Umsetzung selbst ist in `main`.
 
 - Designbereich mit vier abgestimmten Vorlagen, Farben, vorhandenen Schriften,
   Textgrößen, Button-Stilen, Rundungen und Elementabständen.
@@ -35,7 +79,24 @@ Geprüft sind Vorschau/Abbrechen, Erhalt und Zurücksetzen individueller Werte,
 Undo/Redo, Neuladen, Wiederverwendung, fremde Kontozugriffe, Versionskonflikte
 und unabhängige Veröffentlichung nach Änderung/Archivierung einer Vorlage.
 
-Danach offen: Besucherregeln, Personalisierung sowie Vorlagen-/Medienverwaltung.
+Produktionsprüfung: Designbereich mit Bibliothek und Vorschau/Abbrechen sowie
+mobile Funktionsvorschau und öffentliche Ausgabe mit den echten Live-Assets
+geprüft, ohne JavaScript-Fehler. Alle API- und externen Browseraufrufe abgefangen;
+keine Test-Leads oder Test-Funnels auf Produktion angelegt. SHA-256 des
+ausgelieferten JavaScript-Einstiegs entspricht dem aktiven Server-Release.
+Markenstil-API ohne Anmeldung antwortet mit 401.
+
+Frisches Backup vor Migration erstellt, Restore und zwei Migrationsläufe
+bestätigen unveränderte Inhalte aller 23 bisherigen Tabellen. Datenbank und
+Uploads zusätzlich lokal unter
+`~/TrichterwerkBackups/releases/20260930T060141-8f771a0bbe46/` gesichert;
+SHA-256 beider Dateien gegen die Serverkopie geprüft. Serverbackup einschließlich
+Konfiguration: `/var/backups/funnelflow/releases/20260930T060141-8f771a0bbe46/`.
+Das eigene temporäre lokale PostgreSQL-Cluster wurde beendet.
+
+Editor neu laden; eigene Markenstile stehen links im Reiter „Design“ bereit.
+Als nächstes offen: Besucherregeln, danach Personalisierung sowie
+Vorlagen-/Medienverwaltung aus der ursprünglichen Übergabe.
 
 ## Fortsetzung am 29.09.2026
 

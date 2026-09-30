@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { memo } from "react";
 import { ArrowRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -71,7 +72,7 @@ export const InputFieldProperties = memo(function InputFieldProperties({ element
   );
 });
 
-export const SelectProperties = memo(function SelectProperties({ element, onUpdate, pages = [] }: PropertiesProps) {
+export const SelectProperties = memo(function SelectProperties({ element, onUpdate, pages = [], routingManaged }: PropertiesProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -83,57 +84,7 @@ export const SelectProperties = memo(function SelectProperties({ element, onUpda
           className="text-sm h-8"
         />
       </div>
-      <div className="space-y-2">
-        <Label className="text-xs">Optionen (eine pro Zeile)</Label>
-        <Textarea
-          value={(element.options || []).join("\n")}
-          onChange={(e) => {
-            const newOptions = e.target.value.split("\n").filter(Boolean);
-            const cleaned = element.optionRouting
-              ? Object.fromEntries(Object.entries(element.optionRouting).filter(([k]) => newOptions.includes(k)))
-              : undefined;
-            onUpdate({ options: newOptions, optionRouting: cleaned });
-          }}
-          placeholder="Option 1&#10;Option 2&#10;Option 3"
-          rows={4}
-          className="text-sm"
-        />
-      </div>
-      {(element.options || []).length > 0 && pages.length > 0 && (
-        <div className="space-y-2">
-          <Label className="text-xs">Seitenweiterleitung pro Option</Label>
-          {(element.options || []).map((option) => (
-            <div key={option} className="flex items-center gap-1.5">
-              <span className="text-xs truncate flex-1 text-muted-foreground">{option}</span>
-              <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
-              <Select
-                value={element.optionRouting?.[option] || "__next__"}
-                onValueChange={(v) => {
-                  const routing = { ...(element.optionRouting || {}) };
-                  if (v === "__next__") {
-                    delete routing[option];
-                  } else {
-                    routing[option] = v;
-                  }
-                  onUpdate({ optionRouting: Object.keys(routing).length > 0 ? routing : undefined });
-                }}
-              >
-                <SelectTrigger className="h-7 text-xs w-[140px] shrink-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__next__">Nächste Seite</SelectItem>
-                  {pages.map((page, pIdx) => (
-                    <SelectItem key={page.id} value={page.id}>
-                      {pIdx + 1}. {page.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
-        </div>
-      )}
+      <ChoiceOptions element={element} onUpdate={onUpdate} pages={pages} routingManaged={routingManaged} />
       <div className="flex items-center justify-between">
         <Label className="text-xs">Pflichtfeld</Label>
         <Switch
@@ -145,7 +96,7 @@ export const SelectProperties = memo(function SelectProperties({ element, onUpda
   );
 });
 
-export const RadioProperties = memo(function RadioProperties({ element, onUpdate, pages = [] }: PropertiesProps) {
+export const RadioProperties = memo(function RadioProperties({ element, onUpdate, pages = [], routingManaged }: PropertiesProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -157,57 +108,7 @@ export const RadioProperties = memo(function RadioProperties({ element, onUpdate
           className="text-sm h-8"
         />
       </div>
-      <div className="space-y-2">
-        <Label className="text-xs">Optionen (eine pro Zeile)</Label>
-        <Textarea
-          value={(element.options || []).join("\n")}
-          onChange={(e) => {
-            const newOptions = e.target.value.split("\n").filter(Boolean);
-            const cleaned = element.optionRouting
-              ? Object.fromEntries(Object.entries(element.optionRouting).filter(([k]) => newOptions.includes(k)))
-              : undefined;
-            onUpdate({ options: newOptions, optionRouting: cleaned });
-          }}
-          placeholder="Option A&#10;Option B&#10;Option C"
-          rows={4}
-          className="text-sm"
-        />
-      </div>
-      {(element.options || []).length > 0 && pages.length > 0 && (
-        <div className="space-y-2">
-          <Label className="text-xs">Seitenweiterleitung pro Option</Label>
-          {(element.options || []).map((option) => (
-            <div key={option} className="flex items-center gap-1.5">
-              <span className="text-xs truncate flex-1 text-muted-foreground">{option}</span>
-              <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
-              <Select
-                value={element.optionRouting?.[option] || "__next__"}
-                onValueChange={(v) => {
-                  const routing = { ...(element.optionRouting || {}) };
-                  if (v === "__next__") {
-                    delete routing[option];
-                  } else {
-                    routing[option] = v;
-                  }
-                  onUpdate({ optionRouting: Object.keys(routing).length > 0 ? routing : undefined });
-                }}
-              >
-                <SelectTrigger className="h-7 text-xs w-[140px] shrink-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__next__">Nächste Seite</SelectItem>
-                  {pages.map((page, pIdx) => (
-                    <SelectItem key={page.id} value={page.id}>
-                      {pIdx + 1}. {page.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
-        </div>
-      )}
+      <ChoiceOptions element={element} onUpdate={onUpdate} pages={pages} routingManaged={routingManaged} />
       <div className="flex items-center justify-between">
         <Label className="text-xs">Pflichtfeld</Label>
         <Switch
@@ -328,3 +229,36 @@ export const DateProperties = memo(function DateProperties({ element, onUpdate }
     </div>
   );
 });
+
+function ChoiceOptions({ element, onUpdate, pages = [], routingManaged }: PropertiesProps) {
+  const choices = element.choices;
+  return <div className="space-y-3">
+    {choices ? <>
+      <Label className="text-xs">Auswahloptionen</Label>
+      <p className="text-xs text-muted-foreground">Texte ändern und Optionen verschieben, ohne die Regelzuordnung zu verlieren.</p>
+      {choices.map((choice, index) => <div key={choice.id} className="flex gap-1 items-center">
+        <Input aria-label={`Auswahloption ${index + 1}`} maxLength={500} value={choice.label} onChange={event => { const next = choices.map(item => item.id === choice.id ? { ...item, label: event.target.value } : item); onUpdate({ choices: next, options: next.map(item => item.label) }); }} />
+        <Button size="sm" variant="ghost" aria-label={`Option ${index + 1} nach oben`} disabled={index === 0} onClick={() => { const next = [...choices]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; onUpdate({ choices: next, options: next.map(item => item.label) }); }}>↑</Button>
+        <Button size="sm" variant="ghost" aria-label={`Option ${index + 1} löschen`} disabled={choices.length === 1} onClick={() => { const next = choices.filter(item => item.id !== choice.id); onUpdate({ choices: next, options: next.map(item => item.label) }); }}>×</Button>
+      </div>)}
+      <Button size="sm" variant="outline" disabled={choices.length >= 100} onClick={() => { const next = [...choices, { id: crypto.randomUUID(), label: `Option ${choices.length + 1}` }]; onUpdate({ choices: next, options: next.map(item => item.label) }); }}>Option hinzufügen</Button>
+    </> : <div className="space-y-2">
+      <Label className="text-xs">Optionen (eine pro Zeile)</Label>
+      <Textarea value={(element.options || []).join("\n")} onChange={event => {
+        const options = event.target.value.split("\n").filter(Boolean);
+        onUpdate({ options, optionRouting: element.optionRouting ? Object.fromEntries(Object.entries(element.optionRouting).filter(([key]) => options.includes(key))) : undefined });
+      }} rows={4} className="text-sm" />
+      {routingManaged && <p className="text-xs text-muted-foreground">Dieses bestehende Feld verwendet Antworttexte. Prüfe die Besucherregeln nach dem Umbenennen einer Option.</p>}
+    </div>}
+    {routingManaged || choices ? <p className="text-xs text-muted-foreground">Seitenziele im Funnel-Flow unter „Besucherregeln“ einstellen.</p> : (element.options || []).length > 0 && pages.length > 0 && <div className="space-y-2">
+      <Label className="text-xs">Seitenweiterleitung pro Option</Label>
+      {(element.options || []).map((option, index) => <div key={index} className="flex items-center gap-1.5">
+        <span className="text-xs truncate flex-1 text-muted-foreground">{option}</span><ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+        <Select value={element.optionRouting?.[option] || "__next__"} onValueChange={value => { const routing = { ...element.optionRouting }; if (value === "__next__") delete routing[option]; else routing[option] = value; onUpdate({ optionRouting: routing }); }}>
+          <SelectTrigger className="h-7 text-xs w-[140px] shrink-0"><SelectValue /></SelectTrigger>
+          <SelectContent><SelectItem value="__next__">Nächste Seite</SelectItem>{pages.map((page, index) => <SelectItem key={page.id} value={page.id}>{index + 1}. {page.title}</SelectItem>)}</SelectContent>
+        </Select>
+      </div>)}
+    </div>}
+  </div>;
+}
