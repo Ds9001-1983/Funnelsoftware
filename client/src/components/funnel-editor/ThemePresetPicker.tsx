@@ -14,7 +14,7 @@ export function ThemePresetPicker({
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium">Farbpalette</CardTitle>
+        <CardTitle className="text-sm font-medium">Designvorlagen</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-3">
@@ -64,7 +64,7 @@ function ThemePresetCard({
 
       {/* Farbvorschau */}
       <div className="mb-2 flex gap-1">
-        {[palette.primary, palette.secondary, palette.accent, palette.background, palette.text].map(
+        {[palette.primary, palette.background, palette.text].map(
           (color, i) => (
             <div
               key={i}

@@ -11,7 +11,9 @@
  * Gewichte: 400 + 700 sind für alle Familien verfügbar; fehlende
  * Zwischengewichte (500/600) rendert der Browser über den nächsten Schnitt.
  */
-const FONT_LOADERS: Record<string, () => Promise<unknown>> = {
+import { FUNNEL_FONT_FAMILIES } from "@shared/funnel-fonts";
+type FunnelFont = (typeof FUNNEL_FONT_FAMILIES)[number];
+const FONT_LOADERS: Record<FunnelFont, () => Promise<unknown>> = {
   // Sans
   'Inter': () => Promise.all([import('@fontsource/inter/400.css'), import('@fontsource/inter/600.css'), import('@fontsource/inter/700.css')]),
   'DM Sans': () => Promise.all([import('@fontsource/dm-sans/400.css'), import('@fontsource/dm-sans/700.css')]),
@@ -48,9 +50,10 @@ const FONT_LOADERS: Record<string, () => Promise<unknown>> = {
 const loadedFonts = new Set<string>(['Inter']);
 
 export function loadFont(fontFamily: string): void {
+  if (fontFamily === "Geist Sans") fontFamily = "Geist";
   if (!fontFamily || loadedFonts.has(fontFamily)) return;
 
-  const loader = FONT_LOADERS[fontFamily];
+  const loader = FONT_LOADERS[fontFamily as FunnelFont];
   if (!loader) return;
 
   loadedFonts.add(fontFamily);
@@ -61,5 +64,5 @@ export function loadFont(fontFamily: string): void {
 }
 
 export function getFontFamilies(): string[] {
-  return Object.keys(FONT_LOADERS);
+  return [...FUNNEL_FONT_FAMILIES];
 }

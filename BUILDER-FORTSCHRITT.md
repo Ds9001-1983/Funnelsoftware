@@ -4,6 +4,39 @@ Auftrag: Die Kundenanfrage umsetzen und veröffentlichen sowie die zuvor
 erarbeiteten Builder-Vorschläge aus der ursprünglichen Übergabe fertigstellen.
 Der Nutzer hat die Fortsetzung am 28.09.2026 ausdrücklich bestätigt.
 
+## Fortsetzung am 30.09.2026
+
+Arbeitsverzeichnis `../Funnelsoftware-builder`, Branch `feat/builder-brand-styles`.
+Das Paket für wiederverwendbare Designs ist implementiert und lokal abgenommen;
+Veröffentlichung erfolgt nach grüner CI über den bestehenden Deployment-Ablauf.
+
+- Designbereich mit vier abgestimmten Vorlagen, Farben, vorhandenen Schriften,
+  Textgrößen, Button-Stilen, Rundungen und Elementabständen.
+- Vorlagen vor dem Anwenden an der aktuellen Seite prüfen. Individuelle Werte
+  bleiben standardmäßig erhalten. Optionales Zurücksetzen zeigt seinen Umfang
+  und ist zusammen mit dem Designwechsel ein Undo-Schritt; bei laufenden
+  A/B-Tests ist das Zurücksetzen gesperrt.
+- Eigene Markenstile pro Benutzer speichern, wiederverwenden, umbenennen,
+  ersetzen und archivieren. Versionsprüfung verhindert konkurrierendes
+  Überschreiben. Jeder Funnel erhält eine unabhängige Kopie mit Herkunftsversion.
+- Flache Editorvorschau an den gemeinsamen Design-Resolver und die öffentliche
+  Darstellung angeglichen. Bestehende öffentliche Defaults bleiben erhalten;
+  lokale Seiten- und Elementwerte haben weiterhin Vorrang.
+- Additive Migration `20260930_brand_styles.sql` fügt nur die Vorlagentabelle
+  und ihren Index hinzu. Keine bestehenden Funnel- oder Lead-Daten umschreiben.
+  Die bereits aktivierte Fähigkeit `BUILDER_LAYOUT_EDITOR` schaltet auch die
+  erweiterten Designfelder und die Markenstil-Bibliothek frei.
+
+Abnahme: **427 Tests bestanden, keine übersprungen**, darunter alle 50
+Datenbank-/Migrationstests in einem eigenen temporären PostgreSQL-Cluster.
+Alle **23 Browser-Abläufe** bestanden; Markenstil-Ablauf nach den letzten
+Vorschaukorrekturen erneut grün. Typecheck und Produktionsbuild erfolgreich.
+Geprüft sind Vorschau/Abbrechen, Erhalt und Zurücksetzen individueller Werte,
+Undo/Redo, Neuladen, Wiederverwendung, fremde Kontozugriffe, Versionskonflikte
+und unabhängige Veröffentlichung nach Änderung/Archivierung einer Vorlage.
+
+Danach offen: Besucherregeln, Personalisierung sowie Vorlagen-/Medienverwaltung.
+
 ## Fortsetzung am 29.09.2026
 
 ### Aktueller Stand: ausgeliefert und freigeschaltet
