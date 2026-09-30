@@ -51,6 +51,7 @@ import { encryptSecret, decryptSecret, last4 } from "./crypto";
 import { verifyDomainDns } from "./domain-verify";
 import { registerWorkspaceRoutes } from "./workspace-routes";
 import { registerRecruitingRoutes } from "./recruiting-routes";
+import { registerBrandStyleRoutes } from "./brand-style-routes";
 import { changeRecruitingStage, RecruitingError } from "./recruiting";
 import { writeControlSchema, documentVersionSchema } from "@shared/funnel-document";
 import { listFunnelRevisions, FunnelWriteError } from "./funnel-revisions";
@@ -198,6 +199,7 @@ export async function registerRoutes(
 ): Promise<Server> {
   registerWorkspaceRoutes(app);
   registerRecruitingRoutes(app);
+  registerBrandStyleRoutes(app);
 
   // ============ SEO ============
 

@@ -924,11 +924,24 @@ export const designTokensSchema = z.object({
 // Theme schema
 export const themeSchema = z.object({
   design: designTokensSchema.optional(),
+  source: z.object({ id: z.number().int().positive(), version: z.number().int().positive() }).optional(),
   primaryColor: z.string(),
   backgroundColor: z.string(),
   textColor: z.string(),
   fontFamily: z.string(),
 });
+
+// Saved values are copied into funnels; changing a brand never updates a funnel.
+export const brandStyles = pgTable("brand_styles", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  theme: jsonb("theme").notNull().$type<z.infer<typeof themeSchema>>(),
+  version: integer("version").notNull().default(1),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  archivedAt: timestamp("archived_at"),
+}, table => [index("brand_styles_user_id_idx").on(table.userId)]);
 
 // ===== KI-Funnel-Erstellung (Bring-Your-Own-Key) =====
 

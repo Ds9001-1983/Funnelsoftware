@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, Copy, GripVertical, Plus, Trash2 } from "lucide-react";
 import { pageElementSchema, type FunnelPage, type PageElement, type Theme } from "@shared/schema";
 import { addLayoutSection, deleteLayoutSection, duplicateLayoutSection, moveLayoutElement, moveLayoutSection, setSectionColumns, type LayoutSection } from "@shared/funnel-layout-edit";
 import { resolveDesign } from "@shared/funnel-layout";
 import { PageLayout } from "@/components/funnel-viewer/PageLayout";
 import { layoutPresets } from "@/lib/layout-presets";
+import { loadFont } from "@/lib/font-loader";
 import { Button } from "@/components/ui/button";
 import { ElementPreviewRenderer, type ElementActions } from "./ElementPreviewRenderer";
 import { InlineEditable } from "./InlineEditable";
@@ -26,9 +27,10 @@ const selectClass = "h-8 rounded border bg-background px-2 text-xs text-foregrou
 export function LayoutEditor({ page, theme, onChange, selectedElementId, onSelectElement, activeColumnId, onChooseColumn, onAddElement, elementActions, blockedReason }: LayoutEditorProps) {
   const [presetId, setPresetId] = useState("empty-2");
   const [formValues, setFormValues] = useState<Record<string, string>>({});
+  const design = resolveDesign(theme, page);
+  useEffect(() => { loadFont(design.fontFamily); }, [design.fontFamily]);
   if (!page.layout) return null;
   const layout = page.layout;
-  const design = resolveDesign(theme, page);
   const changeSection = (id: string, updates: Partial<LayoutSection>) => onChange({ ...page, layout: { ...layout, sections: layout.sections.map(section => section.id === id ? { ...section, ...updates } : section) } });
   const selectedColumn = layout.sections.flatMap(section => section.columns).find(column => column.elementIds.includes(selectedElementId ?? ""));
 

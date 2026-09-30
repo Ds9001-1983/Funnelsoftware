@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
-import { loadFont, getFontFamilies } from "@/lib/font-loader";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
@@ -188,7 +187,7 @@ import { EditorToolbar } from "@/components/funnel-editor/EditorToolbar";
 import { CustomDomainPanel } from "@/components/funnel-editor/CustomDomainPanel";
 import { CommandPalette } from "@/components/funnel-editor/CommandPalette";
 import { ShortcutOverlay } from "@/components/funnel-editor/ShortcutOverlay";
-import { ThemePresetPicker } from "@/components/funnel-editor/ThemePresetPicker";
+import { DesignPanel } from "@/components/funnel-editor/DesignPanel";
 import { RevisionDialog } from "@/components/funnel-editor/RevisionDialog";
 import { EditorRecoveryBar } from "@/components/funnel-editor/EditorRecoveryBar";
 import { PublishDialog } from "@/components/funnel-editor/PublishDialog";
@@ -321,7 +320,6 @@ export default function FunnelEditor() {
   });
   const isResizingRef = useRef(false);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
-  const [selectedThemeId, setSelectedThemeId] = useState("default");
 
   // Global clipboard for copy/paste functionality
   const [clipboard, setClipboard] = useState<{
@@ -1233,62 +1231,7 @@ export default function FunnelEditor() {
             ) : (
             /* Design Tab - Theme Picker + Styling */
             <div className="flex-1 overflow-y-auto funnel-scrollbar p-3 space-y-4">
-              <ThemePresetPicker
-                selectedThemeId={selectedThemeId}
-                onSelectTheme={(themeId) => {
-                  setSelectedThemeId(themeId);
-                }}
-              />
-
-              <div className="space-y-3">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Eigene Farben</h4>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="color"
-                      value={localFunnel.theme.primaryColor}
-                      onChange={(e) => updateLocalFunnel({ theme: { ...localFunnel.theme, primaryColor: e.target.value } })}
-                      className="w-10 h-8 p-0.5 cursor-pointer"
-                    />
-                    <span className="text-xs text-muted-foreground flex-1">Primärfarbe</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="color"
-                      value={localFunnel.theme.backgroundColor}
-                      onChange={(e) => updateLocalFunnel({ theme: { ...localFunnel.theme, backgroundColor: e.target.value } })}
-                      className="w-10 h-8 p-0.5 cursor-pointer"
-                    />
-                    <span className="text-xs text-muted-foreground flex-1">Hintergrund</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="color"
-                      value={localFunnel.theme.textColor}
-                      onChange={(e) => updateLocalFunnel({ theme: { ...localFunnel.theme, textColor: e.target.value } })}
-                      className="w-10 h-8 p-0.5 cursor-pointer"
-                    />
-                    <span className="text-xs text-muted-foreground flex-1">Textfarbe</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Schriftart</h4>
-                <Select
-                  value={localFunnel.theme.fontFamily}
-                  onValueChange={(v) => { loadFont(v); updateLocalFunnel({ theme: { ...localFunnel.theme, fontFamily: v } }); }}
-                >
-                  <SelectTrigger className="h-8 text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getFontFamilies().map((font) => (
-                      <SelectItem key={font} value={font} style={{ fontFamily: font }}>{font}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <DesignPanel funnel={localFunnel} pageIndex={selectedPageIndex} advancedEnabled={layoutEditing} onChange={updateLocalFunnel} />
             </div>
             )}
           </div>
@@ -1370,6 +1313,7 @@ export default function FunnelEditor() {
               pageIndex={selectedPageIndex}
               totalPages={localFunnel.pages.length}
               primaryColor={localFunnel.theme.primaryColor}
+              theme={localFunnel.theme}
               onUpdatePage={(updates) => updatePage(selectedPageIndex, updates)}
               selectedElementId={selectedElementId}
               onSelectElement={(elementId) => {
@@ -1542,110 +1486,7 @@ export default function FunnelEditor() {
               />
             </div>
 
-            <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-medium">Design-System</h4>
-
-              <ThemePresetPicker
-                selectedThemeId={selectedThemeId}
-                onSelectTheme={setSelectedThemeId}
-              />
-              <div className="space-y-2">
-                <Label>Primärfarbe</Label>
-                <div className="flex gap-2">
-                  <Input
-                    type="color"
-                    value={localFunnel.theme.primaryColor}
-                    onChange={(e) =>
-                      updateLocalFunnel({
-                        theme: { ...localFunnel.theme, primaryColor: e.target.value },
-                      })
-                    }
-                    className="w-14 h-9 p-1 cursor-pointer"
-                  />
-                  <Input
-                    value={localFunnel.theme.primaryColor}
-                    onChange={(e) =>
-                      updateLocalFunnel({
-                        theme: { ...localFunnel.theme, primaryColor: e.target.value },
-                      })
-                    }
-                    className="flex-1"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Schriftart</Label>
-                <Select
-                  value={localFunnel.theme.fontFamily}
-                  onValueChange={(v) => {
-                    loadFont(v);
-                    updateLocalFunnel({
-                      theme: { ...localFunnel.theme, fontFamily: v },
-                    });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getFontFamilies().map((font) => (
-                      <SelectItem key={font} value={font} style={{ fontFamily: font }}>{font}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Hintergrundfarbe</Label>
-                <div className="flex gap-2">
-                  <Input
-                    type="color"
-                    value={localFunnel.theme.backgroundColor}
-                    onChange={(e) =>
-                      updateLocalFunnel({
-                        theme: { ...localFunnel.theme, backgroundColor: e.target.value },
-                      })
-                    }
-                    className="w-14 h-9 p-1 cursor-pointer"
-                  />
-                  <Input
-                    value={localFunnel.theme.backgroundColor}
-                    onChange={(e) =>
-                      updateLocalFunnel({
-                        theme: { ...localFunnel.theme, backgroundColor: e.target.value },
-                      })
-                    }
-                    className="flex-1"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Textfarbe</Label>
-                <div className="flex gap-2">
-                  <Input
-                    type="color"
-                    value={localFunnel.theme.textColor}
-                    onChange={(e) =>
-                      updateLocalFunnel({
-                        theme: { ...localFunnel.theme, textColor: e.target.value },
-                      })
-                    }
-                    className="w-14 h-9 p-1 cursor-pointer"
-                  />
-                  <Input
-                    value={localFunnel.theme.textColor}
-                    onChange={(e) =>
-                      updateLocalFunnel({
-                        theme: { ...localFunnel.theme, textColor: e.target.value },
-                      })
-                    }
-                    className="flex-1"
-                  />
-                </div>
-              </div>
-            </div>
+            <Button variant="outline" onClick={() => { setShowSettings(false); setEditorTab("design"); setShowLeftSidebar(true); }}>Design bearbeiten</Button>
 
             <div className="space-y-2">
               <Label>Veröffentlichung</Label>

@@ -38,7 +38,8 @@ describe.skipIf(!connection)("additive migration on existing funnels and leads",
     await expect(client.query("UPDATE funnels SET name = 'Alter Client' WHERE id=1")).rejects.toMatchObject({ code: "40001" });
     expect((await client.query("SELECT * FROM leads")).rows).toEqual([{ id: 1, funnel_id: 1, status: "qualified", answers: { "old-field": "Antwort bleibt" }, stage_id: null, stage_version: 0 }]);
     expect((await client.query("SELECT * FROM recruiting_mail_jobs")).rows).toEqual([]);
-    expect((await client.query("SELECT count(*)::int AS count FROM app_migrations")).rows[0].count).toBe(2);
+    expect((await client.query("SELECT * FROM brand_styles")).rows).toEqual([]);
+    expect((await client.query("SELECT count(*)::int AS count FROM app_migrations")).rows[0].count).toBe(3);
   });
   it("rejects changed migration checksums and rolls back", async () => {
     await client.query("UPDATE app_migrations SET checksum = 'changed'");

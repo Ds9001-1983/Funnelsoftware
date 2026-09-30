@@ -16,10 +16,11 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { FunnelPage, PageElement } from "@shared/schema";
+import type { FunnelPage, PageElement, Theme } from "@shared/schema";
+import { designButtonStyle, resolveDesign } from "@shared/funnel-layout";
+import { loadFont } from "@/lib/font-loader";
 import { FunnelProgress } from "./FunnelProgress";
 import { ElementPreviewRenderer, SectionPreviewRenderer } from "./ElementPreviewRenderer";
-import { ElementWrapper } from "./ElementWrapper";
 
 import type { ElementActions } from "./ElementPreviewRenderer";
 
@@ -27,11 +28,11 @@ interface SortablePreviewElementProps extends ElementActions {
   element: PageElement;
   textColor: string;
   primaryColor: string;
+  design?: Theme["design"];
   selectedElementId?: string | null;
   onSelectElement?: (elementId: string | null) => void;
   formValues: Record<string, string>;
   updateFormValue: (elementId: string, value: string) => void;
-  pageType: string;
   onContentCommit?: (content: string) => void;
 }
 
@@ -39,11 +40,11 @@ function SortablePreviewElement({
   element,
   textColor,
   primaryColor,
+  design,
   selectedElementId,
   onSelectElement,
   formValues,
   updateFormValue,
-  pageType,
   onContentCommit,
   ...actions
 }: SortablePreviewElementProps) {
@@ -63,41 +64,6 @@ function SortablePreviewElement({
     position: "relative" as const,
   };
 
-  // Multi-choice options get special treatment
-  if (
-    (pageType === "multiChoice" || pageType === "question") &&
-    element.options
-  ) {
-    return (
-      <div ref={setNodeRef} style={style} className="group">
-        <div
-          {...attributes}
-          {...listeners}
-          className="absolute -left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-10 bg-white rounded-md shadow-sm border p-0.5"
-        >
-          <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-        </div>
-        <ElementWrapper
-          elementId={element.id}
-          elementType={element.type}
-          selectedElementId={selectedElementId}
-          onSelectElement={onSelectElement}
-          {...actions}
-        >
-          <div className="space-y-2">
-            {element.options.map((option, idx) => (
-              <div
-                key={`${element.id}-${idx}`}
-                className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 text-sm text-left bg-white hover:border-primary/50 hover:shadow-md transition-all cursor-pointer active:scale-[0.98]"
-              >
-                {option}
-              </div>
-            ))}
-          </div>
-        </ElementWrapper>
-      </div>
-    );
-  }
 
   return (
     <div ref={setNodeRef} style={style} className="group">
@@ -112,6 +78,7 @@ function SortablePreviewElement({
         element={element}
         textColor={textColor}
         primaryColor={primaryColor}
+        design={design}
         selectedElementId={selectedElementId}
         onSelectElement={onSelectElement}
         formValues={formValues}
@@ -128,6 +95,7 @@ interface PhonePreviewProps {
   pageIndex: number;
   totalPages: number;
   primaryColor: string;
+  theme?: Theme;
   onUpdatePage?: (updates: Partial<FunnelPage>) => void;
   isEditing?: boolean;
   setIsEditing?: (editing: boolean) => void;
@@ -159,6 +127,7 @@ export function PhonePreview({
   pageIndex,
   totalPages,
   primaryColor,
+  theme,
   onUpdatePage,
   selectedElementId,
   onSelectElement,
@@ -177,6 +146,9 @@ export function PhonePreview({
   onUpdateElementContent,
 }: PhonePreviewProps) {
   const [isDropOver, setIsDropOver] = useState(false);
+  useEffect(() => {
+    if (page && theme) loadFont(resolveDesign(theme, page).fontFamily);
+  }, [page, theme]);
 
   // DnD Sensors - 8px Distanz um Klick vs Drag zu unterscheiden
   const sensors = useSensors(
@@ -257,8 +229,8 @@ export function PhonePreview({
 
   const isWelcome = page.type === "welcome";
   const isThankyou = page.type === "thankyou";
-  const bgColor = page.backgroundColor || (isWelcome || isThankyou ? primaryColor : "#ffffff");
-  const textColor = isWelcome || isThankyou ? "#ffffff" : "#1a1a1a";
+  const resolved = resolveDesign(theme ?? { primaryColor, backgroundColor: "#ffffff", textColor: "#1a1a1a", fontFamily: "Inter" }, page);
+  const textColor = resolved.textColor;
 
   return (
     <div
@@ -273,7 +245,8 @@ export function PhonePreview({
     >
       <div
         className="min-h-[500px] flex flex-col overflow-hidden"
-        style={{ backgroundColor: bgColor }}
+        data-testid="phone-preview-content"
+        style={{ backgroundColor: resolved.backgroundColor, color: textColor, fontFamily: resolved.fontFamily }}
       >
         {/* Progress bar */}
         {!isWelcome && !isThankyou && totalPages > 1 && (
@@ -295,12 +268,12 @@ export function PhonePreview({
               onKeyDown={(e) => e.key === "Enter" && handleTitleSave()}
               autoFocus
               className="text-xl font-bold mb-2 bg-transparent border-b-2 border-white/50 outline-none text-center w-full"
-              style={{ color: textColor }}
+              style={{ color: textColor, fontSize: resolved.headingSize }}
             />
           ) : (
             <h2
-              className="text-xl font-bold mb-2 cursor-pointer hover:opacity-80 transition-opacity"
-              style={{ color: textColor }}
+              className="text-2xl md:text-3xl font-bold mb-2 cursor-pointer hover:opacity-80 transition-opacity"
+              style={{ color: textColor, fontSize: resolved.headingSize }}
               onClick={() => onUpdatePage && setEditingField("title")}
               title="Klicken zum Bearbeiten"
             >
@@ -317,13 +290,13 @@ export function PhonePreview({
                 onBlur={handleSubtitleSave}
                 autoFocus
                 className="text-sm opacity-80 mb-6 bg-transparent border-b border-white/30 outline-none text-center w-full resize-none"
-                style={{ color: textColor }}
+                style={{ color: textColor, fontSize: resolved.bodySize }}
                 rows={2}
               />
             ) : (
               <p
-                className="text-sm opacity-80 mb-6 cursor-pointer hover:opacity-60 transition-opacity"
-                style={{ color: textColor }}
+                className="text-base opacity-70 mb-6 cursor-pointer hover:opacity-60 transition-opacity"
+                style={{ color: textColor, fontSize: resolved.bodySize }}
                 onClick={() => onUpdatePage && setEditingField("subtitle")}
                 title="Klicken zum Bearbeiten"
               >
@@ -362,18 +335,18 @@ export function PhonePreview({
                 items={page.elements.map((el) => el.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="mt-4 space-y-3">
+                <div className="mt-4 flex flex-col" style={{ gap: resolved.spacing }}>
                   {page.elements.map((el, idx) => (
                     <SortablePreviewElement
                       key={el.id}
                       element={el}
                       textColor={textColor}
                       primaryColor={primaryColor}
+                      design={theme?.design}
                       selectedElementId={selectedElementId}
                       onSelectElement={onSelectElement}
                       formValues={formValues}
                       updateFormValue={updateFormValue}
-                      pageType={page.type}
                       // Actions operieren auf dem gerade selektierten Element.
                       // ElementWrapper selektiert bei Rechtsklick via onContextMenu
                       // synchron, bevor das Menü aufgeht – also wirken die Handler
@@ -420,11 +393,8 @@ export function PhonePreview({
         {page.buttonText && (
           <div className="p-6 pt-0">
             <button
-              className="w-full py-3.5 rounded-xl font-semibold text-sm transition-all hover:opacity-90 active:scale-[0.98] shadow-lg"
-              style={{
-                backgroundColor: isWelcome || isThankyou ? "#ffffff" : primaryColor,
-                color: isWelcome || isThankyou ? primaryColor : "#ffffff",
-              }}
+              className="w-full py-3.5 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90 active:scale-[0.98] shadow-lg"
+              style={designButtonStyle(primaryColor, theme?.design)}
             >
               {page.buttonText}
             </button>

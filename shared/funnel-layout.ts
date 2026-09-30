@@ -111,11 +111,12 @@ export function applyVariantOverrides(pages: FunnelPage[], tests: ABTest[], assi
 
 /** Defaults intentionally match the old public renderer; no stored values change. */
 export function resolveDesign(theme: Theme, page: FunnelPage) {
+  const font = ((page.layout || theme.design) && page.pageStyles?.fontFamily) || theme.fontFamily || "system-ui, sans-serif";
   return {
     primaryColor: theme.primaryColor,
     backgroundColor: page.backgroundColor || theme.backgroundColor,
     textColor: theme.textColor,
-    fontFamily: ((page.layout || theme.design) && page.pageStyles?.fontFamily) || theme.fontFamily || "system-ui, sans-serif",
+    fontFamily: theme.design && font === "Geist" ? "Geist Sans" : font,
     width: page.layout && !layoutErrors(page).length ? ({ narrow: 512, wide: 960, full: 1280 } as const)[page.layout.width ?? "wide"] : 512,
     headingSize: theme.design?.headingSize,
     bodySize: theme.design?.bodySize,
