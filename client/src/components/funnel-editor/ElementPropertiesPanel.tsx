@@ -6,6 +6,7 @@ interface ElementPropertiesPanelProps {
   element: PageElement;
   onUpdate: (updates: Partial<PageElement>) => void;
   onClose: () => void;
+  routingManaged?: boolean;
   pages?: Array<{ id: string; title: string }>;
 }
 
@@ -18,6 +19,7 @@ export function ElementPropertiesPanel({
   onUpdate,
   onClose,
   pages = [],
+  routingManaged = false,
 }: ElementPropertiesPanelProps) {
   const Editor = propertyEditors[element.type];
   const label = elementTypeLabels[element.type] || element.type;
@@ -32,7 +34,7 @@ export function ElementPropertiesPanel({
       </div>
 
       {Editor ? (
-        <Editor element={element} onUpdate={onUpdate} pages={pages} />
+        <Editor element={element} onUpdate={onUpdate} pages={pages} routingManaged={routingManaged} />
       ) : (
         <div className="text-sm text-muted-foreground">
           Keine Eigenschaften verfügbar für Typ "{element.type}".

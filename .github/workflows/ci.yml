@@ -54,6 +54,7 @@ jobs:
     env:
       E2E_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/funnelsoftware_e2e
       BUILDER_LAYOUT_EDITOR: "true"
+      BUILDER_ROUTING_EDITOR: "true"
 
     steps:
       - uses: actions/checkout@v4

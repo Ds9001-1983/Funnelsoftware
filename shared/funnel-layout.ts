@@ -60,11 +60,11 @@ export function documentReferenceErrors(pages: FunnelPage[], tests: ABTest[] = [
     const elementIds = new Set(candidate.flatMap(page => page.elements.map(element => element.id)));
     const errors: string[] = [];
     for (const page of candidate) {
-      const targets = [page.nextPageId, ...Object.values(page.conditionalRouting ?? {}), ...(page.conditions ?? []).map(condition => condition.targetPageId)];
-      if (page.conditions?.some(condition => !elementIds.has(condition.elementId))) errors.push(`${page.title}: Eine Regel verweist auf ein gelöschtes Feld.`);
+      const targets = page.routing ? [page.routing.fallbackPageId, ...page.routing.rules.map(rule => rule.targetPageId)] : [page.nextPageId, ...Object.values(page.conditionalRouting ?? {}), ...(page.conditions ?? []).map(condition => condition.targetPageId)];
+      if (!page.routing && page.conditions?.some(condition => !elementIds.has(condition.elementId))) errors.push(`${page.title}: Eine Regel verweist auf ein gelöschtes Feld.`);
       for (const element of page.elements) {
         if (element.buttonAction === "page") targets.push(element.buttonNextPageId);
-        targets.push(...Object.values(element.optionRouting ?? {}), ...(element.listItems ?? []).map(item => item.targetPageId));
+        targets.push(...Object.values(page.routing ? {} : element.optionRouting ?? {}), ...(element.listItems ?? []).map(item => item.targetPageId));
       }
       if (targets.some(id => id && !pageIds.has(id))) errors.push(`${page.title}: Eine Verknüpfung verweist auf eine gelöschte Seite.`);
     }

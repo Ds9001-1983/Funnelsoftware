@@ -71,8 +71,8 @@ describe("Layout-Leser und Dokumentkompatibilität", () => {
     expect(snapshot).not.toHaveProperty("webhookSecret");
     expect(snapshot).not.toHaveProperty("leads");
     expect(snapshot).not.toHaveProperty("views");
-    expect(() => documentFromFunnel({ documentVersion: 3 })).toThrow();
-    expect(writeControlSchema.safeParse({ expectedVersion: 0, documentVersion: 3, mutationId: crypto.randomUUID() }).success).toBe(false);
+    expect(() => documentFromFunnel({ documentVersion: 99 })).toThrow();
+    expect(writeControlSchema.safeParse({ expectedVersion: 0, documentVersion: 99, mutationId: crypto.randomUUID() }).success).toBe(false);
   });
 
   it("wendet Varianten-Inhalte und Layout gemeinsam an und erhält die Kontrollvariante", () => {

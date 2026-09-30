@@ -1013,7 +1013,7 @@ export async function registerRoutes(
   // Get single funnel
   // The reader can be rolled out before activating structural editing.
   app.get("/api/funnels/editor-capabilities", isAuthenticated, (_req, res) => {
-    res.json({ layoutEditing: process.env.BUILDER_LAYOUT_EDITOR === "true" });
+    res.json({ layoutEditing: process.env.BUILDER_LAYOUT_EDITOR === "true", routingEditing: process.env.BUILDER_ROUTING_EDITOR === "true" });
   });
 
   app.get("/api/funnels/:id", isAuthenticated, async (req, res) => {
@@ -1278,7 +1278,7 @@ export async function registerRoutes(
         return res.status(409).json({ error: "Dieses Dokument benötigt eine neuere Editorversion.", code: "EDITOR_UPDATE_REQUIRED" });
       }
       const cloned = await storage.createFunnel({
-        documentVersion: original.documentVersion as 1 | 2 | undefined,
+        documentVersion: original.documentVersion as 1 | 2 | 3 | undefined,
         name: `${original.name} (Kopie)`,
         description: original.description ?? undefined,
         pages: original.pages,
@@ -1344,7 +1344,8 @@ export async function registerRoutes(
           const answerCounts: Record<string, number> = {};
           let total = 0;
           for (const lead of leads) {
-            const answer = (lead.answers as Record<string, any>)?.[el.id];
+            const captured = lead.answerSnapshot?.fields.find(field => field.elementId === el.id && field.pageId === page.id);
+            const answer = captured ? captured.optionText ?? captured.value : (lead.answers as Record<string, any>)?.[el.id];
             if (answer) {
               const answerText = String(answer);
               answerCounts[answerText] = (answerCounts[answerText] || 0) + 1;
@@ -1441,6 +1442,8 @@ export async function registerRoutes(
         name: funnel.name,
         pages: funnel.pages,
         theme: funnel.theme,
+        documentVersion: funnel.documentVersion,
+        publishedRevisionId: funnel.publishedRevisionId ?? null,
         status: funnel.status,
         impressumUrl: funnel.impressumUrl || null,
         datenschutzUrl: funnel.datenschutzUrl || null,
@@ -1477,6 +1480,8 @@ export async function registerRoutes(
         name: funnel.name,
         pages: funnel.pages,
         theme: funnel.theme,
+        documentVersion: funnel.documentVersion,
+        publishedRevisionId: funnel.publishedRevisionId ?? null,
         gtmId: funnel.gtmId || null,
         // Pixel-IDs sind public by design (jede Website mit Pixel exponiert sie);
         // der Client lädt das Browser-Pixel nur nach Marketing-Consent.

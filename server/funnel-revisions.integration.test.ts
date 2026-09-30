@@ -70,6 +70,29 @@ describe.skipIf(!connection)("versioned drafts, live content and recovery", () =
     await expect(storage.updateFunnel(f.funnel.id, f.owner.id, { name: "Alter Tab" })).rejects.toMatchObject({ status: 409, code: "EDITOR_UPDATE_REQUIRED" });
     expect((await storage.getFunnelByUuid(f.funnel.uuid))?.name).toBe("Alter Editor");
   });
+  it("publishes visitor rules as version 3 and retains answer snapshots across content restoration", async () => {
+    const f = await fixture();
+    const modern = (version: number, publish = false): WriteControl => ({ ...control(version, publish), documentVersion: 3 });
+    const pages: Funnel["pages"] = [
+      { id: "question", type: "question", title: "Bedarf", elements: [{ id: "answer", type: "radio", choices: [{ id: "option-id", label: "Jetzt" }] }], routing: { version: 1, rules: [], fallbackPageId: "thanks" } },
+      { id: "thanks", type: "thankyou", title: "Danke", elements: [] },
+    ];
+    const live = (await storage.updateFunnel(f.funnel.id, f.owner.id, { pages }, modern(0, true)))!;
+    expect(live.documentVersion).toBe(3);
+    expect((await storage.getFunnelByUuid(live.uuid))?.pages).toEqual(pages);
+    await expect(storage.updateFunnel(live.id, f.owner.id, { name: "Alter Editor" }, { ...control(1), documentVersion: 2 })).rejects.toMatchObject({ code: "EDITOR_UPDATE_REQUIRED" });
+    const broken = structuredClone(pages); broken[0].routing!.fallbackPageId = "question";
+    await expect(storage.updateFunnel(live.id, f.owner.id, { pages: broken }, modern(1, true))).rejects.toMatchObject({ code: "INVALID_ROUTING" });
+    expect((await storage.getFunnel(live.id, f.owner.id))?.editVersion).toBe(1);
+    const snapshot = { version: 1 as const, documentVersion: 3 as const, contentRevisionId: live.publishedRevisionId!, path: ["question"], fields: [{ pageId: "question", elementId: "answer", label: "Bedarf", value: "option-id", optionId: "option-id", optionText: "Jetzt" }] };
+    const lead = await storage.createLead({ funnelId: live.id, status: "new", answers: { Bedarf: "Jetzt" }, answerSnapshot: snapshot }, f.owner.id);
+    const revision = (await service.listFunnelRevisions(live.id, f.owner.id)).find(revision => revision.version === 0)!;
+    const restored = await storage.restoreFunnelRevision(live.id, f.owner.id, revision.id, modern(1));
+    expect(restored?.documentVersion).toBe(3);
+    expect((await storage.getLead(lead.id, f.owner.id))?.answerSnapshot).toEqual(snapshot);
+    expect((await storage.getLead(lead.id, f.owner.id))?.answers).toEqual({ Bedarf: "Jetzt" });
+    expect((await storage.getFunnelByUuid(live.uuid))?.pages).toEqual(pages);
+  });
   it("serializes competing saves and handles an identical request retry once", async () => {
     const f = await fixture();
     const retryControl = control();

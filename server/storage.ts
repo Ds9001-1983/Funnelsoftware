@@ -1,3 +1,4 @@
+import { requiredDocumentVersion } from "@shared/funnel-document";
 import { eq, desc, and, sql, gte, lt, inArray } from "drizzle-orm";
 import { quizTemplateElement } from "@shared/quiz-template";
 import { db } from "./db";
@@ -491,7 +492,7 @@ export class DatabaseStorage implements IStorage {
         name: insertFunnel.name,
         description: insertFunnel.description || null,
         status: "draft",
-        documentVersion: needsLayoutDocument(insertFunnel.pages, insertFunnel.theme, insertFunnel.abTests) ? 2 : (insertFunnel.documentVersion ?? 1),
+        documentVersion: Math.max(insertFunnel.documentVersion ?? 1, requiredDocumentVersion(insertFunnel)),
         abTests: insertFunnel.abTests ?? [],
         pages: insertFunnel.pages || [],
         theme: insertFunnel.theme || {
@@ -768,6 +769,7 @@ export class DatabaseStorage implements IStorage {
       company: lead.company,
       message: lead.message,
       answers: lead.answers as Record<string, any> | null,
+      answerSnapshot: lead.answerSnapshot,
       status: lead.status as "new" | "contacted" | "qualified" | "converted" | "lost",
       stageId: lead.stageId,
       stageVersion: lead.stageVersion,

@@ -1,3 +1,5 @@
+import { VisitorRulesPanel } from "@/components/funnel-editor/VisitorRulesPanel";
+import { needsRoutingDocument } from "@shared/funnel-routing";
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -214,12 +216,13 @@ export default function FunnelEditor() {
       try {
         const response = await fetch("/api/funnels/editor-capabilities", { credentials: "include" });
         const data = response.ok ? await response.json() : null;
-        return { layoutEditing: data?.layoutEditing === true };
-      } catch { return { layoutEditing: false }; }
+        return { layoutEditing: data?.layoutEditing === true, routingEditing: data?.routingEditing === true };
+      } catch { return { layoutEditing: false, routingEditing: false }; }
     },
     staleTime: Infinity,
   });
   const layoutEditing = editorCapabilities?.layoutEditing === true;
+  const routingEditing = editorCapabilities?.routingEditing === true;
 
   // Daten-/Persistenz-Layer extrahiert in einen Hook (Stufe 3.1). Die alten
   // Namen bleiben via Destructuring identisch, damit der restliche Editor-Code
@@ -245,7 +248,7 @@ export default function FunnelEditor() {
     saveCurrent, saveBeforeLeave, restoreRevision, pendingWrites, conflict, recovery, discardRecovery, recoveryUnavailable,
     updateLocalFunnel,
     updatePage: persistPage,
-  } = useFunnelEditor(params?.id, layoutEditing);
+  } = useFunnelEditor(params?.id, layoutEditing, routingEditing);
 
   const [selectedPageIndex, setSelectedPageIndex] = useState(0);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
@@ -254,6 +257,13 @@ export default function FunnelEditor() {
     const page = localFunnel?.pages[index];
     if (!page || !localFunnel) return false;
     const next = reconcilePageLayout(page, updates, columnId ?? activeColumnId ?? undefined);
+    if (needsRoutingDocument(localFunnel.pages)) {
+      next.elements = next.elements.map(element => !page.elements.some(old => old.id === element.id) && ["select", "radio"].includes(element.type) && !element.choices
+        ? { ...element, choices: (element.options ?? []).map(label => ({ id: crypto.randomUUID(), label })) } : element);
+      const referenceError = removedFieldReference(localFunnel, page, next);
+      const removedChoice = page.elements.some(element => element.choices?.some(choice => !next.elements.find(next => next.id === element.id)?.choices?.some(next => next.id === choice.id) && localFunnel.pages.some(source => source.routing?.rules.some(rule => rule.conditions.some(condition => condition.kind === "choice" && condition.fieldId === element.id && condition.value === choice.id)))));
+      if (referenceError || removedChoice) { toast({ title: "Änderung nicht möglich", description: referenceError || "Diese Option wird noch in einer Besucherregel verwendet. Passe zuerst die Regel an.", variant: "destructive" }); return false; }
+    }
     if (page.layout || next.layout) {
       const structural = JSON.stringify(page.layout) !== JSON.stringify(next.layout)
         || JSON.stringify(page.elements.map(element => element.id)) !== JSON.stringify(next.elements.map(element => element.id));
@@ -584,7 +594,7 @@ export default function FunnelEditor() {
   // Keyboard shortcuts for copy/paste and undo/redo
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (localFunnel && !canEditFunnelDocument(localFunnel, layoutEditing)) return;
+      if (localFunnel && !canEditFunnelDocument(localFunnel, layoutEditing, routingEditing)) return;
       // Check if we're in an input field
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
@@ -622,7 +632,7 @@ export default function FunnelEditor() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [localFunnel, layoutEditing, selectedElementId, copySelectedElement, copyCurrentPage, pasteFromClipboard, deleteSelectedElement, duplicateSelectedElement]);
+  }, [localFunnel, layoutEditing, routingEditing, selectedElementId, copySelectedElement, copyCurrentPage, pasteFromClipboard, deleteSelectedElement, duplicateSelectedElement]);
 
   const moveElementUp = useCallback(() => {
     if (!localFunnel || !selectedElementId) return;
@@ -790,6 +800,7 @@ export default function FunnelEditor() {
         backgroundColor: type === "welcome" || type === "thankyou" ? localFunnel.theme.primaryColor : undefined,
         showConfetti: type === "thankyou" ? true : undefined,
       };
+      if (needsRoutingDocument(localFunnel.pages)) newPage.elements = newPage.elements.map(element => ["select", "radio"].includes(element.type) ? { ...element, choices: (element.options ?? []).map(label => ({ id: crypto.randomUUID(), label })) } : element);
       updateLocalFunnel({ pages: [...localFunnel.pages, newPage] });
       setSelectedPageIndex(localFunnel.pages.length);
     }
@@ -947,7 +958,7 @@ export default function FunnelEditor() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (localFunnel && !canEditFunnelDocument(localFunnel, layoutEditing)) return;
+      if (localFunnel && !canEditFunnelDocument(localFunnel, layoutEditing, routingEditing)) return;
       const target = e.target as HTMLElement;
       const isEditing =
         target.tagName === "INPUT" ||
@@ -996,7 +1007,7 @@ export default function FunnelEditor() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [localFunnel, layoutEditing, hasChanges, handleUndo, handleRedo, handleSave, moveElementUp, moveElementDown, selectedElementId]);
+  }, [localFunnel, layoutEditing, routingEditing, hasChanges, handleUndo, handleRedo, handleSave, moveElementUp, moveElementDown, selectedElementId]);
 
   // Der Builder ist für kleine Viewports nicht bedienbar — statt einer kaputten
   // Oberfläche einen klaren Hinweis zeigen (Desktop-Editor bleibt unverändert).
@@ -1071,7 +1082,7 @@ export default function FunnelEditor() {
 
   const selectedPage = localFunnel.pages[selectedPageIndex];
 
-  if (!canEditFunnelDocument(localFunnel, layoutEditing)) {
+  if (!canEditFunnelDocument(localFunnel, layoutEditing, routingEditing)) {
     return (
       <ErrorBoundary>
         <div className="p-4 border-b space-y-2">
@@ -1359,6 +1370,7 @@ export default function FunnelEditor() {
             {selectedElement && (
               <ElementPropertiesPanel
                 element={selectedElement}
+                routingManaged={!!selectedPage?.routing}
                 onUpdate={updateSelectedElement}
                 onClose={() => { setSelectedElementId(null); setShowRightPanel(false); }}
                 pages={localFunnel?.pages?.map(p => ({ id: p.id, title: p.title })) || []}
@@ -1407,8 +1419,8 @@ export default function FunnelEditor() {
               Funnel-Flow
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 min-h-0">
-            <Suspense
+          <div className="flex-1 min-h-0 flex">
+            <div className="flex-1 min-w-0"><Suspense
               fallback={
                 <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
                   Lade Flow-Ansicht…
@@ -1422,11 +1434,16 @@ export default function FunnelEditor() {
                   const idx = localFunnel.pages.findIndex((p) => p.id === pageId);
                   if (idx >= 0) {
                     setSelectedPageIndex(idx);
-                    setShowLogicFlow(false);
                   }
                 }}
               />
-            </Suspense>
+            </Suspense></div>
+            {routingEditing && selectedPage && <aside className="w-[420px] shrink-0 border-l overflow-y-auto">
+              <label className="block p-4 pb-0 text-xs">Regelseite
+                <select aria-label="Regelseite" className="w-full border rounded bg-background p-2 mt-1" value={selectedPage.id} onChange={event => setSelectedPageIndex(localFunnel.pages.findIndex(page => page.id === event.target.value))}>{localFunnel.pages.map(page => <option key={page.id} value={page.id}>{page.title}</option>)}</select>
+              </label>
+              <VisitorRulesPanel key={selectedPage.id} funnel={localFunnel} page={selectedPage} onUpdate={updates => updatePage(selectedPageIndex, updates)} />
+            </aside>}
           </div>
         </DialogContent>
       </Dialog>

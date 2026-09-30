@@ -6,6 +6,42 @@ Der Nutzer hat die Fortsetzung am 28.09.2026 ausdrücklich bestätigt.
 
 ## Fortsetzung am 30.09.2026
 
+### Besucherregeln: Umsetzung und Abnahme
+
+Arbeitsbranch `feat/builder-visitor-rules` in `../Funnelsoftware-builder`.
+Das Paket ergänzt die Flow-Ansicht um geordnete UND/ODER-Regeln, typisierte
+Vergleiche mit Antworten früherer Seiten, ein Standardziel und einen Testmodus
+mit Ziel und Begründung je Bedingung. Die Aktivierung zeigt die Übernahme alter
+Weiterleitungen an, ist rückgängig machbar und wirkt erst nach Veröffentlichung.
+
+- Neue Regeldokumente verwenden Version 3. Bestehende Regeln behalten ohne
+  Aktivierung ihre Semantik; neue Auswahlfelder erhalten feste Options-IDs.
+  Umbenennen ändert die Zuordnung nicht. Referenzierte Felder/Optionen können
+  nicht versehentlich gelöscht werden. Seitenkopien erhalten neue Zuordnungen.
+- Neue Besucherwege teilen sich Auswertung, Testmodus und Ablaufgrafik.
+  Direkte Sprünge prüfen Pflichtfelder. Zurück folgt dem tatsächlich besuchten
+  Weg und verwirft verlassene Antworten. Das passende Ergebnis erscheint erst
+  nach erfolgreichem Absenden; paralleles/doppeltes Absenden wird verhindert.
+- Veröffentlichung prüft Ziele, Quellen, vollständige Wege und Zyklen auch
+  über gleichzeitig aktive A/B-Varianten. Bearbeitung der Regeln während
+  laufender A/B-Tests ist gesperrt.
+- Nullable `leads.answer_snapshot` speichert zusätzlich Feld-/Options-IDs,
+  erfasste Texte, Pfad, Varianten und Inhaltsrevision. Altes `answers`,
+  Webhooks und CSV bleiben erhalten; historische Antworten werden nicht
+  rekonstruiert. Antwortstatistiken nutzen bei neuen Leads den Snapshot.
+  Migration `20260930_visitor_answers.sql` ergänzt ausschließlich diese Spalte.
+- Neuer Leser funktioniert mit ausgeschaltetem `BUILDER_ROUTING_EDITOR`;
+  unbekannte/gesperrte Versionen bleiben im Editor schreibgeschützt. Erst den
+  Leser veröffentlichen und prüfen, danach das Flag in Produktion aktivieren.
+  Sobald Version-3-Dokumente existieren, keinen älteren v1/v2-Leser zurückrollen.
+
+Abnahme: 441 Tests einschließlich 51 Datenbank-/Migrationstests, unveränderte
+alte Routingtests, 24 Browserabläufe. Typecheck und Produktionsbuild erfolgreich.
+Der Browsergesamtlauf respektiert die getrennten Wartezeiten beider bestehenden
+Versandbegrenzungen; Produktionslimits bleiben unverändert.
+Veröffentlichung und Live-Abnahme folgen über PR/Deployment mit frischem Backup,
+Restore-Test und Prüfung aller bisherigen Tabellenspalten.
+
 ### Aktueller Stand: Markenstile veröffentlicht
 
 Das Paket ist über [PR #176](https://github.com/Ds9001-1983/Funnelsoftware/pull/176)

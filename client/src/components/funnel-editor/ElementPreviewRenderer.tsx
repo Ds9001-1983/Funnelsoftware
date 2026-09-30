@@ -1,3 +1,4 @@
+import { elementChoices } from "@shared/funnel-routing";
 import { memo, useEffect, useState } from "react";
 import {
   Play,
@@ -318,9 +319,9 @@ function ElementPreviewRendererBase({
                   <option value="" disabled>
                     {el.placeholder || "Option wählen..."}
                   </option>
-                  {el.options?.map((option, idx) => (
-                    <option key={idx} value={option}>
-                      {option}
+                  {elementChoices(el).map(option => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
@@ -351,12 +352,12 @@ function ElementPreviewRendererBase({
                 {el.label}
               </p>
             )}
-            {el.options?.map((option, idx) => {
+            {elementChoices(el).map(option => {
               if (updateFormValue) {
-                const checked = formValues[el.id] === option;
+                const checked = formValues[el.id] === option.id;
                 return (
                   <label
-                    key={idx}
+                    key={option.id}
                     className={`flex items-center gap-3 px-4 py-2.5 bg-white rounded-lg border text-sm shadow-sm cursor-pointer transition-colors ${
                       checked ? "" : "border-gray-200 hover:border-gray-300"
                     }`}
@@ -365,9 +366,9 @@ function ElementPreviewRendererBase({
                     <input
                       type="radio"
                       name={el.id}
-                      value={option}
+                      value={option.id}
                       checked={checked}
-                      onChange={() => updateFormValue(el.id, option)}
+                      onChange={() => updateFormValue(el.id, option.id)}
                       className="sr-only"
                     />
                     <span
@@ -381,17 +382,17 @@ function ElementPreviewRendererBase({
                         />
                       )}
                     </span>
-                    <span className="text-gray-900">{option}</span>
+                    <span className="text-gray-900">{option.label}</span>
                   </label>
                 );
               }
               return (
                 <div
-                  key={idx}
+                  key={option.id}
                   className="flex items-center gap-3 px-4 py-2 bg-white rounded-lg border border-gray-200 text-sm shadow-sm"
                 >
                   <div className="w-4 h-4 rounded-full border-2 border-gray-300" />
-                  <span>{option}</span>
+                  <span>{option.label}</span>
                 </div>
               );
             })}
