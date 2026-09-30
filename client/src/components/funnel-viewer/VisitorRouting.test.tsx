@@ -19,6 +19,19 @@ const heading = async (name: string) => waitFor(() => expect(screen.getByRole("h
 const next = () => fireEvent.click(screen.getByTestId("button-funnel-next"));
 const back = () => fireEvent.click(screen.getByTestId("button-funnel-back"));
 describe("visitor journey and submission", () => {
+  it("records the control journey when fixed options exist only in an A/B alternative", async () => {
+    const submit = vi.fn().mockResolvedValue(true);
+    render(<FunnelRenderer funnel={{ theme, pages: [
+      { id: "contact", type: "contact", title: "Kontakt", elements: [{ id: "email", type: "input", placeholder: "E-Mail", mapToLeadField: "email" }] },
+      { id: "done", type: "thankyou", title: "Danke", elements: [] },
+    ], abTests: [{ id: "test", name: "Auswahl", pageId: "contact", status: "running", variants: [
+      { id: "control", name: "Kontrolle", trafficAllocation: 50, views: 0, conversions: 0 },
+      { id: "alternative", name: "Alternative", trafficAllocation: 50, views: 0, conversions: 0, elements: [{ id: "choice", type: "radio", choices: [{ id: "option", label: "Beratung" }] }] },
+    ] }] }} mode="preview" onSubmit={submit} />);
+    fireEvent.change(screen.getByPlaceholderText("E-Mail"), { target: { value: "control@example.test" } });
+    fireEvent.click(screen.getByTestId("button-funnel-submit")); await heading("Danke");
+    expect(submit.mock.calls[0][0].answerSnapshot).toMatchObject({ path: ["contact"], fields: [{ elementId: "email", value: "control@example.test" }] });
+  });
   it("goes back along the visited path and discards stale branch answers", async () => {
     const submit = vi.fn().mockResolvedValue(true);
     render(<FunnelRenderer funnel={{ pages: fixture(), theme, publishedRevisionId: 77 }} mode="preview" onSubmit={submit} />);

@@ -35,12 +35,19 @@ Weiterleitungen an, ist rückgängig machbar und wirkt erst nach Veröffentlichu
   Leser veröffentlichen und prüfen, danach das Flag in Produktion aktivieren.
   Sobald Version-3-Dokumente existieren, keinen älteren v1/v2-Leser zurückrollen.
 
-Abnahme: 441 Tests einschließlich 51 Datenbank-/Migrationstests, unveränderte
-alte Routingtests, 24 Browserabläufe. Typecheck und Produktionsbuild erfolgreich.
+Abnahme: 442 Tests einschließlich 51 Datenbank-/Migrationstests, unveränderte
+alte Routingtests, 26 Browserabläufe. Typecheck und Produktionsbuild erfolgreich.
 Der Browsergesamtlauf respektiert die getrennten Wartezeiten beider bestehenden
 Versandbegrenzungen; Produktionslimits bleiben unverändert.
 Veröffentlichung und Live-Abnahme folgen über PR/Deployment mit frischem Backup,
 Restore-Test und Prüfung aller bisherigen Tabellenspalten.
+
+Nachprüfung vor Freischaltung: Auch Auswahlfelder, die ausschließlich in einer
+A/B-Alternative vorkommen, aktivieren den versionierten Besucherweg für den
+gesamten Funnel. Öffentliche Ansicht und Vorschau berücksichtigen dafür die
+Variantendefinitionen vor der Auswahl/Überlagerung. Zwei zusätzliche
+Browserprüfungen bestätigen Snapshot, Options-ID und Variantenzuordnung für
+Kontrolle und Alternative; ein Renderer-Test deckt die Vorschau ab.
 
 ### Aktueller Stand: Markenstile veröffentlicht
 

@@ -1,5 +1,5 @@
 import { needsRoutingDocument, resolveVisitorTransition, answersOnPath, captureAnswers, answerText } from "@shared/funnel-routing";
-import type { AnswerSnapshot } from "@shared/schema";
+import type { ABTest, AnswerSnapshot } from "@shared/schema";
 import { useState, useMemo, useCallback, useEffect, useRef, type ReactNode } from "react";
 import confetti from "canvas-confetti";
 import { Loader2, ChevronRight, ChevronLeft } from "lucide-react";
@@ -28,6 +28,7 @@ import { PageLayout } from "./PageLayout";
  *  Public-API-Response als auch ein ClientTemplate aus templates.ts. */
 export interface RenderableFunnel {
   pages: FunnelPage[];
+  abTests?: ABTest[];
   theme: Theme;
   publishedRevisionId?: number | null;
   routingEnabled?: boolean;
@@ -88,7 +89,7 @@ export function FunnelRenderer({
   renderFooter,
   className,
 }: FunnelRendererProps) {
-  const modernRouting = sourceFunnel.routingEnabled ?? needsRoutingDocument(sourceFunnel.pages);
+  const modernRouting = sourceFunnel.routingEnabled ?? needsRoutingDocument(sourceFunnel.pages, sourceFunnel.abTests ?? []);
   const funnel = useMemo(() => modernRouting ? { ...sourceFunnel, pages: sourceFunnel.pages.filter(page => !page.hidden) } : sourceFunnel, [sourceFunnel, modernRouting]);
   const [visitedPath, setVisitedPath] = useState<string[]>(() => funnel.pages[0] ? [funnel.pages[0].id] : []);
   const navigationLock = useRef(false);

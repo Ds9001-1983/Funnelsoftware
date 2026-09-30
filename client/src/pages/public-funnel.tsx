@@ -166,7 +166,7 @@ export default function PublicFunnelView() {
         }
 
         const data = await res.json();
-        data.routingEnabled = needsRoutingDocument(data.pages);
+        data.routingEnabled = needsRoutingDocument(data.pages, data.abTests ?? []);
         // Versteckte Seiten herausfiltern (Preview zeigt Owner auch versteckte — Audit-freundlich)
         if (!isPreviewMode) {
           data.pages = data.pages.filter((p: FunnelPage) => !p.hidden);
