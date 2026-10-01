@@ -6,11 +6,19 @@ Der Nutzer hat die Fortsetzung am 28.09.2026 ausdrücklich bestätigt.
 
 ## Fortsetzung am 01.10.2026
 
-### Personalisierung umgesetzt; Gesamtabnahme und Veröffentlichung laufen
+### Personalisierung veröffentlicht und freigeschaltet
 
-Arbeitsverzeichnis: `../Funnelsoftware-builder`, Branch
-`feat/builder-personalization`, Basis `3c8858a` mit der bisherigen Übergabenotiz.
-Die beim Fortsetzen vorhandene Umsetzung wurde geprüft und ergänzt.
+Veröffentlicht über [PR #179](https://github.com/Ds9001-1983/Funnelsoftware/pull/179).
+Produktionsrelease: `dd6acded785ffd29e8552374425776e7af20f795`.
+[Deployment 36823731418](https://github.com/Ds9001-1983/Funnelsoftware/actions/runs/36823731418)
+einschließlich erneuter CI, Browser- und Datenbanktests erfolgreich. Health und
+PM2 bestätigen den Release sowie `BUILDER_PERSONALIZATION_EDITOR=true`.
+Die bisherigen Layout-/Routing-Fähigkeiten bleiben ebenfalls aktiv.
+
+Arbeitsverzeichnis für die Fortsetzung: `../Funnelsoftware-builder`, lokaler
+Dokumentationsbranch `docs/builder-personalization-rollout` auf `origin/main`.
+Die beim Fortsetzen vorhandene Umsetzung wurde geprüft und ergänzt; diese
+Abschlussnotiz ist lokal versioniert. Die Produktänderungen sind in `main`.
 
 - „Persönliche Ansprache“ im Eigenschaftenbereich von Überschriften, Texten
   und Buttons: ausdrückliche Aktivierung, stabile Antwortquelle oder einzeln
@@ -37,17 +45,40 @@ Die beim Fortsetzen vorhandene Umsetzung wurde geprüft und ergänzt.
   Testhelfer beachten `Retry-After` und wiederholen über die echte Oberfläche;
   Produktionslimits bleiben unverändert.
 
-Bereits geprüft: Typecheck, Produktionsbuild, 403 Unit-/Komponententests und
-52 Datenbank-/Migrationstests (eigener temporärer PostgreSQL-Cluster auf
-Loopback, Port 55438). Zwölf Browserprüfungen am Produktionsbuild bestanden,
-einschließlich v4-Schreibschutz, Abschnitts-Canvas, mobiler Vorschau und
-Personalisierung ausschließlich in einer A/B-Alternative (beide Zuweisungen).
-Der vollständige Browserlauf wird nach Anpassung der Test-Wartezeiten erneut
-ausgeführt. Auslieferung und Freischaltung sind noch nicht erfolgt.
+Abnahme: **455 Tests bestanden**, davon 403 Unit-/Komponententests und 52
+Datenbank-/Migrationstests (eigener temporärer PostgreSQL-Cluster auf Loopback,
+Port 55438). Alle **33 Browserabläufe** bestanden. Typecheck einschließlich
+Shared-, Server- und Browsertests sowie Produktionsbuild erfolgreich.
+Zwölf Browserprüfungen am Produktionsbuild bestanden, einschließlich
+v4-Schreibschutz, Abschnitts-Canvas, mobiler Vorschau und Personalisierung
+ausschließlich in einer A/B-Alternative (beide Zuweisungen).
 
-Nächste Schritte: Gesamtabnahme, PR/CI, Deployment mit Backup und Restore-Test,
-Live-Assets prüfen, anschließend Bearbeitung aktivieren und diese Notiz
-aktualisieren. Danach bleibt Paket 5: eigene Vorlagen und Medienverwaltung.
+Sechs weitere Browserprüfungen gegen die ausgelieferten Live-Assets bestanden,
+ohne JavaScript-Fehler. Alle API-/externen Aufrufe abgefangen; keine Testdaten
+in Produktion. SHA-256 des JavaScript-Einstiegs `index-wWWi1_8k.js` entspricht
+dem aktiven Serverrelease. Fähigkeiten-API ohne Anmeldung: 401. Erst danach
+die Bearbeitung freigeschaltet und PM2/Health erneut geprüft.
+
+Das Deployment erstellte ein frisches Backup; Restore und zweimaliger
+Migrationslauf bestätigten unveränderte Inhalte aller 24 bestehenden Tabellen.
+Datenbank und Uploads zusätzlich lokal gesichert, SHA-256 jeweils gegen die
+Serverkopie geprüft:
+
+- Lokal: `~/TrichterwerkBackups/releases/20261001T061739-dd6acded785f/`
+- Server einschließlich Konfiguration:
+  `/var/backups/funnelflow/releases/20261001T061739-dd6acded785f/`
+- Konfiguration vor Freischaltung:
+  `/var/backups/funnelflow/personalization-activation-20261001T061940/`
+
+Das eigene temporäre PostgreSQL-Testcluster wurde beendet. Ab ersten
+veröffentlichten v4-Inhalten muss ein Code-Rollback diesen Leser beibehalten;
+Abschalten der Bearbeitung lässt die öffentliche Darstellung weiterarbeiten.
+
+Editor neu laden, Überschrift/Text/Button auswählen und rechts unter
+„Persönliche Ansprache“ aktivieren. Bestehende Funnels ändern sich erst nach
+ausdrücklicher Zuordnung und Veröffentlichung.
+Als nächstes offen: Paket 5, eigene Seiten-/Abschnittsvorlagen und Mediathek
+aus der ursprünglichen Übergabe. Dazu noch keine Produktumsetzung begonnen.
 
 ## Fortsetzung am 30.09.2026
 
