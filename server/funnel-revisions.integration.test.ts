@@ -93,6 +93,29 @@ describe.skipIf(!connection)("versioned drafts, live content and recovery", () =
     expect((await storage.getLead(lead.id, f.owner.id))?.answers).toEqual({ Bedarf: "Jetzt" });
     expect((await storage.getFunnelByUuid(live.uuid))?.pages).toEqual(pages);
   });
+  it("publishes explicit personalization as v4 and preserves templates and older lead answers", async () => {
+    const f = await fixture();
+    const modern = (version: number, publish = false): WriteControl => ({ ...control(version, publish), documentVersion: 4 });
+    const pages: Funnel["pages"] = [
+      { id: "start", type: "question", title: "Ort", elements: [{ id: "place", type: "input", label: "Ort" }] },
+      { id: "done", type: "thankyou", title: "Danke", elements: [{ id: "title", type: "heading", content: "Angebot {{Ort}}", personalization: { version: 1, bindings: [{ id: "p", token: "Ort", source: { kind: "answer", fieldId: "place" }, fallback: "deine Region" }] } }] },
+    ];
+    const historical = await storage.createLead({ funnelId: f.funnel.id, status: "new", answers: { Ort: "Historisch" } }, f.owner.id);
+    const live = (await storage.updateFunnel(f.funnel.id, f.owner.id, { pages }, modern(0, true)))!;
+    expect(live.documentVersion).toBe(4);
+    expect((await storage.getFunnelByUuid(live.uuid))?.pages).toEqual(pages);
+    await expect(storage.updateFunnel(live.id, f.owner.id, { name: "Alter Tab" }, { ...control(1), documentVersion: 3 })).rejects.toMatchObject({ code: "EDITOR_UPDATE_REQUIRED" });
+    const broken = structuredClone(pages); broken[0].elements = [];
+    await expect(storage.updateFunnel(live.id, f.owner.id, { pages: broken }, modern(1, true))).rejects.toMatchObject({ code: "INVALID_PERSONALIZATION" });
+    expect((await storage.getFunnel(live.id, f.owner.id))?.editVersion).toBe(1);
+    const snapshot = { version: 1 as const, documentVersion: 4 as const, contentRevisionId: live.publishedRevisionId!, path: ["start"], fields: [{ pageId: "start", elementId: "place", label: "Ort", value: "Köln" }] };
+    const lead = await storage.createLead({ funnelId: live.id, status: "new", answers: { Ort: "Köln" }, answerSnapshot: snapshot }, f.owner.id);
+    const initial = (await service.listFunnelRevisions(live.id, f.owner.id)).find(revision => revision.version === 0)!;
+    expect((await storage.restoreFunnelRevision(live.id, f.owner.id, initial.id, modern(1)))?.documentVersion).toBe(4);
+    expect((await storage.getFunnelByUuid(live.uuid))?.pages).toEqual(pages);
+    expect((await storage.getLead(lead.id, f.owner.id))?.answerSnapshot).toEqual(snapshot);
+    expect((await storage.getLead(historical.id, f.owner.id))?.answers).toEqual({ Ort: "Historisch" });
+  });
   it("serializes competing saves and handles an identical request retry once", async () => {
     const f = await fixture();
     const retryControl = control();

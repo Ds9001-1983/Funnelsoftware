@@ -556,7 +556,22 @@ export type User = typeof users.$inferSelect;
 export type PageType = "welcome" | "question" | "multiChoice" | "contact" | "calendar" | "thankyou";
 
 // Page element/block schema - Extended with OpenFunnels block types
+export const personalizationBindingSchema = z.object({
+  id: z.string().min(1).max(100),
+  token: z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,39}$/),
+  source: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("answer"), fieldId: z.string().min(1).max(100) }),
+    z.object({ kind: z.literal("campaign"), key: z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/) }),
+  ]),
+  fallback: z.string().max(200),
+});
+export const personalizationSchema = z.object({
+  version: z.literal(1), bindings: z.array(personalizationBindingSchema).max(20),
+});
+export type PersonalizationBinding = z.infer<typeof personalizationBindingSchema>;
+
 export const pageElementSchema = z.object({
+  personalization: personalizationSchema.optional(),
   id: z.string(),
   type: z.enum([
     // Basic
@@ -829,7 +844,7 @@ export type VisitorCondition = z.infer<typeof visitorConditionSchema>;
 export type VisitorRouting = z.infer<typeof visitorRoutingSchema>;
 
 export const answerSnapshotSchema = z.object({
-  version: z.literal(1), documentVersion: z.literal(3),
+  version: z.literal(1), documentVersion: z.union([z.literal(3), z.literal(4)]),
   contentRevisionId: z.number().int().nonnegative(),
   path: z.array(z.string().min(1).max(100)).min(1).max(500),
   fields: z.array(z.object({
@@ -1151,7 +1166,7 @@ export type Funnel = z.infer<typeof funnelSchema>;
 
 // Insert funnel schema
 export const insertFunnelSchema = z.object({
-  documentVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
+  documentVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
   name: z.string().min(1, "Name ist erforderlich"),
   description: z.string().optional(),
   slug: slugSchema.optional(),

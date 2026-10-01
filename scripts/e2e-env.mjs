@@ -64,6 +64,7 @@ export function createE2EServerEnvironment(source = process.env) {
     E2E_TEST_MODE: "1",
     BUILDER_LAYOUT_EDITOR: source.BUILDER_LAYOUT_EDITOR === "true" ? "true" : "false",
     BUILDER_ROUTING_EDITOR: source.BUILDER_ROUTING_EDITOR === "true" ? "true" : "false",
+    BUILDER_PERSONALIZATION_EDITOR: source.BUILDER_PERSONALIZATION_EDITOR === "true" ? "true" : "false",
     DOTENV_CONFIG_PATH: "/dev/null",
     DATABASE_URL: config.databaseUrl,
     E2E_DATABASE_URL: config.databaseUrl,

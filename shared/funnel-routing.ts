@@ -1,12 +1,13 @@
 import { visitorRoutingSchema, type ABTest, type AnswerSnapshot, type FunnelPage, type PageElement, type VisitorCondition, type VisitorRouting } from "./schema";
 import { getNextPageIndex } from "./legacy-funnel-routing";
 import { pageWithVariant } from "./funnel-layout";
+import { needsPersonalizationDocument } from "./funnel-personalization";
 
 export const responseTypes = new Set(["input", "textarea", "select", "radio", "checkbox", "date", "slider", "quiz"]);
 export const fieldLabel = (element: PageElement) => element.label || element.placeholder || element.content || element.id;
 export const elementChoices = (element: PageElement) => element.choices ?? (element.options ?? []).map(label => ({ id: label, label }));
 export const answerText = (element: PageElement, value: string) => element.choices?.find(choice => choice.id === value)?.label ?? value;
-export const needsRoutingDocument = (pages: FunnelPage[] = [], tests: ABTest[] = []) => pages.some(page => !!page.routing || page.elements.some(element => !!element.choices)) || tests.some(test => test.variants.some(variant => variant.elements?.some(element => !!element.choices)));
+export const needsRoutingDocument = (pages: FunnelPage[] = [], tests: ABTest[] = []) => needsPersonalizationDocument(pages, tests) || pages.some(page => !!page.routing || page.elements.some(element => !!element.choices)) || tests.some(test => test.variants.some(variant => variant.elements?.some(element => !!element.choices)));
 
 /** Missing answers never satisfy a comparison, including notEquals. */
 export function evaluateVisitorCondition(condition: VisitorCondition, values: Record<string, string>): boolean {
@@ -53,8 +54,8 @@ export function answersOnPath(pages: FunnelPage[], path: string[], values: Recor
   const keys = new Set(pages.filter(page => path.includes(page.id)).flatMap(page => page.elements.flatMap(element => [element.id, ...(element.quizConfig?.questions.map(question => `${element.id}:${question.id}`) ?? [])])));
   return Object.fromEntries(Object.entries(values).filter(([key]) => keys.has(key)));
 }
-export function captureAnswers(pages: FunnelPage[], path: string[], values: Record<string, string>, contentRevisionId = 0, variants?: Record<string, string>): AnswerSnapshot {
-  return { version: 1, documentVersion: 3, contentRevisionId, path: [...path], ...(variants ? { variants } : {}), fields: pages.filter(page => path.includes(page.id)).flatMap(page => page.elements.filter(element => values[element.id] !== undefined && responseTypes.has(element.type)).map(element => {
+export function captureAnswers(pages: FunnelPage[], path: string[], values: Record<string, string>, contentRevisionId = 0, variants?: Record<string, string>, documentVersion: 3 | 4 = 3): AnswerSnapshot {
+  return { version: 1, documentVersion, contentRevisionId, path: [...path], ...(variants ? { variants } : {}), fields: pages.filter(page => path.includes(page.id)).flatMap(page => page.elements.filter(element => values[element.id] !== undefined && responseTypes.has(element.type)).map(element => {
     const value = values[element.id];
     const choice = element.choices?.find(choice => choice.id === value);
     return { pageId: page.id, elementId: element.id, label: fieldLabel(element), value, ...(choice ? { optionId: choice.id, optionText: choice.label } : {}) };

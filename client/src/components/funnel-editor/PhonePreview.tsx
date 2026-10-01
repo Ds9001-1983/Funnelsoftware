@@ -1,3 +1,4 @@
+import type { PersonalizationContext } from "@shared/funnel-personalization";
 import { useState, useEffect, useCallback } from "react";
 import { GripVertical, Layers } from "lucide-react";
 import {
@@ -26,6 +27,7 @@ import type { ElementActions } from "./ElementPreviewRenderer";
 
 interface SortablePreviewElementProps extends ElementActions {
   element: PageElement;
+  personalizationContext?: PersonalizationContext;
   textColor: string;
   primaryColor: string;
   design?: Theme["design"];
@@ -38,6 +40,7 @@ interface SortablePreviewElementProps extends ElementActions {
 
 function SortablePreviewElement({
   element,
+  personalizationContext,
   textColor,
   primaryColor,
   design,
@@ -76,6 +79,7 @@ function SortablePreviewElement({
       </div>
       <ElementPreviewRenderer
         element={element}
+        personalizationContext={personalizationContext}
         textColor={textColor}
         primaryColor={primaryColor}
         design={design}
@@ -92,6 +96,7 @@ function SortablePreviewElement({
 
 interface PhonePreviewProps {
   page: FunnelPage | null;
+  personalizationContext?: PersonalizationContext;
   pageIndex: number;
   totalPages: number;
   primaryColor: string;
@@ -124,6 +129,7 @@ interface PhonePreviewProps {
  */
 export function PhonePreview({
   page,
+  personalizationContext,
   pageIndex,
   totalPages,
   primaryColor,
@@ -340,6 +346,7 @@ export function PhonePreview({
                     <SortablePreviewElement
                       key={el.id}
                       element={el}
+                      personalizationContext={personalizationContext}
                       textColor={textColor}
                       primaryColor={primaryColor}
                       design={theme?.design}

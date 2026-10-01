@@ -1,3 +1,4 @@
+import type { PersonalizationContext } from "@shared/funnel-personalization";
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, Copy, GripVertical, Plus, Trash2 } from "lucide-react";
 import { pageElementSchema, type FunnelPage, type PageElement, type Theme } from "@shared/schema";
@@ -12,6 +13,7 @@ import { InlineEditable } from "./InlineEditable";
 
 interface LayoutEditorProps {
   page: FunnelPage;
+  personalizationContext?: PersonalizationContext;
   theme: Theme;
   onChange: (page: FunnelPage) => void;
   selectedElementId: string | null;
@@ -24,7 +26,7 @@ interface LayoutEditorProps {
 }
 
 const selectClass = "h-8 rounded border bg-background px-2 text-xs text-foreground min-w-0";
-export function LayoutEditor({ page, theme, onChange, selectedElementId, onSelectElement, activeColumnId, onChooseColumn, onAddElement, elementActions, blockedReason }: LayoutEditorProps) {
+export function LayoutEditor({ personalizationContext, page, theme, onChange, selectedElementId, onSelectElement, activeColumnId, onChooseColumn, onAddElement, elementActions, blockedReason }: LayoutEditorProps) {
   const [presetId, setPresetId] = useState("empty-2");
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const design = resolveDesign(theme, page);
@@ -107,7 +109,7 @@ export function LayoutEditor({ page, theme, onChange, selectedElementId, onSelec
           })}
           renderElement={(element, textColor) => <div>
             <button type="button" draggable={!blockedReason} disabled={!!blockedReason} aria-label="Element ziehen" className="cursor-grab opacity-50 hover:opacity-100" onDragStart={event => { event.dataTransfer.setData("application/x-funnel-element", element.id); event.dataTransfer.effectAllowed = "move"; }}><GripVertical className="h-3 w-3" /></button>
-            <ElementPreviewRenderer element={element} textColor={textColor} primaryColor={theme.primaryColor} design={theme.design}
+            <ElementPreviewRenderer personalizationContext={personalizationContext} element={element} textColor={textColor} primaryColor={theme.primaryColor} design={theme.design}
               selectedElementId={selectedElementId} onSelectElement={onSelectElement} formValues={formValues} updateFormValue={(id, value) => setFormValues(current => ({ ...current, [id]: value }))}
               onContentCommit={content => onChange({ ...page, elements: page.elements.map(candidate => candidate.id === element.id ? { ...candidate, content } : candidate) })}
               {...elementActions} />

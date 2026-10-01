@@ -1,4 +1,5 @@
 import { elementChoices } from "@shared/funnel-routing";
+import { resolvePersonalizedContent, type PersonalizationContext } from "@shared/funnel-personalization";
 import { memo, useEffect, useState } from "react";
 import {
   Play,
@@ -206,6 +207,7 @@ export interface ElementActions {
 
 interface ElementPreviewRendererProps extends ElementActions {
   element: PageElement;
+  personalizationContext?: PersonalizationContext;
   design?: Theme["design"];
   textColor: string;
   primaryColor: string;
@@ -224,6 +226,7 @@ interface ElementPreviewRendererProps extends ElementActions {
  */
 function ElementPreviewRendererBase({
   element: el,
+  personalizationContext,
   design,
   textColor,
   primaryColor,
@@ -245,6 +248,7 @@ function ElementPreviewRendererBase({
   canMoveDown,
   onContentCommit,
 }: ElementPreviewRendererProps) {
+  const displayContent = el.personalization && personalizationContext ? resolvePersonalizedContent(el, personalizationContext) : undefined;
   const wrapperProps = {
     elementId: el.id,
     elementType: el.type,
@@ -704,13 +708,13 @@ function ElementPreviewRendererBase({
               style={headingStyle}
               renderDisplay={(v) => (
                 <h3 className="font-bold" style={headingStyle}>
-                  {v || "Überschrift"}
+                  {displayContent ?? (v || "Überschrift")}
                 </h3>
               )}
             />
           ) : (
             <h3 className="font-bold" style={headingStyle}>
-              {el.content || "Überschrift"}
+              {displayContent ?? (el.content || "Überschrift")}
             </h3>
           )}
         </ElementWrapper>
@@ -737,13 +741,13 @@ function ElementPreviewRendererBase({
               style={textStyle}
               renderDisplay={(v) => (
                 <p className="text-sm" style={textStyle}>
-                  {v || "Text hier..."}
+                  {displayContent ?? (v || "Text hier...")}
                 </p>
               )}
             />
           ) : (
             <p className="text-sm" style={textStyle}>
-              {el.content || "Text hier..."}
+              {displayContent ?? (el.content || "Text hier...")}
             </p>
           )}
         </ElementWrapper>
@@ -897,13 +901,13 @@ function ElementPreviewRendererBase({
               style={btnStyle}
               renderDisplay={(v) => (
                 <button className={btnClass} style={btnStyle} onClick={handleClick}>
-                  {v || "Button"}
+                  {displayContent ?? (v || "Button")}
                 </button>
               )}
             />
           ) : (
             <button className={btnClass} style={btnStyle} onClick={handleClick}>
-              {el.content || "Button"}
+              {displayContent ?? (el.content || "Button")}
             </button>
           )}
         </ElementWrapper>
@@ -1254,6 +1258,7 @@ function arePropsEqual(
   prev: ElementPreviewRendererProps,
   next: ElementPreviewRendererProps
 ): boolean {
+  if (prev.personalizationContext !== next.personalizationContext) return false;
   if (prev.textColor !== next.textColor) return false;
   if (prev.primaryColor !== next.primaryColor) return false;
   if (prev.selectedElementId !== next.selectedElementId) return false;

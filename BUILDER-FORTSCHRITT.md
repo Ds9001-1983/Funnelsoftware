@@ -4,11 +4,67 @@ Auftrag: Die Kundenanfrage umsetzen und veröffentlichen sowie die zuvor
 erarbeiteten Builder-Vorschläge aus der ursprünglichen Übergabe fertigstellen.
 Der Nutzer hat die Fortsetzung am 28.09.2026 ausdrücklich bestätigt.
 
+## Fortsetzung am 01.10.2026
+
+### Personalisierung umgesetzt; Gesamtabnahme und Veröffentlichung laufen
+
+Arbeitsverzeichnis: `../Funnelsoftware-builder`, Branch
+`feat/builder-personalization`, Basis `3c8858a` mit der bisherigen Übergabenotiz.
+Die beim Fortsetzen vorhandene Umsetzung wurde geprüft und ergänzt.
+
+- „Persönliche Ansprache“ im Eigenschaftenbereich von Überschriften, Texten
+  und Buttons: ausdrückliche Aktivierung, stabile Antwortquelle oder einzeln
+  freigegebener URL-Parameter, Ersatztext und lokale Canvas-Testwerte.
+- Alte Platzhalter bleiben wörtlich erhalten, bis sie ausdrücklich zugeordnet
+  werden. Gespeichert bleibt der Vorlagentext; Inline-Bearbeitung erhält ihn
+  auch bei eingeschalteter Testansicht. Testwerte lösen keinen Save aus.
+- Gemeinsame Auflösung für flachen Canvas, Abschnitte, Funktionsvorschau und
+  öffentliche Ausgabe; ausschließlich Text, begrenzte Länge, einmalige
+  Ersetzung, keine dynamischen URLs oder Formularbeschriftungen.
+- Antworten werden nur aus dem tatsächlich besuchten Weg gelesen. Die
+  Aktivierung erklärt die bestehende moderne Zurück-/Pflichtfeldsemantik.
+  Fehlende, verborgene und verlassene Quellen verwenden den Ersatztext.
+- Neue Dokumentversion 4, Schreibschutz für ältere Editoren, serverseitige
+  Publikationsprüfung, ID-Korrektur beim Kopieren und Schutz gegen das Löschen
+  referenzierter Felder. Historische Lead-Antworten bleiben unverändert.
+- Die neue Fähigkeit `BUILDER_PERSONALIZATION_EDITOR` ist standardmäßig aus.
+  Der Leser arbeitet auch bei ausgeschalteter Bearbeitung. Keine neue
+  Datenbankmigration; bestehende Inhalts- und Snapshot-Felder werden genutzt.
+- Im Browser gefundene fehlende Aktualisierung der Canvas-Testwerte korrigiert:
+  Der Memo-Vergleich berücksichtigt jetzt den Personalisierungskontext.
+  Zusätzliche Tests decken Wertewechsel, Abschalten und Pfadänderung ab.
+- Die erweiterte Browsersuite erreicht bestehende Abruf-/Versandlimits.
+  Testhelfer beachten `Retry-After` und wiederholen über die echte Oberfläche;
+  Produktionslimits bleiben unverändert.
+
+Bereits geprüft: Typecheck, Produktionsbuild, 403 Unit-/Komponententests und
+52 Datenbank-/Migrationstests (eigener temporärer PostgreSQL-Cluster auf
+Loopback, Port 55438). Zwölf Browserprüfungen am Produktionsbuild bestanden,
+einschließlich v4-Schreibschutz, Abschnitts-Canvas, mobiler Vorschau und
+Personalisierung ausschließlich in einer A/B-Alternative (beide Zuweisungen).
+Der vollständige Browserlauf wird nach Anpassung der Test-Wartezeiten erneut
+ausgeführt. Auslieferung und Freischaltung sind noch nicht erfolgt.
+
+Nächste Schritte: Gesamtabnahme, PR/CI, Deployment mit Backup und Restore-Test,
+Live-Assets prüfen, anschließend Bearbeitung aktivieren und diese Notiz
+aktualisieren. Danach bleibt Paket 5: eigene Vorlagen und Medienverwaltung.
+
 ## Fortsetzung am 30.09.2026
 
-### Besucherregeln: Umsetzung und Abnahme
+### Aktueller Stand: Besucherregeln veröffentlicht und freigeschaltet
 
-Arbeitsbranch `feat/builder-visitor-rules` in `../Funnelsoftware-builder`.
+Veröffentlicht über [PR #177](https://github.com/Ds9001-1983/Funnelsoftware/pull/177)
+und die A/B-Ergänzung [PR #178](https://github.com/Ds9001-1983/Funnelsoftware/pull/178).
+Aktueller Produktionsrelease: `3c8858abf318e623ff84c53072c2d76f9834c2a5`.
+[Deployment 36729011007](https://github.com/Ds9001-1983/Funnelsoftware/actions/runs/36729011007)
+einschließlich CI, Browser- und Datenbanktests erfolgreich. Der Health-Check
+bestätigt den Release; PM2 läuft online mit `BUILDER_ROUTING_EDITOR=true` und
+dem bisherigen `BUILDER_LAYOUT_EDITOR=true`.
+
+Arbeitsverzeichnis für die Fortsetzung: `../Funnelsoftware-builder`, lokaler
+Dokumentationsbranch `docs/builder-visitor-rollout` auf `origin/main`.
+Diese Abschlussnotiz ist lokal versioniert; beide Umsetzungen sind in `main`.
+
 Das Paket ergänzt die Flow-Ansicht um geordnete UND/ODER-Regeln, typisierte
 Vergleiche mit Antworten früherer Seiten, ein Standardziel und einen Testmodus
 mit Ziel und Begründung je Bedingung. Die Aktivierung zeigt die Übernahme alter
@@ -31,16 +87,28 @@ Weiterleitungen an, ist rückgängig machbar und wirkt erst nach Veröffentlichu
   rekonstruiert. Antwortstatistiken nutzen bei neuen Leads den Snapshot.
   Migration `20260930_visitor_answers.sql` ergänzt ausschließlich diese Spalte.
 - Neuer Leser funktioniert mit ausgeschaltetem `BUILDER_ROUTING_EDITOR`;
-  unbekannte/gesperrte Versionen bleiben im Editor schreibgeschützt. Erst den
-  Leser veröffentlichen und prüfen, danach das Flag in Produktion aktivieren.
-  Sobald Version-3-Dokumente existieren, keinen älteren v1/v2-Leser zurückrollen.
+  unbekannte/gesperrte Versionen bleiben im Editor schreibgeschützt. Leser mit
+  ausgeschaltetem Flag geprüft, anschließend die Bearbeitung freigeschaltet.
+  Sobald Version-3-Dokumente existieren, keinen älteren v1/v2-Leser zurückrollen;
+  der aktuelle Release enthält zusätzlich die Korrektur für A/B-Auswahlfelder.
 
 Abnahme: 442 Tests einschließlich 51 Datenbank-/Migrationstests, unveränderte
 alte Routingtests, 26 Browserabläufe. Typecheck und Produktionsbuild erfolgreich.
 Der Browsergesamtlauf respektiert die getrennten Wartezeiten beider bestehenden
 Versandbegrenzungen; Produktionslimits bleiben unverändert.
-Veröffentlichung und Live-Abnahme folgen über PR/Deployment mit frischem Backup,
-Restore-Test und Prüfung aller bisherigen Tabellenspalten.
+Beide Deployments erstellten frische Backups. Restore und zweimaliger
+Migrationslauf bestätigten jeweils unveränderte Inhalte aller bisherigen
+Spalten der 24 Tabellen. Datenbank und Uploads zusätzlich lokal gesichert;
+SHA-256 jeweils gegen die Serverkopie geprüft:
+
+- `~/TrichterwerkBackups/releases/20260930T141911-62570f35fa92/`
+- `~/TrichterwerkBackups/releases/20260930T142829-3c8858abf318/`
+
+Serverkopien einschließlich Konfiguration liegen unter
+`/var/backups/funnelflow/releases/` mit denselben Verzeichnisnamen.
+Vor Freischaltung zusätzliches Konfigurationsbackup:
+`/var/backups/funnelflow/visitor-rules-activation-20260930T142930/`.
+Das eigene temporäre PostgreSQL-Testcluster wurde beendet.
 
 Nachprüfung vor Freischaltung: Auch Auswahlfelder, die ausschließlich in einer
 A/B-Alternative vorkommen, aktivieren den versionierten Besucherweg für den
@@ -49,7 +117,27 @@ Variantendefinitionen vor der Auswahl/Überlagerung. Zwei zusätzliche
 Browserprüfungen bestätigen Snapshot, Options-ID und Variantenzuordnung für
 Kontrolle und Alternative; ein Renderer-Test deckt die Vorschau ab.
 
-### Aktueller Stand: Markenstile veröffentlicht
+Live-Abnahme: schreibgeschützter v3-Leser bei deaktivierter Fähigkeit,
+Regelbearbeitung und Testmodus bei aktivierter Fähigkeit, mobile Vorschau,
+öffentliche Verzweigung, besuchter Zurück-Pfad, verworfene Antworten,
+Pflichtfelder bei direkten Sprüngen, fehlgeschlagenes Absenden mit erneutem
+Versuch sowie Antwort-Snapshot einschließlich beider A/B-Fälle bestanden.
+Alle API- und externen Browseraufrufe abgefangen; keine Testdaten in Produktion.
+Keine JavaScript-Fehler. SHA-256 des ausgelieferten JavaScript-Einstiegs
+`index-oJKlN1iz.js` entspricht dem aktiven Server-Release. Fähigkeiten-API ohne
+Anmeldung: 401. PM2-Konfiguration und Health nach Freischaltung erneut geprüft.
+
+Der vollständige PR-Prüflauf für #178 und der finale Deployment-Prüflauf sind
+grün. Der redundante Push-Lauf 36728162760 hing bei der Chromium-Installation
+und wurde nach erfolgreicher Prüfung desselben Commits im PR beendet.
+
+Editor neu laden; unter „Flow-Ansicht“ die Regelseite auswählen und
+„Besucherregeln aktivieren“. Einzelne Funnels bleiben bis zur ausdrücklichen
+Aktivierung/Veröffentlichung bei ihrer bisherigen Semantik.
+Als nächstes offen: Personalisierung, danach Vorlagen-/Medienverwaltung aus
+der ursprünglichen Übergabe.
+
+### Vorheriger Stand: Markenstile veröffentlicht
 
 Das Paket ist über [PR #176](https://github.com/Ds9001-1983/Funnelsoftware/pull/176)
 veröffentlicht. Aktueller Produktionsrelease:
