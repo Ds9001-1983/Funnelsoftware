@@ -1,4 +1,5 @@
 import { visitorRoutingErrors } from "@shared/funnel-routing";
+import { personalizationErrors } from "@shared/funnel-personalization";
 import { createHash, randomUUID, randomBytes } from "node:crypto";
 import { and, desc, eq, lt, sql } from "drizzle-orm";
 import { db } from "./db";
@@ -80,6 +81,8 @@ export async function writeFunnel(id: number, userId: number, updates: Partial<F
       if (referenceErrors.length) throw new FunnelWriteError(400, referenceErrors.slice(0, 5).join(" "), "INVALID_REFERENCES");
       const routingErrors = visitorRoutingErrors(content.pages, content.abTests);
       if (routingErrors.length) throw new FunnelWriteError(400, routingErrors.slice(0, 5).join(" "), "INVALID_ROUTING");
+      const templateErrors = personalizationErrors(content.pages, content.abTests);
+      if (templateErrors.length) throw new FunnelWriteError(400, templateErrors.slice(0, 5).join(" "), "INVALID_PERSONALIZATION");
       values.status = "published";
     }
     let publishedRevisionId = current.publishedRevisionId;

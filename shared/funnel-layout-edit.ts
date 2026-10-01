@@ -110,9 +110,12 @@ export function moveLayoutElementBy(page: FunnelPage, id: string, offset: number
 }
 
 /** Deleting a field must not silently turn an existing branch into a fallback. */
-export function removedFieldReference(funnel: Pick<Funnel, "pages">, page: FunnelPage, next: FunnelPage): string | null {
+export function removedFieldReference(funnel: Pick<Funnel, "pages" | "abTests">, page: FunnelPage, next: FunnelPage): string | null {
   const remaining = new Set(next.elements.map(element => element.id));
   const removed = new Set(page.elements.filter(element => !remaining.has(element.id)).map(element => element.id));
+  const elements = [...funnel.pages.flatMap(p => p.id === page.id ? next.elements : p.elements), ...(funnel.abTests ?? []).flatMap(test => test.variants.flatMap(variant => variant.elements ?? []))];
+  const binding = elements.flatMap(element => element.personalization?.bindings ?? []).find(binding => binding.source.kind === "answer" && removed.has(binding.source.fieldId));
+  if (binding) return `Das Feld wird noch für {{${binding.token}}} verwendet. Passe zuerst die Personalisierung an.`;
   const referrer = funnel.pages.find(p => p.routing ? p.routing.rules.some(rule => rule.conditions.some(condition => removed.has(condition.fieldId))) : p.conditions?.some(condition => removed.has(condition.elementId)));
   return referrer ? `Ein Feld wird noch in einer Regel auf „${referrer.title}“ verwendet. Passe zuerst die Regel an.` : null;
 }

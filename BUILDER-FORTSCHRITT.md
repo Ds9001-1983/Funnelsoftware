@@ -4,6 +4,51 @@ Auftrag: Die Kundenanfrage umsetzen und veröffentlichen sowie die zuvor
 erarbeiteten Builder-Vorschläge aus der ursprünglichen Übergabe fertigstellen.
 Der Nutzer hat die Fortsetzung am 28.09.2026 ausdrücklich bestätigt.
 
+## Fortsetzung am 01.10.2026
+
+### Personalisierung umgesetzt; Gesamtabnahme und Veröffentlichung laufen
+
+Arbeitsverzeichnis: `../Funnelsoftware-builder`, Branch
+`feat/builder-personalization`, Basis `3c8858a` mit der bisherigen Übergabenotiz.
+Die beim Fortsetzen vorhandene Umsetzung wurde geprüft und ergänzt.
+
+- „Persönliche Ansprache“ im Eigenschaftenbereich von Überschriften, Texten
+  und Buttons: ausdrückliche Aktivierung, stabile Antwortquelle oder einzeln
+  freigegebener URL-Parameter, Ersatztext und lokale Canvas-Testwerte.
+- Alte Platzhalter bleiben wörtlich erhalten, bis sie ausdrücklich zugeordnet
+  werden. Gespeichert bleibt der Vorlagentext; Inline-Bearbeitung erhält ihn
+  auch bei eingeschalteter Testansicht. Testwerte lösen keinen Save aus.
+- Gemeinsame Auflösung für flachen Canvas, Abschnitte, Funktionsvorschau und
+  öffentliche Ausgabe; ausschließlich Text, begrenzte Länge, einmalige
+  Ersetzung, keine dynamischen URLs oder Formularbeschriftungen.
+- Antworten werden nur aus dem tatsächlich besuchten Weg gelesen. Die
+  Aktivierung erklärt die bestehende moderne Zurück-/Pflichtfeldsemantik.
+  Fehlende, verborgene und verlassene Quellen verwenden den Ersatztext.
+- Neue Dokumentversion 4, Schreibschutz für ältere Editoren, serverseitige
+  Publikationsprüfung, ID-Korrektur beim Kopieren und Schutz gegen das Löschen
+  referenzierter Felder. Historische Lead-Antworten bleiben unverändert.
+- Die neue Fähigkeit `BUILDER_PERSONALIZATION_EDITOR` ist standardmäßig aus.
+  Der Leser arbeitet auch bei ausgeschalteter Bearbeitung. Keine neue
+  Datenbankmigration; bestehende Inhalts- und Snapshot-Felder werden genutzt.
+- Im Browser gefundene fehlende Aktualisierung der Canvas-Testwerte korrigiert:
+  Der Memo-Vergleich berücksichtigt jetzt den Personalisierungskontext.
+  Zusätzliche Tests decken Wertewechsel, Abschalten und Pfadänderung ab.
+- Die erweiterte Browsersuite erreicht bestehende Abruf-/Versandlimits.
+  Testhelfer beachten `Retry-After` und wiederholen über die echte Oberfläche;
+  Produktionslimits bleiben unverändert.
+
+Bereits geprüft: Typecheck, Produktionsbuild, 403 Unit-/Komponententests und
+52 Datenbank-/Migrationstests (eigener temporärer PostgreSQL-Cluster auf
+Loopback, Port 55438). Zwölf Browserprüfungen am Produktionsbuild bestanden,
+einschließlich v4-Schreibschutz, Abschnitts-Canvas, mobiler Vorschau und
+Personalisierung ausschließlich in einer A/B-Alternative (beide Zuweisungen).
+Der vollständige Browserlauf wird nach Anpassung der Test-Wartezeiten erneut
+ausgeführt. Auslieferung und Freischaltung sind noch nicht erfolgt.
+
+Nächste Schritte: Gesamtabnahme, PR/CI, Deployment mit Backup und Restore-Test,
+Live-Assets prüfen, anschließend Bearbeitung aktivieren und diese Notiz
+aktualisieren. Danach bleibt Paket 5: eigene Vorlagen und Medienverwaltung.
+
 ## Fortsetzung am 30.09.2026
 
 ### Aktueller Stand: Besucherregeln veröffentlicht und freigeschaltet

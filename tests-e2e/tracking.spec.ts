@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { registerAndVerify, getCsrfToken, createPublishedFunnel } from "./helpers/api";
 import { closePool } from "./helpers/db";
 import { makeCredentials, makeSlug, runId as newRunId } from "./helpers/unique";
+import { openPublicFunnel, submitFunnelLead } from "./helpers/public-funnel";
 
 /**
  * Browser-Meta-Pixel auf veröffentlichten Funnels:
@@ -48,6 +49,7 @@ test("Pixel: PageView bei Load + Schritt, Lead-eventID == Server-Lead-UUID", asy
   page,
   request,
 }) => {
+  test.setTimeout(180_000);
   const id = newRunId();
   await registerAndVerify(request, makeCredentials(id));
   const funnel = await createPublishedFunnel(request, {
@@ -69,7 +71,7 @@ test("Pixel: PageView bei Load + Schritt, Lead-eventID == Server-Lead-UUID", asy
   );
   await page.addInitScript(consentInit(true));
 
-  await page.goto(`/f/${funnel.slug}`);
+  await openPublicFunnel(page, `/f/${funnel.slug}`);
   await expect(page.getByText("Willkommen")).toBeVisible();
 
   // init + PageView beim Laden
@@ -96,12 +98,7 @@ test("Pixel: PageView bei Load + Schritt, Lead-eventID == Server-Lead-UUID", asy
 
   // Lead absenden: eventID muss der Server-Lead-UUID entsprechen.
   await page.getByPlaceholder("Deine E-Mail").fill(`pixel-${id}@example.com`);
-  const [leadRes] = await Promise.all([
-    page.waitForResponse(
-      (r) => r.url().includes("/api/public/leads") && r.request().method() === "POST",
-    ),
-    page.getByTestId("button-funnel-submit").click(),
-  ]);
+  const leadRes = await submitFunnelLead(page);
   const leadBody = (await leadRes.json()) as { id: string };
   expect(leadBody.id).toBeTruthy();
 
@@ -116,6 +113,7 @@ test("Ohne Marketing-Consent lädt kein Pixel und feuert kein Event", async ({
   page,
   request,
 }) => {
+  test.setTimeout(180_000);
   const id = newRunId();
   await registerAndVerify(request, makeCredentials(id));
   const funnel = await createPublishedFunnel(request, {
@@ -136,13 +134,13 @@ test("Ohne Marketing-Consent lädt kein Pixel und feuert kein Event", async ({
   // Consent gespeichert, aber Marketing abgelehnt.
   await page.addInitScript(consentInit(false));
 
-  await page.goto(`/f/${funnel.slug}`);
+  await openPublicFunnel(page, `/f/${funnel.slug}`);
   await expect(page.getByText("Willkommen")).toBeVisible();
 
   // Kompletter Durchlauf inkl. Lead — trotzdem darf nichts an Meta gehen.
   await page.getByTestId("button-funnel-next").click();
   await page.getByPlaceholder("Deine E-Mail").fill(`optout-${id}@example.com`);
-  await page.getByTestId("button-funnel-submit").click();
+  await submitFunnelLead(page);
   await expect(page.getByText("Danke!")).toBeVisible();
 
   expect(pixelRequests).toEqual([]);

@@ -1013,7 +1013,7 @@ export async function registerRoutes(
   // Get single funnel
   // The reader can be rolled out before activating structural editing.
   app.get("/api/funnels/editor-capabilities", isAuthenticated, (_req, res) => {
-    res.json({ layoutEditing: process.env.BUILDER_LAYOUT_EDITOR === "true", routingEditing: process.env.BUILDER_ROUTING_EDITOR === "true" });
+    res.json({ layoutEditing: process.env.BUILDER_LAYOUT_EDITOR === "true", routingEditing: process.env.BUILDER_ROUTING_EDITOR === "true", personalizationEditing: process.env.BUILDER_PERSONALIZATION_EDITOR === "true" });
   });
 
   app.get("/api/funnels/:id", isAuthenticated, async (req, res) => {
@@ -1278,7 +1278,7 @@ export async function registerRoutes(
         return res.status(409).json({ error: "Dieses Dokument benötigt eine neuere Editorversion.", code: "EDITOR_UPDATE_REQUIRED" });
       }
       const cloned = await storage.createFunnel({
-        documentVersion: original.documentVersion as 1 | 2 | 3 | undefined,
+        documentVersion: original.documentVersion as 1 | 2 | 3 | 4 | undefined,
         name: `${original.name} (Kopie)`,
         description: original.description ?? undefined,
         pages: original.pages,

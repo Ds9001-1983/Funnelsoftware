@@ -1,4 +1,5 @@
 import { needsRoutingDocument, resolveVisitorTransition, answersOnPath, captureAnswers, answerText } from "@shared/funnel-routing";
+import { campaignValues, needsPersonalizationDocument, type PersonalizationContext } from "@shared/funnel-personalization";
 import type { ABTest, AnswerSnapshot } from "@shared/schema";
 import { useState, useMemo, useCallback, useEffect, useRef, type ReactNode } from "react";
 import confetti from "canvas-confetti";
@@ -29,6 +30,7 @@ import { PageLayout } from "./PageLayout";
 export interface RenderableFunnel {
   pages: FunnelPage[];
   abTests?: ABTest[];
+  documentVersion?: number;
   theme: Theme;
   publishedRevisionId?: number | null;
   routingEnabled?: boolean;
@@ -51,6 +53,7 @@ export interface FunnelLeadPayload {
 
 interface FunnelRendererProps {
   funnel: RenderableFunnel;
+  personalizationSearch?: string;
   /** Steuert nur das Scroll-Verhalten beim Seitenwechsel: "live" scrollt das
    *  Window (Vollseiten-Funnel), "preview" nur den eigenen Content-Container
    *  (eingebettet, z. B. im Phone-Mockup). */
@@ -82,6 +85,7 @@ interface FunnelRendererProps {
  */
 export function FunnelRenderer({
   funnel: sourceFunnel,
+  personalizationSearch = "",
   mode,
   onSubmit,
   onPageView,
@@ -103,6 +107,9 @@ export function FunnelRenderer({
   const [submitted, setSubmitted] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const personalizedDocument = needsPersonalizationDocument(funnel.pages, funnel.abTests ?? []);
+  const campaign = useMemo(() => campaignValues(personalizationSearch, funnel.pages, funnel.abTests ?? []), [personalizationSearch, funnel.pages, funnel.abTests]);
+  const personalizationContext: PersonalizationContext = { pages: funnel.pages, path: visitedPath, answers: formValues, campaign };
 
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -270,10 +277,10 @@ export function FunnelRenderer({
       company: company || undefined,
       message: message || undefined,
       answers: formData,
-      ...(modernRouting ? { answerSnapshot: captureAnswers(funnel.pages, visitedPath, formValues, funnel.publishedRevisionId ?? 0, funnel.variantAssignments) } : {}),
+      ...(modernRouting ? { answerSnapshot: captureAnswers(funnel.pages, visitedPath, formValues, funnel.publishedRevisionId ?? 0, funnel.variantAssignments, personalizedDocument || funnel.documentVersion === 4 ? 4 : 3) } : {}),
       website: honeypotRef.current?.value || undefined,
     };
-  }, [funnel, formValues, modernRouting, visitedPath]);
+  }, [funnel, formValues, modernRouting, visitedPath, personalizedDocument]);
 
   const handleSubmit = useCallback(async (resultIndex?: number) => {
     if (submissionLock.current || (modernRouting && completedSubmission.current)) return;
@@ -408,6 +415,7 @@ export function FunnelRenderer({
               <>
                 <ElementPreviewRenderer
                   element={element}
+                  personalizationContext={personalizationContext}
                   textColor={textColor}
                   primaryColor={theme.primaryColor}
                   design={theme.design}

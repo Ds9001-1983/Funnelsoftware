@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 /** Static UI checks with mocked APIs; never starts Express or a database. */
 export default defineConfig({
   testDir: "./tests-e2e",
-  testMatch: "layout-reader.spec.ts",
+  testMatch: ["layout-reader.spec.ts", "personalization-reader.spec.ts"],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,

@@ -1,3 +1,5 @@
+import { PersonalizationPanel, type PersonalizationTestValues } from "@/components/funnel-editor/PersonalizationPanel";
+import { personalizedElementTypes, type PersonalizationContext } from "@shared/funnel-personalization";
 import { VisitorRulesPanel } from "@/components/funnel-editor/VisitorRulesPanel";
 import { needsRoutingDocument } from "@shared/funnel-routing";
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
@@ -216,13 +218,14 @@ export default function FunnelEditor() {
       try {
         const response = await fetch("/api/funnels/editor-capabilities", { credentials: "include" });
         const data = response.ok ? await response.json() : null;
-        return { layoutEditing: data?.layoutEditing === true, routingEditing: data?.routingEditing === true };
-      } catch { return { layoutEditing: false, routingEditing: false }; }
+        return { layoutEditing: data?.layoutEditing === true, routingEditing: data?.routingEditing === true, personalizationEditing: data?.personalizationEditing === true };
+      } catch { return { layoutEditing: false, routingEditing: false, personalizationEditing: false }; }
     },
     staleTime: Infinity,
   });
   const layoutEditing = editorCapabilities?.layoutEditing === true;
   const routingEditing = editorCapabilities?.routingEditing === true;
+  const personalizationEditing = editorCapabilities?.personalizationEditing === true;
 
   // Daten-/Persistenz-Layer extrahiert in einen Hook (Stufe 3.1). Die alten
   // Namen bleiben via Destructuring identisch, damit der restliche Editor-Code
@@ -248,8 +251,13 @@ export default function FunnelEditor() {
     saveCurrent, saveBeforeLeave, restoreRevision, pendingWrites, conflict, recovery, discardRecovery, recoveryUnavailable,
     updateLocalFunnel,
     updatePage: persistPage,
-  } = useFunnelEditor(params?.id, layoutEditing, routingEditing);
+  } = useFunnelEditor(params?.id, layoutEditing, routingEditing, personalizationEditing);
 
+  const [personalizationTest, setPersonalizationTest] = useState<PersonalizationTestValues>({ enabled: false, answers: {}, campaign: {} });
+  useEffect(() => setPersonalizationTest({ enabled: false, answers: {}, campaign: {} }), [params?.id]);
+  const personalizationContext: PersonalizationContext | undefined = personalizationTest.enabled && localFunnel ? {
+    pages: localFunnel.pages, path: localFunnel.pages.filter(page => !page.hidden).map(page => page.id), answers: personalizationTest.answers, campaign: personalizationTest.campaign,
+  } : undefined;
   const [selectedPageIndex, setSelectedPageIndex] = useState(0);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const [convertingLayout, setConvertingLayout] = useState(false);
@@ -594,7 +602,7 @@ export default function FunnelEditor() {
   // Keyboard shortcuts for copy/paste and undo/redo
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (localFunnel && !canEditFunnelDocument(localFunnel, layoutEditing, routingEditing)) return;
+      if (localFunnel && !canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing)) return;
       // Check if we're in an input field
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
@@ -632,7 +640,7 @@ export default function FunnelEditor() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [localFunnel, layoutEditing, routingEditing, selectedElementId, copySelectedElement, copyCurrentPage, pasteFromClipboard, deleteSelectedElement, duplicateSelectedElement]);
+  }, [localFunnel, layoutEditing, routingEditing, personalizationEditing, selectedElementId, copySelectedElement, copyCurrentPage, pasteFromClipboard, deleteSelectedElement, duplicateSelectedElement]);
 
   const moveElementUp = useCallback(() => {
     if (!localFunnel || !selectedElementId) return;
@@ -958,7 +966,7 @@ export default function FunnelEditor() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (localFunnel && !canEditFunnelDocument(localFunnel, layoutEditing, routingEditing)) return;
+      if (localFunnel && !canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing)) return;
       const target = e.target as HTMLElement;
       const isEditing =
         target.tagName === "INPUT" ||
@@ -1007,7 +1015,7 @@ export default function FunnelEditor() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [localFunnel, layoutEditing, routingEditing, hasChanges, handleUndo, handleRedo, handleSave, moveElementUp, moveElementDown, selectedElementId]);
+  }, [localFunnel, layoutEditing, routingEditing, personalizationEditing, hasChanges, handleUndo, handleRedo, handleSave, moveElementUp, moveElementDown, selectedElementId]);
 
   // Der Builder ist für kleine Viewports nicht bedienbar — statt einer kaputten
   // Oberfläche einen klaren Hinweis zeigen (Desktop-Editor bleibt unverändert).
@@ -1082,7 +1090,7 @@ export default function FunnelEditor() {
 
   const selectedPage = localFunnel.pages[selectedPageIndex];
 
-  if (!canEditFunnelDocument(localFunnel, layoutEditing, routingEditing)) {
+  if (!canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing)) {
     return (
       <ErrorBoundary>
         <div className="p-4 border-b space-y-2">
@@ -1304,7 +1312,9 @@ export default function FunnelEditor() {
                 <p className="text-xs text-muted-foreground">{layoutBlockReason(localFunnel, selectedPage) || "Die vorhandenen Inhalte bleiben erhalten. Der bisherige Stand wird vorher als Version gesichert."}</p>
               </div>
             )}
+            {personalizationTest.enabled && <div className="mb-3 flex items-center justify-between rounded border bg-card p-2 text-xs"><span>Canvas mit Beispielantworten</span><Button size="sm" variant="ghost" onClick={() => setPersonalizationTest(values => ({ ...values, enabled: false }))}>Vorlagentext anzeigen</Button></div>}
             {selectedPage?.layout ? <LayoutEditor
+              personalizationContext={personalizationContext}
               page={selectedPage} theme={localFunnel.theme}
               onChange={page => updatePage(selectedPageIndex, page)}
               selectedElementId={selectedElementId}
@@ -1320,6 +1330,7 @@ export default function FunnelEditor() {
                 onCopy: copySelectedElement, onCut: cutSelectedElement, onPaste: pasteFromClipboard,
                 canPaste: clipboard?.type === "element", onMoveUp: moveElementUp, onMoveDown: moveElementDown }}
             /> : <PhonePreview
+              personalizationContext={personalizationContext}
               page={selectedPage}
               pageIndex={selectedPageIndex}
               totalPages={localFunnel.pages.length}
@@ -1367,7 +1378,7 @@ export default function FunnelEditor() {
           border-l border-border bg-card overflow-hidden transition-all duration-200 shrink-0
         `}>
           <div className="w-80 h-full overflow-y-auto funnel-scrollbar">
-            {selectedElement && (
+            {selectedElement && (<>
               <ElementPropertiesPanel
                 element={selectedElement}
                 routingManaged={!!selectedPage?.routing}
@@ -1375,7 +1386,8 @@ export default function FunnelEditor() {
                 onClose={() => { setSelectedElementId(null); setShowRightPanel(false); }}
                 pages={localFunnel?.pages?.map(p => ({ id: p.id, title: p.title })) || []}
               />
-            )}
+              {personalizationEditing && personalizedElementTypes.has(selectedElement.type) && <div className="px-4 pb-4"><PersonalizationPanel key={selectedElement.id} funnel={localFunnel} element={selectedElement} onUpdate={updateSelectedElement} testValues={personalizationTest} onTestValues={setPersonalizationTest} /></div>}
+            </>)}
           </div>
         </div>
       </div>

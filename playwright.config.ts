@@ -42,6 +42,7 @@ export default defineConfig({
       E2E_DATABASE_URL,
       BUILDER_LAYOUT_EDITOR: process.env.BUILDER_LAYOUT_EDITOR ?? "false",
       BUILDER_ROUTING_EDITOR: process.env.BUILDER_ROUTING_EDITOR ?? "false",
+      BUILDER_PERSONALIZATION_EDITOR: process.env.BUILDER_PERSONALIZATION_EDITOR ?? "false",
       E2E_PORT: String(E2E_PORT),
       PLAYWRIGHT_BASE_URL: E2E_BASE_URL,
     },

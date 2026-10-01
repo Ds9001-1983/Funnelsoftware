@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openPublicFunnel } from "./helpers/public-funnel";
 import { registerAndVerify, getCsrfToken } from "./helpers/api";
 import { closePool, findLeadsByEmail } from "./helpers/db";
 import { makeSlug, runId } from "./helpers/unique";
@@ -94,7 +95,7 @@ test("Besucherregeln: Aktivierung, feste Optionen, Testmodus, frühere Antworten
   context.setDefaultTimeout(15_000);
   try {
     const visitor = await context.newPage();
-    await visitor.goto(`/f/${slug}`);
+    await openPublicFunnel(visitor, `/f/${slug}`);
     await visitor.getByPlaceholder("Dein Budget").fill("2000"); await visitor.getByTestId("button-funnel-next").click();
     await visitor.getByText("Sofort", { exact: true }).click(); await visitor.getByTestId("button-funnel-next").click();
     await expect(visitor.getByRole("heading", { name: "Termin", exact: true })).toBeVisible();

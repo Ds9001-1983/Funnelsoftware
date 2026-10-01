@@ -457,7 +457,9 @@ export default function PublicFunnelView() {
 
   return (
     <FunnelRenderer
+      key={`${funnel.uuid}:${params.uuid}:${window.location.search}`}
       funnel={{ ...funnel, variantAssignments }}
+      personalizationSearch={window.location.search}
       mode="live"
       onSubmit={isPreviewMode ? undefined : submitLead}
       onPageView={isPreviewMode ? undefined : trackPageView}
