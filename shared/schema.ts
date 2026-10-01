@@ -844,7 +844,7 @@ export type VisitorCondition = z.infer<typeof visitorConditionSchema>;
 export type VisitorRouting = z.infer<typeof visitorRoutingSchema>;
 
 export const answerSnapshotSchema = z.object({
-  version: z.literal(1), documentVersion: z.union([z.literal(3), z.literal(4)]),
+  version: z.literal(1), documentVersion: z.union([z.literal(3), z.literal(4), z.literal(5)]),
   contentRevisionId: z.number().int().nonnegative(),
   path: z.array(z.string().min(1).max(100)).min(1).max(500),
   fields: z.array(z.object({
@@ -860,6 +860,25 @@ export const answerSnapshotSchema = z.object({
 });
 export type AnswerSnapshot = z.infer<typeof answerSnapshotSchema>;
 
+export const designTokensSchema = z.object({
+  version: z.literal(1),
+  headingSize: z.number().min(20).max(64),
+  bodySize: z.number().min(14).max(24),
+  radius: z.number().min(0).max(32),
+  spacing: z.number().min(8).max(48),
+  buttonStyle: z.enum(["solid", "outline", "soft"]),
+});
+
+// Theme schema
+export const themeSchema = z.object({
+  design: designTokensSchema.optional(),
+  source: z.object({ id: z.number().int().positive(), version: z.number().int().positive() }).optional(),
+  primaryColor: z.string(),
+  backgroundColor: z.string(),
+  textColor: z.string(),
+  fontFamily: z.string(),
+});
+
 // Layout v1 references the canonical flat element list. No duplicated content.
 export const pageLayoutSchema = z.object({
   version: z.literal(1),
@@ -867,6 +886,7 @@ export const pageLayoutSchema = z.object({
   sections: z.array(z.object({
     id: z.string().min(1).max(100),
     name: z.string().max(100).optional(),
+    themeOverride: themeSchema.optional(),
     columns: z.array(z.object({
       id: z.string().min(1).max(100), elementIds: z.array(z.string().min(1)).max(500),
     })).min(1).max(3),
@@ -887,6 +907,7 @@ export const funnelPageSchema = z.object({
   // Legacy flat elements array (backward compatible)
   elements: z.array(pageElementSchema),
   layout: pageLayoutSchema.optional(),
+  themeOverride: themeSchema.optional(),
   // Legacy sections remain opaque until explicitly converted.
   sections: z.array(sectionSchema).optional(),
   // Use sections mode or flat elements mode
@@ -965,25 +986,6 @@ export const abTestSchema = z.object({
 
 export type ABTest = z.infer<typeof abTestSchema>;
 
-export const designTokensSchema = z.object({
-  version: z.literal(1),
-  headingSize: z.number().min(20).max(64),
-  bodySize: z.number().min(14).max(24),
-  radius: z.number().min(0).max(32),
-  spacing: z.number().min(8).max(48),
-  buttonStyle: z.enum(["solid", "outline", "soft"]),
-});
-
-// Theme schema
-export const themeSchema = z.object({
-  design: designTokensSchema.optional(),
-  source: z.object({ id: z.number().int().positive(), version: z.number().int().positive() }).optional(),
-  primaryColor: z.string(),
-  backgroundColor: z.string(),
-  textColor: z.string(),
-  fontFamily: z.string(),
-});
-
 // Saved values are copied into funnels; changing a brand never updates a funnel.
 export const brandStyles = pgTable("brand_styles", {
   id: serial("id").primaryKey(),
@@ -997,6 +999,44 @@ export const brandStyles = pgTable("brand_styles", {
 }, table => [index("brand_styles_user_id_idx").on(table.userId)]);
 
 // ===== KI-Funnel-Erstellung (Bring-Your-Own-Key) =====
+
+// Private reusable content. Neither table is part of the public template gallery.
+export const contentTemplates = pgTable("content_templates", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  kind: text("kind").notNull().$type<"page" | "section">(),
+  content: jsonb("content").notNull().$type<import("./builder-library").LibraryContent>(),
+  version: integer("version").notNull().default(1),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  archivedAt: timestamp("archived_at"),
+}, table => [index("content_templates_user_id_idx").on(table.userId)]);
+
+export const mediaFolders = pgTable("media_folders", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  version: integer("version").notNull().default(1),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, table => [index("media_folders_user_id_idx").on(table.userId)]);
+
+export const mediaAssets = pgTable("media_assets", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  folderId: integer("folder_id").references(() => mediaFolders.id, { onDelete: "set null" }),
+  filename: text("filename").notNull().unique(),
+  originalName: text("original_name").notNull(),
+  name: text("name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  bytes: integer("bytes").notNull(),
+  width: integer("width").notNull(),
+  height: integer("height").notNull(),
+  version: integer("version").notNull().default(1),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  archivedAt: timestamp("archived_at"),
+}, table => [index("media_assets_user_id_idx").on(table.userId)]);
 
 export const aiProviderEnum = z.enum(["anthropic", "openai", "openai-compatible"]);
 export type AiProvider = z.infer<typeof aiProviderEnum>;
@@ -1166,7 +1206,7 @@ export type Funnel = z.infer<typeof funnelSchema>;
 
 // Insert funnel schema
 export const insertFunnelSchema = z.object({
-  documentVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
+  documentVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).optional(),
   name: z.string().min(1, "Name ist erforderlich"),
   description: z.string().optional(),
   slug: slugSchema.optional(),

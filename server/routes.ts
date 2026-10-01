@@ -51,6 +51,8 @@ import { encryptSecret, decryptSecret, last4 } from "./crypto";
 import { verifyDomainDns } from "./domain-verify";
 import { registerWorkspaceRoutes } from "./workspace-routes";
 import { registerRecruitingRoutes } from "./recruiting-routes";
+import { registerBuilderLibraryRoutes } from "./builder-library-routes";
+import { registerMediaAsset } from "./builder-library";
 import { registerBrandStyleRoutes } from "./brand-style-routes";
 import { changeRecruitingStage, RecruitingError } from "./recruiting";
 import { writeControlSchema, documentVersionSchema } from "@shared/funnel-document";
@@ -200,6 +202,7 @@ export async function registerRoutes(
   registerWorkspaceRoutes(app);
   registerRecruitingRoutes(app);
   registerBrandStyleRoutes(app);
+  registerBuilderLibraryRoutes(app);
 
   // ============ SEO ============
 
@@ -776,13 +779,15 @@ export async function registerRoutes(
       const filename = `${randomUUID()}.webp`;
       outputPath = path.join(uploadsDir, filename);
 
-      await sharp(req.file.buffer)
+      const info = await sharp(req.file.buffer)
         .resize({ width: 1200, withoutEnlargement: true })
         .webp({ quality: 80 })
         .toFile(outputPath);
 
       const url = `/uploads/${filename}`;
-      res.json({ url, filename });
+      const media = await registerMediaAsset(getUserId(req)!, { filename, originalName: req.file.originalname, bytes: info.size, width: info.width, height: info.height });
+      outputPath = undefined; // Persisted uploads remain valid even if the response is interrupted.
+      res.json({ url, filename, media });
     } catch (error) {
       console.error("Upload error:", error);
       // Teilweise geschriebene Datei aufräumen (kein verwaister WebP-Müll).
@@ -1013,7 +1018,7 @@ export async function registerRoutes(
   // Get single funnel
   // The reader can be rolled out before activating structural editing.
   app.get("/api/funnels/editor-capabilities", isAuthenticated, (_req, res) => {
-    res.json({ layoutEditing: process.env.BUILDER_LAYOUT_EDITOR === "true", routingEditing: process.env.BUILDER_ROUTING_EDITOR === "true", personalizationEditing: process.env.BUILDER_PERSONALIZATION_EDITOR === "true" });
+    res.json({ layoutEditing: process.env.BUILDER_LAYOUT_EDITOR === "true", routingEditing: process.env.BUILDER_ROUTING_EDITOR === "true", personalizationEditing: process.env.BUILDER_PERSONALIZATION_EDITOR === "true", libraryEditing: process.env.BUILDER_LIBRARY_EDITOR === "true" });
   });
 
   app.get("/api/funnels/:id", isAuthenticated, async (req, res) => {
@@ -1278,7 +1283,7 @@ export async function registerRoutes(
         return res.status(409).json({ error: "Dieses Dokument benötigt eine neuere Editorversion.", code: "EDITOR_UPDATE_REQUIRED" });
       }
       const cloned = await storage.createFunnel({
-        documentVersion: original.documentVersion as 1 | 2 | 3 | 4 | undefined,
+        documentVersion: original.documentVersion as 1 | 2 | 3 | 4 | 5 | undefined,
         name: `${original.name} (Kopie)`,
         description: original.description ?? undefined,
         pages: original.pages,

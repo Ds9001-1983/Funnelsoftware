@@ -1,11 +1,11 @@
 import { z } from "zod";
 import { funnelSchema, type Funnel } from "./schema";
 import { needsRoutingDocument } from "./funnel-routing";
-import { needsLayoutDocument } from "./funnel-layout";
+import { needsLayoutDocument, needsThemeOverrideDocument } from "./funnel-layout";
 import { needsPersonalizationDocument } from "./funnel-personalization";
 
 export const DOCUMENT_VERSION = 1; // Default writers stay on v1 until layout editing is enabled.
-export const documentVersionSchema = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]);
+export const documentVersionSchema = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]);
 // Ausschließlich Inhalt und öffentliche Darstellung. Zugangsdaten, Eigentümer,
 // Slug, Freigabestatus, Leads und Messwerte gehören niemals in eine Revision.
 export const documentSchema = funnelSchema.pick({
@@ -35,12 +35,13 @@ export function documentFromFunnel(funnel: Partial<Funnel>): FunnelDocument {
 }
 
 /** Layout editing requires an explicit server capability; future versions stay read-only. */
-export function canEditFunnelDocument(funnel: Partial<Funnel>, layoutEditing = false, routingEditing = false, personalizationEditing = false): boolean {
+export function canEditFunnelDocument(funnel: Partial<Funnel>, layoutEditing = false, routingEditing = false, personalizationEditing = false, libraryEditing = false): boolean {
   const version = funnel.documentVersion ?? DOCUMENT_VERSION;
-  return documentVersionSchema.safeParse(version).success && version <= (personalizationEditing ? 4 : routingEditing ? 3 : layoutEditing ? 2 : 1)
-    && (personalizationEditing || !needsPersonalizationDocument(funnel.pages, funnel.abTests ?? []))
-    && (routingEditing || personalizationEditing || !needsRoutingDocument(funnel.pages, funnel.abTests ?? []))
-    && (layoutEditing || routingEditing || personalizationEditing || !needsLayoutDocument(funnel.pages, funnel.theme, funnel.abTests));
+  return documentVersionSchema.safeParse(version).success && version <= (libraryEditing ? 5 : personalizationEditing ? 4 : routingEditing ? 3 : layoutEditing ? 2 : 1)
+    && (libraryEditing || !needsThemeOverrideDocument(funnel.pages, funnel.abTests ?? []))
+    && (libraryEditing || personalizationEditing || !needsPersonalizationDocument(funnel.pages, funnel.abTests ?? []))
+    && (routingEditing || personalizationEditing || libraryEditing || !needsRoutingDocument(funnel.pages, funnel.abTests ?? []))
+    && (layoutEditing || routingEditing || personalizationEditing || libraryEditing || !needsLayoutDocument(funnel.pages, funnel.theme, funnel.abTests));
 }
 
 export const writeControlSchema = z.object({
@@ -54,6 +55,6 @@ export interface FunnelRevisionSummary {
   id: number; version: number; action: string; name: string; createdAt: string; published: boolean;
 }
 
-export function requiredDocumentVersion(funnel: Partial<Funnel>): 1 | 2 | 3 | 4 {
-  return needsPersonalizationDocument(funnel.pages, funnel.abTests ?? []) ? 4 : needsRoutingDocument(funnel.pages, funnel.abTests ?? []) ? 3 : needsLayoutDocument(funnel.pages, funnel.theme, funnel.abTests) ? 2 : 1;
+export function requiredDocumentVersion(funnel: Partial<Funnel>): 1 | 2 | 3 | 4 | 5 {
+  return needsThemeOverrideDocument(funnel.pages, funnel.abTests ?? []) ? 5 : needsPersonalizationDocument(funnel.pages, funnel.abTests ?? []) ? 4 : needsRoutingDocument(funnel.pages, funnel.abTests ?? []) ? 3 : needsLayoutDocument(funnel.pages, funnel.theme, funnel.abTests) ? 2 : 1;
 }

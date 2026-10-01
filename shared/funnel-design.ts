@@ -20,22 +20,23 @@ function resetElement(element: PageElement) {
   for (const key of elementStyleKeys) if (element.styles) delete element.styles[key];
 }
 function resetPage(page: FunnelPage) {
+  delete page.themeOverride;
   delete page.backgroundColor;
   if (page.pageStyles) delete page.pageStyles.fontFamily;
   page.elements.forEach(resetElement);
-  for (const section of page.layout?.sections ?? []) { delete section.backgroundColor; delete section.textColor; }
+  for (const section of page.layout?.sections ?? []) { delete section.backgroundColor; delete section.textColor; delete section.themeOverride; }
 }
 export function designOverrideCount(funnel: Pick<Funnel, "pages" | "abTests">): number {
   let count = 0;
   const elements = (items: PageElement[]) => { for (const element of items) count += Number(!!element.buttonVariant) + elementStyleKeys.filter(key => element.styles?.[key] !== undefined).length; };
   for (const page of funnel.pages) {
-    count += Number(!!page.backgroundColor) + Number(!!page.pageStyles?.fontFamily);
-    count += (page.layout?.sections ?? []).reduce((sum, section) => sum + Number(!!section.backgroundColor) + Number(!!section.textColor), 0);
+    count += Number(!!page.themeOverride) + Number(!!page.backgroundColor) + Number(!!page.pageStyles?.fontFamily);
+    count += (page.layout?.sections ?? []).reduce((sum, section) => sum + Number(!!section.themeOverride) + Number(!!section.backgroundColor) + Number(!!section.textColor), 0);
     elements(page.elements);
   }
   for (const test of funnel.abTests ?? []) for (const variant of test.variants.slice(1)) {
     count += Number(!!variant.backgroundColor);
-    count += (variant.layout?.sections ?? []).reduce((sum, section) => sum + Number(!!section.backgroundColor) + Number(!!section.textColor), 0);
+    count += (variant.layout?.sections ?? []).reduce((sum, section) => sum + Number(!!section.themeOverride) + Number(!!section.backgroundColor) + Number(!!section.textColor), 0);
     elements(variant.elements ?? []);
   }
   return count;
@@ -48,7 +49,7 @@ export function applyFunnelDesign(funnel: Funnel, theme: Theme, resetOverrides =
     for (const test of abTests) for (const variant of test.variants.slice(1)) {
       delete variant.backgroundColor;
       variant.elements?.forEach(resetElement);
-      for (const section of variant.layout?.sections ?? []) { delete section.backgroundColor; delete section.textColor; }
+      for (const section of variant.layout?.sections ?? []) { delete section.backgroundColor; delete section.textColor; delete section.themeOverride; }
     }
   }
   // Retain opaque theme properties, but replace the known design and provenance.

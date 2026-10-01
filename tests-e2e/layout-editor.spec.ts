@@ -44,7 +44,7 @@ test("Abschnitte: Umstellen, Bearbeiten, Undo/Redo, Speichern, Veröffentlichen 
   await page.getByRole("button", { name: "Abschnitt 3 nach oben", exact: true }).click();
   await expect(page.getByLabel("Name von Abschnitt 2", { exact: true })).toHaveValue("Vorteile (Kopie)");
   await page.locator('[data-testid^="section-controls-"]').nth(1).getByTitle("Abschnitt ziehen")
-    .dragTo(page.locator('[data-testid^="section-controls-"]').nth(2));
+    .dragTo(page.locator('[data-testid^="section-controls-"]').nth(2).getByTitle("Abschnitt ziehen"));
   await expect(page.getByLabel("Name von Abschnitt 3", { exact: true })).toHaveValue("Vorteile (Kopie)");
   await page.getByRole("button", { name: "Abschnitt 3 nach oben", exact: true }).click();
   page.once("dialog", dialog => dialog.accept());

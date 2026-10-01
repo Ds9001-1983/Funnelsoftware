@@ -116,6 +116,21 @@ describe.skipIf(!connection)("versioned drafts, live content and recovery", () =
     expect((await storage.getLead(lead.id, f.owner.id))?.answerSnapshot).toEqual(snapshot);
     expect((await storage.getLead(historical.id, f.owner.id))?.answers).toEqual({ Ort: "Historisch" });
   });
+  it("publishes v5 local themes and restores content without changing newer answers", async () => {
+    const f = await fixture();
+    const modern = (version: number, publish = false): WriteControl => ({ ...control(version, publish), documentVersion: 5 });
+    const page = enablePageLayout({ ...f.funnel.pages[0], themeOverride: { ...f.funnel.theme, primaryColor: "#aa1122" }, elements: [{ id: "place", type: "input", label: "Ort" }] });
+    page.layout!.sections[0].themeOverride = { ...f.funnel.theme, textColor: "#1122aa" };
+    const live = (await storage.updateFunnel(f.funnel.id, f.owner.id, { pages: [page] }, modern(0, true)))!;
+    expect(live.documentVersion).toBe(5);
+    await expect(storage.updateFunnel(live.id, f.owner.id, { name: "Alter Tab" }, { ...control(1), documentVersion: 4 })).rejects.toMatchObject({ code: "EDITOR_UPDATE_REQUIRED" });
+    const snapshot = { version: 1 as const, documentVersion: 5 as const, contentRevisionId: live.publishedRevisionId!, path: [page.id], fields: [{ pageId: page.id, elementId: "place", label: "Ort", value: "Köln" }] };
+    const lead = await storage.createLead({ funnelId: live.id, status: "new", answers: { Ort: "Köln" }, answerSnapshot: snapshot }, f.owner.id);
+    const initial = (await service.listFunnelRevisions(live.id, f.owner.id)).find(revision => revision.version === 0)!;
+    expect((await storage.restoreFunnelRevision(live.id, f.owner.id, initial.id, modern(1)))?.documentVersion).toBe(5);
+    expect((await storage.getFunnelByUuid(live.uuid))?.pages).toEqual([page]);
+    expect((await storage.getLead(lead.id, f.owner.id))?.answerSnapshot).toEqual(snapshot);
+  });
   it("serializes competing saves and handles an identical request retry once", async () => {
     const f = await fixture();
     const retryControl = control();

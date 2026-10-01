@@ -277,7 +277,7 @@ export function FunnelRenderer({
       company: company || undefined,
       message: message || undefined,
       answers: formData,
-      ...(modernRouting ? { answerSnapshot: captureAnswers(funnel.pages, visitedPath, formValues, funnel.publishedRevisionId ?? 0, funnel.variantAssignments, personalizedDocument || funnel.documentVersion === 4 ? 4 : 3) } : {}),
+      ...(modernRouting ? { answerSnapshot: captureAnswers(funnel.pages, visitedPath, formValues, funnel.publishedRevisionId ?? 0, funnel.variantAssignments, funnel.documentVersion === 5 ? 5 : personalizedDocument || funnel.documentVersion === 4 ? 4 : 3) } : {}),
       website: honeypotRef.current?.value || undefined,
     };
   }, [funnel, formValues, modernRouting, visitedPath, personalizedDocument]);
@@ -351,7 +351,7 @@ export function FunnelRenderer({
   const currentPage = funnel.pages[currentPageIndex];
   if (!currentPage) return null;
 
-  const { theme } = funnel;
+  const theme = currentPage.themeOverride ?? funnel.theme;
   const design = resolveDesign(theme, currentPage);
   const isLastPage = currentPageIndex === funnel.pages.length - 1;
   const isFirstPage = modernRouting ? visitedPath.length <= 1 : currentPageIndex === 0;
@@ -411,14 +411,14 @@ export function FunnelRenderer({
 
           {/* Elements */}
           <PageLayout page={currentPage} spacing={design.spacing} textColor={theme.textColor}
-            renderElement={(element: PageElement, textColor) => (
+            renderElement={(element: PageElement, textColor, sectionTheme) => (
               <>
                 <ElementPreviewRenderer
                   element={element}
                   personalizationContext={personalizationContext}
                   textColor={textColor}
-                  primaryColor={theme.primaryColor}
-                  design={theme.design}
+                  primaryColor={(sectionTheme ?? theme).primaryColor}
+                  design={(sectionTheme ?? theme).design}
                   formValues={formValues}
                   updateFormValue={(id, value) => {
                     updateFormValue(id, value);

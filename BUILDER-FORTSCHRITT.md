@@ -4,13 +4,65 @@ Auftrag: Die Kundenanfrage umsetzen und veröffentlichen sowie die zuvor
 erarbeiteten Builder-Vorschläge aus der ursprünglichen Übergabe fertigstellen.
 Der Nutzer hat die Fortsetzung am 28.09.2026 ausdrücklich bestätigt.
 
+## Paket 5 am 01.10.2026: eigene Vorlagen und Mediathek
+
+Umsetzung im Branch `feat/builder-library`, Arbeitsverzeichnis
+`../Funnelsoftware-builder`. Veröffentlichung und Freischaltung stehen für
+diesen Abschnitt noch aus; der vorherige Produktionsstand folgt darunter.
+
+- „Vorlagen & Medien“ im Editor: eigene Seiten und Abschnitte benennen,
+  visuell auswählen, suchen, umbenennen, ersetzen, archivieren und wiederherstellen.
+  Inhalte werden als unabhängige Kopie mit neuen internen IDs eingefügt;
+  Änderungen an Vorlagen verändern keine bereits verwendeten Inhalte.
+- Vor dem Einfügen Zielseiten, Antwortfelder und Auswahloptionen ausdrücklich
+  zuordnen oder entfernen. Nur im selben Ursprungsfunnel werden noch gültige
+  Verweise vorausgewählt. Entfernen verwirft betroffene Regeln vollständig
+  und nutzt bei Textvariablen den Ersatztext. Standardziele bleiben erforderlich.
+- Quelldesign nur in der Kopie behalten oder Zieldesign übernehmen, mit Vorschau
+  und einem Undo-Schritt. Lokale Seiten-/Abschnittsstile verwenden Dokumentversion 5.
+  Öffentliche Ausgabe, Vorschau und Canvas teilen die Darstellung; ältere
+  Editoren bleiben schreibgeschützt. Einfügen während laufender A/B-Tests gesperrt.
+- „Aus Mediathek“ an Bildfeldern sowie Verwaltung in der Bibliothek: neue Uploads
+  erhalten private Metadaten, Suche, Ordner, Größenangaben und Archivierung.
+  Verschieben/Umbenennen/Archivieren erhalten Datei und URL. Ältere Uploads
+  werden weder einem Besitzer zugeordnet noch verändert oder gelöscht.
+- Additive Migration `20261001_builder_library.sql`: drei neue nutzerbezogene
+  Tabellen `content_templates`, `media_folders`, `media_assets`; keine bestehenden
+  Inhalte umgeschrieben. Bibliothekszugriffe auf den eigenen Nutzer beschränkt,
+  konkurrierende Änderungen mit Versionsprüfung. Keine globale Vorlagentabelle
+  und kein implizites Team-Sharing. Audio bleibt im bisherigen Uploadpfad.
+- Kopierhelfer erhält bei älteren Auswahlbedingungen und seitenweiten Zuordnungen
+  auch die Verbindung zu den neuen Options-IDs. Abschnitts-Dragtest zielt jetzt
+  auf den sichtbaren Griff statt in die Mitte der Steuerelemente.
+
+Abnahme lokal: 469 Tests (411 Unit-/Komponententests und 58 Datenbank-/Migrationstests)
+auf einem eigenen temporären PostgreSQL-Cluster, Loopback-Port 55439;
+39 Browserabläufe, Typecheck einschließlich Server-/Shared-/Browsertests und
+Produktionsbuild erfolgreich. Weitere 16 Browserprüfungen am Produktionsbuild
+bestanden; sämtliche API-/externen Aufrufe dabei abgefangen.
+
+Auslieferung: Erst kompatiblen Leser mit `BUILDER_LIBRARY_EDITOR=false` ausrollen,
+Restore-Probe und wiederholte Migration im Deployment prüfen, Datenbank/Uploads
+zusätzlich lokal sichern. Danach Live-Assets ausschließlich mit abgefangenen
+API-/externen Aufrufen testen und die Fähigkeit aktivieren. Neue Uploads erhalten
+nach der Migration schon bei deaktivierter Bibliotheksoberfläche Metadaten.
+Nach ersten v5-Veröffentlichungen muss ein Code-Rollback den v5-Leser erhalten.
+
 ## Fortsetzung am 01.10.2026
 
-### Personalisierung umgesetzt; Gesamtabnahme und Veröffentlichung laufen
+### Personalisierung veröffentlicht und freigeschaltet
 
-Arbeitsverzeichnis: `../Funnelsoftware-builder`, Branch
-`feat/builder-personalization`, Basis `3c8858a` mit der bisherigen Übergabenotiz.
-Die beim Fortsetzen vorhandene Umsetzung wurde geprüft und ergänzt.
+Veröffentlicht über [PR #179](https://github.com/Ds9001-1983/Funnelsoftware/pull/179).
+Produktionsrelease: `dd6acded785ffd29e8552374425776e7af20f795`.
+[Deployment 36823731418](https://github.com/Ds9001-1983/Funnelsoftware/actions/runs/36823731418)
+einschließlich erneuter CI, Browser- und Datenbanktests erfolgreich. Health und
+PM2 bestätigen den Release sowie `BUILDER_PERSONALIZATION_EDITOR=true`.
+Die bisherigen Layout-/Routing-Fähigkeiten bleiben ebenfalls aktiv.
+
+Arbeitsverzeichnis für die Fortsetzung: `../Funnelsoftware-builder`, lokaler
+Dokumentationsbranch `docs/builder-personalization-rollout` auf `origin/main`.
+Die beim Fortsetzen vorhandene Umsetzung wurde geprüft und ergänzt; diese
+Abschlussnotiz ist lokal versioniert. Die Produktänderungen sind in `main`.
 
 - „Persönliche Ansprache“ im Eigenschaftenbereich von Überschriften, Texten
   und Buttons: ausdrückliche Aktivierung, stabile Antwortquelle oder einzeln
@@ -37,17 +89,40 @@ Die beim Fortsetzen vorhandene Umsetzung wurde geprüft und ergänzt.
   Testhelfer beachten `Retry-After` und wiederholen über die echte Oberfläche;
   Produktionslimits bleiben unverändert.
 
-Bereits geprüft: Typecheck, Produktionsbuild, 403 Unit-/Komponententests und
-52 Datenbank-/Migrationstests (eigener temporärer PostgreSQL-Cluster auf
-Loopback, Port 55438). Zwölf Browserprüfungen am Produktionsbuild bestanden,
-einschließlich v4-Schreibschutz, Abschnitts-Canvas, mobiler Vorschau und
-Personalisierung ausschließlich in einer A/B-Alternative (beide Zuweisungen).
-Der vollständige Browserlauf wird nach Anpassung der Test-Wartezeiten erneut
-ausgeführt. Auslieferung und Freischaltung sind noch nicht erfolgt.
+Abnahme: **455 Tests bestanden**, davon 403 Unit-/Komponententests und 52
+Datenbank-/Migrationstests (eigener temporärer PostgreSQL-Cluster auf Loopback,
+Port 55438). Alle **33 Browserabläufe** bestanden. Typecheck einschließlich
+Shared-, Server- und Browsertests sowie Produktionsbuild erfolgreich.
+Zwölf Browserprüfungen am Produktionsbuild bestanden, einschließlich
+v4-Schreibschutz, Abschnitts-Canvas, mobiler Vorschau und Personalisierung
+ausschließlich in einer A/B-Alternative (beide Zuweisungen).
 
-Nächste Schritte: Gesamtabnahme, PR/CI, Deployment mit Backup und Restore-Test,
-Live-Assets prüfen, anschließend Bearbeitung aktivieren und diese Notiz
-aktualisieren. Danach bleibt Paket 5: eigene Vorlagen und Medienverwaltung.
+Sechs weitere Browserprüfungen gegen die ausgelieferten Live-Assets bestanden,
+ohne JavaScript-Fehler. Alle API-/externen Aufrufe abgefangen; keine Testdaten
+in Produktion. SHA-256 des JavaScript-Einstiegs `index-wWWi1_8k.js` entspricht
+dem aktiven Serverrelease. Fähigkeiten-API ohne Anmeldung: 401. Erst danach
+die Bearbeitung freigeschaltet und PM2/Health erneut geprüft.
+
+Das Deployment erstellte ein frisches Backup; Restore und zweimaliger
+Migrationslauf bestätigten unveränderte Inhalte aller 24 bestehenden Tabellen.
+Datenbank und Uploads zusätzlich lokal gesichert, SHA-256 jeweils gegen die
+Serverkopie geprüft:
+
+- Lokal: `~/TrichterwerkBackups/releases/20261001T061739-dd6acded785f/`
+- Server einschließlich Konfiguration:
+  `/var/backups/funnelflow/releases/20261001T061739-dd6acded785f/`
+- Konfiguration vor Freischaltung:
+  `/var/backups/funnelflow/personalization-activation-20261001T061940/`
+
+Das eigene temporäre PostgreSQL-Testcluster wurde beendet. Ab ersten
+veröffentlichten v4-Inhalten muss ein Code-Rollback diesen Leser beibehalten;
+Abschalten der Bearbeitung lässt die öffentliche Darstellung weiterarbeiten.
+
+Editor neu laden, Überschrift/Text/Button auswählen und rechts unter
+„Persönliche Ansprache“ aktivieren. Bestehende Funnels ändern sich erst nach
+ausdrücklicher Zuordnung und Veröffentlichung.
+Als nächstes offen: Paket 5, eigene Seiten-/Abschnittsvorlagen und Mediathek
+aus der ursprünglichen Übergabe. Dazu noch keine Produktumsetzung begonnen.
 
 ## Fortsetzung am 30.09.2026
 

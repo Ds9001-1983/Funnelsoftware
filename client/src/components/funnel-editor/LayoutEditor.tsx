@@ -27,6 +27,7 @@ interface LayoutEditorProps {
 
 const selectClass = "h-8 rounded border bg-background px-2 text-xs text-foreground min-w-0";
 export function LayoutEditor({ personalizationContext, page, theme, onChange, selectedElementId, onSelectElement, activeColumnId, onChooseColumn, onAddElement, elementActions, blockedReason }: LayoutEditorProps) {
+  theme = page.themeOverride ?? theme;
   const [presetId, setPresetId] = useState("empty-2");
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const design = resolveDesign(theme, page);
@@ -107,9 +108,9 @@ export function LayoutEditor({ personalizationContext, page, theme, onChange, se
               onChooseColumn(columnId);
             },
           })}
-          renderElement={(element, textColor) => <div>
+          renderElement={(element, textColor, sectionTheme) => <div>
             <button type="button" draggable={!blockedReason} disabled={!!blockedReason} aria-label="Element ziehen" className="cursor-grab opacity-50 hover:opacity-100" onDragStart={event => { event.dataTransfer.setData("application/x-funnel-element", element.id); event.dataTransfer.effectAllowed = "move"; }}><GripVertical className="h-3 w-3" /></button>
-            <ElementPreviewRenderer personalizationContext={personalizationContext} element={element} textColor={textColor} primaryColor={theme.primaryColor} design={theme.design}
+            <ElementPreviewRenderer personalizationContext={personalizationContext} element={element} textColor={textColor} primaryColor={(sectionTheme ?? theme).primaryColor} design={(sectionTheme ?? theme).design}
               selectedElementId={selectedElementId} onSelectElement={onSelectElement} formValues={formValues} updateFormValue={(id, value) => setFormValues(current => ({ ...current, [id]: value }))}
               onContentCommit={content => onChange({ ...page, elements: page.elements.map(candidate => candidate.id === element.id ? { ...candidate, content } : candidate) })}
               {...elementActions} />

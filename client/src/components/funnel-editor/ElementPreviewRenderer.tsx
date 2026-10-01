@@ -1259,6 +1259,7 @@ function arePropsEqual(
   next: ElementPreviewRendererProps
 ): boolean {
   if (prev.personalizationContext !== next.personalizationContext) return false;
+  if (prev.design !== next.design) return false;
   if (prev.textColor !== next.textColor) return false;
   if (prev.primaryColor !== next.primaryColor) return false;
   if (prev.selectedElementId !== next.selectedElementId) return false;

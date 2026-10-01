@@ -37,7 +37,7 @@ export function buildSavePayload(funnel: Funnel): Partial<Funnel> {
 }
 
 /** All writes share a queue; local edits are never replaced by an older response. */
-export function useFunnelEditor(id: string | undefined, layoutEditing = false, routingEditing = false, personalizationEditing = false) {
+export function useFunnelEditor(id: string | undefined, layoutEditing = false, routingEditing = false, personalizationEditing = false, libraryEditing = false) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
@@ -66,7 +66,7 @@ export function useFunnelEditor(id: string | undefined, layoutEditing = false, r
     serverMetadata.current = { documentVersion: funnel.documentVersion, status: funnel.status, slug: funnel.slug, editVersion: funnel.editVersion,
       publishedRevisionId: funnel.publishedRevisionId, updatedAt: funnel.updatedAt, webhookSecret: funnel.webhookSecret };
     resetHistory(funnel);
-    if (!canEditFunnelDocument(funnel, layoutEditing, routingEditing, personalizationEditing)) return;
+    if (!canEditFunnelDocument(funnel, layoutEditing, routingEditing, personalizationEditing, libraryEditing)) return;
     const recovered = readRecovery(funnel);
     if (recovered && contentKey(recovered) !== contentKey(documentFromFunnel(funnel))) setRecovery(recovered);
     else clearRecovery(funnel);
@@ -95,7 +95,7 @@ export function useFunnelEditor(id: string | undefined, layoutEditing = false, r
       queryClient.setQueryData(["/api/funnels", id], updated);
       void queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
     });
-  }, [funnel, id, resetHistory, setLocalFunnel, queryClient, layoutEditing, routingEditing, personalizationEditing]);
+  }, [funnel, id, resetHistory, setLocalFunnel, queryClient, layoutEditing, routingEditing, personalizationEditing, libraryEditing]);
 
   useEffect(() => {
     if (localFunnel) setHasChanges(contentKey(buildSavePayload(localFunnel)) !== savedPayload.current);
@@ -104,17 +104,17 @@ export function useFunnelEditor(id: string | undefined, layoutEditing = false, r
     if (localFunnel?.theme?.fontFamily) loadFont(localFunnel.theme.fontFamily);
   }, [localFunnel?.theme?.fontFamily]);
   useEffect(() => {
-    if (!localFunnel || !canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing) || recovery) return;
+    if (!localFunnel || !canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing, libraryEditing) || recovery) return;
     // Synchronous storage also covers a tab close directly after the last edit.
     if (hasChanges) setRecoveryUnavailable(!storeRecovery(localFunnel));
     else if (!pendingWrites) clearRecovery(localFunnel);
-  }, [localFunnel, hasChanges, pendingWrites, recovery, layoutEditing, routingEditing, personalizationEditing]);
+  }, [localFunnel, hasChanges, pendingWrites, recovery, layoutEditing, routingEditing, personalizationEditing, libraryEditing]);
 
   const write = useCallback(async (request: FunnelWrite) => {
-    if (localRef.current && !canEditFunnelDocument(localRef.current, layoutEditing, routingEditing, personalizationEditing)) throw new Error("Dieser Funnel kann mit dieser Editorversion nur angesehen werden.");
+    if (localRef.current && !canEditFunnelDocument(localRef.current, layoutEditing, routingEditing, personalizationEditing, libraryEditing)) throw new Error("Dieser Funnel kann mit dieser Editorversion nur angesehen werden.");
     if (!queue.current) throw new Error("Funnel wird noch geladen.");
     setPendingWrites(count => count + 1);
-    try { return await queue.current.write({ ...request, documentVersion: personalizationEditing ? 4 : routingEditing ? 3 : layoutEditing ? 2 : 1 }); }
+    try { return await queue.current.write({ ...request, documentVersion: libraryEditing ? 5 : personalizationEditing ? 4 : routingEditing ? 3 : layoutEditing ? 2 : 1 }); }
     catch (error) {
       const isConflict = (error as { status?: number })?.status === 409;
       if (isConflict) setConflict(true);
@@ -125,7 +125,7 @@ export function useFunnelEditor(id: string | undefined, layoutEditing = false, r
         variant: "destructive" });
       throw error;
     } finally { setPendingWrites(count => count - 1); }
-  }, [toast, layoutEditing, routingEditing, personalizationEditing]);
+  }, [toast, layoutEditing, routingEditing, personalizationEditing, libraryEditing]);
 
   const saveMutation = useMutation({ mutationFn: (data: Partial<Funnel>) => write({ data }), retry: false });
   const saveCurrent = useCallback(async (extra: Partial<Funnel> = {}, publish = false) => {
@@ -144,12 +144,12 @@ export function useFunnelEditor(id: string | undefined, layoutEditing = false, r
   }, [saveCurrent, write]);
 
   useEffect(() => {
-    if (!localFunnel || !canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing) || !autoSaveEnabled || !hasChanges || pendingWrites || saveError || recovery) return;
+    if (!localFunnel || !canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing, libraryEditing) || !autoSaveEnabled || !hasChanges || pendingWrites || saveError || recovery) return;
     const timer = setTimeout(() => {
       void saveCurrent().then(() => setLastAutoSave(new Date())).catch(() => undefined);
     }, 5000);
     return () => clearTimeout(timer);
-  }, [localFunnel, autoSaveEnabled, hasChanges, pendingWrites, saveError, recovery, saveCurrent, layoutEditing, routingEditing, personalizationEditing]);
+  }, [localFunnel, autoSaveEnabled, hasChanges, pendingWrites, saveError, recovery, saveCurrent, layoutEditing, routingEditing, personalizationEditing, libraryEditing]);
 
   const updateLocalFunnel = useCallback((updates: Partial<Funnel>) => {
     setLocalFunnel(prev => prev ? { ...prev, ...updates } : prev);
