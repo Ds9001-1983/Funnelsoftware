@@ -1,4 +1,5 @@
 import { PersonalizationPanel, type PersonalizationTestValues } from "@/components/funnel-editor/PersonalizationPanel";
+import { BuilderLibrary } from "@/components/funnel-editor/BuilderLibrary";
 import { personalizedElementTypes, type PersonalizationContext } from "@shared/funnel-personalization";
 import { VisitorRulesPanel } from "@/components/funnel-editor/VisitorRulesPanel";
 import { needsRoutingDocument } from "@shared/funnel-routing";
@@ -218,14 +219,15 @@ export default function FunnelEditor() {
       try {
         const response = await fetch("/api/funnels/editor-capabilities", { credentials: "include" });
         const data = response.ok ? await response.json() : null;
-        return { layoutEditing: data?.layoutEditing === true, routingEditing: data?.routingEditing === true, personalizationEditing: data?.personalizationEditing === true };
-      } catch { return { layoutEditing: false, routingEditing: false, personalizationEditing: false }; }
+        return { layoutEditing: data?.layoutEditing === true, routingEditing: data?.routingEditing === true, personalizationEditing: data?.personalizationEditing === true, libraryEditing: data?.libraryEditing === true };
+      } catch { return { layoutEditing: false, routingEditing: false, personalizationEditing: false, libraryEditing: false }; }
     },
     staleTime: Infinity,
   });
   const layoutEditing = editorCapabilities?.layoutEditing === true;
   const routingEditing = editorCapabilities?.routingEditing === true;
   const personalizationEditing = editorCapabilities?.personalizationEditing === true;
+  const libraryEditing = editorCapabilities?.libraryEditing === true;
 
   // Daten-/Persistenz-Layer extrahiert in einen Hook (Stufe 3.1). Die alten
   // Namen bleiben via Destructuring identisch, damit der restliche Editor-Code
@@ -251,7 +253,7 @@ export default function FunnelEditor() {
     saveCurrent, saveBeforeLeave, restoreRevision, pendingWrites, conflict, recovery, discardRecovery, recoveryUnavailable,
     updateLocalFunnel,
     updatePage: persistPage,
-  } = useFunnelEditor(params?.id, layoutEditing, routingEditing, personalizationEditing);
+  } = useFunnelEditor(params?.id, layoutEditing, routingEditing, personalizationEditing, libraryEditing);
 
   const [personalizationTest, setPersonalizationTest] = useState<PersonalizationTestValues>({ enabled: false, answers: {}, campaign: {} });
   useEffect(() => setPersonalizationTest({ enabled: false, answers: {}, campaign: {} }), [params?.id]);
@@ -602,7 +604,7 @@ export default function FunnelEditor() {
   // Keyboard shortcuts for copy/paste and undo/redo
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (localFunnel && !canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing)) return;
+      if (localFunnel && !canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing, libraryEditing)) return;
       // Check if we're in an input field
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
@@ -640,7 +642,7 @@ export default function FunnelEditor() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [localFunnel, layoutEditing, routingEditing, personalizationEditing, selectedElementId, copySelectedElement, copyCurrentPage, pasteFromClipboard, deleteSelectedElement, duplicateSelectedElement]);
+  }, [localFunnel, layoutEditing, routingEditing, personalizationEditing, libraryEditing, selectedElementId, copySelectedElement, copyCurrentPage, pasteFromClipboard, deleteSelectedElement, duplicateSelectedElement]);
 
   const moveElementUp = useCallback(() => {
     if (!localFunnel || !selectedElementId) return;
@@ -966,7 +968,7 @@ export default function FunnelEditor() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (localFunnel && !canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing)) return;
+      if (localFunnel && !canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing, libraryEditing)) return;
       const target = e.target as HTMLElement;
       const isEditing =
         target.tagName === "INPUT" ||
@@ -1015,7 +1017,7 @@ export default function FunnelEditor() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [localFunnel, layoutEditing, routingEditing, personalizationEditing, hasChanges, handleUndo, handleRedo, handleSave, moveElementUp, moveElementDown, selectedElementId]);
+  }, [localFunnel, layoutEditing, routingEditing, personalizationEditing, libraryEditing, hasChanges, handleUndo, handleRedo, handleSave, moveElementUp, moveElementDown, selectedElementId]);
 
   // Der Builder ist für kleine Viewports nicht bedienbar — statt einer kaputten
   // Oberfläche einen klaren Hinweis zeigen (Desktop-Editor bleibt unverändert).
@@ -1090,7 +1092,7 @@ export default function FunnelEditor() {
 
   const selectedPage = localFunnel.pages[selectedPageIndex];
 
-  if (!canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing)) {
+  if (!canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing, libraryEditing)) {
     return (
       <ErrorBoundary>
         <div className="p-4 border-b space-y-2">
@@ -1140,6 +1142,7 @@ export default function FunnelEditor() {
         onOpenPreview={openDraftPreview}
       />
       <EditorRecoveryBar funnel={localFunnel} recovery={recovery} conflict={conflict} unavailable={recoveryUnavailable} onDiscard={discardRecovery} />
+      {libraryEditing && selectedPage && <div className="px-3 py-1 border-b"><BuilderLibrary funnel={localFunnel} pageIndex={selectedPageIndex} onInsert={pages => updateLocalFunnel({ pages })} /></div>}
       {localFunnel.status === "published" && <p className="text-xs text-muted-foreground px-4 py-1 border-b">Du bearbeitest den Entwurf. Inhaltsänderungen werden erst mit „Veröffentlichen“ live.</p>}
       <RevisionDialog open={showRevisions} onOpenChange={setShowRevisions} funnelId={localFunnel.id} onRestore={restoreRevision} />
 

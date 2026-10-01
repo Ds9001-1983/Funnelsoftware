@@ -61,6 +61,11 @@ export function copyPages(pages: FunnelPage[], replacePageIds = true): FunnelPag
     copied.optionIds.forEach((id, key) => optionIds.set(key, id));
     copied.ids.forEach((id, oldId) => elementIds.set(oldId, id));
     page.elements = copied.elements;
+    // Legacy page-wide conditions can match any field. Keep literal keys for
+    // text fields and add the copied stable option IDs for selection fields.
+    if (source.conditionalRouting) page.conditionalRouting = Object.fromEntries(Object.entries(source.conditionalRouting).flatMap(([value, target]) => [
+      [value, target], ...source.elements.flatMap(element => { const option = copied.optionIds.get(`${element.id}:${value}`); return option ? [[option, target]] : []; }),
+    ]));
     if (source.layout) page.layout = copyLayout(source.layout, copied.ids);
     // Legacy nested sections stay separate, including any opaque properties.
     page.sections = source.sections?.map(section => ({ ...structuredClone(section), id: newId(), columns: section.columns.map(column => {
@@ -77,6 +82,6 @@ export function copyPages(pages: FunnelPage[], replacePageIds = true): FunnelPag
     ...(page.routing ? { routing: { ...page.routing, fallbackPageId: target(page.routing.fallbackPageId), rules: page.routing.rules.map(rule => ({ ...rule, id: newId(), targetPageId: target(rule.targetPageId), conditions: rule.conditions.map((condition): VisitorCondition => { const base = { id: newId(), fieldId: elementIds.get(condition.fieldId) ?? condition.fieldId }; return condition.kind === "choice" ? { ...condition, ...base, value: optionIds.get(`${condition.fieldId}:${condition.value}`) ?? condition.value } : { ...condition, ...base }; }) })) } } : {}),
     ...(page.nextPageId ? { nextPageId: target(page.nextPageId) } : {}),
     ...(page.conditionalRouting ? { conditionalRouting: Object.fromEntries(Object.entries(page.conditionalRouting).map(([value, id]) => [value, target(id)])) } : {}),
-    ...(page.conditions ? { conditions: page.conditions.map(condition => ({ ...condition, elementId: scopedIds.get(page.id)?.get(condition.elementId) ?? elementIds.get(condition.elementId) ?? condition.elementId, targetPageId: target(condition.targetPageId) })) } : {}),
+    ...(page.conditions ? { conditions: page.conditions.map(condition => ({ ...condition, elementId: scopedIds.get(page.id)?.get(condition.elementId) ?? elementIds.get(condition.elementId) ?? condition.elementId, value: condition.value === undefined ? undefined : optionIds.get(`${condition.elementId}:${condition.value}`) ?? condition.value, targetPageId: target(condition.targetPageId) })) } : {}),
   }));
 }

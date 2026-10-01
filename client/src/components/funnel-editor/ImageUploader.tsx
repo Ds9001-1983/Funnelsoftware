@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Upload, Loader2, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { MAX_IMAGE_UPLOAD_BYTES } from "@shared/schema";
+import { MediaLibraryPicker } from "./MediaLibrary";
+import { useQueryClient } from "@tanstack/react-query";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
 const MAX_BYTES = MAX_IMAGE_UPLOAD_BYTES; // gemeinsame Konstante mit dem Server
@@ -19,6 +21,7 @@ interface ImageUploaderProps {
 }
 
 export function ImageUploader({ value, onChange, className, variant = "button" }: ImageUploaderProps) {
+  const cache = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -45,6 +48,7 @@ export function ImageUploader({ value, onChange, className, variant = "button" }
       // EBADCSRFTOKEN) und reicht FormData korrekt durch.
       const res = await apiRequest("POST", "/api/uploads", formData);
       const data = await res.json();
+      void cache.invalidateQueries({ queryKey: ["library-media"] });
       onChange(data.url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload fehlgeschlagen");
@@ -137,6 +141,7 @@ export function ImageUploader({ value, onChange, className, variant = "button" }
           </p>
         </div>
 
+        <div className="mt-2"><MediaLibraryPicker onSelect={onChange} disabled={uploading} /></div>
         {error && <p className="text-xs text-destructive mt-1">{error}</p>}
       </div>
     );
@@ -182,6 +187,7 @@ export function ImageUploader({ value, onChange, className, variant = "button" }
         )}
       </Button>
 
+      <div className="mt-2"><MediaLibraryPicker onSelect={onChange} disabled={uploading} /></div>
       {error && <p className="text-xs text-destructive mt-1">{error}</p>}
     </div>
   );

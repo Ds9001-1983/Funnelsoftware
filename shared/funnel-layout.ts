@@ -85,6 +85,11 @@ export function needsLayoutDocument(pages: FunnelPage[] = [], theme?: Theme | nu
   return !!theme?.design || pages.some(page => !!page.layout) || !!tests?.some(test => test.variants.some(variant => !!variant.layout));
 }
 
+export function needsThemeOverrideDocument(pages: FunnelPage[] = [], tests: ABTest[] = []): boolean {
+  return pages.some(page => !!page.themeOverride || page.layout?.sections.some(section => !!section.themeOverride))
+    || tests.some(test => test.variants.some(variant => variant.layout?.sections.some(section => !!section.themeOverride)));
+}
+
 export function pageWithVariant(page: FunnelPage, variant: ABTestVariant): FunnelPage {
   return {
     ...page,
@@ -111,6 +116,7 @@ export function applyVariantOverrides(pages: FunnelPage[], tests: ABTest[], assi
 
 /** Defaults intentionally match the old public renderer; no stored values change. */
 export function resolveDesign(theme: Theme, page: FunnelPage) {
+  theme = page.themeOverride ?? theme;
   const font = ((page.layout || theme.design) && page.pageStyles?.fontFamily) || theme.fontFamily || "system-ui, sans-serif";
   return {
     primaryColor: theme.primaryColor,

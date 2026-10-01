@@ -4,6 +4,50 @@ Auftrag: Die Kundenanfrage umsetzen und veröffentlichen sowie die zuvor
 erarbeiteten Builder-Vorschläge aus der ursprünglichen Übergabe fertigstellen.
 Der Nutzer hat die Fortsetzung am 28.09.2026 ausdrücklich bestätigt.
 
+## Paket 5 am 01.10.2026: eigene Vorlagen und Mediathek
+
+Umsetzung im Branch `feat/builder-library`, Arbeitsverzeichnis
+`../Funnelsoftware-builder`. Veröffentlichung und Freischaltung stehen für
+diesen Abschnitt noch aus; der vorherige Produktionsstand folgt darunter.
+
+- „Vorlagen & Medien“ im Editor: eigene Seiten und Abschnitte benennen,
+  visuell auswählen, suchen, umbenennen, ersetzen, archivieren und wiederherstellen.
+  Inhalte werden als unabhängige Kopie mit neuen internen IDs eingefügt;
+  Änderungen an Vorlagen verändern keine bereits verwendeten Inhalte.
+- Vor dem Einfügen Zielseiten, Antwortfelder und Auswahloptionen ausdrücklich
+  zuordnen oder entfernen. Nur im selben Ursprungsfunnel werden noch gültige
+  Verweise vorausgewählt. Entfernen verwirft betroffene Regeln vollständig
+  und nutzt bei Textvariablen den Ersatztext. Standardziele bleiben erforderlich.
+- Quelldesign nur in der Kopie behalten oder Zieldesign übernehmen, mit Vorschau
+  und einem Undo-Schritt. Lokale Seiten-/Abschnittsstile verwenden Dokumentversion 5.
+  Öffentliche Ausgabe, Vorschau und Canvas teilen die Darstellung; ältere
+  Editoren bleiben schreibgeschützt. Einfügen während laufender A/B-Tests gesperrt.
+- „Aus Mediathek“ an Bildfeldern sowie Verwaltung in der Bibliothek: neue Uploads
+  erhalten private Metadaten, Suche, Ordner, Größenangaben und Archivierung.
+  Verschieben/Umbenennen/Archivieren erhalten Datei und URL. Ältere Uploads
+  werden weder einem Besitzer zugeordnet noch verändert oder gelöscht.
+- Additive Migration `20261001_builder_library.sql`: drei neue nutzerbezogene
+  Tabellen `content_templates`, `media_folders`, `media_assets`; keine bestehenden
+  Inhalte umgeschrieben. Bibliothekszugriffe auf den eigenen Nutzer beschränkt,
+  konkurrierende Änderungen mit Versionsprüfung. Keine globale Vorlagentabelle
+  und kein implizites Team-Sharing. Audio bleibt im bisherigen Uploadpfad.
+- Kopierhelfer erhält bei älteren Auswahlbedingungen und seitenweiten Zuordnungen
+  auch die Verbindung zu den neuen Options-IDs. Abschnitts-Dragtest zielt jetzt
+  auf den sichtbaren Griff statt in die Mitte der Steuerelemente.
+
+Abnahme lokal: 469 Tests (411 Unit-/Komponententests und 58 Datenbank-/Migrationstests)
+auf einem eigenen temporären PostgreSQL-Cluster, Loopback-Port 55439;
+39 Browserabläufe, Typecheck einschließlich Server-/Shared-/Browsertests und
+Produktionsbuild erfolgreich. Weitere 16 Browserprüfungen am Produktionsbuild
+bestanden; sämtliche API-/externen Aufrufe dabei abgefangen.
+
+Auslieferung: Erst kompatiblen Leser mit `BUILDER_LIBRARY_EDITOR=false` ausrollen,
+Restore-Probe und wiederholte Migration im Deployment prüfen, Datenbank/Uploads
+zusätzlich lokal sichern. Danach Live-Assets ausschließlich mit abgefangenen
+API-/externen Aufrufen testen und die Fähigkeit aktivieren. Neue Uploads erhalten
+nach der Migration schon bei deaktivierter Bibliotheksoberfläche Metadaten.
+Nach ersten v5-Veröffentlichungen muss ein Code-Rollback den v5-Leser erhalten.
+
 ## Fortsetzung am 01.10.2026
 
 ### Personalisierung veröffentlicht und freigeschaltet

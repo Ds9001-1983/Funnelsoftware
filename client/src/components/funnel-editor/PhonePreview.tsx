@@ -151,6 +151,8 @@ export function PhonePreview({
   canMoveElementDown,
   onUpdateElementContent,
 }: PhonePreviewProps) {
+  theme = page?.themeOverride ?? theme;
+  primaryColor = theme?.primaryColor ?? primaryColor;
   const [isDropOver, setIsDropOver] = useState(false);
   useEffect(() => {
     if (page && theme) loadFont(resolveDesign(theme, page).fontFamily);
