@@ -1,3 +1,4 @@
+import { aggregateFunnelMetrics, metricRangeSchema, metricSince, type AnalyticsOverview } from "@shared/funnel-metrics";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
@@ -56,7 +57,7 @@ import { registerMediaAsset } from "./builder-library";
 import { registerBrandStyleRoutes } from "./brand-style-routes";
 import { changeRecruitingStage, RecruitingError } from "./recruiting";
 import { writeControlSchema, documentVersionSchema } from "@shared/funnel-document";
-import { listFunnelRevisions, FunnelWriteError } from "./funnel-revisions";
+import { publishedDocument, listFunnelRevisions, FunnelWriteError } from "./funnel-revisions";
 import { generateFunnel, testConnection, AiError, type DecryptedCredential } from "./ai";
 import { z } from "zod";
 
@@ -1298,6 +1299,34 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/analytics/overview", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+      const range = metricRangeSchema.safeParse(req.query.range ?? "30d");
+      if (!range.success) return res.status(400).json({ error: "Ungültiger Zeitraum" });
+      const now = new Date(), since = metricSince(range.data, now);
+      const [funnels, events, allLeads] = await Promise.all([storage.getFunnels(userId), storage.getUserAnalytics(userId, since), storage.getLeads(userId)]);
+      const ids = new Set(funnels.map(funnel => funnel.id));
+      const leads = allLeads.filter(lead => ids.has(lead.funnelId) && new Date(lead.createdAt) <= now && (!since || new Date(lead.createdAt) >= since));
+      const counts = new Map<number, { views: number; leads: number }>();
+      for (const funnel of funnels) counts.set(funnel.id, { views: 0, leads: 0 });
+      for (const event of events) if (event.eventType === "view" && new Date(event.timestamp) <= now) counts.get(event.funnelId)!.views++;
+      const sources: Record<string, number> = Object.create(null), statuses: Record<string, number> = Object.create(null);
+      for (const lead of leads) {
+        counts.get(lead.funnelId)!.leads++;
+        const source = lead.source && lead.source !== "direct" ? lead.source : "Direkt";
+        sources[source] = (sources[source] ?? 0) + 1;
+        statuses[lead.status] = (statuses[lead.status] ?? 0) + 1;
+      }
+      const rows = funnels.map(funnel => { const count = counts.get(funnel.id)!; return { id: funnel.id, name: funnel.name, status: funnel.status, ...count, conversionRate: count.views ? Number((count.leads / count.views * 100).toFixed(1)) : 0 }; });
+      const totalViews = rows.reduce((sum, row) => sum + row.views, 0);
+      const result: AnalyticsOverview = { totalViews, totalLeads: leads.length, conversionRate: totalViews ? Number((leads.length / totalViews * 100).toFixed(1)) : 0, funnels: rows,
+        sources: Object.entries(sources).map(([source, count]) => ({ source, count })).sort((a, b) => b.count - a.count), statuses };
+      res.json(result);
+    } catch (error) { console.error("Analytics overview failed", error); res.status(500).json({ error: "Auswertung konnte nicht geladen werden" }); }
+  });
+
   // Get funnel metrics (analytics aggregation)
   app.get("/api/funnels/:id/metrics", isAuthenticated, async (req, res) => {
     try {
@@ -1310,91 +1339,15 @@ export async function registerRoutes(
       const funnel = await storage.getFunnel(funnelId, userId);
       if (!funnel) return res.status(404).json({ error: "Funnel nicht gefunden" });
 
-      const [analytics, leads] = await Promise.all([
-        storage.getAnalytics(funnelId),
-        storage.getLeadsByFunnel(funnelId, userId),
-      ]);
-
-      // Aggregate metrics
-      const totalViews = analytics.filter(e => e.eventType === "view").length;
-      const totalLeads = leads.length;
-      const conversionRate = totalViews > 0 ? ((totalLeads / totalViews) * 100).toFixed(1) : "0.0";
-
-      // Page-by-page conversion (step funnel)
-      const pageViews: Record<string, number> = {};
-      analytics.filter(e => e.eventType === "pageView" && e.pageId).forEach(e => {
-        pageViews[e.pageId!] = (pageViews[e.pageId!] || 0) + 1;
-      });
-
-      const stepConversion = funnel.pages.map((page, idx) => ({
-        pageId: page.id,
-        title: page.title,
-        stepNumber: idx + 1,
-        visitors: pageViews[page.id] || (idx === 0 ? totalViews : 0),
-      }));
-
-      // Answer distribution per question page
-      const answerDistribution: Array<{
-        pageId: string;
-        title: string;
-        totalResponses: number;
-        answers: Array<{ text: string; count: number; percentage: number }>;
-      }> = [];
-
-      for (const page of funnel.pages) {
-        const questionElements = page.elements.filter(
-          (el: any) => el.type === "radio" || el.type === "select" || el.type === "checkbox"
-        );
-        for (const el of questionElements) {
-          const answerCounts: Record<string, number> = {};
-          let total = 0;
-          for (const lead of leads) {
-            const captured = lead.answerSnapshot?.fields.find(field => field.elementId === el.id && field.pageId === page.id);
-            const answer = captured ? captured.optionText ?? captured.value : (lead.answers as Record<string, any>)?.[el.id];
-            if (answer) {
-              const answerText = String(answer);
-              answerCounts[answerText] = (answerCounts[answerText] || 0) + 1;
-              total++;
-            }
-          }
-          if (total > 0) {
-            answerDistribution.push({
-              pageId: page.id,
-              title: page.title,
-              totalResponses: total,
-              answers: Object.entries(answerCounts)
-                .map(([text, count]) => ({ text, count, percentage: Math.round((count / total) * 100) }))
-                .sort((a, b) => b.count - a.count),
-            });
-          }
-        }
-      }
-
-      // Views over time (last 14 days).
-      // toDayKey normalisiert Date UND ISO-String auf "YYYY-MM-DD" —
-      // Date.toString() ("Wed Jun 11 …") matchte nie, der Chart war immer leer.
-      const toDayKey = (d: Date | string) => new Date(d).toISOString().split("T")[0];
+      const parsedRange = metricRangeSchema.safeParse(req.query.range ?? "30d");
+      if (!parsedRange.success) return res.status(400).json({ error: "Ungültiger Zeitraum" });
       const now = new Date();
-      const viewsOverTime: Array<{ date: string; views: number; leads: number }> = [];
-      for (let i = 13; i >= 0; i--) {
-        const date = new Date(now);
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split("T")[0];
-        const dayViews = analytics.filter(e =>
-          e.eventType === "view" && toDayKey(e.timestamp) === dateStr
-        ).length;
-        const dayLeads = leads.filter(l => toDayKey(l.createdAt) === dateStr).length;
-        viewsOverTime.push({ date: dateStr, views: dayViews, leads: dayLeads });
-      }
-
-      res.json({
-        totalViews,
-        totalLeads,
-        conversionRate: parseFloat(conversionRate),
-        stepConversion,
-        answerDistribution,
-        viewsOverTime,
-      });
+      const [analytics, leads, live] = await Promise.all([
+        storage.getAnalytics(funnelId, metricSince(parsedRange.data, now)),
+        storage.getLeadsByFunnel(funnelId, userId),
+        publishedDocument(funnel),
+      ]);
+      res.json(aggregateFunnelMetrics(live ?? funnel, analytics, leads, parsedRange.data, now));
     } catch (error) {
       console.error("Get funnel metrics error:", error);
       res.status(500).json({ error: "Metriken konnten nicht geladen werden" });
@@ -2470,6 +2423,9 @@ export async function registerRoutes(
     metadata: z
       .object({
         abVariants: z.record(z.string().max(100), z.string().max(100)).optional(),
+        visitId: z.string().uuid().optional(),
+        sequence: z.number().int().nonnegative().max(1000000).optional(),
+        previousPageId: z.string().max(100).nullable().optional(),
       })
       .optional(),
   });

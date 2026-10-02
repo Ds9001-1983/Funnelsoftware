@@ -1,5 +1,5 @@
 import { needsRoutingDocument } from "@shared/funnel-routing";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation, Link } from "wouter";
 import {
   Loader2,
@@ -264,6 +264,15 @@ export default function PublicFunnelView() {
     }
   }, []);
 
+  // One visit per mounted public document. No persistent identifier.
+  const visit = useRef({ funnel: "", id: crypto.randomUUID(), sequence: 0, previousPageId: null as string | null });
+  const visitMetadata = useCallback((pageId?: string) => {
+    if (visit.current.funnel !== funnel?.uuid) visit.current = { funnel: funnel?.uuid ?? "", id: crypto.randomUUID(), sequence: 0, previousPageId: null };
+    const result = { visitId: visit.current.id, sequence: visit.current.sequence++, previousPageId: visit.current.previousPageId };
+    if (pageId) visit.current.previousPageId = pageId;
+    return result;
+  }, [funnel?.uuid]);
+
   // Track view on first load (nicht im Preview-Mode — Owner-Tests sollen Stats nicht verfälschen)
   useEffect(() => {
     if (funnel && !viewTracked && !isPreviewMode) {
@@ -274,15 +283,13 @@ export default function PublicFunnelView() {
         body: JSON.stringify({
           funnelUuid: funnel.uuid,
           eventType: "view",
-          metadata: Object.keys(variantAssignments).length > 0
-            ? { abVariants: variantAssignments }
-            : undefined,
+          metadata: { ...visitMetadata(), abVariants: variantAssignments },
         }),
       }).catch((e) => console.warn("Analytics tracking failed:", e));
 
       pushDataLayer({ event: "funnel_view", funnel_name: funnel.name, funnel_id: funnel.uuid });
     }
-  }, [funnel, viewTracked, pushDataLayer, variantAssignments, isPreviewMode]);
+  }, [funnel, viewTracked, pushDataLayer, variantAssignments, isPreviewMode, visitMetadata]);
 
   // Track page navigation (nur live — im Preview-Mode wird der Callback nicht übergeben)
   const trackPageView = useCallback(
@@ -295,6 +302,7 @@ export default function PublicFunnelView() {
           funnelUuid: funnel.uuid,
           eventType: "pageView",
           pageId,
+          metadata: visitMetadata(pageId),
         }),
       }).catch((e) => console.warn("Analytics tracking failed:", e));
 
@@ -313,7 +321,7 @@ export default function PublicFunnelView() {
         });
       }
     },
-    [funnel, pushDataLayer]
+    [funnel, pushDataLayer, visitMetadata]
   );
 
   // Lead absenden: Payload kommt fertig gemappt aus dem FunnelRenderer,
@@ -369,9 +377,7 @@ export default function PublicFunnelView() {
           // Varianten-Zuweisung mitschicken: zusammen mit dem view-Event die
           // Datenbasis der A/B-Statistiken (server/ab-stats.ts). Nur
           // testId→variantId — keine Personendaten.
-          metadata: Object.keys(variantAssignments).length > 0
-            ? { abVariants: variantAssignments }
-            : undefined,
+          metadata: { ...visitMetadata(), abVariants: variantAssignments },
         }),
       }).catch((e) => console.warn("Analytics tracking failed:", e));
 
@@ -384,6 +390,7 @@ export default function PublicFunnelView() {
         body: JSON.stringify({
           funnelUuid: funnel.uuid,
           eventType: "complete",
+          metadata: visitMetadata(),
         }),
       }).catch((e) => console.warn("Analytics tracking failed:", e));
 
@@ -391,7 +398,7 @@ export default function PublicFunnelView() {
 
       return true;
     },
-    [funnel, pushDataLayer, variantAssignments]
+    [funnel, pushDataLayer, variantAssignments, visitMetadata]
   );
 
   // Loading state

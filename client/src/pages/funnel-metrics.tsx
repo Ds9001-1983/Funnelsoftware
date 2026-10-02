@@ -6,37 +6,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
-interface FunnelMetrics {
-  totalViews: number;
-  totalLeads: number;
-  conversionRate: number;
-  stepConversion: Array<{
-    pageId: string;
-    title: string;
-    stepNumber: number;
-    visitors: number;
-  }>;
-  answerDistribution: Array<{
-    pageId: string;
-    title: string;
-    totalResponses: number;
-    answers: Array<{ text: string; count: number; percentage: number }>;
-  }>;
-  viewsOverTime: Array<{
-    date: string;
-    views: number;
-    leads: number;
-  }>;
-}
+import { useState } from "react";
+import { MetricRangeSelect } from "./analytics";
+import { VisitorPaths } from "@/components/visitor-paths";
+import type { FunnelMetrics, MetricRange } from "@shared/funnel-metrics";
 
 export default function FunnelMetrics() {
   const [, params] = useRoute("/funnels/:id/metrics");
   useDocumentTitle("Metriken");
 
-  const { data: metrics, isLoading } = useQuery<FunnelMetrics>({
-    queryKey: ["/api/funnels", params?.id, "metrics"],
+  const [range, setRange] = useState<MetricRange>("30d");
+  const { data: metrics, isLoading, isError, refetch } = useQuery<FunnelMetrics>({
+    queryKey: ["/api/funnels", params?.id, "metrics", range],
     queryFn: async () => {
-      const res = await fetch(`/api/funnels/${params?.id}/metrics`, { credentials: "include" });
+      const res = await fetch(`/api/funnels/${params?.id}/metrics?range=${range}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
@@ -56,13 +39,14 @@ export default function FunnelMetrics() {
     );
   }
 
+  if (isError) return <div className="p-6" role="alert">Metriken konnten nicht geladen werden. <button onClick={() => refetch()}>Erneut versuchen</button></div>;
   if (!metrics) return null;
 
   const maxVisitors = Math.max(...metrics.stepConversion.map(s => s.visitors), 1);
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">Metriken</h1>
+      <div className="flex flex-wrap justify-between gap-4"><h1 className="text-2xl font-bold">Metriken</h1><MetricRangeSelect value={range} onChange={setRange} /></div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -100,14 +84,12 @@ export default function FunnelMetrics() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <BarChart3 className="h-4 w-4" />
-            Seite-zu-Seite-Konvertierungsrate
+            Erfasste Seitenaufrufe
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {metrics.stepConversion.map((step, idx) => {
-              const prevVisitors = idx > 0 ? metrics.stepConversion[idx - 1].visitors : step.visitors;
-              const dropOff = prevVisitors > 0 ? Math.round(((prevVisitors - step.visitors) / prevVisitors) * 100) : 0;
               const barWidth = maxVisitors > 0 ? (step.visitors / maxVisitors) * 100 : 0;
 
               return (
@@ -135,11 +117,7 @@ export default function FunnelMetrics() {
                       </div>
                     </div>
                   </div>
-                  {idx > 0 && dropOff > 0 && (
-                    <Badge variant="outline" className="text-xs text-orange-600 border-orange-200 shrink-0">
-                      -{dropOff}%
-                    </Badge>
-                  )}
+
                 </div>
               );
             })}
@@ -147,10 +125,12 @@ export default function FunnelMetrics() {
         </CardContent>
       </Card>
 
+      <Card><CardHeader><CardTitle>Besucherwege</CardTitle></CardHeader><CardContent><VisitorPaths paths={metrics.paths} /></CardContent></Card>
+
       {/* Views Over Time */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Leads vs. Besucher (14 Tage)</CardTitle>
+          <CardTitle className="text-base">Leads und Besuche ({range === "all" ? "letzte 90 Tage" : `letzte ${range.slice(0, -1)} Tage`}, Tage in UTC)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-end gap-1 h-40">
@@ -198,11 +178,11 @@ export default function FunnelMetrics() {
       {metrics.answerDistribution.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {metrics.answerDistribution.map((question) => (
-            <Card key={question.pageId}>
+            <Card key={`${question.pageId}:${question.elementId}`}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium">{question.title}</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  {question.totalResponses} von {metrics.totalViews} Besuchern haben geantwortet
+                  {question.totalResponses} eingegangene Antworten im Zeitraum
                 </p>
               </CardHeader>
               <CardContent className="space-y-2">

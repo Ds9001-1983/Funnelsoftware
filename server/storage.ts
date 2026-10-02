@@ -148,7 +148,8 @@ export interface IStorage {
   deleteLeadsByEmail(userId: number, email: string): Promise<number>;
 
   // Analytics
-  getAnalytics(funnelId: number): Promise<AnalyticsEvent[]>;
+  getAnalytics(funnelId: number, since?: Date): Promise<AnalyticsEvent[]>;
+  getUserAnalytics(userId: number, since?: Date): Promise<AnalyticsEvent[]>;
   createAnalyticsEvent(event: Omit<AnalyticsEvent, "id" | "timestamp">): Promise<AnalyticsEvent>;
 
   // Plattform-Reichweite (trichterwerk.de selbst, cookieless)
@@ -782,9 +783,9 @@ export class DatabaseStorage implements IStorage {
 
   // ============ ANALYTICS ============
 
-  async getAnalytics(funnelId: number): Promise<AnalyticsEvent[]> {
+  async getAnalytics(funnelId: number, since?: Date): Promise<AnalyticsEvent[]> {
     const result = await db.select().from(analyticsEvents)
-      .where(eq(analyticsEvents.funnelId, funnelId))
+      .where(and(eq(analyticsEvents.funnelId, funnelId), since ? gte(analyticsEvents.timestamp, since) : undefined))
       .orderBy(desc(analyticsEvents.timestamp));
 
     return result.map(e => ({
@@ -795,6 +796,13 @@ export class DatabaseStorage implements IStorage {
       metadata: e.metadata as Record<string, any> | null,
       timestamp: e.timestamp.toISOString(),
     }));
+  }
+
+  async getUserAnalytics(userId: number, since?: Date): Promise<AnalyticsEvent[]> {
+    const rows = await db.select({ event: analyticsEvents }).from(analyticsEvents)
+      .innerJoin(funnels, eq(funnels.id, analyticsEvents.funnelId))
+      .where(and(eq(funnels.userId, userId), sql`${funnels.deletedAt} IS NULL`, since ? gte(analyticsEvents.timestamp, since) : undefined));
+    return rows.map(({ event }) => ({ ...event, eventType: event.eventType as AnalyticsEvent["eventType"], metadata: event.metadata as AnalyticsEvent["metadata"] }));
   }
 
   async createAnalyticsEvent(event: Omit<AnalyticsEvent, "id" | "timestamp">): Promise<AnalyticsEvent> {
