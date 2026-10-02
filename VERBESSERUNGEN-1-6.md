@@ -21,7 +21,19 @@ Browserabläufe bestanden: Zeitraum/Weganzeige einschließlich Zugriffstrennung
 sowie bestehender vollständiger Funnel-Lebenszyklus. Isolierte lokale PostgreSQL
 auf Port 55440, UTC; keine Produktionszugriffe.
 
-## 2. Qualitätscheck — offen
+## 2. Qualitätscheck — umgesetzt
+
+Machbar mit den vorhandenen Dokument- und Strukturprüfern. Der Publikationsdialog
+zeigt blockierende Strukturfehler und nicht blockierende Inhaltshinweise mit
+Sprung zum Element bzw. zur A/B-Konfiguration. Leere Bilder/Links/Texte,
+Formularbeschriftungen, Auswahloptionen und berechenbare Textkontraste werden
+geprüft. Keine Behauptung einer vollständigen Barrierefreiheits- oder externen
+Linkprüfung. Versteckte Seiten sind von Inhaltshinweisen ausgenommen; laufende
+A/B-Alternativen werden berücksichtigt.
+
+Validierung: fünf neue Unit-Tests, Typecheck, Build und zwei Browserabläufe
+(Qualitätscheck sowie bestehende Entwurfs-/Publikations-/Wiederherstellungskette)
+bestanden.
 ## 3. Visueller Versionsvergleich — offen
 ## 4. Mobile Darstellung — offen
 ## 5. KI-Inhaltsbearbeitung — offen

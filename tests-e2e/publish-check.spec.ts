@@ -1,0 +1,20 @@
+import { test, expect } from "@playwright/test";
+import { registerAndVerify, createPublishedFunnel } from "./helpers/api";
+import { closePool } from "./helpers/db";
+import { makeSlug, runId } from "./helpers/unique";
+test.afterAll(closePool);
+test("publish checklist navigates to the affected page and permits advisory warnings", async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem("onboarding-completed", "true"); localStorage.setItem("trichterwerk-cookie-consent", "true"); });
+  await registerAndVerify(page.request);
+  const funnel = await createPublishedFunnel(page.request, { name: "Qualitätscheck", slug: makeSlug(runId()) });
+  await page.goto(`/funnels/${funnel.id}`);
+  await page.getByTestId("button-publish").click();
+  const checklist = page.getByTestId("publish-checklist");
+  await expect(checklist).toContainText("Willkommen: Diese Seite enthält noch keine Elemente.");
+  await expect(page.getByTestId("button-confirm-publish")).toBeEnabled();
+  await checklist.getByRole("button", { name: "Ansehen" }).first().click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByTestId("button-publish").click();
+  await page.getByTestId("button-confirm-publish").click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});

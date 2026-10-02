@@ -1,3 +1,6 @@
+import { useMemo } from "react";
+import { publishIssues, type PublishIssue } from "@shared/publish-check";
+import { PublishChecklist } from "./PublishChecklist";
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Dialog,
@@ -22,6 +25,7 @@ interface PublishDialogProps {
   onOpenChange: (open: boolean) => void;
   funnel: Funnel;
   onPublish: (slug: string) => Promise<void>;
+  onFocusIssue?: (issue: PublishIssue) => void;
 }
 
 export function PublishDialog({
@@ -29,8 +33,11 @@ export function PublishDialog({
   onOpenChange,
   funnel,
   onPublish,
+  onFocusIssue,
 }: PublishDialogProps) {
   const { toast } = useToast();
+  const issues = useMemo(() => publishIssues(funnel), [funnel]);
+  const hasErrors = issues.some(issue => issue.severity === "error");
   const isPublished = funnel.status === "published";
   const [slug, setSlug] = useState("");
   const [isChecking, setIsChecking] = useState(false);
@@ -138,7 +145,7 @@ export function PublishDialog({
   }, [slug]);
 
   const handleSubmit = useCallback(async () => {
-    if (!slug || slug.length < 3 || isAvailable === false) return;
+    if (!slug || slug.length < 3 || isAvailable === false || hasErrors) return;
     setIsSubmitting(true);
     try {
       await onPublish(slug);
@@ -147,13 +154,13 @@ export function PublishDialog({
     } finally {
       setIsSubmitting(false);
     }
-  }, [slug, isAvailable, onPublish]);
+  }, [slug, isAvailable, onPublish, hasErrors]);
 
   const isSlugValid = slug.length >= 3 && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5 text-primary" />
@@ -252,6 +259,8 @@ export function PublishDialog({
               )}
             </div>
 
+            <PublishChecklist issues={issues} onFocus={onFocusIssue} />
+
             {/* Actions */}
             <div className="flex items-center gap-2">
               {isPublished && (
@@ -279,6 +288,7 @@ export function PublishDialog({
                 onClick={handleSubmit}
                 data-testid="button-confirm-publish"
                 disabled={
+                  hasErrors ||
                   isSubmitting ||
                   !isSlugValid ||
                   isAvailable === false ||

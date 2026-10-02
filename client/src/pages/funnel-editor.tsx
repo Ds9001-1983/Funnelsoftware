@@ -1721,6 +1721,16 @@ export default function FunnelEditor() {
           open={showPublishDialog}
           onOpenChange={setShowPublishDialog}
           funnel={localFunnel}
+          onFocusIssue={issue => {
+            setShowPublishDialog(false);
+            if (issue.variant) { setShowABTests(true); return; }
+            const index = localFunnel.pages.findIndex(page => page.id === issue.pageId);
+            if (index >= 0) {
+              setSelectedPageIndex(index); setSelectedElementId(issue.elementId ?? null); setShowRightPanel(!!issue.elementId);
+              const column = localFunnel.pages[index].layout?.sections.flatMap(section => section.columns).find(column => column.elementIds.includes(issue.elementId ?? ""));
+              if (column) setActiveColumnId(column.id);
+            } else setShowSettings(true);
+          }}
           onPublish={async (slug) => { await publishMutation.mutateAsync(slug); }}
         />
       )}
