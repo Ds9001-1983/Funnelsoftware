@@ -122,3 +122,20 @@ export async function listFunnelRevisions(id: number, userId: number, before?: n
   }).from(funnelRevisions).where(and(eq(funnelRevisions.funnelId, id), before === undefined ? undefined : lt(funnelRevisions.version, before))).orderBy(desc(funnelRevisions.version)).limit(100);
   return rows.map(row => ({ ...row, createdAt: row.createdAt.toISOString(), published: row.id === funnel.publishedRevisionId }));
 }
+
+/** Owner-only, content-only snapshots for visual comparison. No credentials or leads. */
+export async function readFunnelRevision(id: number, userId: number, revisionId: number | "published") {
+  const [funnel] = await db.select().from(funnels).where(and(eq(funnels.id, id), eq(funnels.userId, userId), sql`${funnels.deletedAt} IS NULL`));
+  if (!funnel) throw new FunnelWriteError(404, "Funnel nicht gefunden");
+  if (revisionId === "published" && funnel.status !== "published") throw new FunnelWriteError(404, "Kein veröffentlichter Stand vorhanden");
+  const target = revisionId === "published" ? funnel.publishedRevisionId : revisionId;
+  if (!target) {
+    if (funnel.editorProtocol) throw new FunnelWriteError(404, "Veröffentlichte Version nicht gefunden");
+    return { id: null, version: funnel.editVersion, content: documentSchema.parse(snapshot(funnel)) };
+  }
+  const [revision] = await db.select().from(funnelRevisions).where(and(eq(funnelRevisions.id, target), eq(funnelRevisions.funnelId, id)));
+  if (!revision) throw new FunnelWriteError(404, "Version nicht gefunden");
+  const parsed = documentSchema.safeParse(revision.content);
+  if (!parsed.success) throw new FunnelWriteError(409, "Diese Version benötigt einen neueren Editor.");
+  return { id: revision.id, version: revision.version, content: parsed.data };
+}

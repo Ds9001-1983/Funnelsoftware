@@ -57,7 +57,7 @@ import { registerMediaAsset } from "./builder-library";
 import { registerBrandStyleRoutes } from "./brand-style-routes";
 import { changeRecruitingStage, RecruitingError } from "./recruiting";
 import { writeControlSchema, documentVersionSchema } from "@shared/funnel-document";
-import { publishedDocument, listFunnelRevisions, FunnelWriteError } from "./funnel-revisions";
+import { publishedDocument, readFunnelRevision, listFunnelRevisions, FunnelWriteError } from "./funnel-revisions";
 import { generateFunnel, testConnection, AiError, type DecryptedCredential } from "./ai";
 import { z } from "zod";
 
@@ -1184,6 +1184,17 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) return res.status(400).json({ error: "Ungültige Eingabe" });
       if (error instanceof FunnelWriteError) return res.status(error.status).json({ error: error.message, code: error.code });
       res.status(500).json({ error: "Versionen konnten nicht geladen werden." });
+    }
+  });
+  app.get("/api/funnels/:id/revisions/:revisionId", isAuthenticated, async (req, res) => {
+    try {
+      const id = z.coerce.number().int().positive().parse(req.params.id);
+      const revisionId = req.params.revisionId === "published" ? "published" : z.coerce.number().int().positive().parse(req.params.revisionId);
+      res.json(await readFunnelRevision(id, getUserId(req)!, revisionId));
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: "Ungültige Eingabe" });
+      if (error instanceof FunnelWriteError) return res.status(error.status).json({ error: error.message });
+      res.status(500).json({ error: "Version konnte nicht geladen werden." });
     }
   });
   app.post("/api/funnels/:id/revisions/:revisionId/restore", isAuthenticated, async (req, res) => {

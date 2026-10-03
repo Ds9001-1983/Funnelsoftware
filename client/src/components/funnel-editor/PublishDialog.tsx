@@ -1,3 +1,4 @@
+import { RevisionComparison } from "./RevisionComparison";
 import { useMemo } from "react";
 import { publishIssues, type PublishIssue } from "@shared/publish-check";
 import { PublishChecklist } from "./PublishChecklist";
@@ -35,6 +36,7 @@ export function PublishDialog({
   onPublish,
   onFocusIssue,
 }: PublishDialogProps) {
+  const [showComparison, setShowComparison] = useState(false);
   const { toast } = useToast();
   const issues = useMemo(() => publishIssues(funnel), [funnel]);
   const hasErrors = issues.some(issue => issue.severity === "error");
@@ -54,6 +56,7 @@ export function PublishDialog({
       setSlug(initial);
       setIsAvailable(funnel.slug ? true : null);
       setCopied(false);
+      setShowComparison(false);
       setActiveTab("url");
     }
   }, [open, funnel.slug, funnel.name]);
@@ -160,7 +163,7 @@ export function PublishDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className={`${showComparison ? "sm:max-w-6xl" : "sm:max-w-2xl"} max-h-[90vh] overflow-y-auto`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5 text-primary" />
@@ -259,6 +262,8 @@ export function PublishDialog({
               )}
             </div>
 
+            {isPublished && <Button variant="outline" onClick={() => setShowComparison(value => !value)}>{showComparison ? "Vergleich schließen" : "Mit Live-Stand vergleichen"}</Button>}
+            {showComparison && <RevisionComparison funnel={funnel} revisionId="published" />}
             <PublishChecklist issues={issues} onFocus={onFocusIssue} />
 
             {/* Actions */}

@@ -58,6 +58,8 @@ interface FunnelRendererProps {
    *  Window (Vollseiten-Funnel), "preview" nur den eigenen Content-Container
    *  (eingebettet, z. B. im Phone-Mockup). */
   mode: "live" | "preview";
+  /** Only for a keyed, read-only version preview. Ignored in live mode. */
+  initialPageId?: string;
   /** Absenden des Leads. Fehlt der Callback (Vorschau), wird Erfolg simuliert:
    *  Sprung zur Danke-Seite + Konfetti, ohne jeden Netzwerk-Call.
    *  Rückgabe false → Fehlermeldung "Absenden fehlgeschlagen",
@@ -87,6 +89,7 @@ export function FunnelRenderer({
   funnel: sourceFunnel,
   personalizationSearch = "",
   mode,
+  initialPageId,
   onSubmit,
   onPageView,
   header,
@@ -95,11 +98,12 @@ export function FunnelRenderer({
 }: FunnelRendererProps) {
   const modernRouting = sourceFunnel.routingEnabled ?? needsRoutingDocument(sourceFunnel.pages, sourceFunnel.abTests ?? []);
   const funnel = useMemo(() => modernRouting ? { ...sourceFunnel, pages: sourceFunnel.pages.filter(page => !page.hidden) } : sourceFunnel, [sourceFunnel, modernRouting]);
-  const [visitedPath, setVisitedPath] = useState<string[]>(() => funnel.pages[0] ? [funnel.pages[0].id] : []);
+  const initialIndex = mode === "preview" ? Math.max(0, funnel.pages.findIndex(page => page.id === initialPageId)) : 0;
+  const [visitedPath, setVisitedPath] = useState<string[]>(() => funnel.pages[initialIndex] ? [funnel.pages[initialIndex].id] : []);
   const navigationLock = useRef(false);
   const submissionLock = useRef(false);
   const completedSubmission = useRef(false);
-  const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [currentPageIndex, setCurrentPageIndex] = useState(initialIndex);
   const [slideDirection, setSlideDirection] = useState<"left" | "right">("left");
   const [isAnimating, setIsAnimating] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, string>>({});

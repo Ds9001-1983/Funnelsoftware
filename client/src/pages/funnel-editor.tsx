@@ -1144,7 +1144,7 @@ export default function FunnelEditor() {
       <EditorRecoveryBar funnel={localFunnel} recovery={recovery} conflict={conflict} unavailable={recoveryUnavailable} onDiscard={discardRecovery} />
       {libraryEditing && selectedPage && <div className="px-3 py-1 border-b"><BuilderLibrary funnel={localFunnel} pageIndex={selectedPageIndex} onInsert={pages => updateLocalFunnel({ pages })} /></div>}
       {localFunnel.status === "published" && <p className="text-xs text-muted-foreground px-4 py-1 border-b">Du bearbeitest den Entwurf. Inhaltsänderungen werden erst mit „Veröffentlichen“ live.</p>}
-      <RevisionDialog open={showRevisions} onOpenChange={setShowRevisions} funnelId={localFunnel.id} onRestore={restoreRevision} />
+      <RevisionDialog open={showRevisions} onOpenChange={setShowRevisions} funnelId={localFunnel.id} funnel={localFunnel} onRestore={restoreRevision} />
 
       {/* Main content - 3-Panel Layout */}
       <div className="flex-1 flex overflow-hidden">
