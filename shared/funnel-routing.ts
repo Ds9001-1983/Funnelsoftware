@@ -54,7 +54,7 @@ export function answersOnPath(pages: FunnelPage[], path: string[], values: Recor
   const keys = new Set(pages.filter(page => path.includes(page.id)).flatMap(page => page.elements.flatMap(element => [element.id, ...(element.quizConfig?.questions.map(question => `${element.id}:${question.id}`) ?? [])])));
   return Object.fromEntries(Object.entries(values).filter(([key]) => keys.has(key)));
 }
-export function captureAnswers(pages: FunnelPage[], path: string[], values: Record<string, string>, contentRevisionId = 0, variants?: Record<string, string>, documentVersion: 3 | 4 | 5 = 3): AnswerSnapshot {
+export function captureAnswers(pages: FunnelPage[], path: string[], values: Record<string, string>, contentRevisionId = 0, variants?: Record<string, string>, documentVersion: 3 | 4 | 5 | 6 = 3): AnswerSnapshot {
   return { version: 1, documentVersion, contentRevisionId, path: [...path], ...(variants ? { variants } : {}), fields: pages.filter(page => path.includes(page.id)).flatMap(page => page.elements.filter(element => values[element.id] !== undefined && responseTypes.has(element.type)).map(element => {
     const value = values[element.id];
     const choice = element.choices?.find(choice => choice.id === value);

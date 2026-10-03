@@ -47,6 +47,24 @@ Wiederherstellung bleibt eine gesonderte Aktion.
 Validierung: drei Unit-Tests, Typecheck, Build und zwei Browserabläufe einschließlich
 fremder Zugriffe, unverändertem Live-Inhalt, keiner Lead-/Tracking-Anfrage sowie
 bestehendem Wiederherstellungsablauf bestanden. Vergleichsansicht visuell geprüft.
-## 4. Mobile Darstellung — offen
+## 4. Mobile Darstellung — umgesetzt am 03.10.2026
+
+Machbar mit additiven Inhaltsfeldern, ohne Datenbankmigration. Dokumentversion 6
+schützt gerätespezifische Angaben vor älteren Editoren. Handy (<640 px), Tablet
+(640–1023 px), Desktop (ab 1024 px): Schriftgrößen für Texte/Buttons/Eingaben,
+Elementabstände, Bildhöhe und Ausschnitt. Leere Werte erben Desktop bzw. Bestand.
+Canvas misst die gewählte Vorschaugröße; öffentliche Ausgabe und Versionsvergleich
+nutzen denselben Renderer. Der Canvas markiert mögliche Überläufe/abgeschnittene
+Texte und führt zum Element. Kopieren, Vorlagen, Wiederherstellung und
+Antwort-Snapshots verstehen v6. Bestehende Inhalte bleiben unverändert.
+
+Freischaltung nach einem kompatiblen Release über `BUILDER_RESPONSIVE_EDITOR=true`;
+Standard ist aus. Der Leser arbeitet auch ohne diese Bearbeitungsfreigabe.
+Nach ersten v6-Veröffentlichungen bei einem Rollback den v6-Leser erhalten.
+
+Validierung: 430 Unit-/Komponententests, Typecheck und Build bestanden (58
+Datenbanktests separat). Drei Browserabläufe für Layout-Editing, Vergleich und
+Geräteeinstellungen bestanden; zusätzliche Prüfung von Überlaufhinweisen und
+Schreibschutz bei deaktivierter Fähigkeit bestanden. Handyansicht visuell geprüft.
 ## 5. KI-Inhaltsbearbeitung — offen
 ## 6. Webhook-Warteschlange — offen

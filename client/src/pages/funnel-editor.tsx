@@ -1,3 +1,5 @@
+import { ResponsiveViewport } from "@/components/funnel-viewer/ResponsiveViewport";
+import { ResponsiveProperties } from "@/components/funnel-editor/ResponsiveProperties";
 import { PersonalizationPanel, type PersonalizationTestValues } from "@/components/funnel-editor/PersonalizationPanel";
 import { BuilderLibrary } from "@/components/funnel-editor/BuilderLibrary";
 import { personalizedElementTypes, type PersonalizationContext } from "@shared/funnel-personalization";
@@ -219,14 +221,15 @@ export default function FunnelEditor() {
       try {
         const response = await fetch("/api/funnels/editor-capabilities", { credentials: "include" });
         const data = response.ok ? await response.json() : null;
-        return { layoutEditing: data?.layoutEditing === true, routingEditing: data?.routingEditing === true, personalizationEditing: data?.personalizationEditing === true, libraryEditing: data?.libraryEditing === true };
-      } catch { return { layoutEditing: false, routingEditing: false, personalizationEditing: false, libraryEditing: false }; }
+        return { layoutEditing: data?.layoutEditing === true, routingEditing: data?.routingEditing === true, personalizationEditing: data?.personalizationEditing === true, libraryEditing: data?.libraryEditing === true, responsiveEditing: data?.responsiveEditing === true };
+      } catch { return { layoutEditing: false, routingEditing: false, personalizationEditing: false, libraryEditing: false, responsiveEditing: false }; }
     },
     staleTime: Infinity,
   });
   const layoutEditing = editorCapabilities?.layoutEditing === true;
   const routingEditing = editorCapabilities?.routingEditing === true;
   const personalizationEditing = editorCapabilities?.personalizationEditing === true;
+  const responsiveEditing = editorCapabilities?.responsiveEditing === true;
   const libraryEditing = editorCapabilities?.libraryEditing === true;
 
   // Daten-/Persistenz-Layer extrahiert in einen Hook (Stufe 3.1). Die alten
@@ -253,7 +256,7 @@ export default function FunnelEditor() {
     saveCurrent, saveBeforeLeave, restoreRevision, pendingWrites, conflict, recovery, discardRecovery, recoveryUnavailable,
     updateLocalFunnel,
     updatePage: persistPage,
-  } = useFunnelEditor(params?.id, layoutEditing, routingEditing, personalizationEditing, libraryEditing);
+  } = useFunnelEditor(params?.id, layoutEditing, routingEditing, personalizationEditing, libraryEditing, responsiveEditing);
 
   const [personalizationTest, setPersonalizationTest] = useState<PersonalizationTestValues>({ enabled: false, answers: {}, campaign: {} });
   useEffect(() => setPersonalizationTest({ enabled: false, answers: {}, campaign: {} }), [params?.id]);
@@ -604,7 +607,7 @@ export default function FunnelEditor() {
   // Keyboard shortcuts for copy/paste and undo/redo
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (localFunnel && !canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing, libraryEditing)) return;
+      if (localFunnel && !canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing, libraryEditing, responsiveEditing)) return;
       // Check if we're in an input field
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
@@ -642,7 +645,7 @@ export default function FunnelEditor() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [localFunnel, layoutEditing, routingEditing, personalizationEditing, libraryEditing, selectedElementId, copySelectedElement, copyCurrentPage, pasteFromClipboard, deleteSelectedElement, duplicateSelectedElement]);
+  }, [localFunnel, layoutEditing, routingEditing, personalizationEditing, libraryEditing, responsiveEditing, selectedElementId, copySelectedElement, copyCurrentPage, pasteFromClipboard, deleteSelectedElement, duplicateSelectedElement]);
 
   const moveElementUp = useCallback(() => {
     if (!localFunnel || !selectedElementId) return;
@@ -968,7 +971,7 @@ export default function FunnelEditor() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (localFunnel && !canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing, libraryEditing)) return;
+      if (localFunnel && !canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing, libraryEditing, responsiveEditing)) return;
       const target = e.target as HTMLElement;
       const isEditing =
         target.tagName === "INPUT" ||
@@ -1017,7 +1020,7 @@ export default function FunnelEditor() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [localFunnel, layoutEditing, routingEditing, personalizationEditing, libraryEditing, hasChanges, handleUndo, handleRedo, handleSave, moveElementUp, moveElementDown, selectedElementId]);
+  }, [localFunnel, layoutEditing, routingEditing, personalizationEditing, libraryEditing, responsiveEditing, hasChanges, handleUndo, handleRedo, handleSave, moveElementUp, moveElementDown, selectedElementId]);
 
   // Der Builder ist für kleine Viewports nicht bedienbar — statt einer kaputten
   // Oberfläche einen klaren Hinweis zeigen (Desktop-Editor bleibt unverändert).
@@ -1092,7 +1095,7 @@ export default function FunnelEditor() {
 
   const selectedPage = localFunnel.pages[selectedPageIndex];
 
-  if (!canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing, libraryEditing)) {
+  if (!canEditFunnelDocument(localFunnel, layoutEditing, routingEditing, personalizationEditing, libraryEditing, responsiveEditing)) {
     return (
       <ErrorBoundary>
         <div className="p-4 border-b space-y-2">
@@ -1142,7 +1145,7 @@ export default function FunnelEditor() {
         onOpenPreview={openDraftPreview}
       />
       <EditorRecoveryBar funnel={localFunnel} recovery={recovery} conflict={conflict} unavailable={recoveryUnavailable} onDiscard={discardRecovery} />
-      {libraryEditing && selectedPage && <div className="px-3 py-1 border-b"><BuilderLibrary funnel={localFunnel} pageIndex={selectedPageIndex} onInsert={pages => updateLocalFunnel({ pages })} /></div>}
+      {libraryEditing && selectedPage && <div className="px-3 py-1 border-b"><BuilderLibrary maxDocumentVersion={responsiveEditing ? 6 : 5} funnel={localFunnel} pageIndex={selectedPageIndex} onInsert={pages => updateLocalFunnel({ pages })} /></div>}
       {localFunnel.status === "published" && <p className="text-xs text-muted-foreground px-4 py-1 border-b">Du bearbeitest den Entwurf. Inhaltsänderungen werden erst mit „Veröffentlichen“ live.</p>}
       <RevisionDialog open={showRevisions} onOpenChange={setShowRevisions} funnelId={localFunnel.id} funnel={localFunnel} onRestore={restoreRevision} />
 
@@ -1281,7 +1284,7 @@ export default function FunnelEditor() {
 
         {/* CENTER - Preview */}
         <div
-          className="flex-1 bg-muted/30 overflow-y-auto flex items-start justify-center p-4 md:p-8"
+          className="flex-1 bg-muted/30 overflow-auto flex items-start p-4 md:p-8"
           onClick={() => {
             if (selectedElementId) {
               setSelectedElementId(null);
@@ -1291,11 +1294,12 @@ export default function FunnelEditor() {
         >
           <div
             style={{
-              maxWidth: previewMode === "phone" ? "375px" : previewMode === "tablet" ? "768px" : "1024px",
-              width: "100%"
+              width: previewMode === "phone" ? 375 : previewMode === "tablet" ? 768 : 1024,
+              flexShrink: 0, margin: "0 auto"
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            <ResponsiveViewport inspect={responsiveEditing ? id => { setSelectedElementId(id); setShowRightPanel(true); } : undefined}>
             {AB_TESTS_ENABLED && (localFunnel.abTests || []).some(
               (t) => t.pageId === selectedPage?.id && t.status === "running",
             ) && (
@@ -1372,6 +1376,7 @@ export default function FunnelEditor() {
                 updatePage(selectedPageIndex, { elements: newElements });
               }}
             />}
+            </ResponsiveViewport>
           </div>
         </div>
 
@@ -1389,6 +1394,7 @@ export default function FunnelEditor() {
                 onClose={() => { setSelectedElementId(null); setShowRightPanel(false); }}
                 pages={localFunnel?.pages?.map(p => ({ id: p.id, title: p.title })) || []}
               />
+              {responsiveEditing && <ResponsiveProperties element={selectedElement} device={previewMode === "phone" ? "mobile" : previewMode} onDeviceChange={device => setPreviewMode(device === "mobile" ? "phone" : device)} onUpdate={updateSelectedElement} />}
               {personalizationEditing && personalizedElementTypes.has(selectedElement.type) && <div className="px-4 pb-4"><PersonalizationPanel key={selectedElement.id} funnel={localFunnel} element={selectedElement} onUpdate={updateSelectedElement} testValues={personalizationTest} onTestValues={setPersonalizationTest} /></div>}
             </>)}
           </div>

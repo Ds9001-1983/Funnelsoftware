@@ -57,6 +57,7 @@ jobs:
       BUILDER_ROUTING_EDITOR: "true"
       BUILDER_PERSONALIZATION_EDITOR: "true"
       BUILDER_LIBRARY_EDITOR: "true"
+      BUILDER_RESPONSIVE_EDITOR: "true"
 
     steps:
       - uses: actions/checkout@v4

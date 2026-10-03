@@ -13,9 +13,9 @@ import { useToast } from "@/hooks/use-toast";
 import { FunnelRenderer } from "@/components/funnel-viewer/FunnelRenderer";
 import { MediaLibrary } from "./MediaLibrary";
 
-interface Props { funnel: Funnel; pageIndex: number; onInsert: (pages: FunnelPage[]) => void }
+interface Props { maxDocumentVersion?: number; funnel: Funnel; pageIndex: number; onInsert: (pages: FunnelPage[]) => void }
 
-function TemplateLibrary({ funnel, pageIndex, onInsert }: Props) {
+function TemplateLibrary({ funnel, pageIndex, onInsert, maxDocumentVersion = 5 }: Props) {
   const { user } = useAuth(), { toast } = useToast(), cache = useQueryClient();
   const [name, setName] = useState(""), [selection, setSelection] = useState("page"), [search, setSearch] = useState("");
   const [archived, setArchived] = useState(false), [busy, setBusy] = useState(false), [cursors, setCursors] = useState<number[]>([]);
@@ -88,9 +88,10 @@ function TemplateLibrary({ funnel, pageIndex, onInsert }: Props) {
           }}><option value="" disabled>Bitte zuordnen</option>{!ref.required && <option value="__remove">Verweis ausdrücklich entfernen</option>}{options.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>;
         })}
       </fieldset>}
+      {proposal && proposal.content.documentVersion > maxDocumentVersion && <p role="alert">Diese Vorlage benötigt die freigeschaltete Gerätebearbeitung.</p>}
       {importError && <p role="status" className="text-sm text-amber-700">{importError}</p>}
       {previewPage && <div className="border rounded max-h-72 overflow-y-auto pointer-events-none" aria-label="Vorschau der Kopie"><FunnelRenderer key={`${proposal?.id}-${design}`} funnel={{ pages: [previewPage], theme: funnel.theme }} mode="preview" className="min-h-0" /></div>}
-      <DialogFooter><Button variant="outline" onClick={() => setProposal(null)}>Abbrechen</Button><Button disabled={!previewPages} onClick={() => { if (!proposal || !previewPages) return; onInsert(previewPages); setProposal(null); }}>Kopie einfügen</Button></DialogFooter>
+      <DialogFooter><Button variant="outline" onClick={() => setProposal(null)}>Abbrechen</Button><Button disabled={!previewPages || (proposal?.content.documentVersion ?? 1) > maxDocumentVersion} onClick={() => { if (!proposal || !previewPages || proposal.content.documentVersion > maxDocumentVersion) return; onInsert(previewPages); setProposal(null); }}>Kopie einfügen</Button></DialogFooter>
     </DialogContent></Dialog>
   </section>;
 }

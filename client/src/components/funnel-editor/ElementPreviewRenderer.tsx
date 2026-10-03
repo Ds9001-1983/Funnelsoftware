@@ -1,3 +1,5 @@
+import { elementResponsiveStyle } from "@shared/funnel-responsive";
+import { useResponsiveDevice } from "@/components/funnel-viewer/ResponsiveViewport";
 import { elementChoices } from "@shared/funnel-routing";
 import { resolvePersonalizedContent, type PersonalizationContext } from "@shared/funnel-personalization";
 import { memo, useEffect, useState } from "react";
@@ -225,7 +227,7 @@ interface ElementPreviewRendererProps extends ElementActions {
  * Renders a single element in the preview based on its type.
  */
 function ElementPreviewRendererBase({
-  element: el,
+  element: sourceElement,
   personalizationContext,
   design,
   textColor,
@@ -248,9 +250,13 @@ function ElementPreviewRendererBase({
   canMoveDown,
   onContentCommit,
 }: ElementPreviewRendererProps) {
+  const device = useResponsiveDevice();
+  const responsive = elementResponsiveStyle(sourceElement, device);
+  const el = responsive.fontSize === undefined ? sourceElement : { ...sourceElement, styles: { ...sourceElement.styles, fontSize: `${responsive.fontSize}px` } };
   const displayContent = el.personalization && personalizationContext ? resolvePersonalizedContent(el, personalizationContext) : undefined;
   const wrapperProps = {
     elementId: el.id,
+    style: { padding: responsive.padding, margin: responsive.margin },
     elementType: el.type,
     selectedElementId,
     onSelectElement,
@@ -296,7 +302,7 @@ function ElementPreviewRendererBase({
             value={formValues[el.id] || ""}
             onChange={(value) => updateFormValue?.(el.id, value)}
             className="shadow-sm"
-            style={design ? { borderRadius: el.styles?.borderRadius ?? design.radius, fontSize: el.styles?.fontSize ?? design.bodySize } : undefined}
+            style={design || responsive.fontSize !== undefined ? { borderRadius: el.styles?.borderRadius ?? design?.radius, fontSize: el.styles?.fontSize ?? design?.bodySize } : undefined}
           />
         </ElementWrapper>
       );
@@ -773,12 +779,12 @@ function ElementPreviewRendererBase({
                 src={el.imageUrl}
                 alt={el.imageAlt || "Bild"}
                 className="rounded-lg shadow-md object-cover w-full"
-                style={sizeStyle}
+                style={{ ...sizeStyle, ...(responsive.imageHeight !== undefined ? { height: responsive.imageHeight, maxHeight: "none" } : {}), objectPosition: `${responsive.imageX ?? 50}% ${responsive.imageY ?? 50}%` }}
               />
             ) : (
               <div
                 className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center w-full"
-                style={sizeStyle}
+                style={{ ...sizeStyle, ...(responsive.imageHeight !== undefined ? { height: responsive.imageHeight, maxHeight: "none" } : {}), objectPosition: `${responsive.imageX ?? 50}% ${responsive.imageY ?? 50}%` }}
               >
                 <Image className="h-8 w-8 text-gray-400" />
               </div>
@@ -875,7 +881,7 @@ function ElementPreviewRendererBase({
             : { borderRadius: design.radius, fontSize: design.bodySize }),
         ...Object.fromEntries(Object.entries(el.styles ?? {}).filter(([key]) =>
           ["color", "backgroundColor", "fontSize", "borderRadius", "padding"].includes(key))),
-      } : legacyBtnStyle;
+      } : { ...legacyBtnStyle, ...(responsive.fontSize !== undefined ? { fontSize: responsive.fontSize } : {}) };
       const handleClick = (e: React.MouseEvent) => {
         if (!onButtonClick) return;
         e.stopPropagation();

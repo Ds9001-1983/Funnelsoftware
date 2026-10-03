@@ -23,11 +23,11 @@ if (typeof window !== "undefined") Object.defineProperty(window, "matchMedia", {
 });
 
 // Mock für ResizeObserver (für responsive Komponenten)
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+global.ResizeObserver = class {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+};
 
 // Mock für IntersectionObserver
 global.IntersectionObserver = vi.fn().mockImplementation(() => ({

@@ -1,3 +1,4 @@
+import { ResponsiveViewport } from "./ResponsiveViewport";
 import { needsRoutingDocument, resolveVisitorTransition, answersOnPath, captureAnswers, answerText } from "@shared/funnel-routing";
 import { campaignValues, needsPersonalizationDocument, type PersonalizationContext } from "@shared/funnel-personalization";
 import type { ABTest, AnswerSnapshot } from "@shared/schema";
@@ -85,7 +86,9 @@ interface FunnelRendererProps {
  * ohne Callbacks rendert die Komponente einen komplett offline
  * durchspielbaren Funnel (Template-/Owner-Vorschau).
  */
-export function FunnelRenderer({
+export function FunnelRenderer(props: FunnelRendererProps) { return <ResponsiveViewport><FunnelRendererContent {...props} /></ResponsiveViewport>; }
+
+function FunnelRendererContent({
   funnel: sourceFunnel,
   personalizationSearch = "",
   mode,
@@ -281,7 +284,7 @@ export function FunnelRenderer({
       company: company || undefined,
       message: message || undefined,
       answers: formData,
-      ...(modernRouting ? { answerSnapshot: captureAnswers(funnel.pages, visitedPath, formValues, funnel.publishedRevisionId ?? 0, funnel.variantAssignments, funnel.documentVersion === 5 ? 5 : personalizedDocument || funnel.documentVersion === 4 ? 4 : 3) } : {}),
+      ...(modernRouting ? { answerSnapshot: captureAnswers(funnel.pages, visitedPath, formValues, funnel.publishedRevisionId ?? 0, funnel.variantAssignments, funnel.documentVersion === 6 ? 6 : funnel.documentVersion === 5 ? 5 : personalizedDocument || funnel.documentVersion === 4 ? 4 : 3) } : {}),
       website: honeypotRef.current?.value || undefined,
     };
   }, [funnel, formValues, modernRouting, visitedPath, personalizedDocument]);

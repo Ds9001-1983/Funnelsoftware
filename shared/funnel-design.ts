@@ -17,6 +17,7 @@ const elementStyleKeys = ["color", "backgroundColor", "fontSize", "borderRadius"
 /** Only these explicitly advertised overrides are reset; layout and content stay intact. */
 function resetElement(element: PageElement) {
   delete element.buttonVariant;
+  for (const style of Object.values(element.responsive ?? {})) delete style.fontSize;
   for (const key of elementStyleKeys) if (element.styles) delete element.styles[key];
 }
 function resetPage(page: FunnelPage) {
@@ -28,7 +29,7 @@ function resetPage(page: FunnelPage) {
 }
 export function designOverrideCount(funnel: Pick<Funnel, "pages" | "abTests">): number {
   let count = 0;
-  const elements = (items: PageElement[]) => { for (const element of items) count += Number(!!element.buttonVariant) + elementStyleKeys.filter(key => element.styles?.[key] !== undefined).length; };
+  const elements = (items: PageElement[]) => { for (const element of items) count += Object.values(element.responsive ?? {}).filter(style => style.fontSize !== undefined).length + Number(!!element.buttonVariant) + elementStyleKeys.filter(key => element.styles?.[key] !== undefined).length; };
   for (const page of funnel.pages) {
     count += Number(!!page.themeOverride) + Number(!!page.backgroundColor) + Number(!!page.pageStyles?.fontFamily);
     count += (page.layout?.sections ?? []).reduce((sum, section) => sum + Number(!!section.themeOverride) + Number(!!section.backgroundColor) + Number(!!section.textColor), 0);

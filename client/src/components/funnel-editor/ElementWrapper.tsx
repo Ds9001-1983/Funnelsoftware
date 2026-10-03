@@ -61,6 +61,7 @@ export const elementTypeLabels: Record<string, string> = {
 };
 
 interface ElementWrapperProps {
+  style?: React.CSSProperties;
   elementId: string;
   elementType: string;
   selectedElementId?: string | null;
@@ -87,6 +88,7 @@ interface ElementWrapperProps {
  */
 export function ElementWrapper({
   elementId,
+  style,
   elementType,
   selectedElementId,
   onSelectElement,
@@ -110,6 +112,8 @@ export function ElementWrapper({
 
   const wrapped = (
     <div
+      style={style}
+      data-funnel-element={elementId}
       data-element-id={elementId}
       className={`element-wrapper relative group cursor-pointer transition-all duration-200 rounded-lg p-1 ${
         isSelected

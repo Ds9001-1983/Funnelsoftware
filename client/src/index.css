@@ -520,3 +520,5 @@
 .bug-mask-active [data-bug-mask] {
   filter: blur(8px);
 }
+
+[data-funnel-overflow] { outline: 2px dashed #d97706; outline-offset: 3px; }

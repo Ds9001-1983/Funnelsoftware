@@ -8,7 +8,7 @@ import { elementChoices, fieldLabel, responseTypes } from "./funnel-routing";
 export const libraryNameSchema = z.string().trim().min(1).max(100);
 export const libraryContentSchema = z.object({
   format: z.literal(1),
-  documentVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
+  documentVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6)]),
   page: funnelPageSchema,
   theme: themeSchema.omit({ source: true }),
   origin: z.object({
@@ -129,6 +129,7 @@ function adoptTargetDesign(page: FunnelPage): FunnelPage {
   for (const section of page.layout?.sections ?? []) { delete section.themeOverride; delete section.backgroundColor; delete section.textColor; }
   for (const element of page.elements) {
     delete element.buttonVariant;
+  for (const style of Object.values(element.responsive ?? {})) delete style.fontSize;
     for (const key of ["color", "backgroundColor", "fontSize", "borderRadius"] as const) if (element.styles) delete element.styles[key];
   }
   return page;
