@@ -2,6 +2,7 @@ import { requiredDocumentVersion } from "@shared/funnel-document";
 import { eq, desc, and, sql, gte, lt, inArray } from "drizzle-orm";
 import { quizTemplateElement } from "@shared/quiz-template";
 import { db } from "./db";
+import { queueLeadWebhook } from "./webhook-jobs";
 import { queueRecruitingEmails } from "./recruiting";
 import { publishedDocument, writeFunnel } from "./funnel-revisions";
 import { needsLayoutDocument } from "@shared/funnel-layout";
@@ -643,6 +644,7 @@ export class DatabaseStorage implements IStorage {
   async createLead(insertLead: InsertLead, userId: number): Promise<Lead & { deduplicated?: boolean }> {
     // Transaction: Lead erstellen + Counter erhöhen atomar
     return await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`lead-intake:${userId}`}))`);
       // Serialisiert Wiederholungen derselben Bewerbung; die bisherige
       // Vorabprüfung allein war bei parallelen Formular-Requests nicht atomar.
       if (insertLead.email) {
@@ -657,6 +659,9 @@ export class DatabaseStorage implements IStorage {
       const [lead] = await tx.insert(leads).values({
         ...insertLead,
         userId,
+        // Assign after the owner lock: transaction-start timestamps can reorder
+        // parallel intakes and change which lead is inside the free quota.
+        createdAt: new Date(),
         status: "new",
         // Einwilligungsnachweis explizit persistieren (Art. 7 Abs. 1 DSGVO)
         marketingConsent: insertLead.marketingConsent ?? false,
@@ -669,11 +674,12 @@ export class DatabaseStorage implements IStorage {
         .where(eq(funnels.id, insertLead.funnelId));
 
       // Get funnel name
-      const [funnel] = await tx.select({ name: funnels.name })
+      const [funnel] = await tx.select()
         .from(funnels)
         .where(eq(funnels.id, insertLead.funnelId));
 
       await queueRecruitingEmails(tx, lead, "created");
+      if (funnel) await queueLeadWebhook(tx, lead, funnel);
       return this.mapLeadToResponse(lead, funnel?.name);
     });
   }

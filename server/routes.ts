@@ -29,7 +29,7 @@ import {
   findBlockingSubscription,
   cancelAllSubscriptions,
 } from "./stripe";
-import { sendWebhook, buildWebhookPayload } from "./webhooks";
+import { listWebhookDeliveries } from "./webhook-jobs";
 import { sendCapiEvent, extractCapiRequestContext, buildPurchaseEvent } from "./capi";
 import { TRICHTERWERK_PIXEL_ID } from "@shared/meta";
 import { aggregateAbTestStats } from "./ab-stats";
@@ -1175,6 +1175,20 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/funnels/:id/webhook-deliveries", isAuthenticated, async (req, res) => {
+    const funnelId = Number(req.params.id);
+    const before = req.query.before === undefined ? undefined : Number(req.query.before);
+    if (!Number.isSafeInteger(funnelId) || funnelId <= 0 || (before !== undefined && (!Number.isSafeInteger(before) || before <= 0))) {
+      return res.status(400).json({ error: "Ungültige Verlaufsanfrage" });
+    }
+    try {
+      if (!await storage.getFunnel(funnelId, req.user!.id)) return res.status(404).json({ error: "Funnel nicht gefunden" });
+      res.json(await listWebhookDeliveries(funnelId, req.user!.id, before));
+    } catch {
+      res.status(500).json({ error: "Versandverlauf konnte nicht geladen werden" });
+    }
+  });
+
   app.get("/api/funnels/:id/revisions", isAuthenticated, async (req, res) => {
     try {
       const id = z.coerce.number().int().positive().parse(req.params.id);
@@ -1655,12 +1669,6 @@ export async function registerRoutes(
         } catch (err) {
           console.error("Lead-Limit-Prüfung fehlgeschlagen:", err);
         }
-      }
-
-      // Async: Webhook + E-Mail Benachrichtigung (non-blocking, nur entsperrte Leads)
-      if (!leadLocked && funnel.webhookEnabled && funnel.webhookUrl) {
-        const payload = buildWebhookPayload(funnel, lead);
-        sendWebhook(funnel.webhookUrl, payload, funnel.webhookSecret).catch(() => {});
       }
 
       // E-Mail an Funnel-Owner — abbestellbar über Settings → Benachrichtigungen

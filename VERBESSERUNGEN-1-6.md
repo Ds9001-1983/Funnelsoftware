@@ -84,4 +84,45 @@ Validierung: sechs neue Tests zu Anbieterschnittstelle, Platzhaltern, veralteten
 Texten und Erhaltung anderer Felder; Typecheck, Build und Browserablauf inklusive
 fehlendem Schlüssel, Zugriffstrennung und unverändertem Live-Stand bestanden.
 Anbieterantworten in Tests simuliert; keine kostenpflichtigen KI-Aufrufe ausgeführt.
-## 6. Webhook-Warteschlange — offen
+## 6. Webhook-Warteschlange — umgesetzt am 03.10.2026
+
+Machbar mit einer additiven PostgreSQL-Outbox. Lead und Versandauftrag werden
+atomar gespeichert, einschließlich unveränderlichem JSON-Snapshot und Ereignis-ID.
+Der Worker beansprucht Aufträge atomar, auch bei mehreren Serverprozessen. Nach
+einem Abbruch können abgelaufene Reservierungen erneut verarbeitet werden.
+Bis zu fünf Versuche, Wartezeiten 1/5/15/60 Minuten bei Netzwerkfehlern, HTTP
+408/429/5xx; andere HTTP-Fehler beenden die Zustellung. Keine Weiterleitungen.
+DNS-Ziele werden auf öffentliche IP-Adressen geprüft und für den Verbindungsaufbau
+festgehalten; TLS prüft weiterhin den ursprünglichen Hostnamen.
+
+Empfänger müssen mögliche Mehrfachzustellungen über `event_id` bzw.
+`Idempotency-Key` deduplizieren. Der Body und die Ereignis-ID bleiben gleich;
+die bisherige HMAC-SHA256-Signatur bleibt kompatibel. Ein Timeout kann nach bereits
+erfolgter Annahme auftreten, deshalb wird keine Genau-einmal-Zustellung zugesagt.
+
+Vor jedem Versuch werden Konfiguration, Eigentümer und Lead-Freigabe erneut
+geprüft. Geänderte/abgeschaltete Webhooks und gesperrte Leads werden abgebrochen.
+Paralleler Eingang am Free-Limit ist serialisiert; Erstellungszeit wird erst nach
+der Sperre vergeben. Der Verlauf zeigt nur eigene Status-/Versuchsdaten, weder
+Payloads noch Geheimnisse. Lead-Löschung entfernt Snapshot und Versuchshistorie.
+
+Betrieb: `node scripts/migrate.mjs` führt die additive Migration vor dem Release aus
+(bestehender Deployment-Ablauf). Keine Nachsendung alter Leads. Worker startet mit
+dem Server; `DISABLE_WEBHOOK_WORKER=1` pausiert die Verarbeitung. Tests verwenden
+diesen Schalter und einen simulierten Transport, niemals echte Empfänger.
+
+Validierung: 28 neue Tests für Transport und isolierten Testbetrieb, 13 neue
+PostgreSQL-Tests für atomare Speicherung, parallele Worker, Wiederholungen,
+Neustart, Konfigurationswechsel, Free-Limit, Zugriffstrennung und Löschung.
+Browserprüfung für realen Lead-Eingang, Deduplizierung, Eigentümerzugriff und
+aktualisierten Verlauf bestanden. Typecheck, Build sowie insgesamt 464
+Unit-/Komponententests und alle 71 Datenbank-/Migrationstests bestanden.
+
+Die gewachsene Browser-Suite überschritt das gemeinsame Registrierungslimit
+(20 pro IP). Höheres Testbudget greift ausschließlich bei explizitem E2E-Modus,
+Development, Loopback-Bindung und lokaler E2E-Datenbank. Produktionslimits bleiben
+unverändert; die Abgrenzung ist getestet.
+
+Abschließende lokale Gesamtprüfung: alle 45 Browserabläufe bestanden (mit allen
+Builder-Freigaben aktiv), einschließlich der bestehenden Editor-, Recruiting-,
+Tracking-, Bibliotheks- und Publikationsabläufe.

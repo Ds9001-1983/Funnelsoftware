@@ -86,6 +86,7 @@ export function createE2EServerEnvironment(source = process.env) {
     SENTRY_DSN: "",
     DISABLE_SCHEDULER: "1",
     DISABLE_RECRUITING_MAIL_WORKER: "1",
+    DISABLE_WEBHOOK_WORKER: "1",
     SESSION_SECRET: "isolated-e2e-session-secret",
     CSRF_SECRET: "isolated-e2e-csrf-secret",
   };

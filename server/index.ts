@@ -14,6 +14,8 @@ import { setupAuth, apiKeyAuth } from "./auth";
 import { storage } from "./storage";
 import { startScheduler } from "./scheduler";
 import { startRecruitingMailWorker } from "./recruiting-mail";
+import { isolatedE2EMode } from "./e2e-mode";
+import { startWebhookWorker } from "./webhook-jobs";
 import { pool } from "./db";
 
 // ============ ENV-VALIDIERUNG ============
@@ -87,7 +89,7 @@ app.use(
 // Rate Limiting - Auth Endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 Minuten
-  max: 20, // Max 20 Versuche pro Fenster
+  max: isolatedE2EMode(process.env) ? 1000 : 20, // Production remains limited to 20 attempts
   message: { error: "Zu viele Anfragen. Bitte versuche es in 15 Minuten erneut." },
   standardHeaders: true,
   legacyHeaders: false,
@@ -115,7 +117,7 @@ app.use("/api/auth/resend-verification", emailFlowLimiter);
 // Rate Limiting - Public Endpoints (Leads, Analytics)
 const publicLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 Minute
-  max: 60, // Max 60 Anfragen pro Minute
+  max: isolatedE2EMode(process.env) ? 2000 : 60, // Independent E2E visitors share loopback
   message: { error: "Zu viele Anfragen. Bitte versuche es später erneut." },
   standardHeaders: true,
   legacyHeaders: false,
@@ -287,6 +289,7 @@ app.get("/api/health", async (_req, res) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
+  let stopWebhookWorker: () => Promise<void> = async () => {};
   httpServer.listen(
     {
       port,
@@ -301,6 +304,7 @@ app.get("/api/health", async (_req, res) => {
       // damit ein Job-Fehler den Serverstart nie verhindert.
       startScheduler();
       startRecruitingMailWorker();
+      stopWebhookWorker = startWebhookWorker();
     },
   );
 
@@ -311,8 +315,10 @@ app.get("/api/health", async (_req, res) => {
     if (shuttingDown) return;
     shuttingDown = true;
     log(`${signal} empfangen — fahre sauber herunter…`);
+    const webhookStopped = stopWebhookWorker();
     httpServer.close(async () => {
       try {
+        await webhookStopped;
         await pool.end();
       } catch {
         // Pool war ggf. schon zu

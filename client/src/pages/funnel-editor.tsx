@@ -1,3 +1,4 @@
+import { WebhookDeliveryHistory } from "@/components/funnel-editor/WebhookDeliveryHistory";
 import { AiTextEditor } from "@/components/funnel-editor/AiTextEditor";
 import { applyTextSuggestion } from "@shared/ai-edit";
 import { ResponsiveViewport } from "@/components/funnel-viewer/ResponsiveViewport";
@@ -1617,6 +1618,7 @@ export default function FunnelEditor() {
                   <p className="text-xs text-muted-foreground">
                     Sendet Lead-Daten als JSON an eine URL (Zapier, Make, etc.)
                   </p>
+                  <WebhookDeliveryHistory key={localFunnel.id} funnelId={localFunnel.id} />
                 </div>
 
                 <div className="space-y-2">

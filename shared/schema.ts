@@ -337,6 +337,24 @@ export const templates = pgTable("templates", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Durable lead webhook delivery. Deleting a lead removes its payload and history.
+export const webhookJobs = pgTable("webhook_jobs", {
+  id: serial("id").primaryKey(), eventId: text("event_id").notNull(),
+  leadId: integer("lead_id").notNull().references(() => leads.id, { onDelete: "cascade" }),
+  funnelId: integer("funnel_id").notNull().references(() => funnels.id, { onDelete: "cascade" }),
+  ownerId: integer("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  targetUrl: text("target_url").notNull(), configHash: text("config_hash").notNull(), payload: jsonb("payload").notNull(),
+  status: text("status").notNull().default("pending"), attempts: integer("attempts").notNull().default(0),
+  nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+  processingAt: timestamp("processing_at", { withTimezone: true }), deliveredAt: timestamp("delivered_at", { withTimezone: true }), errorCode: text("error_code"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, table => [uniqueIndex("webhook_jobs_event_idx").on(table.eventId), uniqueIndex("webhook_jobs_lead_idx").on(table.leadId), index("webhook_jobs_pending_idx").on(table.status, table.nextAttemptAt), index("webhook_jobs_funnel_idx").on(table.funnelId, table.id)]);
+export const webhookAttempts = pgTable("webhook_attempts", {
+  id: serial("id").primaryKey(), jobId: integer("job_id").notNull().references(() => webhookJobs.id, { onDelete: "cascade" }),
+  attempt: integer("attempt").notNull(), outcome: text("outcome").notNull().default("processing"), statusCode: integer("status_code"), errorCode: text("error_code"),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(), finishedAt: timestamp("finished_at", { withTimezone: true }),
+}, table => [uniqueIndex("webhook_attempts_job_idx").on(table.jobId, table.attempt)]);
+
 // Analytics events table
 export const analyticsEvents = pgTable("analytics_events", {
   id: serial("id").primaryKey(),

@@ -1,7 +1,7 @@
 import crypto from "crypto";
 
 
-interface WebhookPayload {
+export interface WebhookPayload {
   event: "lead_created";
   funnel_id: string;
   funnel_name: string;
@@ -13,16 +13,9 @@ interface WebhookPayload {
     phone?: string | null;
     company?: string | null;
     message?: string | null;
-    answers?: Record<string, any> | null;
+    answers?: unknown;
     source?: string | null;
   };
-}
-
-/**
- * Generate HMAC-SHA256 signature for a payload.
- */
-function signPayload(payload: string, secret: string): string {
-  return crypto.createHmac("sha256", secret).update(payload).digest("hex");
 }
 
 /**
@@ -30,46 +23,6 @@ function signPayload(payload: string, secret: string): string {
  */
 export function generateWebhookSecret(): string {
   return crypto.randomBytes(32).toString("hex");
-}
-
-/**
- * Send webhook payload to a URL with optional HMAC signature.
- * Fire-and-forget with error logging.
- */
-export async function sendWebhook(url: string, payload: WebhookPayload, secret?: string | null): Promise<void> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
-    const body = JSON.stringify(payload);
-    const timestamp = new Date().toISOString();
-
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      "User-Agent": "Trichterwerk-Webhook/1.0",
-      "X-Trichterwerk-Timestamp": timestamp,
-    };
-
-    // Add HMAC signature if secret is available
-    if (secret) {
-      const signature = signPayload(body, secret);
-      headers["X-Trichterwerk-Signature"] = `sha256=${signature}`;
-    }
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers,
-      body,
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      console.warn(`Webhook delivery failed: ${url} → ${response.status} ${response.statusText}`);
-    }
-  } catch (error) {
-    console.warn(`Webhook delivery error: ${url} →`, error instanceof Error ? error.message : error);
-  }
 }
 
 /**
@@ -84,7 +37,7 @@ export function buildWebhookPayload(
     phone?: string | null;
     company?: string | null;
     message?: string | null;
-    answers?: Record<string, any> | null;
+    answers?: unknown;
     source?: string | null;
   }
 ): WebhookPayload {
