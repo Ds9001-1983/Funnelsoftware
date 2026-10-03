@@ -66,5 +66,22 @@ Validierung: 430 Unit-/Komponententests, Typecheck und Build bestanden (58
 Datenbanktests separat). Drei Browserabläufe für Layout-Editing, Vergleich und
 Geräteeinstellungen bestanden; zusätzliche Prüfung von Überlaufhinweisen und
 Schreibschutz bei deaktivierter Fähigkeit bestanden. Handyansicht visuell geprüft.
-## 5. KI-Inhaltsbearbeitung — offen
+## 5. KI-Inhaltsbearbeitung — umgesetzt am 03.10.2026
+
+Machbar über die vorhandene BYOK-Anbindung. „Mit KI bearbeiten“ bietet Kürzen,
+drei Varianten oder Umschreiben für eine Zielgruppe. Ein Layout-Abschnitt kann
+mehrere Texte liefern; jeder Vorschlag wird separat geprüft und übernommen.
+Es werden nur die ausgewählten Texte und die Aufgabe an den konfigurierten
+Anbieter geschickt, keine Leads oder übrigen Funnel-Inhalte. Pro/Verifizierung,
+Eigentümerzugriff und bestehende Generierungslimits werden geprüft.
+
+Die KI darf nur Text vorschlagen; IDs und Platzhalter werden validiert. Übernahme
+ändert ausschließlich content, prüft unveränderten Ausgangstext und nutzt die
+bestehende Undo-/Entwurfsspeicherung. Links, Stile und Formularfelder bleiben
+unberührt. Fehlender Schlüssel und Anbieterfehler werden angezeigt.
+
+Validierung: sechs neue Tests zu Anbieterschnittstelle, Platzhaltern, veralteten
+Texten und Erhaltung anderer Felder; Typecheck, Build und Browserablauf inklusive
+fehlendem Schlüssel, Zugriffstrennung und unverändertem Live-Stand bestanden.
+Anbieterantworten in Tests simuliert; keine kostenpflichtigen KI-Aufrufe ausgeführt.
 ## 6. Webhook-Warteschlange — offen

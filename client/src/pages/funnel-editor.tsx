@@ -1,3 +1,5 @@
+import { AiTextEditor } from "@/components/funnel-editor/AiTextEditor";
+import { applyTextSuggestion } from "@shared/ai-edit";
 import { ResponsiveViewport } from "@/components/funnel-viewer/ResponsiveViewport";
 import { ResponsiveProperties } from "@/components/funnel-editor/ResponsiveProperties";
 import { PersonalizationPanel, type PersonalizationTestValues } from "@/components/funnel-editor/PersonalizationPanel";
@@ -1394,6 +1396,12 @@ export default function FunnelEditor() {
                 onClose={() => { setSelectedElementId(null); setShowRightPanel(false); }}
                 pages={localFunnel?.pages?.map(p => ({ id: p.id, title: p.title })) || []}
               />
+              {selectedPage && ["heading", "text", "button"].includes(selectedElement.type) && <AiTextEditor key={`${selectedPage.id}:${selectedElement.id}`} funnelId={localFunnel.id} page={selectedPage} element={selectedElement} onApply={(pageId, elementId, original, replacement) => {
+                const index = localFunnel.pages.findIndex(page => page.id === pageId);
+                if (index < 0) throw new Error("Die Seite wurde inzwischen entfernt.");
+                const next = applyTextSuggestion(localFunnel.pages[index], elementId, original, replacement);
+                if (!updatePage(index, { elements: next.elements })) throw new Error("Der Text konnte nicht übernommen werden.");
+              }} />}
               {responsiveEditing && <ResponsiveProperties element={selectedElement} device={previewMode === "phone" ? "mobile" : previewMode} onDeviceChange={device => setPreviewMode(device === "mobile" ? "phone" : device)} onUpdate={updateSelectedElement} />}
               {personalizationEditing && personalizedElementTypes.has(selectedElement.type) && <div className="px-4 pb-4"><PersonalizationPanel key={selectedElement.id} funnel={localFunnel} element={selectedElement} onUpdate={updateSelectedElement} testValues={personalizationTest} onTestValues={setPersonalizationTest} /></div>}
             </>)}

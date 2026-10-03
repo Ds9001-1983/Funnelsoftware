@@ -1,3 +1,4 @@
+import { aiEditInputSchema } from "@shared/ai-edit";
 import { aggregateFunnelMetrics, metricRangeSchema, metricSince, type AnalyticsOverview } from "@shared/funnel-metrics";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
@@ -58,7 +59,7 @@ import { registerBrandStyleRoutes } from "./brand-style-routes";
 import { changeRecruitingStage, RecruitingError } from "./recruiting";
 import { writeControlSchema, documentVersionSchema } from "@shared/funnel-document";
 import { publishedDocument, readFunnelRevision, listFunnelRevisions, FunnelWriteError } from "./funnel-revisions";
-import { generateFunnel, testConnection, AiError, type DecryptedCredential } from "./ai";
+import { rewriteTexts, generateFunnel, testConnection, AiError, type DecryptedCredential } from "./ai";
 import { z } from "zod";
 
 // Partial update schemas for PATCH endpoints
@@ -2203,6 +2204,20 @@ export async function registerRoutes(
     } catch (e) {
       handleAiError(e, res);
     }
+  });
+
+  app.post("/api/funnels/:id/ai/rewrite", isAuthenticated, requireVerifiedEmail, requirePro, aiGenerateLimiter, async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
+    const id = z.coerce.number().int().positive().safeParse(req.params.id);
+    const parsed = aiEditInputSchema.safeParse(req.body);
+    if (!id.success || !parsed.success) return res.status(400).json({ error: "Bitte gültige Texte und eine Aufgabe auswählen." });
+    try {
+      if (!await storage.getFunnel(id.data, userId)) return res.status(404).json({ error: "Funnel nicht gefunden" });
+      const cred = await loadDecryptedCredential(userId);
+      if (!cred) return res.status(400).json({ error: "Bitte zuerst in den Einstellungen einen KI-Anbieter verbinden.", code: "AI_NO_KEY" });
+      res.json(await rewriteTexts(cred, parsed.data));
+    } catch (error) { handleAiError(error, res); }
   });
 
   // Stripe Webhook (no auth - called by Stripe)
