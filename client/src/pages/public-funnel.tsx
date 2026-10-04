@@ -18,7 +18,7 @@ import {
 } from "@/components/funnel-viewer/FunnelRenderer";
 import type { FunnelPage, Theme, ABTest } from "@shared/schema";
 import { applyVariantOverrides } from "@shared/funnel-layout";
-import { SITE_ORIGIN } from "@shared/seo-links";
+import { FunnelBranding } from "@/components/funnel-viewer/FunnelBranding";
 
 declare global {
   interface Window {
@@ -513,14 +513,7 @@ export default function PublicFunnelView() {
               (showBranding kommt serverseitig berechnet). */}
           {funnel.showBranding !== false && (
             <div>
-              <a
-                href={`${SITE_ORIGIN}/?utm_source=funnel&utm_medium=badge&utm_campaign=powered-by`}
-                target="_blank"
-                rel="noopener"
-                className="hover:underline underline-offset-2"
-              >
-                Erstellt mit Trichterwerk
-              </a>
+              <FunnelBranding />
             </div>
           )}
         </div>

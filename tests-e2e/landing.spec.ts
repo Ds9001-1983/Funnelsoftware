@@ -103,3 +103,26 @@ test("pricing explains the monthly free limit without a time-limited trial offer
   await expect(page.locator("body")).not.toContainText("14 Tage");
   await expect(page.locator("body")).not.toContainText("Alles aus Agency");
 });
+
+test("free-plan preview shows the published branding without submitting leads and returns focus", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 760 });
+  await page.addInitScript(() => localStorage.setItem("trichterwerk-cookie-consent", "true"));
+  const writes: string[] = [];
+  page.on("request", request => { if (/\/api\/public\/(leads|analytics)/.test(request.url())) writes.push(request.url()); });
+  await page.goto("/");
+  const trigger = page.getByRole("button", { name: "So sieht dein Free-Funnel aus" });
+  await trigger.click();
+  const dialog = page.getByRole("dialog", { name: "Dein Funnel im Free-Plan" });
+  await expect(dialog.getByText("Beispieladresse", { exact: true })).toBeVisible();
+  await expect(dialog.getByRole("link", { name: "Erstellt mit Trichterwerk" })).toHaveAttribute("href", "https://trichterwerk.de/?utm_source=funnel&utm_medium=badge&utm_campaign=powered-by");
+  await dialog.getByTestId("button-funnel-next").click();
+  await expect(dialog.getByTestId("button-funnel-back")).toBeVisible();
+  const box = (await dialog.boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(320);
+  await dialog.evaluate(async node => { await document.fonts.ready; await Promise.allSettled(node.getAnimations({ subtree: true }).map(animation => animation.finished)); });
+  await page.screenshot({ path: testInfo.outputPath("free-preview-mobile.png") });
+  await dialog.getByRole("button", { name: "Vorschau schließen" }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(trigger).toBeFocused();
+  expect(writes).toEqual([]);
+});

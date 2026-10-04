@@ -18,3 +18,9 @@ Der Nutzertest (Punkt 6) gehört nicht zu diesem Umsetzungsauftrag.
 
 1. Besucherquellen: Typecheck und acht Landing-Browserprüfungen bestanden.
    Die sichtbaren FAQ und JSON-LD verwenden dieselben Texte.
+
+2. Free-Vorschau: Typecheck und zehn Browserprüfungen bestanden, einschließlich
+   Registrierung bis Veröffentlichung. Vorschau bei 320 px geprüft; Fokus kehrt
+   nach Schließen zum Auslöser zurück. Veröffentlichte Funnels und Vorschau
+   verwenden dieselbe Badge-Komponente. Die Vorschau lädt erst beim Öffnen
+   und erzeugt keine Leads oder Kundenfunnel-Analytics.

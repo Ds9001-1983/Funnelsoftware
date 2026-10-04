@@ -11,6 +11,7 @@ import { usePageMeta } from "@/hooks/use-document-title";
 import { trackPlatformEvent } from "@/lib/platform-tracker";
 import { faqPageJsonLd, TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
 import { freeOffer } from "@shared/marketing-offer";
+import { FreePlanPreview } from "@/components/marketing/FreePlanPreview";
 
 function trackCtaClick(label: "hero" | "pricing" | "final") {
   trackPlatformEvent("/", "cta_click", label);
@@ -134,6 +135,7 @@ export default function Landing() {
           <div className="grid gap-6 md:grid-cols-2">{plans.map(plan => <article key={plan.name} aria-label={`${plan.name}-Plan`} className={`flex flex-col rounded-2xl border p-6 sm:p-8 ${plan.highlighted ? "border-primary/40 bg-primary/5" : "bg-card"}`}>
             <div className="flex items-center justify-between"><h3 className="text-xl font-semibold">{plan.name}</h3>{plan.highlighted && <Badge>Dein kostenloser Start</Badge>}</div>
             <p className="mt-3 min-h-10 text-sm text-muted-foreground">{plan.description}</p>
+            {plan.highlighted && <FreePlanPreview />}
             <p className="mt-5 text-4xl font-bold tracking-tight">{plan.price}</p><p className="mt-1 text-sm text-muted-foreground">{plan.period}</p>
             <ul className="my-7 flex-1 space-y-3 text-sm">{plan.features.map(feature => <li key={feature} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{feature}</li>)}</ul>
             <Button asChild size="lg" variant={plan.highlighted ? "default" : "outline"} className="min-h-12 w-full"><Link href="/register" onClick={() => trackCtaClick("pricing")}>Kostenlos starten<ArrowRight className="h-4 w-4" /></Link></Button><p className="mt-3 text-center text-xs text-muted-foreground">{plan.note}</p>
