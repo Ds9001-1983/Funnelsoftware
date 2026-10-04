@@ -1,3 +1,4 @@
+import { cleanMarketingPath, demoSlugForPath } from "@shared/platform-tracking";
 import { aiEditInputSchema } from "@shared/ai-edit";
 import { aggregateFunnelMetrics, metricRangeSchema, metricSince, type AnalyticsOverview } from "@shared/funnel-metrics";
 import type { Express, Request, Response, NextFunction } from "express";
@@ -136,12 +137,12 @@ async function createUserWithUniqueUsername(
   usernameWasExplicit: boolean,
 ) {
   try {
-    return await storage.createUser(data as any);
+    return await storage.createUser(data as any, true);
   } catch (err) {
     // Bei selbst gewähltem Namen ist die Kollision eine Nutzer-Eingabe und muss
     // als Fehler sichtbar bleiben — nur abgeleitete Namen dürfen wir ersetzen.
     if (!isUniqueViolation(err) || usernameWasExplicit) throw err;
-    return await storage.createUser({ ...data, username: await deriveAvailableUsername(email) } as any);
+    return await storage.createUser({ ...data, username: await deriveAvailableUsername(email) } as any, true);
   }
 }
 
@@ -2505,6 +2506,8 @@ export async function registerRoutes(
       const { path, referrer, utmSource, utmMedium, utmCampaign, eventType, label } = parsed.data;
       // Nur Marketing-/Legal-/Auth-Pfade zählen (Whitelist) — sonst still verwerfen.
       if (!isTrackablePath(path)) return res.status(204).end();
+      const demoSlug = demoSlugForPath(path);
+      if ((eventType === "demo_open" || eventType === "demo_start") && !demoSlug) return res.status(204).end();
       // Zweite Sperre neben dem Zod-Enum: `register`, `trial_started` und
       // `purchase` entstehen ausschließlich serverseitig. Ohne diese Prüfung
       // konnte ein Fremder per curl die Registrierungszahl im Admin-Dashboard
@@ -2516,7 +2519,7 @@ export async function registerRoutes(
 
       await storage.createPlatformVisit({
         visitorHash: dailyVisitorHash(ip, userAgent),
-        path: (path.split(/[?#]/)[0] || "/").slice(0, 200),
+        path: cleanMarketingPath(path),
         referrerHost: deriveReferrerHost(referrer),
         utmSource: utmSource ?? null,
         utmMedium: utmMedium ?? null,
@@ -2524,7 +2527,7 @@ export async function registerRoutes(
         deviceClass: deriveDeviceClass(userAgent),
         country: deriveCountry(req.headers),
         eventType,
-        label: label ?? null,
+        label: eventType === "demo_open" || eventType === "demo_start" ? demoSlug! : label ?? null,
       });
 
       res.status(204).end();

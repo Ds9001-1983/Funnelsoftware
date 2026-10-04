@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { comparisonLinks, funnelBuilderPage } from "@shared/seo-links";
+import { isMarketingPath } from "@shared/platform-tracking";
 import { CLIENT_TRACKABLE_EVENTS } from "@shared/schema";
 
 // Reichweitenmessung für trichterwerk.de — cookieless & datensparsam.
@@ -70,29 +70,7 @@ export function deriveCountry(headers: Record<string, string | string[] | undefi
   return null;
 }
 
-// Nur Marketing-/Legal-/Auth-Pfade werden gemessen. App-, Funnel- (/f/:uuid) und
-// geschützte Backend-Seiten werden NICHT getrackt (die haben ihr eigenes,
-// owner-verantwortetes Consent-System).
-const TRACKABLE_PATHS = new Set([
-  "/",
-  "/impressum",
-  "/datenschutz",
-  "/agb",
-  "/avv",
-  "/nutzungsbedingungen",
-  "/login",
-  "/register",
-  // SEO-Marketing-Seiten — genau deren Reichweite soll gemessen werden.
-  funnelBuilderPage.path,
-  "/vergleich",
-  ...comparisonLinks.map((l) => l.path),
-]);
-
-/** True, wenn der Pfad zur Reichweiten-Whitelist gehört. */
-export function isTrackablePath(path: string): boolean {
-  const clean = (path.split(/[?#]/)[0] || "/").replace(/\/+$/, "") || "/";
-  return TRACKABLE_PATHS.has(clean);
-}
+export const isTrackablePath = isMarketingPath;
 
 /**
  * Ereignistypen, die ein Browser melden darf.

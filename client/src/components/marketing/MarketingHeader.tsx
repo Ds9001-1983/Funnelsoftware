@@ -1,3 +1,4 @@
+import { trackPlatformEvent } from "@/lib/platform-tracker";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -40,7 +41,7 @@ export function MarketingHeader() {
       </nav>
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
         {!isAuthenticated && <Button variant="ghost" asChild className="hidden lg:inline-flex"><Link href="/login">Anmelden</Link></Button>}
-        <Button asChild className="min-h-10 px-2 text-xs sm:px-4 sm:text-sm"><Link href={isAuthenticated ? "/funnels" : "/register"}>{isAuthenticated ? "Zum Dashboard" : "Kostenlos starten"}</Link></Button>
+        <Button asChild className="min-h-10 px-2 text-xs sm:px-4 sm:text-sm"><Link href={isAuthenticated ? "/funnels" : "/register"} onClick={() => { if (!isAuthenticated) trackPlatformEvent(location, "cta_click", "header"); }}>{isAuthenticated ? "Zum Dashboard" : "Kostenlos starten"}</Link></Button>
         <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
           <SheetTrigger asChild><Button variant="ghost" className="h-11 w-10 p-0 lg:hidden" aria-label="Menü öffnen"><Menu className="h-5 w-5" /></Button></SheetTrigger>
           <SheetContent className="w-[min(90vw,360px)]" onKeyDown={event => { if (event.key === "Escape") setMenuOpen(false); }}>

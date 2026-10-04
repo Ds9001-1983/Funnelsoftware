@@ -8,7 +8,7 @@ import { publishedDocument, writeFunnel } from "./funnel-revisions";
 import { needsLayoutDocument } from "@shared/funnel-layout";
 import { documentFromFunnel, type WriteControl } from "@shared/funnel-document";
 import {
-  users, funnels, funnelRevisions, leads, templates, analyticsEvents, passwordResetTokens,
+  users, signupActivations, funnels, funnelRevisions, leads, templates, analyticsEvents, passwordResetTokens,
   teams, teamMembers, apiKeys, domains, platformVisits, aiCredentials, emailLog,
   bugReports,
   type User, type InsertUser, type Funnel, type InsertFunnel,
@@ -56,6 +56,8 @@ export interface PlatformStats {
     trialStarted: number;
     purchased: number;
   };
+  activation: { registrations: number; firstPublished: number; rate: number | null; measuredSince: string | null };
+  demos: { slug: string; opened: number; started: number }[];
   /** Wie viele Besucher der Meta-Pixel überhaupt sehen darf. */
   consent: { accepted: number; rejected: number };
   visitorsByDay: { day: string; visitors: number; pageviews: number }[];
@@ -74,7 +76,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  createUser(user: InsertUser, trackActivation?: boolean): Promise<User>;
   updateStripeCustomerId(userId: number, stripeCustomerId: string): Promise<void>;
   updateSubscriptionFromStripe(userId: number, updates: {
     isPro?: boolean;
@@ -205,13 +207,13 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createUser(insertUser: InsertUser, trackActivation = false): Promise<User> {
     const hashedPassword = await hashPassword(insertUser.password);
-    const [user] = await db.insert(users).values({
-      ...insertUser,
-      password: hashedPassword,
-    }).returning();
-    return user;
+    return db.transaction(async tx => {
+      const [user] = await tx.insert(users).values({ ...insertUser, password: hashedPassword }).returning();
+      if (trackActivation) await tx.insert(signupActivations).values({ userId: user.id, registeredAt: user.createdAt });
+      return user;
+    });
   }
 
   async updateStripeCustomerId(userId: number, stripeCustomerId: string): Promise<void> {
@@ -945,7 +947,25 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(sql`count(*)`))
       .limit(10);
 
+    const [activation] = await db.select({
+      registrations: sql<number>`count(*)::int`,
+      firstPublished: sql<number>`count(*) FILTER (WHERE ${signupActivations.firstPublishedAt} IS NOT NULL)::int`,
+    }).from(signupActivations).innerJoin(users, eq(signupActivations.userId, users.id))
+      .where(and(gte(signupActivations.registeredAt, since), sql`${users.deletedAt} IS NULL`, eq(users.isAdmin, false)));
+    const [measured] = await db.select({ since: sql<string | null>`min(${signupActivations.registeredAt})::text` })
+      .from(signupActivations).innerJoin(users, eq(signupActivations.userId, users.id))
+      .where(and(sql`${users.deletedAt} IS NULL`, eq(users.isAdmin, false)));
+    const demos = await db.select({ slug: platformVisits.label,
+      opened: sql<number>`count(DISTINCT ${platformVisits.visitorHash}) FILTER (WHERE ${platformVisits.eventType} = 'demo_open')::int`,
+      started: sql<number>`count(DISTINCT ${platformVisits.visitorHash}) FILTER (WHERE ${platformVisits.eventType} = 'demo_start')::int`,
+    }).from(platformVisits).where(and(gte(platformVisits.timestamp, since), inArray(platformVisits.eventType, ["demo_open", "demo_start"])))
+      .groupBy(platformVisits.label).orderBy(desc(sql`count(*)`));
+
     return {
+      activation: { registrations: activation.registrations, firstPublished: activation.firstPublished,
+        rate: activation.registrations ? activation.firstPublished / activation.registrations * 100 : null,
+        measuredSince: measured.since ? new Date(measured.since).toISOString() : null },
+      demos: demos.map(row => ({ slug: row.slug ?? "unbekannt", opened: row.opened, started: row.started })),
       totals: {
         visitors: Number(totals?.visitors || 0),
         pageviews: Number(totals?.pageviews || 0),

@@ -9,30 +9,9 @@
 // (platform-pixel.ts) sieht nur einwilligende Besucher, dieses Beacon sieht alle.
 // Der Funnel-Report im Admin-Bereich baut deshalb hierauf auf.
 
-import { comparisonLinks, funnelBuilderPage } from "@shared/seo-links";
+import { isMarketingPath } from "@shared/platform-tracking";
 import { isPlatformHost } from "@/lib/platform-host";
-import type { PlatformEventType } from "@shared/schema";
-
-// Muss zur Server-Whitelist (server/tracking.ts) passen.
-const TRACKABLE = new Set([
-  "/",
-  "/impressum",
-  "/datenschutz",
-  "/agb",
-  "/avv",
-  "/nutzungsbedingungen",
-  "/login",
-  "/register",
-  // SEO-Marketing-Seiten — genau deren Reichweite soll gemessen werden.
-  funnelBuilderPage.path,
-  "/vergleich",
-  ...comparisonLinks.map((l) => l.path),
-]);
-
-function isTrackable(path: string): boolean {
-  const clean = (path.split(/[?#]/)[0] || "/").replace(/\/+$/, "") || "/";
-  return TRACKABLE.has(clean);
-}
+import type { CLIENT_TRACKABLE_EVENTS } from "@shared/schema";
 
 /**
  * First-Touch-Kampagne der laufenden Sitzung.
@@ -82,7 +61,7 @@ function send(body: string): void {
  * `register`, `trial_started` und `purchase` fehlen absichtlich — die entstehen
  * serverseitig und der Server lehnt sie hier auch ab (server/tracking.ts).
  */
-type ClientEventType = Exclude<PlatformEventType, "register" | "trial_started" | "purchase">;
+type ClientEventType = (typeof CLIENT_TRACKABLE_EVENTS)[number];
 
 /**
  * Meldet ein Ereignis innerhalb des Funnels (fire-and-forget).
@@ -103,7 +82,7 @@ export function trackPlatformEvent(
   // "/f/…" umgeleitet wird. Ohne diese Sperre landeten die Besucher des Kunden
   // in unserer eigenen Reichweitenstatistik.
   if (!isPlatformHost()) return;
-  if (!isTrackable(path)) return;
+  if (!isMarketingPath(path)) return;
 
   captureFirstTouch();
 

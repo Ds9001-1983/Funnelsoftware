@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { getVerificationToken, findLeadsByEmail, closePool } from "./helpers/db";
+import { getVerificationToken, findLeadsByEmail, findSignupActivation, closePool } from "./helpers/db";
 import { makeCredentials, makeSlug, runId as newRunId } from "./helpers/unique";
 
 /**
@@ -49,6 +49,7 @@ test("Kompletter Funnel-Lebenszyklus: Registrieren → Erstellen → Publizieren
     // Ohne SIGNUP_REQUIRE_CARD kommt kein Stripe-Checkout mehr — der neue Nutzer
     // landet direkt im Produkt statt in einem leeren Dashboard.
     await page.waitForURL(/\/funnels\/new/);
+    expect(await findSignupActivation(creds.email)).toMatchObject({ first_published_at: null });
   });
 
   await test.step("E-Mail verifizieren (Token aus der Test-DB)", async () => {
@@ -83,6 +84,7 @@ test("Kompletter Funnel-Lebenszyklus: Registrieren → Erstellen → Publizieren
     ]);
     expect(patch.status()).toBe(200);
     expect(((await patch.json()) as { status: string }).status).toBe("published");
+    expect((await findSignupActivation(creds.email))?.first_published_at).toBeInstanceOf(Date);
   });
 
   const visitor = await browser.newContext();

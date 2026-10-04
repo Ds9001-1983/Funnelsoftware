@@ -16,6 +16,8 @@ interface PlatformStatsData {
     trialStarted: number;
     purchased: number;
   };
+  activation: { registrations: number; firstPublished: number; rate: number | null; measuredSince: string | null };
+  demos: { slug: string; opened: number; started: number }[];
   consent: { accepted: number; rejected: number };
   visitorsByDay: { day: string; visitors: number; pageviews: number }[];
   topPaths: { path: string; count: number }[];
@@ -26,6 +28,7 @@ interface PlatformStatsData {
 }
 
 const CTA_LABELS: Record<string, string> = {
+  header: "Navigation",
   hero: "Hero (oben)",
   pricing: "Preisliste",
   final: "Abschluss (unten)",
@@ -40,7 +43,7 @@ const RANGES = [7, 30, 90] as const;
  */
 export function PlatformStats() {
   const [days, setDays] = useState<number>(30);
-  const { data, isLoading } = useQuery<PlatformStatsData>({
+  const { data, isLoading, isError, refetch } = useQuery<PlatformStatsData>({
     queryKey: ["/api/admin/platform-stats", days],
     queryFn: async () => {
       const res = await fetch(`/api/admin/platform-stats?days=${days}`);
@@ -50,7 +53,7 @@ export function PlatformStats() {
   });
 
   const totals = data?.totals ?? { visitors: 0, pageviews: 0, registrations: 0 };
-  const convRate = totals.visitors > 0 ? (totals.registrations / totals.visitors) * 100 : 0;
+  const activation = data?.activation;
   const byDay = data?.visitorsByDay ?? [];
   const maxDay = Math.max(1, ...byDay.map((d) => d.visitors));
 
@@ -64,7 +67,7 @@ export function PlatformStats() {
     { key: "trialStarted", label: "Trial mit Karte", value: f?.trialStarted ?? 0 },
     { key: "purchased", label: "Bezahlt", value: f?.purchased ?? 0 },
   ];
-  const funnelTop = funnelSteps[0].value;
+  const activityMax = Math.max(1, ...funnelSteps.map(step => step.value));
   const consentTotal = (data?.consent.accepted ?? 0) + (data?.consent.rejected ?? 0);
   const consentRate = consentTotal > 0 ? ((data?.consent.accepted ?? 0) / consentTotal) * 100 : 0;
 
@@ -86,13 +89,30 @@ export function PlatformStats() {
       <CardContent>
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Lädt…</p>
-        ) : (
+        ) : isError ? <div role="alert" className="text-sm">Statistik konnte nicht geladen werden. <Button variant="outline" size="sm" onClick={() => refetch()}>Erneut versuchen</Button></div> : (
           <div className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Kpi icon={<Eye className="h-4 w-4" />} label="Besucher" value={totals.visitors} />
               <Kpi icon={<TrendingUp className="h-4 w-4" />} label="Seitenaufrufe" value={totals.pageviews} />
               <Kpi icon={<UserPlus className="h-4 w-4" />} label="Registrierungen" value={totals.registrations} />
-              <Kpi icon={<TrendingUp className="h-4 w-4" />} label="Conversion" value={`${convRate.toFixed(1)} %`} />
+              <Kpi icon={<TrendingUp className="h-4 w-4" />} label="Erstveröffentlichungen¹" value={activation?.firstPublished ?? 0} />
+            </div>
+
+            <div className="rounded-xl border bg-muted/20 p-4" data-testid="activation-report">
+              <h3 className="text-sm font-semibold">Vom kostenlosen Start zum ersten Funnel</h3>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">¹ Neue Konten aus dem gewählten Registrierungszeitraum, deren erste Veröffentlichung bereits erfasst wurde. Bestandskonten vor Messbeginn sowie Admin- und gelöschte Konten sind ausgenommen.</p>
+              <div className="my-4 grid gap-3 sm:grid-cols-3">
+                <Kpi icon={<UserPlus className="h-4 w-4" />} label="Neue Konten in der Messung" value={activation?.registrations ?? 0} />
+                <Kpi icon={<Globe className="h-4 w-4" />} label="Ersten Funnel veröffentlicht" value={activation?.firstPublished ?? 0} />
+                <Kpi icon={<TrendingUp className="h-4 w-4" />} label="Davon bislang veröffentlicht" value={activation?.rate == null ? "—" : `${activation.rate.toFixed(1)} %`} />
+              </div>
+              <p className="text-xs text-muted-foreground">{activation?.measuredSince ? `Erste erfasste Registrierung: ${new Date(activation.measuredSince).toLocaleDateString("de-DE")}.` : "Die Messung beginnt mit der nächsten Registrierung."} Jüngere Konten hatten bisher weniger Zeit zur Veröffentlichung.</p>
+            </div>
+
+            <div data-testid="demo-report">
+              <h3 className="mb-3 text-sm font-semibold">Welche Demos werden ausprobiert?</h3>
+              {data?.demos?.length ? <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b"><th className="py-2 font-medium">Vorlage</th><th className="px-3 py-2 text-right font-medium">Geöffnet</th><th className="py-2 text-right font-medium">Weitergeklickt</th></tr></thead><tbody>{data.demos.map(demo => <tr key={demo.slug} className="border-b"><td className="py-2">{demo.slug}</td><td className="px-3 py-2 text-right tabular-nums">{demo.opened}</td><td className="py-2 text-right tabular-nums">{demo.started}</td></tr>)}</tbody></table></div> : <p className="text-sm text-muted-foreground">Noch keine Demo-Nutzung im Zeitraum.</p>}
+              <p className="mt-2 text-xs text-muted-foreground">Anonymisierte Besuchstage je Ereignis; „Weitergeklickt“ bedeutet mindestens einen Seitenwechsel in der Vorschau. Demo-Nutzung wird nicht mit einzelnen Accounts verknüpft.</p>
             </div>
 
             {totals.visitors === 0 && (
@@ -102,19 +122,12 @@ export function PlatformStats() {
               </p>
             )}
 
-            {/*
-              Der Funnel — die Auswertung, die bei der ersten Meta-Kampagne
-              gefehlt hat. Sichtbar waren nur „Besucher" und „Registrierungen";
-              die Stufe dazwischen, auf der 98 % verloren gingen, war unsichtbar.
-            */}
             {funnelSteps.some((s) => s.value > 0) && (
               <div>
-                <p className="text-sm font-medium mb-3">Funnel</p>
+                <p className="text-sm font-medium mb-3">Aktivität im gewählten Zeitraum</p>
                 <div className="space-y-1.5">
-                  {funnelSteps.map((step, i) => {
-                    const prev = i === 0 ? null : funnelSteps[i - 1].value;
-                    const drop = prev && prev > 0 ? 100 - (step.value / prev) * 100 : null;
-                    const width = funnelTop > 0 ? (step.value / funnelTop) * 100 : 0;
+                  {funnelSteps.map((step) => {
+                    const width = (step.value / activityMax) * 100;
                     return (
                       <div key={step.key} className="flex items-center gap-3">
                         <span className="w-40 shrink-0 text-xs text-muted-foreground">{step.label}</span>
@@ -127,16 +140,15 @@ export function PlatformStats() {
                         <span className="w-12 shrink-0 text-right text-sm font-medium tabular-nums">
                           {step.value}
                         </span>
-                        <span className="w-20 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
-                          {drop === null ? "" : `−${drop.toFixed(0)} %`}
-                        </span>
+
                       </div>
                     );
                   })}
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Eindeutige Besucher je Stufe. „Account erstellt" und alles darunter
-                  entsteht serverseitig und ist von außen nicht manipulierbar.
+                  Unabhängige Ereigniszahlen im Zeitraum, kein durchgehend verknüpfter Besucherweg.
+                  Registrierungen und Zahlungen werden serverseitig erfasst. Die Quote bis zur
+                  ersten Veröffentlichung steht im separaten Bericht oben.
                 </p>
               </div>
             )}
@@ -195,7 +207,7 @@ export function PlatformStats() {
               <TopList
                 title="Welcher CTA trägt"
                 rows={(data?.ctaBreakdown ?? []).map((c) => ({
-                  label: CTA_LABELS[c.label] ?? c.label,
+                  label: CTA_LABELS[c.label] ?? c.label.replace(/^template:/, "Vorlage: "),
                   count: c.count,
                 }))}
                 empty="noch keine CTA-Klicks"

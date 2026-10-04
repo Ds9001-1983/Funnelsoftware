@@ -47,6 +47,14 @@ export async function findLeadsByEmail(email: string): Promise<LeadRow[]> {
   return rows;
 }
 
+export async function findSignupActivation(email: string): Promise<{ registered_at: Date; first_published_at: Date | null } | undefined> {
+  const { rows } = await getPool().query(
+    "SELECT a.registered_at, a.first_published_at FROM signup_activations a JOIN users u ON u.id = a.user_id WHERE u.email = $1",
+    [email],
+  );
+  return rows[0];
+}
+
 /** Im test.afterAll aufrufen, sonst hält der Pool den Worker-Prozess offen. */
 export async function closePool(): Promise<void> {
   await pool?.end();

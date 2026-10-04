@@ -39,3 +39,33 @@ Keine Änderung von Abrechnung, bestehenden Abos oder Tarifrechten.
    direktem Teamkontakt ergänzt. Unbelegte Prozent-/Zeitversprechen sowie die
    pauschale Vergleichstabelle mit automatisch aktuellem Datum entfallen.
    Typecheck und acht Landing-Browserabläufe bestanden.
+
+6. Messung: Demo-Aufruf und erster Seitenwechsel werden ohne Eingabewerte
+   gezählt. Die Betreiberübersicht zeigt je Vorlage die Nutzung und für neue
+   Registrierungen den Anteil mit einer ersten erfolgreichen Veröffentlichung.
+   Registrierung und Messbeginn werden gemeinsam gespeichert; Entwurf,
+   fehlgeschlagene Veröffentlichung und erneutes Veröffentlichen zählen nicht
+   zusätzlich. Gleichzeitige Veröffentlichungen zählen einmal je Konto.
+   Bestandskonten werden nicht nachträglich zugeordnet. Admin- und gelöschte
+   Konten sind ausgenommen; die endgültige Kontolöschung entfernt den Datensatz.
+   Demo-Besuchstage und Konten werden nicht miteinander verknüpft. Unabhängige
+   Ereigniszahlen werden deshalb nicht als durchgehender Besucherweg oder
+   vermeintliche Absprungrate dargestellt.
+
+## Gesamtprüfung und Betrieb
+
+- 466 Unit-Tests, 77 Datenbank-/Migrationstests und 51 Browserfälle geprüft.
+  Der bestehende Editor-Drag-and-drop-Fall wurde zusätzlich isoliert geprüft.
+- Typecheck für Anwendung/Client-Tests und Produktionsbuild bestanden.
+- Desktop- und Mobilansicht visuell geprüft; bei 320, 390 und 1440 px keine
+  horizontale Überbreite und keine fehlenden Bilder. Die mobile Navigation ist
+  zusätzlich bei 768 px, per Tastatur und mit Preis-Anker geprüft.
+- Die neue additive Migration `20261004_signup_activations.sql` muss vor dem
+  Start des neuen Backends laufen. Das vorhandene Deploy-Skript erledigt dies;
+  wiederholte Migration und Erhalt bestehender Daten wurden geprüft.
+- Die Messung liefert ab Veröffentlichung eine Grundlage für die weitere
+  Optimierung. Eine Steigerung der Conversion wird ohne echte Nutzungsdaten
+  und einen geeigneten Vergleich nicht behauptet.
+
+Alle sechs Schritte liegen auf dem Feature-Branch. Ein Push ist noch keine
+Veröffentlichung auf der produktiven Website.

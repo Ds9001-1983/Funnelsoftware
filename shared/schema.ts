@@ -131,6 +131,13 @@ export const users = pgTable("users", {
   index("users_referred_by_id_idx").on(table.referredById),
 ]);
 
+// Owner-scoped activation of newly registered accounts; removed with the account.
+export const signupActivations = pgTable("signup_activations", {
+  userId: integer("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  registeredAt: timestamp("registered_at", { withTimezone: true }).notNull().defaultNow(),
+  firstPublishedAt: timestamp("first_published_at", { withTimezone: true }),
+}, table => [index("signup_activations_registered_idx").on(table.registeredAt)]);
+
 // Funnels table
 export const funnels = pgTable("funnels", {
   id: serial("id").primaryKey(),
@@ -1367,6 +1374,8 @@ export type InsertAnalytics = z.infer<typeof insertAnalyticsSchema>;
 export const PLATFORM_EVENT_TYPES = [
   "pageview",
   "cta_click",
+  "demo_open",
+  "demo_start",
   "form_start",
   "form_submit_error",
   "form_abort",
@@ -1381,6 +1390,8 @@ export const PLATFORM_EVENT_TYPES = [
 export const CLIENT_TRACKABLE_EVENTS = [
   "pageview",
   "cta_click",
+  "demo_open",
+  "demo_start",
   "form_start",
   "form_submit_error",
   "form_abort",

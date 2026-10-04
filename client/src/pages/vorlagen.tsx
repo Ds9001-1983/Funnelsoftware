@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { trackPlatformEvent } from "@/lib/platform-tracker";
+import { useEffect, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { ArrowLeft, ArrowRight, Check, ShieldCheck, Smartphone } from "lucide-react";
 import { usePageMeta } from "@/hooks/use-document-title";
@@ -195,6 +196,20 @@ function TemplateDetail({
   meta: TemplateMeta;
   template: ClientTemplate;
 }) {
+  const openedSlug = useRef<string | null>(null);
+  const startedSlug = useRef<string | null>(null);
+  useEffect(() => {
+    if (openedSlug.current !== meta.slug) {
+      openedSlug.current = meta.slug;
+      startedSlug.current = null;
+      trackPlatformEvent(`${TEMPLATE_GALLERY_PATH}/${meta.slug}`, "demo_open", meta.slug);
+    }
+  }, [meta.slug]);
+  const trackDemoStart = () => {
+    if (startedSlug.current === meta.slug) return;
+    startedSlug.current = meta.slug;
+    trackPlatformEvent(`${TEMPLATE_GALLERY_PATH}/${meta.slug}`, "demo_start", meta.slug);
+  };
   usePageMeta({
     title: meta.metaTitle,
     description: meta.metaDescription,
@@ -254,7 +269,7 @@ function TemplateDetail({
               </ul>
 
               <div className="flex flex-col sm:flex-row gap-3">
-                <Link href={`/register?template=${meta.slug}`}>
+                <Link href={`/register?template=${meta.slug}`} onClick={() => trackPlatformEvent(`${TEMPLATE_GALLERY_PATH}/${meta.slug}`, "cta_click", `template:${meta.slug}`)}>
                   <Button size="lg" className="gap-2 w-full sm:w-auto shadow-lg shadow-primary/25">
                     Mit diesem Template starten
                     <ArrowRight className="h-5 w-5" />
@@ -282,12 +297,13 @@ function TemplateDetail({
                     funnel={template}
                     mode="preview"
                     className="h-full"
+                    onPageView={trackDemoStart}
                   />
                 </PhoneFrame>
               </div>
               <p className="text-xs text-muted-foreground mt-4 text-center max-w-[320px]">
-                Die Vorschau ist voll interaktiv — klick dich durch. Es werden
-                keine Daten gespeichert.
+                Die Vorschau ist voll interaktiv — klick dich durch. Deine Eingaben
+                werden nicht als Leads gespeichert.
               </p>
             </div>
           </div>

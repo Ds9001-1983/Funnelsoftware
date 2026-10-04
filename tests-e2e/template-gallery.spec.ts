@@ -3,8 +3,8 @@ import { test, expect } from "@playwright/test";
 /**
  * Öffentliche Template-Galerie (/vorlagen): rendert ohne Login, und die
  * interaktive Live-Vorschau lässt sich bis zur Danke-Seite durchspielen,
- * OHNE dass Leads oder Analytics-Events entstehen — das ist die zentrale
- * Zusicherung des Preview-Modus (FunnelRenderer ohne Callbacks).
+ * ohne Leads oder Kundenfunnel-Analytics. Die Marketingmessung zählt lediglich
+ * Demo-Aufruf und ersten Seitenwechsel, ohne eingegebene Antworten.
  */
 
 // Cookie-Banner vorab stummschalten — er liegt sonst über den Buttons.
@@ -41,6 +41,22 @@ test("Live-Vorschau: kompletter Durchlauf ohne Lead- oder Analytics-Requests", a
   // Jeden Request auf die öffentlichen Schreib-Endpunkte mitschneiden —
   // die Vorschau darf exakt null davon auslösen.
   const trackedCalls: string[] = [];
+  const demoEvents: Record<string, unknown>[] = [];
+  // Chromium does not expose Blob beacon bodies via request.postDataJSON().
+  // Observe the original payload in the browser and still send the real beacon.
+  await page.exposeFunction("observeDemoBeacon", (payload: string) => {
+    const event = JSON.parse(payload);
+    if (event.eventType === "demo_open" || event.eventType === "demo_start") demoEvents.push(event);
+  });
+  await page.addInitScript(() => {
+    const send = navigator.sendBeacon.bind(navigator);
+    navigator.sendBeacon = (url, data) => {
+      if (String(url) === "/api/public/track" && data instanceof Blob) {
+        void data.text().then(payload => (window as any).observeDemoBeacon(payload));
+      }
+      return send(url, data);
+    };
+  });
   page.on("request", (req) => {
     if (
       req.url().includes("/api/public/leads") ||
@@ -54,6 +70,7 @@ test("Live-Vorschau: kompletter Durchlauf ohne Lead- oder Analytics-Requests", a
   await expect(
     page.getByText("Bereit für dein kostenloses Strategiegespräch?"),
   ).toBeVisible();
+  await expect.poll(() => demoEvents.map(event => event.eventType)).toEqual(["demo_open"]);
 
   // Welcome → Frage 1 → Frage 2 → Kalender → Kontakt
   await page.getByTestId("button-funnel-next").click();
@@ -77,6 +94,9 @@ test("Live-Vorschau: kompletter Durchlauf ohne Lead- oder Analytics-Requests", a
 
   // Die zentrale Zusicherung: kein einziger Schreib-Request.
   expect(trackedCalls).toEqual([]);
+  await expect.poll(() => demoEvents.map(event => event.eventType)).toEqual(["demo_open", "demo_start"]);
+  expect(demoEvents.every(event => event.path === "/vorlagen/termin-buchen" && event.label === "termin-buchen")).toBe(true);
+  expect(JSON.stringify(demoEvents)).not.toMatch(/Preview|preview@example|2345678|wachsen|answers/);
 });
 
 test("Unbekannter Template-Slug zeigt die öffentliche 404 mit Galerie-Link", async ({ page }) => {

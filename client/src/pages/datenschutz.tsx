@@ -213,7 +213,10 @@ export default function Datenschutz() {
                 Wiedererkennen und kein seitenübergreifendes Tracking. Gespeichert werden lediglich
                 der aufgerufene Pfad, der Host der Referrer-Seite (nicht die vollständige URL),
                 etwaige UTM-Kampagnenparameter, eine grobe Geräteklasse (Mobil/Tablet/Desktop) und
-                ein grober Ländercode.
+                ein grober Ländercode. Bei öffentlichen Produktdemos erfassen wir außerdem,
+                welche Vorlage geöffnet und ob mindestens eine weitere Seite der Vorschau
+                aufgerufen wurde. Die dabei eingegebenen Antworten oder Kontaktdaten werden
+                weder als Leads gespeichert noch an diese Reichweitenmessung übertragen.
               </p>
               <p className="text-slate-600 text-sm leading-relaxed">
                 Rechtsgrundlage ist unser berechtigtes Interesse an einer datensparsamen
@@ -238,6 +241,14 @@ export default function Datenschutz() {
                 versenden wir E-Mails über unseren E-Mail-Dienstleister (Alfahosting GmbH,
                 Deutschland). Die Daten werden gelöscht, wenn Sie Ihr Konto löschen und keine
                 gesetzlichen Aufbewahrungspflichten entgegenstehen.
+              </p>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                Für neu registrierte Konten erfassen wir außerdem den Registrierungszeitpunkt
+                und den Zeitpunkt der ersten erfolgreichen Funnel-Veröffentlichung. Damit
+                werten wir zusammengefasst aus, wie viele neue Konten einen ersten Funnel
+                veröffentlichen. Diese Kontodaten werden nicht mit den Besuchskennungen der
+                Marketingseiten oder Produktdemos verknüpft und bei endgültiger Löschung
+                des Kontos mitgelöscht.
               </p>
             </section>
 

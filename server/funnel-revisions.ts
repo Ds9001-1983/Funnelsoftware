@@ -3,7 +3,7 @@ import { personalizationErrors } from "@shared/funnel-personalization";
 import { createHash, randomUUID, randomBytes } from "node:crypto";
 import { and, desc, eq, lt, sql } from "drizzle-orm";
 import { db } from "./db";
-import { funnels, funnelRevisions, users, FREE_MAX_PUBLISHED_FUNNELS, type Funnel } from "@shared/schema";
+import { funnels, funnelRevisions, users, signupActivations, FREE_MAX_PUBLISHED_FUNNELS, type Funnel } from "@shared/schema";
 import { requiredDocumentVersion, documentFromFunnel, documentSchema, documentVersionSchema, DOCUMENT_VERSION, type WriteControl, type FunnelRevisionSummary, type FunnelDocument } from "@shared/funnel-document";
 import { documentLayoutErrors, documentReferenceErrors, needsLayoutDocument } from "@shared/funnel-layout";
 import { hasProFeatures } from "./auth";
@@ -100,6 +100,10 @@ export async function writeFunnel(id: number, userId: number, updates: Partial<F
     const [updated] = await tx.update(funnels).set({ ...values, editVersion: version, editorProtocol: current.editorProtocol || !!suppliedControl, updatedAt: new Date(Math.max(Date.now(), current.updatedAt.getTime() + 1)),
       publishedRevisionId: control.publish ? revision.id : publishedRevisionId,
     }).where(eq(funnels.id, id)).returning();
+    if (control.publish) {
+      await tx.update(signupActivations).set({ firstPublishedAt: new Date() })
+        .where(and(eq(signupActivations.userId, userId), sql`${signupActivations.firstPublishedAt} IS NULL`));
+    }
     return updated;
   });
 }
