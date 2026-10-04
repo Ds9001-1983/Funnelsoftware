@@ -9,12 +9,12 @@ test.describe("Landing Page", () => {
   test("rendert Hero, CTA und Login-Link", async ({ page }) => {
     await page.goto("/");
 
-    // H1 mit dem aktuellen Claim ("Funnels, die verkaufen.")
-    await expect(page.locator("h1")).toContainText(/Funnels.*verkaufen/i);
+    // Konkreter Nutzen und dauerhafter kostenloser Einstieg.
+    await expect(page.locator("h1")).toContainText("Gewinne Kunden und Bewerber");
 
     // Primärer CTA
     await expect(
-      page.getByRole("link", { name: /14 Tage kostenlos testen/i }).first(),
+      page.getByTestId("landing-hero").getByRole("link", { name: "Kostenlos starten" }),
     ).toBeVisible();
 
     // Navigation: Login-Link
@@ -65,3 +65,14 @@ for (const width of [320, 390, 768]) {
     await expect(page.getByRole("dialog")).not.toBeVisible();
   });
 }
+
+test("free offer remains consistent from landing to signup", async ({ page }) => {
+  await page.goto("/");
+  const hero = page.getByTestId("landing-hero");
+  await expect(hero).toContainText("100 Leads pro Monat kostenlos");
+  await expect(hero.locator('img[src="/images/landing-editor.webp"]')).toBeVisible();
+  await hero.getByRole("link", { name: "Kostenlos starten" }).click();
+  await expect(page).toHaveURL(/\/register$/);
+  await expect(page.getByText("1 veröffentlichter Funnel · 100 Leads pro Monat", { exact: true })).toBeVisible();
+  await expect(page.locator("body")).not.toContainText("14 Tage");
+});

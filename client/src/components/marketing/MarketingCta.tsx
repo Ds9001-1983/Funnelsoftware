@@ -1,3 +1,4 @@
+import { freeOffer } from "@shared/marketing-offer";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +17,7 @@ interface MarketingCtaProps {
  * Primäre CTA-Karte der SEO-Marketing-Seiten (Vergleiche, Funnel-Builder-Guide)
  * — eine gemeinsame Komponente statt Copy-Paste pro Seite.
  */
-export function MarketingCta({ title, text, badge = "14 Tage gratis · Monatlich kündbar" }: MarketingCtaProps) {
+export function MarketingCta({ title, text, badge = freeOffer.headline }: MarketingCtaProps) {
   return (
     <section className="py-20 px-4 bg-muted/30 border-t">
       <div className="container mx-auto max-w-4xl">
@@ -30,7 +31,7 @@ export function MarketingCta({ title, text, badge = "14 Tage gratis · Monatlich
             <p className="text-primary-foreground/85 max-w-2xl mx-auto mb-8">{text}</p>
             <Link href="/register">
               <Button size="lg" variant="secondary" className="gap-2 text-lg px-8">
-                14 Tage kostenlos testen
+                Kostenlos starten
                 <ArrowRight className="h-5 w-5" />
               </Button>
             </Link>

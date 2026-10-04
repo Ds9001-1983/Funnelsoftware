@@ -77,7 +77,7 @@ export function MarketingFooter() {
           <div>
             <h4 className="font-semibold mb-4">Account</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="/register" className="hover:text-foreground">Kostenlos testen</Link></li>
+              <li><Link href="/register" className="hover:text-foreground">Kostenlos starten</Link></li>
               <li><Link href="/login" className="hover:text-foreground">Anmelden</Link></li>
               <li>
                 <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-foreground flex items-center gap-1">

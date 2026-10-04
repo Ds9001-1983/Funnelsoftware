@@ -20,3 +20,8 @@ Keine Änderung von Abrechnung, bestehenden Abos oder Tarifrechten.
 
 1. Header: Typecheck und fünf Browserprüfungen bestanden. Bei 320/390/768 px
    keine Überschneidungen, Navigation per Tastatur und Preis-Anker geprüft.
+
+2. Einstieg: Typecheck und sieben Browserabläufe bestanden, einschließlich
+   Registrierung bis Veröffentlichung. Desktop-/Handyansicht visuell geprüft.
+   Das echte Editorbild lässt sich mit `scripts/capture-landing-editor.ts` auf
+   einer isolierten lokalen E2E-Instanz neu aufnehmen.

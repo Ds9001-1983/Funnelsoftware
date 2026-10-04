@@ -1,3 +1,4 @@
+import { freeOffer } from "@shared/marketing-offer";
 import { Link } from "wouter";
 import { usePageMeta } from "@/hooks/use-document-title";
 import { Button } from "@/components/ui/button";
@@ -224,12 +225,12 @@ const pricingPlans: PricingPlan[] = [
       "Lead-Benachrichtigungen an dich",
       "Badge entfernbar · Support per E-Mail",
     ],
-    cta: "14 Tage kostenlos testen",
+    cta: "Kostenlos starten",
     ctaHref: "/register",
     popular: true,
     // Der Stripe-Price ist `tax_behavior: "inclusive"` — der Kunde zahlt 49,00 €
     // als Endpreis, MwSt. ist enthalten. Deshalb hier und überall sonst „inkl.".
-    note: "14 Tage gratis · danach dauerhaft kostenloser Free-Plan · inkl. MwSt.",
+    note: "Optionales Upgrade · monatlich kündbar · inkl. MwSt.",
   },
   {
     name: "Agency",
@@ -315,7 +316,7 @@ const comparisonRows: ComparisonRow[] = [
 const faqs = [
   {
     q: "Ist Trichterwerk wirklich kostenlos?",
-    a: "Ja. Der Free-Plan ist dauerhaft kostenlos: 1 veröffentlichter Funnel, 100 Leads pro Monat, alle Templates und Editor-Funktionen. In den ersten 14 Tagen hast du zusätzlich alle Pro-Features zum Testen — danach läuft dein Account einfach im Free-Plan weiter.",
+    a: "Ja. Der Free-Plan ist dauerhaft kostenlos: 1 veröffentlichter Funnel, 100 Leads pro Monat, alle Templates und Editor-Funktionen. Ein Upgrade auf Pro ist freiwillig.",
   },
   {
     q: "Brauche ich zum Start eine Kreditkarte?",
@@ -353,9 +354,9 @@ const FAQ_JSON_LD = JSON.stringify({ "@context": "https://schema.org", ...faqPag
 
 export default function Landing() {
   usePageMeta({
-    title: "Funnel-Builder aus Deutschland — ohne Code, DSGVO-konform",
+    title: "Funnel-Builder: 100 Leads pro Monat kostenlos",
     description:
-      "Erstelle mobile-optimierte Marketing-Funnels & Landingpages in Minuten — ohne Code, ohne Agentur. DSGVO-konform, Hosting in der EU. Für immer kostenloser Free-Plan.",
+      "Gewinne Kunden und Bewerber mit deinem eigenen Funnel. Ein veröffentlichter Funnel und 100 Leads pro Monat kostenlos. Ohne Kreditkarte, mit Hosting in der EU.",
     canonical: "/",
   });
 
@@ -374,115 +375,40 @@ export default function Landing() {
       {/* Navigation (geteilt mit den SEO-Marketing-Seiten) */}
       <MarketingHeader />
 
-      {/* Hero Section mit Gradient-Backdrop */}
-      <section className="relative pt-32 pb-20 px-4 overflow-hidden">
-        {/* Background glow */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 top-20 h-[520px] -z-10 opacity-60 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse at 50% 20%, hsl(var(--primary) / 0.18), transparent 60%)",
-          }}
-        />
-        <div
-          aria-hidden="true"
-          className="absolute -z-10 top-40 left-1/2 -translate-x-1/2 w-[900px] h-[900px] rounded-full blur-3xl opacity-30 pointer-events-none"
-          style={{
-            background:
-              "conic-gradient(from 180deg at 50% 50%, hsl(var(--primary) / 0.3), transparent 40%, hsl(var(--primary) / 0.2))",
-          }}
-        />
-
-        <div className="container mx-auto text-center max-w-4xl relative">
-          <Badge variant="secondary" className="mb-6">
-            <Sparkles className="h-3 w-3 mr-1" />
-            Made in Germany · DSGVO-konform · Hosting in der EU
-          </Badge>
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 leading-[1.05]">
-            {/* Kicker im H1: trägt das Haupt-Keyword, ohne die Hero-Zeile zu verwässern. */}
-            <span className="block text-lg md:text-2xl font-semibold text-muted-foreground tracking-normal mb-4">
-              Der Funnel-Builder aus Deutschland
-            </span>
-            Funnels, die{" "}
-            <span className="relative inline-block">
-              <span className="relative z-10 bg-gradient-to-r from-primary via-primary to-primary/70 bg-clip-text text-transparent">
-                verkaufen
-              </span>
-              <span
-                aria-hidden="true"
-                className="absolute inset-x-0 bottom-1 h-3 bg-primary/15 -z-0 rounded"
-              />
-            </span>
-            .
-            <br className="hidden md:block" />
-            Ohne Code. Ohne Agentur.
-          </h1>
-          <p className="text-xl md:text-2xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-            Eine Agentur nimmt für einen Funnel schnell 2.000–5.000&nbsp;€ und
-            mehrere Wochen. Mit Trichterwerk baust du ihn selbst — mobile-optimiert,
-            in unter einer Stunde live. Ohne Code, DSGVO-konform aus Deutschland.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/register" onClick={() => trackCtaClick("hero")}>
-              <Button
-                size="lg"
-                className="gap-2 text-lg px-8 shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-shadow"
-              >
-                Kostenlos starten
-                <ArrowRight className="h-5 w-5" />
-              </Button>
-            </Link>
-            <a href="#features">
-              <Button size="lg" variant="outline" className="text-lg px-8">
-                Features ansehen
-              </Button>
-            </a>
+      <section className="relative overflow-hidden px-4 pb-14 pt-28 sm:px-6 sm:pb-20 lg:pt-36" data-testid="landing-hero">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-primary/10" />
+        <div className="container relative mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-12">
+          <div className="max-w-xl">
+            <Badge variant="secondary" className="mb-5 gap-1.5 px-3 py-1.5"><Check className="h-3.5 w-3.5" />{freeOffer.headline}</Badge>
+            <h1 className="text-[2.35rem] font-bold leading-[1.1] tracking-tight sm:text-5xl xl:text-[3.4rem]">
+              Gewinne Kunden und Bewerber.
+              <span className="mt-1 block text-primary">Mit deinem Funnel.</span>
+            </h1>
+            <p className="mt-5 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
+              Erstelle mobile Seiten für Anfragen, Termine und Bewerbungen. Wähle eine Vorlage,
+              passe sie an und veröffentliche deinen Funnel – ohne Programmierung.
+            </p>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <Button asChild size="lg" className="min-h-12 gap-2 px-6 text-base shadow-lg shadow-primary/15"><Link href="/register" onClick={() => trackCtaClick("hero")}>Kostenlos starten<ArrowRight className="h-4 w-4" /></Link></Button>
+              <Button asChild size="lg" variant="outline" className="min-h-12 px-6 text-base"><a href="#features">Features ansehen</a></Button>
+            </div>
+            <p className="mt-4 text-sm text-muted-foreground">{freeOffer.reassurance}</p>
+            <p className="mt-2 text-xs text-muted-foreground">Ein veröffentlichter Funnel inklusive. Pro ist optional.</p>
+            <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5"><Server className="h-3.5 w-3.5" />Hosting in der EU</span>
+              <span className="flex items-center gap-1.5"><Flag className="h-3.5 w-3.5" />Entwickelt in Deutschland</span>
+            </div>
           </div>
-
-          {/* Risiko-Reduktion direkt unter dem CTA */}
-          <p className="text-sm text-muted-foreground mt-4">
-            Für immer kostenloser Free-Plan · keine Kreditkarte nötig · 14 Tage volle Pro-Features
-          </p>
-
-          {/* Trust-Leiste */}
-          <div className="flex flex-wrap items-center justify-center gap-3 mt-12">
-            {heroTrust.map((t) => (
-              <div
-                key={t.label}
-                className="flex items-center gap-2 rounded-full border bg-background/60 px-4 py-2 text-sm font-medium shadow-sm backdrop-blur"
-              >
-                <t.icon className="h-4 w-4 text-primary shrink-0" />
-                <span>{t.label}</span>
+          <figure className="min-w-0 pb-5">
+            <div className="relative rounded-2xl border border-primary/15 bg-primary/5 p-3 pb-8 shadow-xl shadow-primary/5 sm:p-5 sm:pb-10">
+              <div className="mb-3 flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground"><span>Dein Funnel im Editor</span><span className="rounded-full bg-background px-2 py-1">Echte Produktansicht</span></div>
+              <img src="/images/landing-editor.webp" alt="Trichterwerk-Editor mit einer Express-Bewerbung: links die Seiten, in der Mitte die Vorschau und Werkzeuge zur Gestaltung" width={1440} height={960} fetchPriority="high" className="w-full rounded-lg border bg-background shadow-sm" />
+              <div className="absolute -bottom-5 right-3 w-[25%] min-w-[76px] overflow-hidden rounded-[1.1rem] border-[3px] border-slate-800 bg-slate-800 shadow-xl sm:right-6 sm:rounded-[1.5rem] sm:border-[5px]">
+                <img src="/templates/portrait/express-bewerbung.webp" alt="Die Express-Bewerbung als mobile Funnel-Vorschau" width={390} height={844} className="aspect-[390/844] w-full object-cover object-top" />
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Hero Image - Dashboard Preview mit Glow-Frame */}
-        <div className="container mx-auto mt-16 max-w-6xl relative">
-          {/* Accent glow behind screenshot */}
-          <div
-            aria-hidden="true"
-            className="absolute -inset-8 -z-10 rounded-3xl opacity-40 blur-2xl"
-            style={{
-              background:
-                "linear-gradient(135deg, hsl(var(--primary) / 0.3), transparent 50%, hsl(var(--primary) / 0.2))",
-            }}
-          />
-          <div className="relative rounded-xl border shadow-2xl overflow-hidden ring-1 ring-primary/20">
-            <picture>
-              <source srcSet="/images/hero-dashboard.webp" type="image/webp" />
-              <img
-                src="/images/hero-dashboard.png"
-                alt="Das Trichterwerk-Dashboard: Views, Leads und Conversion-Rate der aktiven Funnels auf einen Blick"
-                width={1200}
-                height={800}
-                className="w-full h-auto"
-              />
-            </picture>
-            <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent pointer-events-none" />
-          </div>
+            </div>
+            <figcaption className="mt-4 max-w-[70%] text-xs leading-relaxed text-muted-foreground">Produktbeispiel: Express-Bewerbung. Texte und Bilder lassen sich im Editor anpassen.</figcaption>
+          </figure>
         </div>
       </section>
 
@@ -643,7 +569,7 @@ export default function Landing() {
             ))}
           </div>
           <p className="text-sm text-muted-foreground text-center mt-6">
-            Alle Pro-Funktionen sind während der 14-tägigen Testphase enthalten.{" "}
+            Kostenlos starten; die zusätzlichen Pro-Funktionen bei Bedarf freischalten.{" "}
             <Link href="/vergleich/perspective-alternative" className="underline hover:text-foreground">
               Zum ausführlichen Perspective-Vergleich
             </Link>
@@ -830,7 +756,7 @@ export default function Landing() {
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               Kostenlos starten, upgraden wenn du wächst. Monatlich kündbar,
-              14 Tage volle Pro-Features zum Testen.
+              100 Leads pro Monat im dauerhaft kostenlosen Free-Plan.
             </p>
           </div>
 
@@ -1032,7 +958,7 @@ export default function Landing() {
               </h2>
               <p className="text-primary-foreground/85 max-w-2xl mx-auto mb-8">
                 Sei einer der Ersten auf Trichterwerk: für immer kostenloser Free-Plan,
-                14 Tage volle Pro-Features, direkter Draht zum Team. Keine Kreditkarte nötig.
+                100 Leads pro Monat, direkter Draht zum Team. Keine Kreditkarte nötig.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link href="/register" onClick={() => trackCtaClick("final")}>

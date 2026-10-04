@@ -1,3 +1,4 @@
+import { freeOffer } from "@shared/marketing-offer";
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -35,7 +36,7 @@ export default function Register() {
 
   usePageMeta({
     title: "Kostenlos starten",
-    description: "Erstelle deinen kostenlosen Trichterwerk-Account — für immer kostenloser Free-Plan, 14 Tage Pro-Features, ohne Code, DSGVO-konform.",
+    description: "Erstelle deinen kostenlosen Trichterwerk-Account: ein veröffentlichter Funnel und 100 Leads pro Monat. Dauerhaft kostenlos, ohne Kreditkarte.",
     canonical: "/register",
   });
 
@@ -171,8 +172,8 @@ export default function Register() {
   };
 
   const features = [
-    "Für immer kostenloser Free-Plan",
-    "14 Tage Pro-Features gratis",
+    freeOffer.headline,
+    "Ein veröffentlichter Funnel",
     "Drag & Drop Builder",
     "Analytics & Insights",
   ];
@@ -193,7 +194,7 @@ export default function Register() {
             Kostenlos starten
           </Badge>
           <p className="text-muted-foreground mt-2">
-            Für immer kostenloser Free-Plan — mit 14 Tagen Pro-Features
+            {freeOffer.reassurance}
           </p>
         </div>
 
@@ -215,7 +216,7 @@ export default function Register() {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-center">Kostenlos starten</CardTitle>
             <CardDescription className="text-center">
-              Erstelle deinen Account und teste 14 Tage kostenlos
+              {freeOffer.allowance}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -318,8 +319,8 @@ export default function Register() {
                   <strong className="font-medium text-foreground">
                     Keine Zahlungsdaten nötig.
                   </strong>{" "}
-                  14 Tage volle Pro-Features — danach läuft dein Account im für
-                  immer kostenlosen Free-Plan weiter (Pro: 49&nbsp;€/Monat inkl. MwSt.).
+                  Dein Free-Plan ist dauerhaft kostenlos. Du wechselst nur auf Wunsch
+                  zu Pro (49&nbsp;€/Monat inkl. MwSt.).
                 </p>
               </div>
             </form>

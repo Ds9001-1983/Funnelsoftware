@@ -180,7 +180,7 @@ function TemplateGallery() {
 
       <MarketingCta
         title="Keine passende Vorlage dabei?"
-        text="Starte mit einem leeren Funnel oder lass deine KI einen bauen — beschreibe dein Angebot, der Rest entsteht in Minuten. 14 Tage kostenlos, monatlich kündbar."
+        text="Starte mit einem leeren Funnel und gestalte ihn nach deinen Vorstellungen. Ein veröffentlichter Funnel und 100 Leads pro Monat sind dauerhaft kostenlos."
       />
       <MarketingFooter />
     </div>
@@ -267,7 +267,7 @@ function TemplateDetail({
                 </Link>
               </div>
               <p className="text-sm text-muted-foreground mt-4">
-                14 Tage kostenlos testen · Farben, Texte und Logik frei anpassbar
+                Kostenlos starten · 100 Leads pro Monat · Farben und Texte frei anpassbar
               </p>
             </div>
 
