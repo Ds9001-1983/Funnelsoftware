@@ -29,3 +29,8 @@ Keine Änderung von Abrechnung, bestehenden Abos oder Tarifrechten.
 3. Demos: Typecheck und alle zehn geprüften Landing-/Galerie-Browserabläufe
    bestanden. Jede Karte öffnet das passende Beispiel; die Vorlagenauswahl
    wird bis zur Anmeldung mitgegeben.
+
+4. Aufbau/Preise: Typecheck und acht Browserabläufe bestanden. Drei Kernvorteile,
+   Free/Pro und sechs FAQ ersetzen die lange Funktions-/Vergleichsfolge.
+   Die Preisübersicht und strukturierten Angebotsdaten nennen Free und Pro;
+   keine automatische Kostenpflicht nach 100 Leads, keine Agency-Zusagen.

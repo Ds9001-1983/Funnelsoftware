@@ -21,7 +21,7 @@ test.describe("Landing Page", () => {
     await expect(page.getByTestId("marketing-header").getByRole("link", { name: /^Anmelden$/i })).toBeVisible();
 
     // Trust-Leiste sollte mind. eines der vier Vertrauenssignale anzeigen
-    await expect(page.getByText(/DSGVO|Made in Germany|14 Tage gratis/i).first()).toBeVisible();
+    await expect(page.getByText(/Hosting in der EU/i).first()).toBeVisible();
   });
 
   test("Footer hat funktionierende Legal-Links", async ({ page }) => {
@@ -91,4 +91,15 @@ test("demos follow the hero and each card opens its matching interactive example
     await expect(page.getByText("Die Vorschau ist voll interaktiv", { exact: false })).toBeVisible();
     await page.goto("/");
   }
+});
+
+test("pricing explains the monthly free limit without a time-limited trial offer", async ({ page }) => {
+  await page.goto("/");
+  const pricing = page.locator("#pricing");
+  await expect(pricing.getByRole("article", { name: "Free-Plan" })).toContainText("100 sichtbare Leads pro Monat");
+  await expect(pricing.getByRole("article", { name: "Pro-Plan" })).toContainText("49 €");
+  await page.getByRole("button", { name: "Was passiert nach 100 Leads?" }).click();
+  await expect(page.locator("#faq")).toContainText("keine automatischen Kosten");
+  await expect(page.locator("body")).not.toContainText("14 Tage");
+  await expect(page.locator("body")).not.toContainText("Alles aus Agency");
 });

@@ -1,58 +1,18 @@
-import { freeOffer } from "@shared/marketing-offer";
-import { Link } from "wouter";
-import { usePageMeta } from "@/hooks/use-document-title";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  Zap,
-  Sparkles,
-  Smartphone,
-  Target,
-  Check,
-  X as XIcon,
-  ArrowRight,
-  ChevronRight,
-  MousePointerClick,
-  PenTool,
-  Palette,
-  TrendingUp,
-  ShieldCheck,
-  Server,
-  Lock,
-  Briefcase,
-  GraduationCap,
-  UserSearch,
-  Play,
-  Flag,
-  Heart,
-  CreditCard,
-  BarChart3,
-  Webhook,
-  Send,
-} from "lucide-react";
 import { useEffect } from "react";
+import { Link } from "wouter";
+import { ArrowRight, Check, Flag, Layers, MousePointerClick, Play, Server, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { CONTACT_EMAIL } from "@/components/marketing/constants";
-import { comparisonLinks, faqPageJsonLd, TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
-import { recruitingCapabilities, recruitingFaqs } from "@shared/recruiting-content";
+import { usePageMeta } from "@/hooks/use-document-title";
 import { trackPlatformEvent } from "@/lib/platform-tracker";
+import { faqPageJsonLd, TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
+import { freeOffer } from "@shared/marketing-offer";
 
-/**
- * Meldet, welcher der drei /register-CTAs geklickt wurde.
- *
- * Ohne dieses Label war nur sichtbar, wie viele Besucher die Seite sahen und
- * wie viele auf /register ankamen — aber nicht, ob der Hero trägt oder erst
- * die Preisliste, und damit auch nicht, wie weit überhaupt gescrollt wird.
- */
-function trackCtaClick(label: "hero" | "pricing" | "final"): void {
+function trackCtaClick(label: "hero" | "pricing" | "final") {
   trackPlatformEvent("/", "cta_click", label);
 }
 
@@ -62,284 +22,34 @@ const templatePreviews = [
   { name: "Webinar-Anmeldung", slug: "masterclass", category: "Webinare", color: "#2563EB", description: "Stelle dein Thema vor und sammle Anmeldungen für dein Webinar.", image: "/templates/webinar.webp" },
 ];
 
-const features = [
-  {
-    icon: MousePointerClick,
-    title: "Drag & Drop Builder",
-    description: "Erstelle komplette Funnels per Maus. Kein HTML, kein CSS, kein Frust.",
-    image: "/images/feature-drag-drop.webp",
-  },
-  {
-    icon: Smartphone,
-    title: "Mobile-First Design",
-    description: "Jeder Funnel ist automatisch für Smartphones optimiert — dort, wo 80 % deiner Besucher landen.",
-    image: "/images/feature-mobile.webp",
-  },
-  {
-    icon: PenTool,
-    title: "20+ Elemente",
-    description: "Texte, Videos, Formulare, Countdowns, Umfragen, Slider — alles für hohe Conversion.",
-  },
-  {
-    icon: Palette,
-    title: "Vollständig anpassbar",
-    description: "Farben, Fonts, Layouts und Corporate Identity — du entscheidest, nicht das Template.",
-  },
-  {
-    icon: TrendingUp,
-    title: "Analytics & Insights",
-    description: "Views, Conversions, Drop-offs und Lead-Qualität in Echtzeit — ohne Google Analytics.",
-    image: "/images/feature-analytics.webp",
-  },
-  {
-    icon: Target,
-    title: "Conditional Logic",
-    description: "Zeige Besuchern dynamisch verschiedene Seiten — basierend auf ihren Antworten.",
-  },
+const benefits = [
+  { icon: MousePointerClick, title: "Deine Idee wird zur Seite", text: "Wähle eine Vorlage und passe Texte, Bilder und Fragen im Editor an. Die Handyvorschau zeigt dir, wie dein Funnel wirkt.", detail: "Alle Vorlagen im Free-Plan" },
+  { icon: Layers, title: "Frage, was dir wirklich hilft", text: "Führe Interessenten Schritt für Schritt durch ihr Anliegen. So erhältst du neben Kontaktdaten auch Antworten, mit denen du weiterarbeiten kannst.", detail: "Für Anfragen, Termine und Bewerbungen" },
+  { icon: Users, title: "Behalte deine Kontakte im Blick", text: "Sammle Antworten an einem Ort, bearbeite Kontakte und exportiere deine Leads. Pro ergänzt Bewerbermails und freigegebene Kundenbereiche.", detail: "100 Leads pro Monat kostenlos" },
 ];
-
-const personas = [
-  {
-    icon: GraduationCap,
-    title: "Coaches & Berater",
-    description: "Qualifiziere Interessenten mit smarten Frage-Funnels und verkaufe deine Programme ohne Sales-Call-Marathon.",
-  },
-  {
-    icon: Briefcase,
-    title: "Dienstleister & Agenturen",
-    description: "Präsentiere deine Leistungen, hole Erstgespräche und stelle Angebote in weniger als 10 Minuten live.",
-  },
-  {
-    icon: UserSearch,
-    title: "Recruiter & HR-Teams",
-    description: "Filtere Bewerbungen mit klugen Fragen — und spare Stunden beim Screening.",
-  },
+const plans = [
+  { name: "Free", price: "0 €", period: "dauerhaft", description: "Alles für deinen ersten eigenen Funnel.", features: ["1 veröffentlichter Funnel", "100 sichtbare Leads pro Monat", "Alle Vorlagen und der Editor", "Unbegrenzte Entwürfe", "Lead-Verwaltung und CSV-Export", "Trichterwerk-Adresse und Badge"], note: "Ohne Kreditkarte. Ohne automatische Kosten.", highlighted: true },
+  { name: "Pro", price: "49 €", period: "pro Monat, inkl. MwSt.", description: "Wenn du mehr Leads und mehr Möglichkeiten brauchst.", features: ["Unbegrenzte Funnels und Leads", "Eigene Domains und Badge entfernen", "A/B-Tests und KI-Funnel-Generator¹", "Bewerbermails und eigene Board-Spalten", "Freigegebene Kundenbereiche", "Support per E-Mail"], note: "Optional im Konto buchen. Monatlich kündbar.", highlighted: false },
 ];
-
-const steps = [
-  {
-    number: "01",
-    title: "Registrieren",
-    description: "Account in 30 Sekunden — E-Mail, Passwort, fertig.",
-  },
-  {
-    number: "02",
-    title: "Template wählen",
-    description: "13 fertige, konversionsstarke Vorlagen — oder leer starten.",
-  },
-  {
-    number: "03",
-    title: "Anpassen",
-    description: "Texte, Farben, Bilder, Fragen — per Drag & Drop in Minuten.",
-  },
-  {
-    number: "04",
-    title: "Launchen & Leads sammeln",
-    description: "Eigene Domain, Live-Analytics und Leads automatisch in deinem Dashboard.",
-  },
-];
-
-interface PricingPlan {
-  name: string;
-  price: string;
-  priceSuffix?: string;
-  description: string;
-  features: string[];
-  cta: string;
-  ctaHref: string;
-  popular: boolean;
-  note?: string;
-  comingSoon?: boolean;
-  comingSoonLabel?: string;
-}
-
-const pricingPlans: PricingPlan[] = [
-  {
-    name: "Free",
-    price: "0",
-    priceSuffix: "€ / für immer",
-    description: "Zum Ausprobieren und für den ersten Funnel",
-    features: [
-      "1 veröffentlichter Funnel",
-      "100 Leads pro Monat",
-      "Alle Templates & Editor-Funktionen",
-      "Unbegrenzte Entwürfe",
-      "Live-Analytics",
-      "„Erstellt mit Trichterwerk“-Badge",
-    ],
-    cta: "Kostenlos starten",
-    ctaHref: "/register",
-    popular: false,
-    note: "Keine Kreditkarte nötig · für immer kostenlos",
-  },
-  {
-    name: "Pro",
-    price: "49",
-    priceSuffix: "€ / Monat",
-    description: "Alles, was du zum Launch brauchst",
-    features: [
-      "Unbegrenzte veröffentlichte Funnels",
-      "Unbegrenzte Leads",
-      "Alle Templates & Elemente",
-      "Mehrere eigene Domains & Subdomains",
-      "KI-Funnel-Generator",
-      "A/B-Tests & Conditional Logic",
-      "Kanban mit Drag-and-drop & eigenen Spalten",
-      "Bewerbermails bei Eingang & Statuswechsel",
-      "Getrennte Kundenbereiche",
-      "Lead-Benachrichtigungen an dich",
-      "Badge entfernbar · Support per E-Mail",
-    ],
-    cta: "Kostenlos starten",
-    ctaHref: "/register",
-    popular: true,
-    // Der Stripe-Price ist `tax_behavior: "inclusive"` — der Kunde zahlt 49,00 €
-    // als Endpreis, MwSt. ist enthalten. Deshalb hier und überall sonst „inkl.".
-    note: "Optionales Upgrade · monatlich kündbar · inkl. MwSt.",
-  },
-  {
-    name: "Agency",
-    price: "ab 149",
-    priceSuffix: "€ / Monat",
-    description: "Für Teams, White-Label und API",
-    features: [
-      "Alles aus Pro",
-      "Team-Seats (bis 10 Nutzer)",
-      "White-Label Branding",
-      "API-Zugang",
-      "Priority Support",
-    ],
-    cta: "Auf Warteliste setzen",
-    ctaHref: `mailto:${CONTACT_EMAIL}?subject=Agency-Plan%20Warteliste%20(2026)`,
-    popular: false,
-    comingSoon: true,
-    comingSoonLabel: "In Planung",
-    note: "Geplanter Funktionsumfang · noch kein Veröffentlichungstermin",
-  },
-  {
-    name: "Enterprise",
-    price: "Individuell",
-    description: "SLA, Integrationen, dedizierter Manager",
-    features: [
-      "Alles aus Agency",
-      "SLA-Garantie",
-      "Custom Integrationen",
-      "Dedizierter Account Manager",
-      "Onboarding-Workshop",
-      "Compliance auf Anfrage (AVV, SOC2)",
-    ],
-    cta: "Kontakt aufnehmen",
-    ctaHref: `mailto:${CONTACT_EMAIL}?subject=Enterprise-Anfrage`,
-    popular: false,
-  },
-];
-
-const integrations = [
-  { icon: CreditCard, label: "Stripe", note: "Zahlungen & Trial-Abo" },
-  { icon: Webhook, label: "Webhooks", note: "Beliebige Endpoints" },
-  { icon: Zap, label: "Zapier & Make", note: "5 000+ Apps via Webhook" },
-  { icon: Send, label: "E-Mail an dich", note: "Benachrichtigung bei neuen Leads" },
-  { icon: Server, label: "Eigene Domain", note: "Mit SSL inklusive" },
-  { icon: BarChart3, label: "CSV-Export", note: "Deine Leads, deine Daten" },
-];
-
-// Vergrößerte Trust-Leiste direkt unter dem Hero-CTA
-const heroTrust = [
-  { icon: ShieldCheck, label: "Für immer kostenloser Free-Plan" },
-  { icon: Lock, label: "Monatlich kündbar" },
-  { icon: Flag, label: "Made in Germany" },
-  { icon: Server, label: "EU-Hosting · DSGVO-konform" },
-];
-
-// Ehrliche, belegbare Produktfakten statt erfundener Kundenstimmen
-const proofStats = [
-  { value: "< 1 Std.", label: "vom Signup zum ersten Funnel live" },
-  { value: "13", label: "fertige, konversionsstarke Templates" },
-  { value: "20+", label: "Bausteine für jeden Funnel-Typ" },
-  { value: "100 %", label: "DSGVO-konform, Hosting in der EU" },
-];
-
-interface ComparisonRow {
-  label: string;
-  trichterwerk: boolean | string;
-  typeform: boolean | string;
-  perspective: boolean | string;
-  webflow: boolean | string;
-}
-
-const comparisonRows: ComparisonRow[] = [
-  { label: "Deutsche Oberfläche & Support", trichterwerk: true, typeform: false, perspective: true, webflow: false },
-  { label: "Hosting in der EU / DSGVO-konform", trichterwerk: true, typeform: false, perspective: true, webflow: "teilweise" },
-  { label: "Live-Handy-Vorschau im Editor", trichterwerk: true, typeform: true, perspective: true, webflow: false },
-  { label: "Conditional Logic & Quiz", trichterwerk: true, typeform: true, perspective: true, webflow: false },
-  { label: "Eigene Domain inklusive", trichterwerk: true, typeform: false, perspective: true, webflow: true },
-  { label: "A/B-Tests", trichterwerk: true, typeform: false, perspective: "ab Grow inklusive; Base mit Add-on", webflow: "mit Add-on" },
-  { label: "Setup-Zeit bis Launch", trichterwerk: "< 1 h", typeform: "1–2 h", perspective: "2–4 h", webflow: "Tage" },
-  { label: "Monatspreis", trichterwerk: "0–49 €", typeform: "ab 25 $", perspective: "ab 59 € + Add-ons", webflow: "ab 29 $ + Design" },
-];
-
 const faqs = [
-  {
-    q: "Ist Trichterwerk wirklich kostenlos?",
-    a: "Ja. Der Free-Plan ist dauerhaft kostenlos: 1 veröffentlichter Funnel, 100 Leads pro Monat, alle Templates und Editor-Funktionen. Ein Upgrade auf Pro ist freiwillig.",
-  },
-  {
-    q: "Brauche ich zum Start eine Kreditkarte?",
-    a: "Nein. Du registrierst dich mit E-Mail und Passwort und kannst sofort losbauen — ohne Zahlungsdaten. Erst wenn du auf Pro upgraden willst, hinterlegst du deine Zahlungsmethode über Stripe (PayPal, Kreditkarte, SEPA).",
-  },
-  {
-    q: "Kann ich jederzeit kündigen?",
-    a: "Ja. Der Pro-Plan ist monatlich kündbar. Keine Mindestlaufzeit, keine Kündigungsgebühren. Kündigung direkt im Stripe-Kundenportal in deinen Einstellungen.",
-  },
-  {
-    q: "Brauche ich technische Vorkenntnisse?",
-    a: "Nein. Wenn du eine E-Mail schreiben kannst, kannst du Trichterwerk bedienen. Drag & Drop, fertige Templates, deutsche Oberfläche. Kein HTML, kein CSS, kein Hosting-Setup.",
-  },
-  {
-    q: "Wo werden meine Daten und Leads gespeichert?",
-    a: "Auf Servern in der EU, DSGVO-konform. Deine Leads gehören dir — jederzeit als CSV exportierbar. Kein Weiterverkauf, keine Datenweitergabe.",
-  },
-  {
-    q: "Wie funktioniert „Eigene Domain“?",
-    a: "Im Pro-Plan hinterlegst du deine Domain im Funnel-Editor. Für eine Subdomain wie funnel.deine-firma.de setzt du einen CNAME-Eintrag bei deinem Provider; für eine Hauptdomain einen A-Eintrag. Nach der Verifizierung wird das SSL-Zertifikat automatisch eingerichtet, ohne Aufpreis.",
-  },
-  ...recruitingFaqs,
-  {
-    q: "Kann ich meinen Plan später wechseln?",
-    a: "Ja — Upgrade jederzeit direkt im Dashboard. Downgrade oder Kündigung über das Stripe-Kundenportal.",
-  },
-  {
-    q: "Welche Zahlungsmethoden werden akzeptiert?",
-    a: "Kreditkarte (Visa, Mastercard, Amex), PayPal, SEPA-Lastschrift — alles abgewickelt über Stripe mit SSL-Verschlüsselung.",
-  },
+  { q: "Was ist dauerhaft kostenlos?", a: "Ein veröffentlichter Funnel, alle Vorlagen, der Editor und 100 sichtbare Leads pro Monat. Du kannst unbegrenzt Entwürfe anlegen. Dein Funnel läuft unter einer Trichterwerk-Adresse mit Trichterwerk-Badge. Du brauchst keine Kreditkarte und kein kostenpflichtiges Abo." },
+  { q: "Was passiert nach 100 Leads?", a: "Weitere Leads werden gespeichert, ihre Kontaktdaten und Antworten bleiben im Free-Plan gesperrt. Mit Pro kannst du sie freischalten. Für neue Leads stehen dir im nächsten Kalendermonat wieder 100 freie Plätze zur Verfügung. Das Kontingent gilt pro Account; es entstehen keine automatischen Kosten." },
+  { q: "Kann ich die Beispiele ohne Anmeldung ausprobieren?", a: "Ja. Alle verlinkten Live-Demos lassen sich direkt im Browser durchklicken. Deine Eingaben in einer Demo werden nicht als Leads gespeichert. Wenn dir eine Vorlage gefällt, kannst du sie bei der kostenlosen Anmeldung mitnehmen." },
+  { q: "Brauche ich eine eigene Website oder Programmierkenntnisse?", a: "Nein. Du bearbeitest deinen Funnel im visuellen Editor und veröffentlichst ihn auf einer Trichterwerk-Adresse. Eine vorhandene Website ist dafür nicht erforderlich. Eigene Domains kannst du im Pro-Plan verbinden." },
+  { q: "Wann bezahle ich für Pro?", a: "Nur wenn du Pro ausdrücklich in deinem Konto buchst. Der Preis beträgt 49 € pro Monat inklusive Mehrwertsteuer. Pro ist monatlich kündbar; dein kostenloser Account bleibt auch ohne Upgrade nutzbar." },
+  { q: "Wer steckt hinter Trichterwerk und wo bekomme ich Hilfe?", a: "Trichterwerk wird von SUPERBRAND.marketing in Deutschland entwickelt. Die Anwendung wird in der EU gehostet. Bei Fragen erreichst du uns persönlich per E-Mail; Kontaktdaten, Datenschutzhinweise und Impressum sind unten verlinkt." },
 ];
-
-// Statischer Inhalt → einmal pro Modul-Load statt pro Render (Rich-Snippet-FAQ).
 const FAQ_JSON_LD = JSON.stringify({ "@context": "https://schema.org", ...faqPageJsonLd(faqs) });
 
 export default function Landing() {
-  usePageMeta({
-    title: "Funnel-Builder: 100 Leads pro Monat kostenlos",
-    description:
-      "Gewinne Kunden und Bewerber mit deinem eigenen Funnel. Ein veröffentlichter Funnel und 100 Leads pro Monat kostenlos. Ohne Kreditkarte, mit Hosting in der EU.",
-    canonical: "/",
-  });
-
-  // Anker-Navigation von Unterseiten (/#features): Der Browser scrollt beim
-  // Laden nicht selbst, weil die Landing erst nach dem Auth-Check rendert —
-  // deshalb hier einmalig nach dem Mount zum Fragment scrollen.
+  usePageMeta({ title: "Funnel-Builder: 100 Leads pro Monat kostenlos", description: "Gewinne Kunden und Bewerber mit deinem eigenen Funnel. Ein veröffentlichter Funnel und 100 Leads pro Monat kostenlos. Ohne Kreditkarte, mit Hosting in der EU.", canonical: "/" });
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash) {
-      document.querySelector(hash)?.scrollIntoView();
-    }
+    if (!window.location.hash) return;
+    try { document.getElementById(decodeURIComponent(window.location.hash.slice(1)))?.scrollIntoView(); } catch { /* Invalid URL fragment has no target. */ }
   }, []);
-
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Navigation (geteilt mit den SEO-Marketing-Seiten) */}
-      <MarketingHeader />
-
+  return <div className="min-h-screen bg-background">
+    <MarketingHeader />
+    <main>
       <section className="relative overflow-hidden px-4 pb-14 pt-28 sm:px-6 sm:pb-20 lg:pt-36" data-testid="landing-hero">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-primary/10" />
         <div className="container relative mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-12">
@@ -395,520 +105,39 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Integrations Trust-Bar */}
-      <section className="py-14 px-4 border-y bg-muted/20">
-        <div className="container mx-auto">
-          <div className="text-center mb-8 max-w-2xl mx-auto">
-            <p className="text-sm uppercase tracking-wider text-primary mb-3 font-semibold">
-              Integrationen & CRM
-            </p>
-            <h2 className="text-2xl md:text-3xl font-bold mb-3">
-              Deine Leads landen dort, wo du arbeitest
-            </h2>
-            <p className="text-muted-foreground">
-              Übergib neue Kontakte in Echtzeit an{" "}
-              <span className="font-medium text-foreground">HubSpot, Pipedrive, Notion, Google Sheets</span>{" "}
-              und 5 000+ weitere Tools — per Zapier, Make oder Webhook. Oder
-              exportiere jederzeit alles als CSV. Deine Daten, dein System.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 max-w-5xl mx-auto">
-            {integrations.map((int) => (
-              <div
-                key={int.label}
-                className="flex flex-col items-center text-center gap-2 hover:opacity-100 transition-opacity"
-              >
-                <div className="h-11 w-11 rounded-lg bg-background border flex items-center justify-center shadow-sm">
-                  <int.icon className="h-5 w-5 text-primary" />
-                </div>
-                <div className="text-sm font-medium">{int.label}</div>
-                <div className="text-xs text-muted-foreground">{int.note}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Für wen? */}
-      <section className="py-20 px-4 border-y bg-muted/30">
-        <div className="container mx-auto">
-          <div className="text-center mb-12">
-            <Badge variant="secondary" className="mb-4">Für wen?</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Gebaut für Macher, nicht für Entwickler
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Wenn du heute launchen willst statt in zwei Wochen, bist du hier richtig.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {personas.map((p) => (
-              <Card key={p.title} className="text-center">
-                <CardHeader>
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 mx-auto">
-                    <p.icon className="h-6 w-6 text-primary" />
-                  </div>
-                  <CardTitle className="text-xl">{p.title}</CardTitle>
-                  <CardDescription className="text-base">{p.description}</CardDescription>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-20 px-4">
-        <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <Badge variant="secondary" className="mb-4">Features</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Alles drin, was moderne Funnels brauchen
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Keine versteckten Limits, keine Add-ons. Was du hier siehst, ist im Pro-Plan enthalten.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature) => (
-              <Card
-                key={feature.title}
-                className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden"
-              >
-                {feature.image && (
-                  <div className="h-40 overflow-hidden bg-muted">
-                    <picture>
-                      <source srcSet={feature.image} type="image/webp" />
-                      <img
-                        src={feature.image.replace(".webp", ".png")}
-                        alt={feature.title}
-                        width={800}
-                        height={533}
-                        loading="lazy"
-                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
-                      />
-                    </picture>
-                  </div>
-                )}
-                <CardHeader>
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                    <feature.icon className="h-6 w-6 text-primary" />
-                  </div>
-                  <CardTitle className="text-xl">{feature.title}</CardTitle>
-                  <CardDescription className="text-base">{feature.description}</CardDescription>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* So einfach geht's */}
-      <section className="py-20 px-4 bg-muted/30 border-y">
-        <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <Badge variant="secondary" className="mb-4">In 4 Schritten live</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Vom Signup zum ersten Lead in unter einer Stunde
-            </h2>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-            {steps.map((step) => (
-              <div key={step.number} className="relative">
-                <div className="text-5xl font-bold text-primary/20 mb-2">{step.number}</div>
-                <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
-                <p className="text-muted-foreground text-sm">{step.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="recruiting-funktionen" aria-labelledby="recruiting-funktionen-title" className="py-20 px-4 border-y bg-muted/20 scroll-mt-24">
-        <div className="container mx-auto max-w-5xl">
-          <div className="text-center mb-10">
-            <Badge variant="secondary" className="mb-4">Für Recruiting & Agenturen</Badge>
-            <h2 id="recruiting-funktionen-title" className="text-3xl md:text-4xl font-bold mb-4">
-              Was du heute nutzen kannst
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Domains, Bewerberverwaltung und Kundenzugänge: Prüfe hier, welche Funktionen deinen Arbeitsablauf bereits unterstützen.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 gap-4">
-            {recruitingCapabilities.map((capability, index) => (
-              <Card key={capability.id} className={index === recruitingCapabilities.length - 1 ? "md:col-span-2" : undefined}>
-                <CardHeader className="pb-3">
-                  <Badge variant="secondary" className="w-fit mb-2">
-                    {capability.status}
-                  </Badge>
-                  <CardTitle className="text-lg">{capability.label}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{capability.summary}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          <p className="text-sm text-muted-foreground text-center mt-6">
-            Kostenlos starten; die zusätzlichen Pro-Funktionen bei Bedarf freischalten.{" "}
-            <Link href="/vergleich/perspective-alternative" className="underline hover:text-foreground">
-              Zum ausführlichen Perspective-Vergleich
-            </Link>
-          </p>
-        </div>
-      </section>
-
-      {/* Vergleichstabelle */}
-      <section className="py-20 px-4">
+      <section id="features" className="scroll-mt-20 border-t bg-muted/20 px-4 py-14 sm:px-6 sm:py-20">
         <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-12">
-            <Badge variant="secondary" className="mb-4">Warum Trichterwerk?</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Im direkten Vergleich
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Ehrlich verglichen: wo Trichterwerk glänzt und was du bei anderen Tools bekommst.
-            </p>
-          </div>
-
-          <div className="overflow-x-auto rounded-xl border bg-card">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/30">
-                  <th className="text-left p-4 font-medium min-w-[200px]">Feature</th>
-                  <th className="p-4 font-semibold">
-                    <div className="flex items-center gap-2 justify-center text-primary">
-                      <Zap className="h-4 w-4" />
-                      Trichterwerk
-                    </div>
-                  </th>
-                  <th className="p-4 font-medium text-muted-foreground">Typeform</th>
-                  <th className="p-4 font-medium text-muted-foreground">Perspective</th>
-                  <th className="p-4 font-medium text-muted-foreground">Webflow</th>
-                </tr>
-              </thead>
-              <tbody>
-                {comparisonRows.map((row, idx) => (
-                  <tr
-                    key={row.label}
-                    className={`border-b last:border-0 ${idx % 2 === 1 ? "bg-muted/10" : ""}`}
-                  >
-                    <td className="p-4 font-medium">{row.label}</td>
-                    <td className="p-4 text-center bg-primary/5">
-                      {typeof row.trichterwerk === "boolean" ? (
-                        row.trichterwerk ? (
-                          <Check className="h-5 w-5 text-primary mx-auto" />
-                        ) : (
-                          <XIcon className="h-5 w-5 text-muted-foreground/60 mx-auto" />
-                        )
-                      ) : (
-                        <span className="font-semibold text-primary">{row.trichterwerk}</span>
-                      )}
-                    </td>
-                    {(["typeform", "perspective", "webflow"] as const).map((col) => {
-                      const val = row[col];
-                      return (
-                        <td key={col} className="p-4 text-center">
-                          {typeof val === "boolean" ? (
-                            val ? (
-                              <Check className="h-5 w-5 text-muted-foreground mx-auto" />
-                            ) : (
-                              <XIcon className="h-5 w-5 text-muted-foreground/40 mx-auto" />
-                            )
-                          ) : (
-                            <span className="text-muted-foreground">{val}</span>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <p className="text-xs text-muted-foreground text-center mt-4">
-            Preise und Features der Wettbewerber: Stand {new Date().toLocaleDateString("de-DE", { month: "long", year: "numeric" })}.
-            Ohne Gewähr — aktuelle Details auf den Anbieter-Websites.
-          </p>
-
-          <p className="text-sm text-muted-foreground text-center mt-6">
-            Ausführliche Vergleiche:{" "}
-            {comparisonLinks.slice(0, 3).map((link, idx) => (
-              <span key={link.path}>
-                {idx > 0 && " · "}
-                <Link href={link.path} className="underline hover:text-foreground">
-                  {idx === 0 ? `Trichterwerk vs. ${link.competitor}` : `vs. ${link.competitor}`}
-                </Link>
-              </span>
-            ))}
-            {" · "}
-            <Link href="/vergleich" className="underline hover:text-foreground">
-              alle Vergleiche
-            </Link>
-          </p>
+          <div className="mb-9 max-w-2xl"><p className="mb-3 text-sm font-semibold text-primary">Von deiner Idee bis zur Anfrage</p><h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Ein Werkzeug für den ganzen Weg.</h2></div>
+          <div className="grid gap-6 md:grid-cols-3">{benefits.map(benefit => <article key={benefit.title} className="rounded-xl border bg-background p-6"><benefit.icon className="mb-5 h-7 w-7 text-primary" /><h3 className="text-xl font-semibold">{benefit.title}</h3><p className="mt-3 text-sm leading-relaxed text-muted-foreground">{benefit.text}</p><p className="mt-5 text-xs font-medium text-primary">{benefit.detail}</p></article>)}</div>
         </div>
       </section>
 
-      {/* Ergebnis-/Fakten-Band */}
-      <section className="py-16 px-4 border-t">
-        <div className="container mx-auto max-w-5xl">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center">
-            {proofStats.map((s) => (
-              <div key={s.label}>
-                <div className="text-4xl md:text-5xl font-bold text-primary mb-2">
-                  {s.value}
-                </div>
-                <p className="text-sm text-muted-foreground leading-snug">
-                  {s.label}
-                </p>
-              </div>
-            ))}
-          </div>
+      {/* Product example is kept separate from customer testimonials. */}
+
+      <section id="pricing" className="scroll-mt-20 border-t px-4 py-14 sm:px-6 sm:py-20">
+        <div className="container mx-auto max-w-4xl">
+          <div className="mb-9 text-center"><p className="mb-3 text-sm font-semibold text-primary">Dein Start kostet 0 €</p><h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Kostenlos loslegen. Bei Bedarf wachsen.</h2><p className="mt-4 text-muted-foreground">100 Leads pro Monat sind inklusive. Du entscheidest, ob du mehr brauchst.</p></div>
+          <div className="grid gap-6 md:grid-cols-2">{plans.map(plan => <article key={plan.name} aria-label={`${plan.name}-Plan`} className={`flex flex-col rounded-2xl border p-6 sm:p-8 ${plan.highlighted ? "border-primary/40 bg-primary/5" : "bg-card"}`}>
+            <div className="flex items-center justify-between"><h3 className="text-xl font-semibold">{plan.name}</h3>{plan.highlighted && <Badge>Dein kostenloser Start</Badge>}</div>
+            <p className="mt-3 min-h-10 text-sm text-muted-foreground">{plan.description}</p>
+            <p className="mt-5 text-4xl font-bold tracking-tight">{plan.price}</p><p className="mt-1 text-sm text-muted-foreground">{plan.period}</p>
+            <ul className="my-7 flex-1 space-y-3 text-sm">{plan.features.map(feature => <li key={feature} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{feature}</li>)}</ul>
+            <Button asChild size="lg" variant={plan.highlighted ? "default" : "outline"} className="min-h-12 w-full"><Link href="/register" onClick={() => trackCtaClick("pricing")}>Kostenlos starten<ArrowRight className="h-4 w-4" /></Link></Button><p className="mt-3 text-center text-xs text-muted-foreground">{plan.note}</p>
+          </article>)}</div>
+          <p className="mt-5 text-xs leading-relaxed text-muted-foreground">¹ Die KI nutzt deinen eigenen Anbieterschlüssel. Kosten beim KI-Anbieter werden separat abgerechnet.</p>
+          <p className="mt-6 text-center text-sm text-muted-foreground">Du hast besondere Anforderungen? <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-primary underline underline-offset-4">Sprich mit uns.</a></p>
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section id="pricing" className="py-20 px-4 bg-muted/30 border-y">
-        <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <Badge variant="secondary" className="mb-4">Preise</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Transparente Preise. Keine Überraschungen.
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Kostenlos starten, upgraden wenn du wächst. Monatlich kündbar,
-              100 Leads pro Monat im dauerhaft kostenlosen Free-Plan.
-            </p>
-          </div>
-
-          {/* Nur kaufbare Pläne in der Kaufreihe — der noch nicht buchbare
-              Agency-Plan wandert als Teaser in den Footer, damit der Blick
-              auf dem sofort buchbaren Pro-Plan bleibt (keine Friktion am CTA). */}
-          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-            {pricingPlans.filter((plan) => !plan.comingSoon).map((plan) => (
-              <Card
-                key={plan.name}
-                className={`relative flex flex-col ${
-                  plan.popular ? "border-primary shadow-lg md:scale-105" : ""
-                } ${plan.comingSoon ? "border-dashed" : ""}`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-primary">Beliebteste Wahl</Badge>
-                  </div>
-                )}
-                {plan.comingSoon && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge variant="secondary" className="gap-1">
-                      <Sparkles className="h-3 w-3" />
-                      {plan.comingSoonLabel ?? "Coming soon"}
-                    </Badge>
-                  </div>
-                )}
-                <CardHeader className="text-center pb-4">
-                  <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                  <CardDescription>{plan.description}</CardDescription>
-                  <div className="mt-4">
-                    <span className={`text-4xl font-bold ${plan.comingSoon ? "text-muted-foreground" : ""}`}>
-                      {plan.price}
-                    </span>
-                    {plan.priceSuffix && (
-                      <span className="text-muted-foreground ml-1">{plan.priceSuffix}</span>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col">
-                  <ul className="space-y-3 mb-6 text-left flex-1">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2">
-                        <Check
-                          className={`h-4 w-4 shrink-0 mt-0.5 ${
-                            plan.comingSoon ? "text-muted-foreground" : "text-primary"
-                          }`}
-                        />
-                        <span className="text-sm">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {plan.ctaHref.startsWith("mailto:") ? (
-                    <a href={plan.ctaHref}>
-                      <Button
-                        className="w-full"
-                        variant={plan.popular ? "default" : plan.comingSoon ? "secondary" : "outline"}
-                      >
-                        {plan.cta}
-                      </Button>
-                    </a>
-                  ) : (
-                    <Link href={plan.ctaHref} onClick={() => trackCtaClick("pricing")}>
-                      <Button className="w-full" variant={plan.popular ? "default" : "outline"}>
-                        {plan.cta}
-                      </Button>
-                    </Link>
-                  )}
-                  {plan.note && (
-                    <p className="text-xs text-muted-foreground text-center mt-3">{plan.note}</p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Pricing footer */}
-          <div className="max-w-3xl mx-auto mt-10 text-center space-y-2 text-sm text-muted-foreground">
-            <p>
-              Alle Preise sind Endpreise inkl. 19&nbsp;% MwSt. · Monatlich kündbar · Keine Setup-Gebühr
-            </p>
-            <p>
-              <span className="font-medium text-foreground">Agency</span> mit Team-Seats,
-              White-Label &amp; API kommt 2026 —{" "}
-              <a
-                href={`mailto:${CONTACT_EMAIL}?subject=Agency-Plan%20Fr%C3%BChzugang%20(2026)`}
-                className="underline hover:text-foreground"
-              >
-                Frühzugang sichern
-              </a>
-              .
-            </p>
-            <p>
-              Unsicher, welcher Plan passt?{" "}
-              <a href={`mailto:${CONTACT_EMAIL}`} className="underline hover:text-foreground">
-                Schreib uns
-              </a>{" "}
-              — wir melden uns innerhalb eines Werktags.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section id="faq" className="py-20 px-4">
+      <section id="faq" className="scroll-mt-20 border-t bg-muted/20 px-4 py-14 sm:px-6 sm:py-20">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: FAQ_JSON_LD }} />
-        <div className="container mx-auto max-w-3xl">
-          <div className="text-center mb-12">
-            <Badge variant="secondary" className="mb-4">FAQ</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Häufige Fragen</h2>
-            <p className="text-muted-foreground">
-              Fehlt etwas?{" "}
-              <a href={`mailto:${CONTACT_EMAIL}`} className="underline hover:text-foreground">
-                Schreib uns eine E-Mail
-              </a>
-              .
-            </p>
-          </div>
-          <Accordion type="single" collapsible className="w-full">
-            {faqs.map((faq, idx) => (
-              <AccordionItem key={idx} value={`item-${idx}`}>
-                <AccordionTrigger className="text-left">{faq.q}</AccordionTrigger>
-                <AccordionContent className="text-muted-foreground">{faq.a}</AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </div>
+        <div className="container mx-auto max-w-3xl"><h2 className="mb-8 text-3xl font-bold tracking-tight sm:text-4xl">Noch eine Frage?</h2><Accordion type="single" collapsible>{faqs.map((faq, index) => <AccordionItem key={faq.q} value={`faq-${index}`}><AccordionTrigger className="text-left">{faq.q}</AccordionTrigger><AccordionContent className="leading-relaxed text-muted-foreground">{faq.a}</AccordionContent></AccordionItem>)}</Accordion></div>
       </section>
 
-      {/* Mission / Warum wir das gebaut haben */}
-      <section className="py-20 px-4 border-t">
-        <div className="container mx-auto max-w-4xl">
-          <div className="grid md:grid-cols-[auto,1fr] gap-8 items-start">
-            <div className="flex md:flex-col items-center md:items-start gap-3 shrink-0">
-              <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Flag className="h-7 w-7 text-primary" />
-              </div>
-              <div className="md:mt-2">
-                <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                  Unser Warum
-                </div>
-                <div className="text-sm font-semibold">Gemacht in Deutschland</div>
-              </div>
-            </div>
-            <div>
-              <h2 className="text-3xl md:text-4xl font-bold mb-4 leading-tight">
-                Warum wir Trichterwerk gebaut haben
-              </h2>
-              <div className="space-y-4 text-muted-foreground text-lg leading-relaxed">
-                <p>
-                  Wir sind{" "}
-                  <a
-                    href="https://superbrand.marketing"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-foreground font-semibold underline underline-offset-4 decoration-primary/40 hover:decoration-primary"
-                  >
-                    SUPERBRAND
-                  </a>{" "}
-                  — eine kleine Agentur aus Deutschland. Jahrelang haben wir für Kunden
-                  Funnels mit amerikanischen Tools gebaut: teuer, englischsprachig,
-                  Daten in den USA, Support-Tickets tagelang offen.
-                </p>
-                <p>
-                  Irgendwann reichte es. Wir wollten ein Werkzeug, das{" "}
-                  <span className="text-foreground font-medium">in unserer Sprache spricht</span>,{" "}
-                  <span className="text-foreground font-medium">unsere Regeln respektiert</span>{" "}
-                  (DSGVO, Hosting in der EU), und trotzdem so gut ist wie die großen
-                  Namen. Also haben wir's selbst gebaut.
-                </p>
-                <p>
-                  Trichterwerk ist kein Riesen-Konzern, keine VC-Bude, keine Massen-SaaS.
-                  Wir wachsen mit unseren Kunden, antworten persönlich auf jede Mail,
-                  und bauen die Features, die du wirklich brauchst.
-                </p>
-              </div>
-              <div className="flex items-center gap-3 mt-8 pt-6 border-t">
-                <Heart className="h-5 w-5 text-primary fill-primary/20" />
-                <span className="text-sm text-muted-foreground">
-                  Keine Hype-Versprechen. Keine Fake-Stats. Nur ein solides Tool, das den Job macht.
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+      <section className="border-t px-4 py-14 text-center sm:px-6 sm:py-20">
+        <div className="container mx-auto max-w-2xl"><h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Dein nächster Kontakt beginnt hier.</h2><p className="mt-4 text-muted-foreground">{freeOffer.headline}. Wähle eine Vorlage und mach sie zu deiner.</p><Button asChild size="lg" className="mt-7 min-h-12 gap-2 px-6 text-base"><Link href="/register" onClick={() => trackCtaClick("final")}>Kostenlos starten<ArrowRight className="h-4 w-4" /></Link></Button><p className="mt-3 text-xs text-muted-foreground">{freeOffer.reassurance}</p></div>
       </section>
-
-      {/* Final CTA Section */}
-      <section className="py-20 px-4 bg-muted/30 border-t">
-        <div className="container mx-auto max-w-4xl">
-          <Card className="bg-primary text-primary-foreground overflow-hidden">
-            <CardContent className="p-12 text-center">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/15 px-3 py-1 text-sm font-medium mb-5">
-                <Sparkles className="h-3.5 w-3.5" />
-                Early Access · Gründungsphase
-              </div>
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                Bereit für deinen nächsten Funnel?
-              </h2>
-              <p className="text-primary-foreground/85 max-w-2xl mx-auto mb-8">
-                Sei einer der Ersten auf Trichterwerk: für immer kostenloser Free-Plan,
-                100 Leads pro Monat, direkter Draht zum Team. Keine Kreditkarte nötig.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Link href="/register" onClick={() => trackCtaClick("final")}>
-                  <Button size="lg" variant="secondary" className="gap-2 text-lg px-8">
-                    Kostenlos starten
-                    <ArrowRight className="h-5 w-5" />
-                  </Button>
-                </Link>
-                <Link href={`${TEMPLATE_GALLERY_PATH}/express-bewerbung`}>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="gap-2 text-lg px-8 bg-transparent border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
-                  >
-                    <Play className="h-5 w-5" />
-                    Live-Demo ansehen
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      {/* Footer (geteilt mit den SEO-Marketing-Seiten, inkl. „Vergleiche"-Spalte) */}
-      <MarketingFooter />
-    </div>
-  );
+    </main>
+    <MarketingFooter />
+  </div>;
 }
