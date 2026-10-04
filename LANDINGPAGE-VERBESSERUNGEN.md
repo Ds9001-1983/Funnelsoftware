@@ -25,3 +25,7 @@ Keine Änderung von Abrechnung, bestehenden Abos oder Tarifrechten.
    Registrierung bis Veröffentlichung. Desktop-/Handyansicht visuell geprüft.
    Das echte Editorbild lässt sich mit `scripts/capture-landing-editor.ts` auf
    einer isolierten lokalen E2E-Instanz neu aufnehmen.
+
+3. Demos: Typecheck und alle zehn geprüften Landing-/Galerie-Browserabläufe
+   bestanden. Jede Karte öffnet das passende Beispiel; die Vorlagenauswahl
+   wird bis zur Anmeldung mitgegeben.

@@ -76,3 +76,19 @@ test("free offer remains consistent from landing to signup", async ({ page }) =>
   await expect(page.getByText("1 veröffentlichter Funnel · 100 Leads pro Monat", { exact: true })).toBeVisible();
   await expect(page.locator("body")).not.toContainText("14 Tage");
 });
+
+test("demos follow the hero and each card opens its matching interactive example", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("landing-hero")).toBeVisible();
+  const sections = await page.locator("section").evaluateAll(nodes => nodes.slice(0, 2).map(node => node.getAttribute("data-testid")));
+  expect(sections).toEqual(["landing-hero", "landing-demos"]);
+  await expect(page.getByTestId("landing-hero").getByRole("link", { name: "Live-Demo ausprobieren" })).toHaveAttribute("href", "/vorlagen/express-bewerbung");
+  for (const [name, slug] of [["Anfragen & Termine", "termin-buchen"], ["Express-Bewerbung", "express-bewerbung"], ["Webinar-Anmeldung", "masterclass"]]) {
+    const card = page.getByTestId("landing-demos").getByRole("link", { name: `${name}: Live-Demo öffnen` });
+    await expect(card).toHaveAttribute("href", `/vorlagen/${slug}`);
+    await card.click();
+    await expect(page.getByRole("link", { name: "Mit diesem Template starten" })).toHaveAttribute("href", `/register?template=${slug}`);
+    await expect(page.getByText("Die Vorschau ist voll interaktiv", { exact: false })).toBeVisible();
+    await page.goto("/");
+  }
+});

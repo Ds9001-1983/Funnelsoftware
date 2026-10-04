@@ -57,44 +57,9 @@ function trackCtaClick(label: "hero" | "pricing" | "final"): void {
 }
 
 const templatePreviews = [
-  {
-    name: "Lead-Generierung",
-    category: "Leads",
-    color: "#7C3AED",
-    description: "Qualifizierte Leads sammeln",
-    image: "/templates/lead-gen.webp",
-  },
-  {
-    name: "Webinar-Anmeldung",
-    category: "Webinar",
-    color: "#2563EB",
-    description: "Anmeldungen maximieren",
-    image: "/templates/webinar.webp",
-  },
-  {
-    // Quiz-Template ist deaktiviert, solange das interaktive Quiz nicht
-    // gebaut ist — hier stattdessen die Kundenumfrage bewerben (UWG:
-    // keine Features versprechen, die es nicht gibt).
-    name: "Kundenumfrage",
-    category: "Survey",
-    color: "#10B981",
-    description: "Feedback strukturiert einsammeln",
-    image: "/templates/umfrage.webp",
-  },
-  {
-    name: "Express-Bewerbung",
-    category: "Recruiting",
-    color: "#F59E0B",
-    description: "Bewerbungen ohne Lebenslauf",
-    image: "/templates/express-bewerbung.webp",
-  },
-  {
-    name: "Produkt-Verkauf",
-    category: "Sales",
-    color: "#DC2626",
-    description: "Produkte direkt verkaufen",
-    image: "/templates/sales.webp",
-  },
+  { name: "Anfragen & Termine", slug: "termin-buchen", category: "Kundengewinnung", color: "#7C3AED", description: "Lerne Interessenten kennen, bevor ihr miteinander sprecht.", image: "/templates/lead-gen.webp" },
+  { name: "Express-Bewerbung", slug: "express-bewerbung", category: "Recruiting", color: "#D97706", description: "Führe Bewerber mit kurzen Fragen bis zur Kontaktaufnahme.", image: "/templates/express-bewerbung.webp" },
+  { name: "Webinar-Anmeldung", slug: "masterclass", category: "Webinare", color: "#2563EB", description: "Stelle dein Thema vor und sammle Anmeldungen für dein Webinar.", image: "/templates/webinar.webp" },
 ];
 
 const features = [
@@ -390,7 +355,7 @@ export default function Landing() {
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg" className="min-h-12 gap-2 px-6 text-base shadow-lg shadow-primary/15"><Link href="/register" onClick={() => trackCtaClick("hero")}>Kostenlos starten<ArrowRight className="h-4 w-4" /></Link></Button>
-              <Button asChild size="lg" variant="outline" className="min-h-12 px-6 text-base"><a href="#features">Features ansehen</a></Button>
+              <Button asChild size="lg" variant="outline" className="min-h-12 px-6 text-base"><Link href={`${TEMPLATE_GALLERY_PATH}/express-bewerbung`}><Play className="h-4 w-4" />Live-Demo ausprobieren</Link></Button>
             </div>
             <p className="mt-4 text-sm text-muted-foreground">{freeOffer.reassurance}</p>
             <p className="mt-2 text-xs text-muted-foreground">Ein veröffentlichter Funnel inklusive. Pro ist optional.</p>
@@ -409,6 +374,24 @@ export default function Landing() {
             </div>
             <figcaption className="mt-4 max-w-[70%] text-xs leading-relaxed text-muted-foreground">Produktbeispiel: Express-Bewerbung. Texte und Bilder lassen sich im Editor anpassen.</figcaption>
           </figure>
+        </div>
+      </section>
+
+      <section id="templates" className="scroll-mt-20 border-t px-4 py-14 sm:px-6 sm:py-20" data-testid="landing-demos">
+        <div className="container mx-auto max-w-6xl">
+          <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div className="max-w-2xl"><p className="mb-3 text-sm font-semibold text-primary">Erst ausprobieren, dann entscheiden</p><h2 className="text-3xl font-bold tracking-tight sm:text-4xl">So fühlt sich dein Funnel an.</h2><p className="mt-3 text-muted-foreground">Klicke dich durch ein Beispiel – direkt im Browser, ohne Anmeldung.</p></div>
+            <Link href={TEMPLATE_GALLERY_PATH} className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary">Alle Vorlagen<ArrowRight className="h-4 w-4" /></Link>
+          </div>
+          <div className="grid gap-5 md:grid-cols-3">
+            {templatePreviews.map(template => <Link key={template.slug} href={`${TEMPLATE_GALLERY_PATH}/${template.slug}`} className="group block overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`${template.name}: Live-Demo öffnen`}>
+              <div className="relative h-44 overflow-hidden" style={{ backgroundColor: `${template.color}10` }}>
+                <img src={template.image} alt={`Beispiel für ${template.name}`} width={600} height={400} loading="lazy" className="h-full w-full object-cover object-top transition-transform motion-safe:group-hover:scale-105" />
+                <span className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-background shadow"><Play className="h-4 w-4 text-primary" /></span>
+              </div>
+              <div className="p-5"><p className="mb-2 text-xs font-medium text-muted-foreground">{template.category}</p><h3 className="text-lg font-semibold">{template.name}</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">{template.description}</p><span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary">Live-Demo öffnen<ArrowRight className="h-4 w-4" /></span></div>
+            </Link>)}
+          </div>
         </div>
       </section>
 
@@ -666,65 +649,6 @@ export default function Landing() {
               alle Vergleiche
             </Link>
           </p>
-        </div>
-      </section>
-
-      {/* Templates Section */}
-      <section id="templates" className="py-20 px-4 border-t">
-        <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <Badge variant="secondary" className="mb-4">Templates</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Starte mit bewährten Vorlagen
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              13 professionell gestaltete Templates — jedes auf Conversion optimiert und live durchklickbar. Einfach anpassen und launchen.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {templatePreviews.map((template) => (
-              <Link key={template.name} href={TEMPLATE_GALLERY_PATH}>
-              <Card
-                className="group h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer overflow-hidden"
-              >
-                <div
-                  className="h-40 relative overflow-hidden"
-                  style={{ backgroundColor: `${template.color}15` }}
-                >
-                  <picture>
-                    <source srcSet={template.image} type="image/webp" />
-                    <img
-                      src={template.image.replace(".webp", ".png")}
-                      alt={template.name}
-                      width={600}
-                      height={400}
-                      loading="lazy"
-                      className="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </picture>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                </div>
-                <CardContent className="p-4">
-                  <Badge variant="outline" className="mb-2 text-xs">
-                    {template.category}
-                  </Badge>
-                  <h3 className="font-semibold mb-1">{template.name}</h3>
-                  <p className="text-sm text-muted-foreground">{template.description}</p>
-                </CardContent>
-              </Card>
-              </Link>
-            ))}
-          </div>
-
-          <div className="text-center mt-10">
-            <Link href={TEMPLATE_GALLERY_PATH}>
-              <Button size="lg" className="gap-2">
-                Alle Templates live ausprobieren
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
         </div>
       </section>
 
