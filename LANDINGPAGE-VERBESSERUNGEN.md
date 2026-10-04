@@ -34,3 +34,8 @@ Keine Änderung von Abrechnung, bestehenden Abos oder Tarifrechten.
    Free/Pro und sechs FAQ ersetzen die lange Funktions-/Vergleichsfolge.
    Die Preisübersicht und strukturierten Angebotsdaten nennen Free und Pro;
    keine automatische Kostenpflicht nach 100 Leads, keine Agency-Zusagen.
+
+5. Vertrauen: gekennzeichnete Illustration mit fiktiven Bewerbungsantworten und
+   direktem Teamkontakt ergänzt. Unbelegte Prozent-/Zeitversprechen sowie die
+   pauschale Vergleichstabelle mit automatisch aktuellem Datum entfallen.
+   Typecheck und acht Landing-Browserabläufe bestanden.

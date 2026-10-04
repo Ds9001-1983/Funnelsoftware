@@ -112,7 +112,20 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Product example is kept separate from customer testimonials. */}
+      <section className="border-t px-4 py-14 sm:px-6 sm:py-20" aria-labelledby="example-heading">
+        <div className="container mx-auto grid max-w-6xl gap-8 lg:grid-cols-2 lg:items-center lg:gap-16">
+          <div><Badge variant="secondary">Produktbeispiel · Recruiting</Badge><h2 id="example-heading" className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">Die richtigen Fragen. Ein klarer nächster Schritt.</h2><p className="mt-4 leading-relaxed text-muted-foreground">Ein Interessent beantwortet Fragen zu Erfahrung und Verfügbarkeit. Du erhältst die Antworten zusammen mit seinen Kontaktdaten und kannst das Gespräch gezielt vorbereiten.</p>
+            <ol className="mt-6 space-y-4 text-sm">{["Vorlage wählen und deine Fragen anpassen", "Link teilen und Antworten einsammeln", "Bewerbungen im Board bearbeiten"].map((text, index) => <li key={text} className="flex items-center gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{index + 1}</span>{text}</li>)}</ol>
+            <Link href={`${TEMPLATE_GALLERY_PATH}/express-bewerbung`} className="mt-6 inline-flex items-center gap-2 font-medium text-primary underline underline-offset-4">Beispiel selbst durchklicken<ArrowRight className="h-4 w-4" /></Link>
+          </div>
+          <figure className="rounded-2xl border bg-muted/20 p-5 sm:p-8">
+            <div className="mb-5 flex items-center justify-between gap-2"><span className="text-sm font-medium">So helfen dir die Antworten</span><Badge variant="outline">Beispieldaten</Badge></div>
+            <dl className="space-y-3">{[["Erfahrung", "Ausgelernt mit Berufserfahrung"], ["Verfügbarkeit", "In 1–3 Monaten"], ["Wichtig im neuen Job", "Gutes Team und planbare Arbeitszeiten"]].map(([label, value]) => <div key={label} className="rounded-lg border bg-background p-4"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 text-sm font-medium">{value}</dd></div>)}</dl>
+            <figcaption className="mt-4 text-xs leading-relaxed text-muted-foreground">Illustration mit fiktiven Antworten aus einem Bewerbungsablauf. Die Fragen legst du selbst fest.</figcaption>
+          </figure>
+        </div>
+        <div className="container mx-auto mt-10 flex max-w-6xl flex-col justify-between gap-3 border-t pt-6 text-sm sm:flex-row"><p className="text-muted-foreground">Entwickelt von <a href="https://superbrand.marketing" target="_blank" rel="noopener noreferrer" className="font-medium text-foreground underline underline-offset-4">SUPERBRAND.marketing</a> in Deutschland.</p><a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-primary underline underline-offset-4">Fragen? Schreib direkt unserem Team.</a></div>
+      </section>
 
       <section id="pricing" className="scroll-mt-20 border-t px-4 py-14 sm:px-6 sm:py-20">
         <div className="container mx-auto max-w-4xl">
