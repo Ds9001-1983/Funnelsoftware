@@ -106,7 +106,9 @@ describe.skipIf(!connection)("registration cohorts and first successful publicat
       await storage.createPlatformVisit({ visitorHash, eventType, label, path: `/vorlagen/${label}` });
     }
     const stats = await storage.getPlatformStats(30);
-    expect(stats.demos).toEqual([{ slug: "termin-buchen", opened: 2, started: 1 }, { slug: "express-bewerbung", opened: 1, started: 0 }]);
+    expect(stats.demos).toEqual([{ slug: "termin-buchen", opened: 2, started: 1, completed: 0 }, { slug: "express-bewerbung", opened: 1, started: 0, completed: 0 }]);
+    for (let i = 0; i < 2; i++) await storage.createPlatformVisit({ visitorHash: "day-a", eventType: "demo_complete", label: "termin-buchen", path: "/vorlagen/termin-buchen" });
+    expect((await storage.getPlatformStats(30)).demos.find(demo => demo.slug === "termin-buchen")?.completed).toBe(1);
     expect(stats.activation.rate).toBeNull();
     expect(stats.totals.visitors).toBe(0); // demo events are not page views
   });

@@ -18,6 +18,7 @@ describe("public marketing tracking boundaries", () => {
   });
   it("allows demo events but never client-supplied account activation", () => {
     expect(trackEventSchema.safeParse({ path: "/vorlagen/termin-buchen", eventType: "demo_start" }).success).toBe(true);
+    expect(trackEventSchema.safeParse({ path: "/vorlagen/termin-buchen", eventType: "demo_complete" }).success).toBe(true);
     for (const eventType of ["register", "first_publish", "first_published", "purchase"]) {
       expect(trackEventSchema.safeParse({ path: "/", eventType }).success).toBe(false);
     }

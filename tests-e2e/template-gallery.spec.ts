@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { makeCredentials } from "./helpers/unique";
 
 /**
  * Öffentliche Template-Galerie (/vorlagen): rendert ohne Login, und die
@@ -46,7 +47,7 @@ test("Live-Vorschau: kompletter Durchlauf ohne Lead- oder Analytics-Requests", a
   // Observe the original payload in the browser and still send the real beacon.
   await page.exposeFunction("observeDemoBeacon", (payload: string) => {
     const event = JSON.parse(payload);
-    if (event.eventType === "demo_open" || event.eventType === "demo_start") demoEvents.push(event);
+    if (event.eventType.startsWith("demo_") || event.eventType === "cta_click") demoEvents.push(event);
   });
   await page.addInitScript(() => {
     const send = navigator.sendBeacon.bind(navigator);
@@ -94,9 +95,32 @@ test("Live-Vorschau: kompletter Durchlauf ohne Lead- oder Analytics-Requests", a
 
   // Die zentrale Zusicherung: kein einziger Schreib-Request.
   expect(trackedCalls).toEqual([]);
-  await expect.poll(() => demoEvents.map(event => event.eventType)).toEqual(["demo_open", "demo_start"]);
+  await expect.poll(() => demoEvents.map(event => event.eventType)).toEqual(["demo_open", "demo_start", "demo_complete"]);
   expect(demoEvents.every(event => event.path === "/vorlagen/termin-buchen" && event.label === "termin-buchen")).toBe(true);
   expect(JSON.stringify(demoEvents)).not.toMatch(/Preview|preview@example|2345678|wachsen|answers/);
+  const takeTemplate = page.getByTestId("demo-completion").getByRole("link", { name: "Diese Vorlage kostenlos übernehmen" });
+  await expect(takeTemplate).toHaveAttribute("href", "/register?template=termin-buchen");
+  // A blocked template-storage key must not lose the selected template.
+  await page.evaluate(() => {
+    const get = Storage.prototype.getItem;
+    const set = Storage.prototype.setItem;
+    Storage.prototype.getItem = function(key) { if (key.includes("signup-template")) throw new DOMException("Blocked", "SecurityError"); return get.call(this, key); };
+    Storage.prototype.setItem = function(key, value) { if (key.includes("signup-template")) throw new DOMException("Blocked", "SecurityError"); return set.call(this, key, value); };
+  });
+  await takeTemplate.click();
+  await expect.poll(() => demoEvents.filter(event => event.label === "demo-end:termin-buchen").length).toBe(1);
+  const credentials = makeCredentials();
+  await page.locator("#email").fill(credentials.email);
+  await page.locator("#password").fill(credentials.password);
+  await page.getByTestId("button-register-submit").click();
+  await expect(page).toHaveURL(/\/funnels\/new\?template=termin-buchen$/);
+  await expect(page.getByTestId("input-funnel-name")).toHaveValue("Termin buchen");
+  await page.getByTestId("button-create-funnel").click();
+  await expect(page).toHaveURL(/\/funnels\/\d+$/);
+  await expect(page.getByText("Bereit für dein kostenloses Strategiegespräch?").first()).toBeVisible();
+  await page.goto("/vorlagen/termin-buchen");
+  await expect(page.getByRole("link", { name: "Mit diesem Template starten" })).toHaveAttribute("href", "/funnels/new?template=termin-buchen");
+  expect(trackedCalls).toEqual([]);
 });
 
 test("Unbekannter Template-Slug zeigt die öffentliche 404 mit Galerie-Link", async ({ page }) => {

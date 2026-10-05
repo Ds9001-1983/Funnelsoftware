@@ -57,7 +57,7 @@ export interface PlatformStats {
     purchased: number;
   };
   activation: { registrations: number; firstPublished: number; rate: number | null; measuredSince: string | null };
-  demos: { slug: string; opened: number; started: number }[];
+  demos: { slug: string; opened: number; started: number; completed: number }[];
   /** Wie viele Besucher der Meta-Pixel überhaupt sehen darf. */
   consent: { accepted: number; rejected: number };
   visitorsByDay: { day: string; visitors: number; pageviews: number }[];
@@ -958,14 +958,15 @@ export class DatabaseStorage implements IStorage {
     const demos = await db.select({ slug: platformVisits.label,
       opened: sql<number>`count(DISTINCT ${platformVisits.visitorHash}) FILTER (WHERE ${platformVisits.eventType} = 'demo_open')::int`,
       started: sql<number>`count(DISTINCT ${platformVisits.visitorHash}) FILTER (WHERE ${platformVisits.eventType} = 'demo_start')::int`,
-    }).from(platformVisits).where(and(gte(platformVisits.timestamp, since), inArray(platformVisits.eventType, ["demo_open", "demo_start"])))
+      completed: sql<number>`count(DISTINCT ${platformVisits.visitorHash}) FILTER (WHERE ${platformVisits.eventType} = 'demo_complete')::int`,
+    }).from(platformVisits).where(and(gte(platformVisits.timestamp, since), inArray(platformVisits.eventType, ["demo_open", "demo_start", "demo_complete"])))
       .groupBy(platformVisits.label).orderBy(desc(sql`count(*)`));
 
     return {
       activation: { registrations: activation.registrations, firstPublished: activation.firstPublished,
         rate: activation.registrations ? activation.firstPublished / activation.registrations * 100 : null,
         measuredSince: measured.since ? new Date(measured.since).toISOString() : null },
-      demos: demos.map(row => ({ slug: row.slug ?? "unbekannt", opened: row.opened, started: row.started })),
+      demos: demos.map(row => ({ slug: row.slug ?? "unbekannt", opened: row.opened, started: row.started, completed: row.completed })),
       totals: {
         visitors: Number(totals?.visitors || 0),
         pageviews: Number(totals?.pageviews || 0),

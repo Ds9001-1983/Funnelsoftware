@@ -15,6 +15,7 @@ import { PASSWORD_MIN_LENGTH } from "@shared/schema";
 import { useCookieConsent } from "@/components/cookie-consent";
 import { fbqTrack } from "@/lib/meta-pixel";
 import { trackPlatformEvent } from "@/lib/platform-tracker";
+import { publicDemoSlugs } from "@shared/platform-tracking";
 
 export default function Register() {
   const { register, isAuthenticated } = useAuth();
@@ -27,7 +28,13 @@ export default function Register() {
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingRoute, setPendingRoute] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [templateSlug] = useState(() => {
+    const slug = new URLSearchParams(window.location.search).get("template");
+    return slug && (publicDemoSlugs as readonly string[]).includes(slug) ? slug : null;
+  });
+  const createHref = `/funnels/new${templateSlug ? `?template=${templateSlug}` : ""}`;
   // Funnel-Messung: Wer hat angefangen zu tippen, und wer hat danach
   // abgebrochen? Genau diese beiden Zahlen fehlten, um „Formular gesehen" von
   // „Formular versucht" zu unterscheiden.
@@ -40,24 +47,28 @@ export default function Register() {
     canonical: "/register",
   });
 
-  // Redirect if already authenticated
+  // Only redirect existing sessions. A successful signup owns its navigation
+  // (template handoff or checkout); a competing effect would send it to "/".
   useEffect(() => {
-    if (isAuthenticated) setLocation("/");
-  }, [isAuthenticated, setLocation]);
+    if (!isAuthenticated) return;
+    // Route only after AuthProvider's user update has committed. Otherwise
+    // RequireAuth can briefly see the old session and send the new user away.
+    if (pendingRoute) setLocation(pendingRoute);
+    else if (!isLoading && !formSubmitted.current) setLocation(templateSlug ? createHref : "/");
+  }, [isAuthenticated, isLoading, pendingRoute, templateSlug, createHref, setLocation]);
 
   // Aus der Template-Galerie gekommen (?template=<slug>)? Auswahl merken —
   // localStorage überlebt Stripe-Checkout-Redirect und E-Mail-Verifizierung;
   // /funnels/new liest den Key und wählt die Vorlage vor.
   useEffect(() => {
-    const slug = new URLSearchParams(window.location.search).get("template");
-    if (slug && /^[a-z0-9-]+$/.test(slug)) {
+    if (templateSlug) {
       try {
-        localStorage.setItem(SIGNUP_TEMPLATE_STORAGE_KEY, slug);
+        localStorage.setItem(SIGNUP_TEMPLATE_STORAGE_KEY, templateSlug);
       } catch {
-        // Storage blockiert → Auswahl geht verloren, Registrierung läuft normal
+        // Same-session handoff also uses the URL, so blocked storage is safe.
       }
     }
-  }, []);
+  }, [templateSlug]);
 
   // Partnerprogramm: ?ref=<code> merken (gleiches Muster wie ?template) —
   // wird beim Absenden mitgeschickt und danach gelöscht.
@@ -152,12 +163,12 @@ export default function Register() {
       } else if (result.checkoutError) {
         // Account erstellt, aber die Weiterleitung zur Zahlung schlug fehl —
         // sichtbar machen (Toast im Dashboard) statt den Nutzer stumm abzulegen.
-        setLocation("/?checkout=error");
+        setPendingRoute("/?checkout=error");
       } else {
         // Regelfall: Trial ohne Karte → direkt ins Produkt statt in ein leeres
         // Dashboard. /funnels/new liest SIGNUP_TEMPLATE_STORAGE_KEY und wählt
         // eine aus der Galerie mitgebrachte Vorlage vor.
-        setLocation("/funnels/new");
+        setPendingRoute(createHref);
       }
     } else {
       setError(result.error || "Registrierung fehlgeschlagen");

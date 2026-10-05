@@ -24,3 +24,9 @@ Der Nutzertest (Punkt 6) gehört nicht zu diesem Umsetzungsauftrag.
    nach Schließen zum Auslöser zurück. Veröffentlichte Funnels und Vorschau
    verwenden dieselbe Badge-Komponente. Die Vorschau lädt erst beim Öffnen
    und erzeugt keine Leads oder Kundenfunnel-Analytics.
+
+3. Demo-Abschluss: Typecheck, 25 Tracking-/Datenbankprüfungen und vier Browser-
+   prüfungen bestanden. Abschluss und Übernahme-Klick werden separat gezählt.
+   Die gewählte Vorlage bleibt durch die Registrierung erhalten, auch bei
+   gesperrtem Browserspeicher. Die Weiterleitung wartet auf den bestätigten
+   Anmeldestatus. Die öffentliche Demo erzeugt weiterhin keine Leads.

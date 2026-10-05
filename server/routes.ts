@@ -2507,7 +2507,8 @@ export async function registerRoutes(
       // Nur Marketing-/Legal-/Auth-Pfade zählen (Whitelist) — sonst still verwerfen.
       if (!isTrackablePath(path)) return res.status(204).end();
       const demoSlug = demoSlugForPath(path);
-      if ((eventType === "demo_open" || eventType === "demo_start") && !demoSlug) return res.status(204).end();
+      const isDemoEvent = eventType === "demo_open" || eventType === "demo_start" || eventType === "demo_complete";
+      if (isDemoEvent && !demoSlug) return res.status(204).end();
       // Zweite Sperre neben dem Zod-Enum: `register`, `trial_started` und
       // `purchase` entstehen ausschließlich serverseitig. Ohne diese Prüfung
       // konnte ein Fremder per curl die Registrierungszahl im Admin-Dashboard
@@ -2527,7 +2528,7 @@ export async function registerRoutes(
         deviceClass: deriveDeviceClass(userAgent),
         country: deriveCountry(req.headers),
         eventType,
-        label: eventType === "demo_open" || eventType === "demo_start" ? demoSlug! : label ?? null,
+        label: isDemoEvent ? demoSlug! : label ?? null,
       });
 
       res.status(204).end();

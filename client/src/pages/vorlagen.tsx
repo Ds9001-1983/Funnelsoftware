@@ -1,5 +1,5 @@
 import { trackPlatformEvent } from "@/lib/platform-tracker";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { ArrowLeft, ArrowRight, Check, ShieldCheck, Smartphone } from "lucide-react";
 import { usePageMeta } from "@/hooks/use-document-title";
@@ -29,12 +29,14 @@ import {
   type TemplateCategory,
 } from "@shared/template-meta";
 import { TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
+import { DemoCompletion } from "@/components/marketing/DemoCompletion";
+import { useAuth } from "@/hooks/use-auth";
 
 /**
  * Öffentliche Template-Galerie (/vorlagen) + Detailseiten mit interaktiver
  * Live-Vorschau (/vorlagen/:slug). Die Vorschau rendert die Template-Daten
  * direkt client-seitig durch den FunnelRenderer — ohne Login, ohne Leads,
- * ohne Analytics (mode="preview", keine Callbacks).
+ * ohne Kundenfunnel-Analytics. Marketingereignisse enthalten keine Eingaben.
  *
  * ?video=1 auf der Detailseite rendert nur den Funnel (ohne Header/Frame) —
  * Aufnahmemodus für scripts/record-template-videos.ts.
@@ -198,10 +200,14 @@ function TemplateDetail({
 }) {
   const openedSlug = useRef<string | null>(null);
   const startedSlug = useRef<string | null>(null);
+  const completedSlug = useRef<string | null>(null);
+  const { isAuthenticated } = useAuth();
+  const startHref = `${isAuthenticated ? "/funnels/new" : "/register"}?template=${meta.slug}`;
   useEffect(() => {
     if (openedSlug.current !== meta.slug) {
       openedSlug.current = meta.slug;
       startedSlug.current = null;
+      completedSlug.current = null;
       trackPlatformEvent(`${TEMPLATE_GALLERY_PATH}/${meta.slug}`, "demo_open", meta.slug);
     }
   }, [meta.slug]);
@@ -210,6 +216,11 @@ function TemplateDetail({
     startedSlug.current = meta.slug;
     trackPlatformEvent(`${TEMPLATE_GALLERY_PATH}/${meta.slug}`, "demo_start", meta.slug);
   };
+  const trackDemoComplete = useCallback(() => {
+    if (completedSlug.current === meta.slug) return;
+    completedSlug.current = meta.slug;
+    trackPlatformEvent(`${TEMPLATE_GALLERY_PATH}/${meta.slug}`, "demo_complete", meta.slug);
+  }, [meta.slug]);
   usePageMeta({
     title: meta.metaTitle,
     description: meta.metaDescription,
@@ -269,7 +280,7 @@ function TemplateDetail({
               </ul>
 
               <div className="flex flex-col sm:flex-row gap-3">
-                <Link href={`/register?template=${meta.slug}`} onClick={() => trackPlatformEvent(`${TEMPLATE_GALLERY_PATH}/${meta.slug}`, "cta_click", `template:${meta.slug}`)}>
+                <Link href={startHref} onClick={() => trackPlatformEvent(`${TEMPLATE_GALLERY_PATH}/${meta.slug}`, "cta_click", `template:${meta.slug}`)}>
                   <Button size="lg" className="gap-2 w-full sm:w-auto shadow-lg shadow-primary/25">
                     Mit diesem Template starten
                     <ArrowRight className="h-5 w-5" />
@@ -298,6 +309,7 @@ function TemplateDetail({
                     mode="preview"
                     className="h-full"
                     onPageView={trackDemoStart}
+                    renderFooter={page => page.type === "thankyou" ? <DemoCompletion slug={meta.slug} href={startHref} onComplete={trackDemoComplete} /> : null}
                   />
                 </PhoneFrame>
               </div>

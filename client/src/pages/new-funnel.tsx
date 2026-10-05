@@ -137,9 +137,12 @@ export default function NewFunnel() {
   // bei der Registrierung gemerkte Auswahl (localStorage) — direkt zu den Details.
   useEffect(() => {
     const fromQuery = new URLSearchParams(window.location.search).get("template");
-    const stored = localStorage.getItem(SIGNUP_TEMPLATE_STORAGE_KEY);
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(SIGNUP_TEMPLATE_STORAGE_KEY);
+      if (stored) localStorage.removeItem(SIGNUP_TEMPLATE_STORAGE_KEY);
+    } catch { /* URL handoff still works if browser storage is blocked. */ }
     const slug = fromQuery || stored;
-    if (stored) localStorage.removeItem(SIGNUP_TEMPLATE_STORAGE_KEY);
     if (!slug) return;
     const template = getTemplateBySlug(slug);
     if (template) {

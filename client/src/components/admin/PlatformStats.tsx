@@ -17,7 +17,7 @@ interface PlatformStatsData {
     purchased: number;
   };
   activation: { registrations: number; firstPublished: number; rate: number | null; measuredSince: string | null };
-  demos: { slug: string; opened: number; started: number }[];
+  demos: { slug: string; opened: number; started: number; completed: number }[];
   consent: { accepted: number; rejected: number };
   visitorsByDay: { day: string; visitors: number; pageviews: number }[];
   topPaths: { path: string; count: number }[];
@@ -111,8 +111,8 @@ export function PlatformStats() {
 
             <div data-testid="demo-report">
               <h3 className="mb-3 text-sm font-semibold">Welche Demos werden ausprobiert?</h3>
-              {data?.demos?.length ? <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b"><th className="py-2 font-medium">Vorlage</th><th className="px-3 py-2 text-right font-medium">Geöffnet</th><th className="py-2 text-right font-medium">Weitergeklickt</th></tr></thead><tbody>{data.demos.map(demo => <tr key={demo.slug} className="border-b"><td className="py-2">{demo.slug}</td><td className="px-3 py-2 text-right tabular-nums">{demo.opened}</td><td className="py-2 text-right tabular-nums">{demo.started}</td></tr>)}</tbody></table></div> : <p className="text-sm text-muted-foreground">Noch keine Demo-Nutzung im Zeitraum.</p>}
-              <p className="mt-2 text-xs text-muted-foreground">Anonymisierte Besuchstage je Ereignis; „Weitergeklickt“ bedeutet mindestens einen Seitenwechsel in der Vorschau. Demo-Nutzung wird nicht mit einzelnen Accounts verknüpft.</p>
+              {data?.demos?.length ? <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b"><th className="py-2 font-medium">Vorlage</th><th className="px-3 py-2 text-right font-medium">Geöffnet</th><th className="px-3 py-2 text-right font-medium">Weitergeklickt</th><th className="py-2 text-right font-medium">Abgeschlossen</th></tr></thead><tbody>{data.demos.map(demo => <tr key={demo.slug} className="border-b"><td className="py-2">{demo.slug}</td><td className="px-3 py-2 text-right tabular-nums">{demo.opened}</td><td className="px-3 py-2 text-right tabular-nums">{demo.started}</td><td className="py-2 text-right tabular-nums">{demo.completed ?? 0}</td></tr>)}</tbody></table></div> : <p className="text-sm text-muted-foreground">Noch keine Demo-Nutzung im Zeitraum.</p>}
+              <p className="mt-2 text-xs text-muted-foreground">Anonymisierte Besuchstage je Ereignis; „Weitergeklickt“ bedeutet mindestens einen Seitenwechsel, „Abgeschlossen“ das Erreichen der Danke-Seite in der Vorschau. Demo-Nutzung wird nicht mit einzelnen Accounts verknüpft.</p>
             </div>
 
             {totals.visitors === 0 && (
@@ -207,7 +207,7 @@ export function PlatformStats() {
               <TopList
                 title="Welcher CTA trägt"
                 rows={(data?.ctaBreakdown ?? []).map((c) => ({
-                  label: CTA_LABELS[c.label] ?? c.label.replace(/^template:/, "Vorlage: "),
+                  label: CTA_LABELS[c.label] ?? c.label.replace(/^template:/, "Vorlage: ").replace(/^demo-end:/, "Demo-Abschluss: "),
                   count: c.count,
                 }))}
                 empty="noch keine CTA-Klicks"
