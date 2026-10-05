@@ -45,11 +45,17 @@ DATABASE_URL="$(grep -m1 '^DATABASE_URL=' "$ENV_FILE" | cut -d= -f2- | sed -e 's
 # würde sonst ALLE Kunden-vhosts als „nicht mehr in DB" behandeln und löschen.
 psql "$DATABASE_URL" -qtAc "SELECT 1" >/dev/null || { log "FEHLER: DB nicht erreichbar"; exit 1; }
 
-# ssl_status-Update mit psql-Variablen statt String-Interpolation im SQL —
-# der Hostname ist zwar regex-validiert, aber Gürtel UND Hosenträger.
+# psql ersetzt Variablen nur beim Lesen von stdin/Dateien, NICHT in -c.
+# ON_ERROR_STOP lässt SQL-Fehler den Lauf abbrechen, statt Erfolg zu melden.
 set_status() { # $1=host $2=status
-  run psql "$DATABASE_URL" -q -v h="$1" -v s="$2" \
-    -c "UPDATE domains SET ssl_status = :'s' WHERE hostname = :'h';"
+  if [[ "$DRY_RUN" == "1" ]]; then
+    # Keine Verbindungsdaten im Journal ausgeben.
+    log "DRY-RUN: $1 → SSL-Status $2"
+    return
+  fi
+  psql "$DATABASE_URL" -X -q -v ON_ERROR_STOP=1 -v h="$1" -v s="$2" <<'SQL'
+UPDATE domains SET ssl_status = :'s' WHERE hostname = :'h';
+SQL
 }
 
 # ---------- Hostname-Validierung ----------

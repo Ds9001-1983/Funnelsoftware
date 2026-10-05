@@ -33,6 +33,9 @@ Der alte TXT-Record-Flow (`_trichterwerk-verify.<host>`) funktioniert serverseit
 ## Installation auf dem Server (einmalig, als root)
 
 Der Deploy-Workflow kopiert **nichts** nach `/etc` — nach Änderungen an den `deploy/`-Dateien müssen die cp-Schritte wiederholt werden.
+Auch `/usr/local/bin/domain-provisioner.sh` wird beim App-Deployment nicht
+automatisch aktualisiert. Eine Korrektur im Repository allein ändert den
+laufenden Provisioner daher nicht.
 
 ```bash
 mkdir -p /var/www/letsencrypt /etc/nginx/customer-domains /var/lib/domain-provisioner
@@ -55,7 +58,28 @@ systemctl daemon-reload
 systemctl enable --now domain-provisioner.timer
 ```
 
-Erster Test ohne Seiteneffekte:
+## Regressionstest für Statusänderungen
+
+Der Test führt die tatsächliche `set_status`-Funktion mit `psql` gegen eine
+isolierte lokale Testdatenbank aus. Er prüft `pending → active/error`,
+SQL-Escaping, Abbruch bei SQL-Fehlern und einen Dry-Run ohne Datenänderung
+oder Ausgabe der Datenbank-Zugangsdaten. DNS, Certbot und nginx werden dabei
+nicht aufgerufen; die echte Zertifikatsausstellung benötigt zusätzlich eine
+Testdomain mit passendem DNS-Eintrag.
+
+```bash
+DOMAINS_TEST_DATABASE_URL=postgresql://testuser@127.0.0.1:55440/funnelsoftware_e2e \
+  npm run test:run -- deploy/domain-provisioner.test.mjs server/domain-verify.test.ts
+```
+
+SQL mit `psql`-Variablen muss über stdin/Datei ausgeführt werden, nicht über
+`-c`. Für Statusänderungen ist `ON_ERROR_STOP=1` erforderlich, damit ein
+SQL-Fehler den Provisioner mit Fehler beendet.
+
+## Prüfung auf dem Server
+
+Vorschau ohne Zertifikats- oder nginx-Änderungen (lokale DNS-Versuchszähler
+können dabei fortgeschrieben werden):
 
 ```bash
 DRY_RUN=1 /usr/local/bin/domain-provisioner.sh
