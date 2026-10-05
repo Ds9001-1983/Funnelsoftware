@@ -61,6 +61,12 @@ export const partnerPage: SeoStaticPage = {
     "Empfiehl Trichterwerk und verdiene 25 % wiederkehrende Provision auf jede Pro-Zahlung — dauerhaft, ohne Deckelung. Ideal für Agenturen, Coaches und Creator.",
 };
 
+export const contactPage: SeoStaticPage = {
+  path: "/kontakt",
+  metaTitle: "Kontakt: Wir helfen dir bei deinem Funnel",
+  metaDescription: "Fragen zum Einstieg, zu deinem Funnel oder zu besonderen Anforderungen? Schreib dem Trichterwerk-Team direkt – ohne Account per Kontaktformular oder E-Mail.",
+};
+
 export const comparisonLinks = [
   { path: "/vergleich/typeform-alternative", competitor: "Typeform" },
   { path: "/vergleich/perspective-alternative", competitor: "Perspective" },
@@ -143,6 +149,7 @@ export const marketingRoutePatterns: string[] = [
   vergleichIndexPage.path,
   "/vergleich/:slug",
   partnerPage.path,
+  contactPage.path,
   ...audiencePages.map((p) => p.path),
   TEMPLATE_GALLERY_PATH,
   `${TEMPLATE_GALLERY_PATH}/:slug`,

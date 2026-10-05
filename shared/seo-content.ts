@@ -15,6 +15,7 @@ import {
   faqPageJsonLd,
   funnelBuilderPage,
   partnerPage,
+  contactPage,
   vergleichIndexPage,
   type SeoFaq,
   type SeoStaticPage,
@@ -1595,6 +1596,7 @@ export const seoStaticPages: SeoStaticPage[] = [
     bodyHtml: renderSimplePageHtml(funnelBuilderPage.metaTitle, [], funnelBuilderFaqs),
   },
   vergleichIndexPage,
+  { ...contactPage, bodyHtml: renderSimplePageHtml("Wie können wir dir helfen?", ["Fragen zum Einstieg, zu deinem Funnel oder zu besonderen Anforderungen? Schreib uns direkt. Du brauchst dafür keinen Account.", "Du erreichst uns auch per E-Mail: info@superbrand.marketing."]) },
   {
     ...partnerPage,
     jsonLd: { "@context": "https://schema.org", ...faqPageJsonLd(partnerFaqs) },

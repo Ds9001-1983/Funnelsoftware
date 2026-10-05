@@ -1,3 +1,4 @@
+import { createContactRouter } from "./contact";
 import { cleanMarketingPath, demoSlugForPath } from "@shared/platform-tracking";
 import { aiEditInputSchema } from "@shared/ai-edit";
 import { aggregateFunnelMetrics, metricRangeSchema, metricSince, type AnalyticsOverview } from "@shared/funnel-metrics";
@@ -202,6 +203,7 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  app.use("/api/public/contact", createContactRouter());
   registerWorkspaceRoutes(app);
   registerRecruitingRoutes(app);
   registerBrandStyleRoutes(app);

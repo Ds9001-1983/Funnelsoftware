@@ -30,3 +30,13 @@ Der Nutzertest (Punkt 6) gehört nicht zu diesem Umsetzungsauftrag.
    Die gewählte Vorlage bleibt durch die Registrierung erhalten, auch bei
    gesperrtem Browserspeicher. Die Weiterleitung wartet auf den bestätigten
    Anmeldestatus. Die öffentliche Demo erzeugt weiterhin keine Leads.
+
+4. Kontaktformular: Typecheck, 35 Server-/Mail-/SEO-Prüfungen und elf Browser-
+   prüfungen bestanden. Öffentlich unter `/kontakt`, mit festem Empfänger,
+   Eingabevalidierung, Honeypot und Limit von fünf Versuchen je IP/15 Minuten.
+   E-Mail und Nachricht bleiben bei Versandfehlern erhalten. SMTP-Annahme,
+   Ablehnung und Zeitüberschreitung wurden mit Testtransport geprüft; keine
+   echten E-Mails versendet. Die isolierte Browserprüfung prüft den echten
+   Fehlerpfad ohne SMTP und anschließend eine simulierte erfolgreiche Antwort.
+   Für die serverseitigen Kontakt-Metadaten muss beim späteren Deployment
+   auch `deploy/nginx-trichterwerk.conf` übernommen und nginx neu geladen werden.

@@ -9,7 +9,7 @@ export const publicDemoSlugs = [
 
 const paths = new Set([
   "/", "/impressum", "/datenschutz", "/agb", "/avv", "/nutzungsbedingungen",
-  "/login", "/register", funnelBuilderPage.path, "/vergleich",
+  "/login", "/register", "/kontakt", funnelBuilderPage.path, "/vergleich",
   ...comparisonLinks.map(link => link.path), TEMPLATE_GALLERY_PATH,
   ...publicDemoSlugs.map(slug => `${TEMPLATE_GALLERY_PATH}/${slug}`),
 ]);

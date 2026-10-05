@@ -166,6 +166,14 @@ export default function Datenschutz() {
               <h2 className="text-xl font-semibold text-slate-800 mb-4">
                 5. Datenerfassung auf dieser Website
               </h2>
+              <h3 className="text-lg font-medium text-slate-700 mb-2">Kontaktformular</h3>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                Wenn Sie uns über das Kontaktformular schreiben, verwenden wir Ihre
+                E-Mail-Adresse und Nachricht zur Bearbeitung Ihrer Anfrage. Die Nachricht
+                wird über unseren bestehenden E-Mail-Dienstleister (siehe Abschnitt 6)
+                an unser Support-Postfach übermittelt. Die Formulareingaben werden weder
+                als Funnel-Leads gespeichert noch an die Reichweitenmessung übertragen.
+              </p>
               <h3 className="text-lg font-medium text-slate-700 mb-2">Cookies</h3>
               <p className="text-slate-600 text-sm leading-relaxed mb-4">
                 Unsere Internetseiten verwenden so genannte „Cookies". Cookies sind kleine 

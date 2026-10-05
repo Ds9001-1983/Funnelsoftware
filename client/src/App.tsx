@@ -50,6 +50,7 @@ const FunnelBuilderGuide = lazy(() => import("@/pages/funnel-builder"));
 // (client/src/lib/templates.ts) nicht im Haupt-Bundle landen.
 const Vorlagen = lazy(() => import("@/pages/vorlagen"));
 const AudienceFunnel = lazy(() => import("@/pages/audience-funnel"));
+const Kontakt = lazy(() => import("@/pages/kontakt"));
 const Partner = lazy(() => import("@/pages/partner"));
 // Melde-Widget: lazy, damit weder der Dialog noch die Screenshot-Bibliothek
 // (wird ihrerseits erst beim Klick geladen) im Haupt-Bundle landen.
@@ -141,6 +142,7 @@ function Router() {
       <Route path="/verify-email" component={VerifyEmail} />
 
       {/* Rechtliche Seiten (ohne Sidebar, ohne Auth) */}
+      <Route path="/kontakt"><Suspense fallback={<PageLoader />}><Kontakt /></Suspense></Route>
       <Route path="/impressum" component={Impressum} />
       <Route path="/datenschutz" component={Datenschutz} />
       <Route path="/agb" component={AGB} />
@@ -294,6 +296,7 @@ function isPublicRoute(location: string, isAuthenticated: boolean): boolean {
     "/nutzungsbedingungen",
     "/funnel-builder",
     "/partner",
+    "/kontakt",
   ];
   if (publicExact.includes(location)) return true;
   // Zielgruppen-/Branchen-Seiten aus der Registry (z. B. /recruiting-funnel)

@@ -47,9 +47,10 @@ describe("seo-content ↔ seo-links Konsistenz", () => {
     for (const meta of templateMetas) {
       expect(paths).toContain(`${TEMPLATE_GALLERY_PATH}/${meta.slug}`);
     }
-    // 3 = Pillar (/funnel-builder) + Vergleichs-Index (/vergleich) + /partner.
+    expect(paths).toContain("/kontakt");
+    // Pillar, Vergleichs-Index, Partner und Kontakt.
     expect(seoStaticPages.length).toBe(
-      3 +
+      4 +
         Object.keys(comparisonPages).length +
         audiencePages.length +
         templateSeoPages.length,

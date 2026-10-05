@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
-import { CONTACT_EMAIL } from "@/components/marketing/constants";
 import { usePageMeta } from "@/hooks/use-document-title";
 import { trackPlatformEvent } from "@/lib/platform-tracker";
 import { faqPageJsonLd, TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
@@ -126,7 +125,7 @@ export default function Landing() {
             <figcaption className="mt-4 text-xs leading-relaxed text-muted-foreground">Illustration mit fiktiven Antworten aus einem Bewerbungsablauf. Die Fragen legst du selbst fest.</figcaption>
           </figure>
         </div>
-        <div className="container mx-auto mt-10 flex max-w-6xl flex-col justify-between gap-3 border-t pt-6 text-sm sm:flex-row"><p className="text-muted-foreground">Entwickelt von <a href="https://superbrand.marketing" target="_blank" rel="noopener noreferrer" className="font-medium text-foreground underline underline-offset-4">SUPERBRAND.marketing</a> in Deutschland.</p><a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-primary underline underline-offset-4">Fragen? Schreib direkt unserem Team.</a></div>
+        <div className="container mx-auto mt-10 flex max-w-6xl flex-col justify-between gap-3 border-t pt-6 text-sm sm:flex-row"><p className="text-muted-foreground">Entwickelt von <a href="https://superbrand.marketing" target="_blank" rel="noopener noreferrer" className="font-medium text-foreground underline underline-offset-4">SUPERBRAND.marketing</a> in Deutschland.</p><Link href="/kontakt" className="font-medium text-primary underline underline-offset-4">Fragen? Schreib direkt unserem Team.</Link></div>
       </section>
 
       <section id="pricing" className="scroll-mt-20 border-t px-4 py-14 sm:px-6 sm:py-20">
@@ -141,7 +140,7 @@ export default function Landing() {
             <Button asChild size="lg" variant={plan.highlighted ? "default" : "outline"} className="min-h-12 w-full"><Link href="/register" onClick={() => trackCtaClick("pricing")}>Kostenlos starten<ArrowRight className="h-4 w-4" /></Link></Button><p className="mt-3 text-center text-xs text-muted-foreground">{plan.note}</p>
           </article>)}</div>
           <p className="mt-5 text-xs leading-relaxed text-muted-foreground">¹ Die KI nutzt deinen eigenen Anbieterschlüssel. Kosten beim KI-Anbieter werden separat abgerechnet.</p>
-          <p className="mt-6 text-center text-sm text-muted-foreground">Du hast besondere Anforderungen? <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-primary underline underline-offset-4">Sprich mit uns.</a></p>
+          <p className="mt-6 text-center text-sm text-muted-foreground">Du hast besondere Anforderungen? <Link href="/kontakt" className="font-medium text-primary underline underline-offset-4">Sprich mit uns.</Link></p>
         </div>
       </section>
 

@@ -1,7 +1,6 @@
 import { Link } from "wouter";
 import { Zap, Mail, Cookie } from "lucide-react";
 import { resetCookieConsent } from "@/components/cookie-consent";
-import { CONTACT_EMAIL } from "./constants";
 import { audiencePages, comparisonLinks, funnelBuilderPage, TEMPLATE_GALLERY_PATH } from "@shared/seo-links";
 
 /**
@@ -80,10 +79,10 @@ export function MarketingFooter() {
               <li><Link href="/register" className="hover:text-foreground">Kostenlos starten</Link></li>
               <li><Link href="/login" className="hover:text-foreground">Anmelden</Link></li>
               <li>
-                <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-foreground flex items-center gap-1">
+                <Link href="/kontakt" className="hover:text-foreground flex items-center gap-1">
                   <Mail className="h-3 w-3" />
                   Kontakt
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
