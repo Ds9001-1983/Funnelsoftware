@@ -40,3 +40,14 @@ Der Nutzertest (Punkt 6) gehört nicht zu diesem Umsetzungsauftrag.
    Fehlerpfad ohne SMTP und anschließend eine simulierte erfolgreiche Antwort.
    Für die serverseitigen Kontakt-Metadaten muss beim späteren Deployment
    auch `deploy/nginx-trichterwerk.conf` übernommen und nginx neu geladen werden.
+
+5. Mobiler Footer: Typecheck und drei gezielte Browserprüfungen bestanden.
+   Produkt/Vergleiche klappen bei 320/390 px per Klick und Tastatur auf und zu.
+   Account-, Kontakt-, Rechts- und Cookie-Links bleiben direkt zugänglich;
+   Cookie-Einstellungen öffnen den tatsächlichen Consent-Dialog. Bei 768/1280 px
+   sind beide Linkgruppen vollständig sichtbar, auch nach Größenwechseln.
+   Die 320-px-Ansicht wurde zusätzlich als Screenshot geprüft.
+
+Abschlussprüfung der Implementierung: 484 Unit-Tests, Typecheck und
+Produktionsbuild erfolgreich. Datenbanktests laufen zusätzlich in der CI
+gegen PostgreSQL; der Mailversand bleibt in allen Tests isoliert.
