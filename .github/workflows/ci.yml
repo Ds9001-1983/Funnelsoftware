@@ -77,6 +77,9 @@ jobs:
       - name: Run E2E tests
         run: npm run test:e2e
 
+      - name: Ensure PostgreSQL client for provisioner regression tests
+        run: command -v psql || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+
       - name: Database integration and migration tests
         env:
           DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
@@ -87,7 +90,8 @@ jobs:
           REVISION_TEST_DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
           LIBRARY_TEST_DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
           BRAND_STYLE_TEST_DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
-        run: npm run test:run -- server/recruiting.integration.test.ts server/workspaces.integration.test.ts server/recruiting-mail.integration.test.ts server/funnel-revisions.integration.test.ts server/brand-styles.integration.test.ts server/builder-library.integration.test.ts scripts/migrate.test.mjs
+          DOMAINS_TEST_DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
+        run: npm run test:run -- server/recruiting.integration.test.ts server/workspaces.integration.test.ts server/recruiting-mail.integration.test.ts server/funnel-revisions.integration.test.ts server/brand-styles.integration.test.ts server/builder-library.integration.test.ts scripts/migrate.test.mjs deploy/domain-provisioner.test.mjs
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
