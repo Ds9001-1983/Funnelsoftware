@@ -30,7 +30,7 @@ import {
 } from "./email";
 import {
   runFreeDowngradeJob,
-  runReEngagementJob,
+  tick,
   runTrialEndingJob,
   runBugReportRetentionJob,
   BUG_FILE_RETENTION_MS,
@@ -147,14 +147,15 @@ describe("runTrialEndingJob", () => {
   });
 });
 
-describe("runReEngagementJob", () => {
-  it("einmalig pro Account (Gate false → keine Mail)", async () => {
-    vi.mocked(storage.getInactiveUsersSince).mockResolvedValue([user()]);
-    vi.mocked(storage.tryLogEmail).mockResolvedValue(false);
-
-    await runReEngagementJob();
-
+describe("Scheduler ohne Werbeeinwilligung", () => {
+  it("versendet auch bei vorhandenen inaktiven Konten keine Rückgewinnungswerbung", async () => {
+    vi.mocked(storage.getUsersForFreeDowngrade).mockResolvedValue([]);
+    vi.mocked(storage.getUsersForTrialEndingMail).mockResolvedValue([]);
+    vi.mocked(storage.getInactiveUsersSince).mockResolvedValue([user({ marketingConsent: true })]);
+    await tick();
     expect(sendReEngagementEmail).not.toHaveBeenCalled();
+    expect(storage.getInactiveUsersSince).not.toHaveBeenCalled();
+    expect(storage.tryLogEmail).not.toHaveBeenCalled();
   });
 });
 
