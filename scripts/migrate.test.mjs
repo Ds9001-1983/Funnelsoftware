@@ -36,11 +36,11 @@ describe.skipIf(!connection)("additive migration on existing funnels and leads",
     const revisions = (await client.query("SELECT content FROM funnel_revisions")).rows;
     expect(revisions[0].content.pages).toEqual(before[0].pages);
     await expect(client.query("UPDATE funnels SET name = 'Alter Client' WHERE id=1")).rejects.toMatchObject({ code: "40001" });
-    expect((await client.query("SELECT * FROM leads")).rows).toEqual([{ id: 1, funnel_id: 1, status: "qualified", answers: { "old-field": "Antwort bleibt" }, stage_id: null, stage_version: 0, answer_snapshot: null }]);
+    expect((await client.query("SELECT * FROM leads")).rows).toEqual([{ id: 1, funnel_id: 1, status: "qualified", answers: { "old-field": "Antwort bleibt" }, stage_id: null, stage_version: 0, answer_snapshot: null, consent_version: null }]);
     expect((await client.query("SELECT * FROM recruiting_mail_jobs")).rows).toEqual([]);
     expect((await client.query("SELECT * FROM brand_styles")).rows).toEqual([]);
-    for (const table of ["content_templates", "media_folders", "media_assets"]) expect((await client.query(`SELECT * FROM ${table}`)).rows).toEqual([]);
-    expect((await client.query("SELECT count(*)::int AS count FROM app_migrations")).rows[0].count).toBe(5);
+    for (const table of ["content_templates", "media_folders", "media_assets", "marketing_consents"]) expect((await client.query(`SELECT * FROM ${table}`)).rows).toEqual([]);
+    expect((await client.query("SELECT count(*)::int AS count FROM app_migrations")).rows[0].count).toBe(6);
   });
   it("rejects changed migration checksums and rolls back", async () => {
     await client.query("UPDATE app_migrations SET checksum = 'changed'");

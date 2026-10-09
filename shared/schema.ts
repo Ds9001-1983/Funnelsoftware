@@ -236,6 +236,7 @@ export const leads = pgTable("leads", {
   // Einwilligung nicht nachweisbar.
   marketingConsent: boolean("marketing_consent").notNull().default(false),
   consentAt: timestamp("consent_at"),
+  consentVersion: text("consent_version"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
   index("leads_user_id_idx").on(table.userId),
@@ -440,6 +441,17 @@ export const teamMembers = pgTable("team_members", {
   index("team_members_team_id_idx").on(table.teamId),
   index("team_members_user_id_idx").on(table.userId),
 ]);
+
+// Versionierte, widerrufbare Nachweise für die Marketing-Einwilligung.
+export const marketingConsents = pgTable("marketing_consents", {
+  id: serial("id").primaryKey(),
+  tokenHash: text("token_hash").notNull().unique(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  policyVersion: text("policy_version").notNull(),
+  grantedAt: timestamp("granted_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  revokedAt: timestamp("revoked_at"),
+}, table => [index("marketing_consents_user_id_idx").on(table.userId)]);
 
 // E-Mail-Versandprotokoll: Dedupe-Gate für Lifecycle-Mails. Der Unique-Index
 // macht den Versand DB-atomar (INSERT zuerst, nur bei Erfolg senden) — auch
@@ -1244,6 +1256,7 @@ export const leadSchema = z.object({
   // Einwilligungsnachweis (Art. 7 Abs. 1 DSGVO)
   marketingConsent: z.boolean().optional(),
   consentAt: z.string().or(z.date()).optional().nullable(),
+  consentVersion: z.string().optional().nullable(),
   createdAt: z.string().or(z.date()),
 });
 
@@ -1265,6 +1278,7 @@ export const insertLeadSchema = z.object({
   // DSGVO-Marketing-Einwilligung des Besuchers (Cookie-Consent). Wird vom
   // Public-Funnel mitgeschickt und gated server-side Tracking (Meta CAPI).
   marketingConsent: z.boolean().optional(),
+  consentVersion: z.string().max(8192).optional(),
 });
 
 export type InsertLead = z.infer<typeof insertLeadSchema>;

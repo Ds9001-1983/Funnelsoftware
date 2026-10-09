@@ -1,3 +1,4 @@
+import { funnelConsentVersion, CONSENT_MAX_AGE_MS } from "../shared/privacy-consent";
 import { test, expect } from "@playwright/test";
 import { registerAndVerify, getCsrfToken, createPublishedFunnel } from "./helpers/api";
 import { closePool } from "./helpers/db";
@@ -14,14 +15,6 @@ const TEST_ID = "test-e2e";
 const VARIANT_A = "variant-a";
 const VARIANT_B = "variant-b";
 const VARIANT_B_TITLE = "Variante B gewinnt dich!";
-
-const SILENCE_OVERLAYS = () => {
-  localStorage.setItem("trichterwerk-cookie-consent", "true");
-  localStorage.setItem(
-    "trichterwerk-cookie-preferences",
-    JSON.stringify({ necessary: true, analytics: false, marketing: false }),
-  );
-};
 
 test.afterAll(async () => {
   await closePool();
@@ -67,7 +60,10 @@ test("Variante wird gerendert, Stats zählen View + Conversion", async ({ page, 
 
   // Variante B deterministisch erzwingen: getVariantAssignments liest die
   // Session-Zuweisung, bevor es neu würfelt.
-  await page.addInitScript(SILENCE_OVERLAYS);
+  const publicFunnel = await (await request.get(`/api/public/funnels/${funnel.slug}`)).json();
+  await page.addInitScript(({ key, version, expiresAt }) => {
+    localStorage.setItem(key, JSON.stringify({ version, expiresAt, preferences: { necessary: true, analytics: true, marketing: false } }));
+  }, { key: `tw-consent-v2:funnel:${funnel.uuid}`, version: funnelConsentVersion(publicFunnel), expiresAt: Date.now() + CONSENT_MAX_AGE_MS });
   await page.addInitScript(
     ({ key, value }) => sessionStorage.setItem(key, value),
     {

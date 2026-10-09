@@ -776,6 +776,7 @@ export class DatabaseStorage implements IStorage {
       source: lead.source,
       marketingConsent: lead.marketingConsent,
       consentAt: lead.consentAt ? lead.consentAt.toISOString() : null,
+      consentVersion: lead.consentVersion,
       createdAt: lead.createdAt.toISOString(),
     };
   }

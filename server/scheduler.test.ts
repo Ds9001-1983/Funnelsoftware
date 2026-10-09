@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+vi.mock("./marketing-consent", () => ({ purgeMarketingConsentProofs: vi.fn().mockResolvedValue(undefined) }));
 
 // Storage + E-Mail mocken — die Job-Logik (Reihenfolge, Cutoffs, Dedupe-Gates)
 // ist das Testobjekt, nicht die DB.
@@ -30,7 +31,7 @@ import {
 } from "./email";
 import {
   runFreeDowngradeJob,
-  runReEngagementJob,
+  tick,
   runTrialEndingJob,
   runBugReportRetentionJob,
   BUG_FILE_RETENTION_MS,
@@ -147,14 +148,15 @@ describe("runTrialEndingJob", () => {
   });
 });
 
-describe("runReEngagementJob", () => {
-  it("einmalig pro Account (Gate false → keine Mail)", async () => {
-    vi.mocked(storage.getInactiveUsersSince).mockResolvedValue([user()]);
-    vi.mocked(storage.tryLogEmail).mockResolvedValue(false);
-
-    await runReEngagementJob();
-
+describe("Scheduler ohne Werbeeinwilligung", () => {
+  it("versendet auch bei vorhandenen inaktiven Konten keine Rückgewinnungswerbung", async () => {
+    vi.mocked(storage.getUsersForFreeDowngrade).mockResolvedValue([]);
+    vi.mocked(storage.getUsersForTrialEndingMail).mockResolvedValue([]);
+    vi.mocked(storage.getInactiveUsersSince).mockResolvedValue([user({ marketingConsent: true })]);
+    await tick();
     expect(sendReEngagementEmail).not.toHaveBeenCalled();
+    expect(storage.getInactiveUsersSince).not.toHaveBeenCalled();
+    expect(storage.tryLogEmail).not.toHaveBeenCalled();
   });
 });
 

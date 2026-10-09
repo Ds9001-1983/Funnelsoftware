@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
+import { TRICHTERWERK_PIXEL_ID } from "@shared/meta";
 import { injectMetaPixel, fbqTrack } from "./meta-pixel";
 
 /** Queue-Einträge sind arguments-Objekte — für Assertions in Arrays wandeln. */
@@ -30,7 +31,7 @@ describe("meta-pixel", () => {
 
     const calls = queuedCalls();
     expect(calls).toContainEqual(["init", "1234567890123456"]);
-    expect(calls).toContainEqual(["track", "PageView"]);
+    expect(calls).toContainEqual(["trackSingle", "1234567890123456", "PageView"]);
   });
 
   it("fbqTrack queued Events mit und ohne eventID", () => {
@@ -39,8 +40,8 @@ describe("meta-pixel", () => {
     fbqTrack("Lead", {}, { eventID: "lead-uuid-1" });
 
     const calls = queuedCalls();
-    expect(calls).toContainEqual(["track", "PageView"]);
-    expect(calls).toContainEqual(["track", "Lead", {}, { eventID: "lead-uuid-1" }]);
+    expect(calls).toContainEqual(["trackSingle", TRICHTERWERK_PIXEL_ID, "PageView"]);
+    expect(calls).toContainEqual(["trackSingle", TRICHTERWERK_PIXEL_ID, "Lead", {}, { eventID: "lead-uuid-1" }]);
   });
 
   it("doppeltes injectMetaPixel initialisiert dieselbe Pixel-ID nicht erneut", () => {

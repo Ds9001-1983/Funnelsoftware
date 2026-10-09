@@ -1,3 +1,4 @@
+import { funnelConsentVersion, CONSENT_MAX_AGE_MS } from "../shared/privacy-consent";
 import { test, expect, type Page } from "@playwright/test";
 import type { ABTest, FunnelPage } from "../shared/schema";
 import type { FunnelLeadPayload } from "../client/src/components/funnel-viewer/FunnelRenderer";
@@ -12,7 +13,7 @@ function fixture() {
     ], layout: { version: 1, width: "wide", sections: [{ id: "section", columns: [{ id: "left", elementIds: ["title", "campaign"] }, { id: "right", elementIds: ["email"] }] }] } },
     { id: "done", type: "thankyou", title: "Vielen Dank", elements: [] },
   ];
-  return { id: 1, uuid: "personalization-reader", name: "Persönliches Angebot", documentVersion: 4, editVersion: 1, editorProtocol: true, status: "published", publishedRevisionId: 321, pages, abTests: [] as ABTest[],
+  return { datenschutzUrl: "https://example.com/privacy", id: 1, uuid: "personalization-reader", name: "Persönliches Angebot", documentVersion: 4, editVersion: 1, editorProtocol: true, status: "published", publishedRevisionId: 321, pages, abTests: [] as ABTest[],
     theme: { primaryColor: "#123456", textColor: "#111111", backgroundColor: "#ffffff", fontFamily: "Inter" } };
 }
 
@@ -21,10 +22,10 @@ function fixture() {
 async function mockFunnel(page: Page, baseURL: string, funnel: ReturnType<typeof fixture>, editing = false) {
   const payloads: FunnelLeadPayload[] = [], writes: string[] = [], errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  await page.addInitScript(() => {
+  await page.addInitScript(({ version, expiresAt }) => {
     localStorage.setItem("onboarding-completed", "true");
-    localStorage.setItem("trichterwerk-cookie-consent", "true");
-  });
+    localStorage.setItem("tw-consent-v2:funnel:personalization-reader", JSON.stringify({ version, expiresAt, preferences: { necessary: true, analytics: true, marketing: false } }));
+  }, { version: funnelConsentVersion(funnel), expiresAt: Date.now() + CONSENT_MAX_AGE_MS });
   await page.route("**/*", route => {
     const request = route.request(), url = new URL(request.url());
     if (url.origin !== new URL(baseURL).origin) return route.abort();
