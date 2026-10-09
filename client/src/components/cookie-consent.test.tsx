@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { render, renderHook, screen, act, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { CookieConsent } from "./cookie-consent";
+import { CookieConsent, useCookieConsent } from "./cookie-consent";
+import { apiRequest } from "@/lib/queryClient";
+import { PLATFORM_CONSENT, consentStorageKey, readConsent, invalidateConsentStatus, funnelConsentScope } from "@/lib/consent-store";
+import { MARKETING_CONSENT_VERSION, CONSENT_MAX_AGE_MS } from "@shared/privacy-consent";
+vi.mock("@/lib/queryClient", () => ({ apiRequest: vi.fn() }));
 
 /**
  * Diese Tests sichern die Ursache eines konkreten Ausfalls ab.
@@ -37,11 +41,14 @@ async function renderBanner() {
 describe("CookieConsent", () => {
   beforeEach(() => {
     localStorage.clear();
+    invalidateConsentStatus();
+    vi.mocked(apiRequest).mockImplementation(async (_method, _url, data) => ({ json: async () => ({ marketing: (data as any).marketing, version: MARKETING_CONSENT_VERSION, expiresAt: new Date(Date.now() + CONSENT_MAX_AGE_MS).toISOString() }) }) as Response);
     vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("erscheint erst nach der Verzögerung", async () => {
@@ -81,7 +88,7 @@ describe("CookieConsent", () => {
     expect(banner()).not.toBeInTheDocument();
     // Wegklicken muss zum datenschutzfreundlichen Ergebnis führen, sonst wäre
     // es ein Dark Pattern.
-    expect(JSON.parse(localStorage.getItem("trichterwerk-cookie-preferences")!)).toMatchObject({
+    expect(readConsent()!.preferences).toMatchObject({
       necessary: true,
       analytics: false,
       marketing: false,
@@ -95,7 +102,7 @@ describe("CookieConsent", () => {
     await user.keyboard("{Escape}");
 
     expect(banner()).not.toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem("trichterwerk-cookie-preferences")!).marketing).toBe(false);
+    expect(readConsent()!.preferences.marketing).toBe(false);
   });
 
   it("gewichtet Zustimmen und Ablehnen optisch gleich", async () => {
@@ -115,18 +122,94 @@ describe("CookieConsent", () => {
 
     await user.click(screen.getByTestId("cookie-consent-accept"));
 
-    expect(JSON.parse(localStorage.getItem("trichterwerk-cookie-preferences")!).marketing).toBe(true);
+    expect(readConsent()!.preferences.marketing).toBe(true);
   });
 
   it("erscheint nicht erneut, wenn schon entschieden wurde", async () => {
-    localStorage.setItem("trichterwerk-cookie-consent", "true");
-    localStorage.setItem(
-      "trichterwerk-cookie-preferences",
-      JSON.stringify({ necessary: true, analytics: false, marketing: false }),
-    );
+    localStorage.setItem(consentStorageKey(PLATFORM_CONSENT), JSON.stringify({
+      version: MARKETING_CONSENT_VERSION, expiresAt: Date.now() + CONSENT_MAX_AGE_MS,
+      preferences: { necessary: true, analytics: false, marketing: false },
+    }));
 
     await renderBanner();
     expect(banner()).not.toBeInTheDocument();
+  });
+
+  it("lädt Altzustimmungen und beschädigten Speicher nicht als Freigabe", async () => {
+    localStorage.setItem("trichterwerk-cookie-preferences", JSON.stringify({ necessary: true, analytics: true, marketing: true }));
+    localStorage.setItem(consentStorageKey(PLATFORM_CONSENT), "broken");
+    await renderBanner();
+    expect(banner()).toBeInTheDocument();
+    expect(readConsent()).toBeNull();
+  });
+
+  it("gibt Marketing bei fehlgeschlagener Speicherung nicht frei", async () => {
+    vi.mocked(apiRequest).mockRejectedValueOnce(new Error("offline"));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const view = await renderBanner();
+    await user.click(screen.getByTestId("cookie-consent-accept"));
+    expect(readConsent()?.preferences.marketing).toBe(false);
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(banner()).toBeInTheDocument();
+    view.unmount();
+    await renderBanner();
+    expect(screen.getByRole("alert")).toHaveTextContent("noch nicht bestätigt");
+    expect(screen.getByRole("button", { name: "Widerruf erneut senden" })).toBeVisible();
+  });
+
+  it("beendet eine zeitlich abgelaufene Zustimmung auch im geöffneten Tab", async () => {
+    const scope = funnelConsentScope({ uuid: "expiry-test" });
+    localStorage.setItem(consentStorageKey(scope), JSON.stringify({
+      version: scope.version, expiresAt: Date.now() + 1000,
+      preferences: { necessary: true, analytics: true, marketing: true },
+    }));
+    const { result } = renderHook(() => useCookieConsent(scope));
+    expect(result.current.allowsMarketing).toBe(true);
+    await act(async () => { vi.advanceTimersByTime(1001); });
+    expect(result.current.allowsMarketing).toBe(false);
+    expect(result.current.allowsAnalytics).toBe(false);
+  });
+
+  it("liest nach Wiederherstellung aus dem Browsercache einen zwischenzeitlichen Widerruf neu", async () => {
+    const scope = funnelConsentScope({ uuid: "restored-funnel" });
+    const record = {
+      version: scope.version, expiresAt: Date.now() + CONSENT_MAX_AGE_MS,
+      preferences: { necessary: true, analytics: true, marketing: true },
+    };
+    localStorage.setItem(consentStorageKey(scope), JSON.stringify(record));
+    const { result } = renderHook(() => useCookieConsent(scope));
+    expect(result.current.allowsMarketing).toBe(true);
+
+    // Ein eingefrorenes Dokument muss Änderungen anderer Tabs auch dann
+    // berücksichtigen, wenn es dafür kein storage-/focus-Ereignis erhält.
+    localStorage.setItem(consentStorageKey(scope), JSON.stringify({
+      ...record, preferences: { necessary: true, analytics: false, marketing: false },
+    }));
+    await act(async () => {
+      window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }));
+    });
+    expect(result.current.allowsMarketing).toBe(false);
+    expect(result.current.allowsAnalytics).toBe(false);
+  });
+
+  it("prüft nach Browser-Wiederherstellung auch einen serverseitigen Kontowiderruf erneut", async () => {
+    const expiresAt = Date.now() + CONSENT_MAX_AGE_MS;
+    localStorage.setItem(consentStorageKey(PLATFORM_CONSENT), JSON.stringify({
+      version: MARKETING_CONSENT_VERSION, expiresAt,
+      preferences: { necessary: true, analytics: false, marketing: true },
+    }));
+    const fetchStatus = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ marketing: true, version: MARKETING_CONSENT_VERSION, expiresAt: new Date(expiresAt).toISOString() })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ marketing: false, version: MARKETING_CONSENT_VERSION, expiresAt: null })));
+    vi.stubGlobal("fetch", fetchStatus);
+    const { result } = renderHook(() => useCookieConsent());
+    await waitFor(() => expect(result.current.allowsMarketing).toBe(true));
+
+    await act(async () => {
+      window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }));
+    });
+    await waitFor(() => expect(result.current.allowsMarketing).toBe(false));
+    expect(fetchStatus).toHaveBeenCalledTimes(2);
   });
 
   it("reserviert Platz am Seitenende, statt Inhalt zu verdecken", async () => {

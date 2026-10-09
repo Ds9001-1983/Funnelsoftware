@@ -29,6 +29,9 @@ import {
 } from "./stripe";
 import { sendWebhook, buildWebhookPayload } from "./webhooks";
 import { sendCapiEvent, extractCapiRequestContext, buildPurchaseEvent } from "./capi";
+import { bindMarketingConsent, withMarketingConsent } from "./marketing-consent";
+import { registerPrivacyRoutes, consentToken } from "./privacy-routes";
+import { funnelConsentVersion, hasFunnelPrivacyInformation } from "@shared/privacy-consent";
 import { TRICHTERWERK_PIXEL_ID } from "@shared/meta";
 import { aggregateAbTestStats } from "./ab-stats";
 import { passport, isAuthenticated, isAdmin, getUserId, requirePro, requireVerifiedEmail, requireVerifiedEmailForPublish, getUserPlan, hasProFeatures } from "./auth";
@@ -199,6 +202,7 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  registerPrivacyRoutes(app);
   registerWorkspaceRoutes(app);
   registerRecruitingRoutes(app);
   registerBrandStyleRoutes(app);
@@ -309,13 +313,17 @@ export async function registerRoutes(
           trialEndsAt,
           isPro: false,
           emailVerificationToken,
-          // Festhalten, weil der Stripe-Webhook zur ersten Zahlung Wochen später
-          // kommt und dort kein Browser-Consent mehr abrufbar ist.
-          marketingConsent: !!result.data.marketingConsent,
+          // Der alte Boolean ist kein Nachweis. Maßgeblich ist ausschließlich
+          // der widerrufbare Datensatz aus /api/privacy/marketing-consent.
+          marketingConsent: false,
         },
         email,
         !!result.data.username,
       );
+
+      await bindMarketingConsent(consentToken(req), user.id).catch(() => {
+        console.error("Marketing-Einwilligung konnte nicht zugeordnet werden; Tracking bleibt gesperrt.");
+      });
 
       // Ausstehende Team-Einladungen an diese E-Mail übernehmen (userId NULL
       // → jetzt zuordnen). Fehler dürfen die Registrierung nie blockieren.
@@ -367,9 +375,9 @@ export async function registerRoutes(
       // DSGVO: nur mit Marketing-Einwilligung aus dem Cookie-Banner.
       const capiEventId = randomUUID();
       const metaCapiToken = process.env.META_CAPI_TOKEN;
-      if (result.data.marketingConsent && metaCapiToken) {
+      if (metaCapiToken) {
         const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol;
-        sendCapiEvent({
+        await withMarketingConsent(user.id, () => sendCapiEvent({
           pixelId: TRICHTERWERK_PIXEL_ID,
           accessToken: metaCapiToken,
           eventName: "CompleteRegistration",
@@ -379,8 +387,8 @@ export async function registerRoutes(
             email,
             ...extractCapiRequestContext(req),
           },
-        }).catch((err) =>
-          console.error("[Meta CAPI] CompleteRegistration failed:", err),
+        })).catch(() =>
+          console.error("[Meta CAPI] CompleteRegistration nicht gesendet."),
         );
       }
 
@@ -465,6 +473,9 @@ export async function registerRoutes(
         }
         // Update last login timestamp
         await storage.updateLastLogin(user.id);
+        await bindMarketingConsent(consentToken(req), user.id).catch(() => {
+          console.error("Marketing-Einwilligung konnte nicht zugeordnet werden; kein neuer Nachweis.");
+        });
         res.json({ user: { ...user, plan: getUserPlan(user) } });
       });
     })(req, res, next);
@@ -1488,9 +1499,12 @@ export async function registerRoutes(
         documentVersion: funnel.documentVersion,
         publishedRevisionId: funnel.publishedRevisionId ?? null,
         gtmId: funnel.gtmId || null,
+        // Kundencontainer dürfen nie im Origin der Kontoverwaltung laufen.
+        allowCustomScripts: !isPlatformHost(req.hostname) && (await resolveCustomDomainFunnel(req.hostname))?.funnel.uuid === funnel.uuid,
         // Pixel-IDs sind public by design (jede Website mit Pixel exponiert sie);
         // der Client lädt das Browser-Pixel nur nach Marketing-Consent.
         metaPixelId: funnel.metaPixelId || null,
+        capiEnabled: !!funnel.capiEnabled,
         abTests: activeTests,
         impressumUrl: funnel.impressumUrl || null,
         datenschutzUrl: funnel.datenschutzUrl || null,
@@ -1653,6 +1667,12 @@ export async function registerRoutes(
       if (!result.success) {
         return res.status(400).json({ error: "Ungültige Lead-Daten", details: result.error.errors });
       }
+
+      // Zustimmung gilt nur für die aktuelle Fassung dieses konkreten Funnels.
+      result.data.marketingConsent = result.data.marketingConsent === true
+        && hasFunnelPrivacyInformation(funnel)
+        && result.data.consentVersion === funnelConsentVersion(funnel);
+      if (!result.data.marketingConsent) result.data.consentVersion = undefined;
 
       // Idempotenz: identische E-Mail auf demselben Funnel innerhalb von 30s →
       // kein Duplikat anlegen (Doppelklick/Retry), bestehende ID zurückgeben.
@@ -2362,10 +2382,10 @@ export async function registerRoutes(
           const metaCapiToken = process.env.META_CAPI_TOKEN;
           if (metaCapiToken) {
             const user = await storage.getUserByStripeCustomerId(invoice.customer as string);
-            // Prüft 0-€-Trial-Rechnung, fehlenden Nutzer und Einwilligung.
-            const draft = buildPurchaseEvent(invoice, user);
-            if (draft) {
-              sendCapiEvent({
+            if (user) await withMarketingConsent(user.id, async () => {
+              const draft = buildPurchaseEvent(invoice, user, true);
+              if (!draft) return;
+              await sendCapiEvent({
                 pixelId: TRICHTERWERK_PIXEL_ID,
                 accessToken: metaCapiToken,
                 eventName: "Purchase",
@@ -2380,8 +2400,8 @@ export async function registerRoutes(
                   email: draft.email,
                 },
                 customData: draft.customData,
-              }).catch((err) => console.error("[Meta CAPI] Purchase failed:", err));
-            }
+              });
+            }).catch(() => console.error("[Meta CAPI] Purchase nicht gesendet."));
           }
           break;
         }

@@ -98,15 +98,16 @@ export interface PurchaseEventDraft {
  *    0-€-Rechnung aus. Als Purchase gemeldet würde Meta auf Trial-Starts statt
  *    auf echte Zahlungen optimieren.
  *  - kein Nutzer zur Customer-ID auffindbar.
- *  - keine Marketing-Einwilligung bei der Registrierung erteilt.
+ *  - kein aktuell gültiger serverseitiger Einwilligungsnachweis.
  */
 export function buildPurchaseEvent(
   invoice: { id?: unknown; amount_paid?: unknown; currency?: unknown },
-  user: { email: string; marketingConsent?: boolean | null } | null | undefined,
+  user: { email: string } | null | undefined,
+  currentConsent: boolean,
 ): PurchaseEventDraft | null {
   const amountPaid = Number(invoice.amount_paid || 0);
   if (!Number.isFinite(amountPaid) || amountPaid <= 0) return null;
-  if (!user?.marketingConsent) return null;
+  if (!user || !currentConsent) return null;
   const eventId = typeof invoice.id === "string" ? invoice.id : "";
   if (!eventId) return null;
 

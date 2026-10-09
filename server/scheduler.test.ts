@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+vi.mock("./marketing-consent", () => ({ purgeMarketingConsentProofs: vi.fn().mockResolvedValue(undefined) }));
 
 // Storage + E-Mail mocken — die Job-Logik (Reihenfolge, Cutoffs, Dedupe-Gates)
 // ist das Testobjekt, nicht die DB.

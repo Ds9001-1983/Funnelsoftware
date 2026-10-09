@@ -58,17 +58,10 @@ export default function Register() {
     }
   }, []);
 
-  // Partnerprogramm: ?ref=<code> merken (gleiches Muster wie ?template) —
-  // wird beim Absenden mitgeschickt und danach gelöscht.
+  // Alte dauerhafte Affiliate-Zuordnungen entfernen. Den aktuellen Ref-Code
+  // lesen wir beim Absenden direkt aus der URL; kein Endgerätespeicher nötig.
   useEffect(() => {
-    const ref = new URLSearchParams(window.location.search).get("ref");
-    if (ref && /^[a-z0-9-]{1,32}$/i.test(ref)) {
-      try {
-        localStorage.setItem(SIGNUP_REF_STORAGE_KEY, ref);
-      } catch {
-        // Storage blockiert → Attribution geht verloren, Registrierung läuft normal
-      }
-    }
+    try { localStorage.removeItem(SIGNUP_REF_STORAGE_KEY); } catch { /* Speicher gesperrt. */ }
   }, []);
 
   // Abbruch messen: Formular begonnen, aber nie abgesendet. `pagehide` statt
@@ -111,12 +104,13 @@ export default function Register() {
 
     setIsLoading(true);
 
-    // Empfehlungscode aus dem localStorage-Handoff (Partnerprogramm).
+    // Empfehlungscode nur aus dem aktuell geöffneten Link (Partnerprogramm).
     let referralCode: string | undefined;
     try {
-      referralCode = localStorage.getItem(SIGNUP_REF_STORAGE_KEY) || undefined;
+      const ref = new URLSearchParams(window.location.search).get("ref");
+      referralCode = ref && /^[a-z0-9-]{1,32}$/i.test(ref) ? ref : undefined;
     } catch {
-      // ohne Storage keine Attribution — Registrierung läuft normal
+      // Ungültiger Link ohne Attribution — Registrierung läuft normal
     }
 
     // Kein `username`: der Server leitet ihn aus der E-Mail ab.

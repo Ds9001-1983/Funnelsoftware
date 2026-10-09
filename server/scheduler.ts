@@ -13,6 +13,7 @@
 import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
+import { purgeMarketingConsentProofs } from "./marketing-consent";
 import { FREE_MAX_PUBLISHED_FUNNELS } from "@shared/schema";
 import {
   sendFreeDowngradeEmail,
@@ -149,6 +150,7 @@ export async function tick(): Promise<void> {
     // Keine Rückgewinnungswerbung: Ein gesondertes E-Mail-Opt-in samt
     // Abmeldung ist noch nicht vorhanden. Cookie-Consent genügt dafür nicht.
     ["Fehlermeldungs-Aufbewahrung", () => runBugReportRetentionJob()],
+    ["Einwilligungs-Aufbewahrung", () => purgeMarketingConsentProofs()],
   ];
   for (const [name, job] of jobs) {
     try {
