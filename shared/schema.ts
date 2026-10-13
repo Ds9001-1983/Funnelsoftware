@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, integer, boolean, timestamp, jsonb, serial, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
+import { REGISTRATION_CONTRACT, type RegistrationContract } from "./registration-contract";
 
 // ============ URL-SICHERHEIT ============
 
@@ -93,6 +94,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   displayName: text("display_name"),
+  registrationContract: jsonb("registration_contract").$type<RegistrationContract>(),
   isAdmin: boolean("is_admin").notNull().default(false),
   trialEndsAt: timestamp("trial_ends_at"),
   isPro: boolean("is_pro").notNull().default(false),
@@ -527,6 +529,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   password: true,
   displayName: true,
+  registrationContract: true,
   isAdmin: true,
   trialEndsAt: true,
   isPro: true,
@@ -1434,6 +1437,10 @@ export const passwordSchema = z
   .min(PASSWORD_MIN_LENGTH, `Passwort muss mindestens ${PASSWORD_MIN_LENGTH} Zeichen haben`);
 
 export const registerSchema = z.object({
+  businessName: z.string().trim().min(2, "Bitte Unternehmen oder vollständigen Namen als Selbstständiger angeben").max(200),
+  businessConfirmed: z.literal(true, { errorMap: () => ({ message: "Bitte die geschäftliche Nutzung bestätigen" }) }),
+  termsAccepted: z.literal(true, { errorMap: () => ({ message: "Bitte AGB und AVV akzeptieren" }) }),
+  legalVersion: z.literal(REGISTRATION_CONTRACT.version, { errorMap: () => ({ message: "Die Vertragsfassung hat sich geändert. Bitte lade die Seite neu und prüfe AGB und AVV." }) }),
   /**
    * Optional: fehlt er, leitet der Server ihn aus der E-Mail ab. Ein separater
    * Benutzername neben der E-Mail war ein Pflichtfeld ohne Gegenwert — die

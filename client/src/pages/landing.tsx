@@ -195,7 +195,7 @@ const pricingPlans: PricingPlan[] = [
     description: "Zum Ausprobieren und für den ersten Funnel",
     features: [
       "1 veröffentlichter Funnel",
-      "100 Leads pro Monat",
+      "100 sichtbare Leads je Kalendermonat pro Konto",
       "Alle Templates & Editor-Funktionen",
       "Unbegrenzte Entwürfe",
       "Live-Analytics",
@@ -315,7 +315,7 @@ const comparisonRows: ComparisonRow[] = [
 const faqs = [
   {
     q: "Ist Trichterwerk wirklich kostenlos?",
-    a: "Ja. Der Free-Plan ist dauerhaft kostenlos: 1 veröffentlichter Funnel, 100 Leads pro Monat, alle Templates und Editor-Funktionen. In den ersten 14 Tagen hast du zusätzlich alle Pro-Features zum Testen — danach läuft dein Account einfach im Free-Plan weiter.",
+    a: "Ja. Der Free-Plan ist dauerhaft kostenlos: 1 veröffentlichter Funnel, 100 sichtbare Leads je Kalendermonat pro Konto, alle Templates und Editor-Funktionen. In den ersten 14 Tagen hast du zusätzlich alle Pro-Features zum Testen — danach läuft dein Account einfach im Free-Plan weiter. Weitere Leads werden gespeichert; ihre Kontaktdaten und Antworten schaltet Pro frei. Die Monatsgrenze gilt pro Konto nach UTC.",
   },
   {
     q: "Brauche ich zum Start eine Kreditkarte?",
@@ -830,7 +830,8 @@ export default function Landing() {
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               Kostenlos starten, upgraden wenn du wächst. Monatlich kündbar,
-              14 Tage volle Pro-Features zum Testen.
+              14 Tage volle Pro-Features zum Testen. Für Unternehmen und Selbstständige
+              bei geschäftlicher Nutzung. Ohne gesonderte Bestellung bleibt dein Konto kostenlos.
             </p>
           </div>
 

@@ -1,6 +1,7 @@
 import type { APIRequestContext } from "@playwright/test";
 import { getVerificationToken } from "./db";
 import { makeCredentials, type TestCredentials } from "./unique";
+import { REGISTRATION_CONTRACT } from "../../shared/registration-contract";
 
 /**
  * API-Helfer für Specs, die keinen Browser brauchen (Lead-Schutz etc.).
@@ -14,6 +15,10 @@ export async function registerAndVerify(
 ): Promise<TestCredentials> {
   const res = await request.post("/api/auth/register", {
     data: {
+      businessName: "E2E Testunternehmen",
+      businessConfirmed: true,
+      termsAccepted: true,
+      legalVersion: REGISTRATION_CONTRACT.version,
       username: creds.username,
       email: creds.email,
       password: creds.password,

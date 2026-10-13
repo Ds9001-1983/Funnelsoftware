@@ -37,17 +37,17 @@ test("Kompletter Funnel-Lebenszyklus: Registrieren → Erstellen → Publizieren
 
   await page.addInitScript(SILENCE_OVERLAYS);
 
-  await test.step("Registrieren (zwei Felder, keine Karte)", async () => {
+  await test.step("Geschäftliches Konto registrieren, ohne Zahlungsdaten", async () => {
     await page.goto("/register");
-    // Nur noch E-Mail und Passwort: Der Benutzername wird serverseitig aus der
-    // E-Mail abgeleitet, die Passwort-Bestätigung ist einem Augen-Toggle gewichen.
+    await page.fill("#businessName", "E2E Testunternehmen");
+    await page.check("#businessConfirmed");
+    await page.check("#termsAccepted");
     await page.fill("#email", creds.email);
     await page.fill("#password", creds.password);
     await expect(page.locator("#username")).toHaveCount(0);
     await expect(page.locator("#confirmPassword")).toHaveCount(0);
     await page.getByTestId("button-register-submit").click();
-    // Ohne SIGNUP_REQUIRE_CARD kommt kein Stripe-Checkout mehr — der neue Nutzer
-    // landet direkt im Produkt statt in einem leeren Dashboard.
+    // Registrierung eröffnet den kostenlosen Plan mit Pro-Testphase.
     await page.waitForURL(/\/funnels\/new/);
   });
 

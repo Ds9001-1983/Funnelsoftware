@@ -40,6 +40,7 @@ import { useTheme } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import { AiConnectionSettings } from "@/components/settings/AiConnectionSettings";
+import { RegistrationContractCard } from "@/components/settings/RegistrationContractCard";
 
 function ProfileSettings() {
   const { user, refetchUser } = useAuth();
@@ -151,6 +152,7 @@ function ProfileSettings() {
         </CardContent>
       </Card>
 
+      <RegistrationContractCard />
       <ChangePasswordCard />
       <DeleteAccountCard />
     </div>
@@ -524,7 +526,11 @@ function BillingSettings() {
       <Card>
         <CardHeader>
           <CardTitle>Aktueller Plan</CardTitle>
-          <CardDescription>Verwalte dein Abonnement</CardDescription>
+          <CardDescription>
+            Free: dauerhaft 0 €. Pro: 49 € pro Monat inkl. MwSt., monatlich kündbar.
+            Ein kostenpflichtiges Abo bestellst du gesondert im Stripe-Checkout;
+            dort siehst du Preis und Zahlungsbeginn vor dem Abschluss.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {/* Active Pro */}
@@ -596,7 +602,7 @@ function BillingSettings() {
                   <span className="text-xs bg-muted-foreground/20 px-2 py-0.5 rounded-full">Kostenlos</span>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  1 veröffentlichter Funnel · 100 Leads/Monat · alle Editor-Funktionen.
+                  1 veröffentlichter Funnel · 100 sichtbare Leads je Kalendermonat pro Konto · alle Editor-Funktionen.
                   Pro schaltet unbegrenzte Funnels, Leads, eigene Domain und Teams frei.
                 </div>
               </div>

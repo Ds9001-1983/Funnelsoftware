@@ -1,3 +1,4 @@
+import { REGISTRATION_CONTRACT, legalDocumentUrl } from "@shared/registration-contract";
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -23,7 +24,10 @@ export default function Register() {
     email: "",
     password: "",
     displayName: "",
+    businessName: "",
   });
+  const [businessConfirmed, setBusinessConfirmed] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -35,17 +39,17 @@ export default function Register() {
 
   usePageMeta({
     title: "Kostenlos starten",
-    description: "Erstelle deinen kostenlosen Trichterwerk-Account — für immer kostenloser Free-Plan, 14 Tage Pro-Features, ohne Code, DSGVO-konform.",
+    description: "Erstelle deinen kostenlosen Trichterwerk-Account — für immer kostenloser Free-Plan, 14 Tage Pro-Features, für Unternehmen und Selbstständige, ohne Zahlungsdaten.",
     canonical: "/register",
   });
 
-  // Redirect if already authenticated
+  // Erst nach dem gerenderten Auth-Update in geschützte Seiten wechseln.
   useEffect(() => {
-    if (isAuthenticated) setLocation("/");
-  }, [isAuthenticated, setLocation]);
+    if (isAuthenticated && !isLoading) setLocation(formSubmitted.current ? "/funnels/new" : "/");
+  }, [isAuthenticated, isLoading, setLocation]);
 
   // Aus der Template-Galerie gekommen (?template=<slug>)? Auswahl merken —
-  // localStorage überlebt Stripe-Checkout-Redirect und E-Mail-Verifizierung;
+  // localStorage überlebt die E-Mail-Verifizierung;
   // /funnels/new liest den Key und wählt die Vorlage vor.
   useEffect(() => {
     const slug = new URLSearchParams(window.location.search).get("template");
@@ -115,6 +119,10 @@ export default function Register() {
 
     // Kein `username`: der Server leitet ihn aus der E-Mail ab.
     const result = await register({
+      businessName: formData.businessName.trim(),
+      businessConfirmed,
+      termsAccepted,
+      legalVersion: REGISTRATION_CONTRACT.version,
       email: formData.email,
       password: formData.password,
       displayName: formData.displayName || undefined,
@@ -130,27 +138,10 @@ export default function Register() {
         // egal — der Server ignoriert einen erneut mitgeschickten Code
       }
       // Browser-Seite der Conversion. Der Server hat dasselbe Event bereits
-      // über die CAPI gemeldet — identische eventID, Meta dedupliziert. Geht
-      // dieses hier beim Stripe-Redirect verloren, ist die Conversion trotzdem
-      // gezählt. Ohne Marketing-Consent ist der Pixel nie geladen und fbqTrack
-      // damit ein No-op.
+      // über die CAPI gemeldet — identische eventID, Meta dedupliziert.
+      // Ohne Marketing-Consent ist der Pixel nie geladen und fbqTrack ein No-op.
       if (result.capiEventId) {
         fbqTrack("CompleteRegistration", {}, { eventID: result.capiEventId });
-      }
-
-      if (result.checkoutUrl) {
-        // Nur noch mit SIGNUP_REQUIRE_CARD=true: Zahlung sofort hinterlegen.
-        trackPlatformEvent("/register", "checkout_redirect");
-        window.location.href = result.checkoutUrl;
-      } else if (result.checkoutError) {
-        // Account erstellt, aber die Weiterleitung zur Zahlung schlug fehl —
-        // sichtbar machen (Toast im Dashboard) statt den Nutzer stumm abzulegen.
-        setLocation("/?checkout=error");
-      } else {
-        // Regelfall: Trial ohne Karte → direkt ins Produkt statt in ein leeres
-        // Dashboard. /funnels/new liest SIGNUP_TEMPLATE_STORAGE_KEY und wählt
-        // eine aus der Galerie mitgebrachte Vorlage vor.
-        setLocation("/funnels/new");
       }
     } else {
       setError(result.error || "Registrierung fehlgeschlagen");
@@ -220,6 +211,16 @@ export default function Register() {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
+
+              <div className="space-y-2">
+                <Label htmlFor="businessName">Unternehmen / vollständiger Name als Selbstständiger</Label>
+                <Input id="businessName" name="businessName" value={formData.businessName}
+                  onChange={handleChange} autoComplete="organization" required minLength={2} maxLength={200}
+                  aria-describedby="business-help" data-testid="input-register-business" />
+                <p id="business-help" className="text-xs text-muted-foreground">
+                  Trichterwerk richtet sich ausschließlich an Unternehmen und Selbstständige bei geschäftlicher Nutzung.
+                </p>
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="displayName">Name (optional)</Label>
@@ -297,6 +298,27 @@ export default function Register() {
               </div>
 
 
+              <div className="space-y-4 text-sm">
+                <label className="flex items-start gap-3" htmlFor="businessConfirmed">
+                  <input id="businessConfirmed" type="checkbox" required checked={businessConfirmed}
+                    onChange={(event) => setBusinessConfirmed(event.target.checked)} className="mt-1 h-4 w-4 shrink-0" />
+                  <span>{REGISTRATION_CONTRACT.businessDeclaration}</span>
+                </label>
+                <div className="flex items-start gap-3">
+                  <input id="termsAccepted" type="checkbox" required checked={termsAccepted}
+                    onChange={(event) => setTermsAccepted(event.target.checked)} className="mt-1 h-4 w-4 shrink-0" />
+                  <div>
+                    <label htmlFor="termsAccepted">{REGISTRATION_CONTRACT.acceptanceDeclaration}</label>
+                    <p className="mt-1 text-muted-foreground">
+                      Fassung {REGISTRATION_CONTRACT.version}: {" "}
+                      <a href={legalDocumentUrl(REGISTRATION_CONTRACT.version, "agb")} target="_blank" rel="noopener noreferrer" className="underline">AGB lesen und speichern</a>
+                      {" · "}
+                      <a href={legalDocumentUrl(REGISTRATION_CONTRACT.version, "avv")} target="_blank" rel="noopener noreferrer" className="underline">AVV lesen und speichern</a>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <Button type="submit" className="w-full" disabled={isLoading} size="lg" data-testid="button-register-submit">
                 {isLoading ? (
                   <>
@@ -313,7 +335,11 @@ export default function Register() {
                     Keine Zahlungsdaten nötig.
                   </strong>{" "}
                   14 Tage volle Pro-Features — danach läuft dein Account im für
-                  immer kostenlosen Free-Plan weiter (Pro: 49&nbsp;€/Monat inkl. MwSt.).
+                  immer kostenlosen Free-Plan weiter: 1 veröffentlichter Funnel und 100 sichtbare Leads je Kalendermonat pro Konto. Pro kostet 49&nbsp;€/Monat inkl. MwSt. und erfordert eine gesonderte Bestellung. Kein automatisches kostenpflichtiges Abo.
+                </p>
+                <p className="text-xs text-muted-foreground text-center leading-relaxed">
+                  Weitere Leads werden gespeichert; ihre Kontaktdaten und Antworten
+                  sind erst mit Pro sichtbar. Der Kalendermonat richtet sich nach UTC.
                 </p>
               </div>
             </form>
@@ -339,11 +365,7 @@ export default function Register() {
 
         {/* Footer */}
         <p className="text-center text-sm text-muted-foreground">
-          Mit der Registrierung akzeptierst du unsere{" "}
-          <Link href="/agb" className="underline underline-offset-4 hover:text-primary">
-            AGB
-          </Link>{" "}
-          und{" "}
+          Informationen zur Verarbeitung deiner Daten findest du in unserer{" "}
           <Link href="/datenschutz" className="underline underline-offset-4 hover:text-primary">
             Datenschutzerklärung
           </Link>

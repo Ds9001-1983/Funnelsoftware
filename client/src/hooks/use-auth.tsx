@@ -1,3 +1,4 @@
+import type { RegistrationContract } from "@shared/registration-contract";
 import { invalidateConsentStatus, notifyConsent, PLATFORM_CONSENT } from "@/lib/consent-store";
 import { clearAllEditorRecovery } from "@/lib/editor-recovery";
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
@@ -11,7 +12,7 @@ interface User {
   username: string;
   email: string;
   displayName: string | null;
-  company: string | null;
+  registrationContract: RegistrationContract | null;
   isPro: boolean;
   isAdmin: boolean;
   subscriptionStatus: string;
@@ -33,12 +34,16 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (data: RegisterData) => Promise<{ success: boolean; error?: string; checkoutUrl?: string | null; checkoutError?: boolean; capiEventId?: string | null }>;
+  register: (data: RegisterData) => Promise<{ success: boolean; error?: string; capiEventId?: string | null }>;
   logout: () => Promise<void>;
   refetchUser: () => Promise<void>;
 }
 
 interface RegisterData {
+  businessName: string;
+  businessConfirmed: boolean;
+  termsAccepted: boolean;
+  legalVersion: string;
   /**
    * Optional — fehlt er, leitet der Server ihn aus der E-Mail ab. Das
    * Registrierungsformular schickt ihn nicht mehr mit.
@@ -143,8 +148,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(result.user);
       return {
         success: true,
-        checkoutUrl: result.checkoutUrl || null,
-        checkoutError: !!result.checkoutError,
         capiEventId: result.capiEventId || null,
       };
     } catch (error) {

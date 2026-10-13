@@ -232,8 +232,13 @@ export default function Datenschutz() {
               </h2>
               <p className="text-slate-600 text-sm leading-relaxed mb-4">
                 Bei der Registrierung eines Kontos verarbeiten wir die von Ihnen angegebenen
-                Daten (Benutzername, E-Mail-Adresse, Anzeigename, Passwort in verschlüsselter
-                Form) zur Bereitstellung des Dienstes. Rechtsgrundlage ist Art. 6 Abs. 1
+                Daten (Unternehmen beziehungsweise vollständiger Name als Selbstständiger,
+                Benutzername, E-Mail-Adresse, Anzeigename, Passwort als Hash) zur Bereitstellung
+                des Dienstes. Wir speichern außerdem die Bestätigung der geschäftlichen Nutzung,
+                die Annahme von AGB und AVV, den Zeitpunkt sowie die Fassung und Prüfsummen
+                der Vertragstexte als Nachweis des Vertragsschlusses in Ihrem Konto.
+                Diesen Nachweis können Sie unter Einstellungen → Profil herunterladen.
+                Rechtsgrundlage ist Art. 6 Abs. 1
                 lit. b DSGVO (Vertragserfüllung). Zur Verifizierung Ihrer E-Mail-Adresse und
                 für transaktionale Nachrichten (z.B. Passwort-Zurücksetzen, Lead-Benachrichtigungen)
                 versenden wir E-Mails über unseren E-Mail-Dienstleister (Alfahosting GmbH,

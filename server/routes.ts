@@ -1,3 +1,4 @@
+import { createRegistrationContract, registerContractRoutes } from "./registration-contract";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
@@ -267,12 +268,14 @@ export async function registerRoutes(
 
   // ============ AUTH ROUTES ============
 
+  registerContractRoutes(app);
+
   // Register new user
   app.post("/api/auth/register", async (req, res) => {
     try {
       const result = registerSchema.safeParse(req.body);
       if (!result.success) {
-        return res.status(400).json({ error: "Ungültige Registrierungsdaten", details: result.error.errors });
+        return res.status(400).json({ error: result.error.errors[0]?.message || "Ungültige Registrierungsdaten", details: result.error.errors });
       }
 
       const { password, displayName } = result.data;
@@ -310,6 +313,7 @@ export async function registerRoutes(
           email,
           password,
           displayName,
+          registrationContract: createRegistrationContract(result.data.businessName),
           trialEndsAt,
           isPro: false,
           emailVerificationToken,
@@ -400,51 +404,10 @@ export async function registerRoutes(
 
         const { password: _, ...userWithoutPassword } = user;
 
-        // Kreditkarte beim Registrieren: standardmäßig NEIN.
-        //
-        // Der Trial braucht Stripe nicht — `trialEndsAt` steht oben schon in der
-        // DB und `getUserPlan()` erkennt ihn daraus. Der Checkout verlangte
-        // dagegen (payment_method_collection ist nicht gesetzt → Stripe-Default
-        // "always", plus STRIPE_TAX_ENABLED → Rechnungsadresse und USt-ID) von
-        // einem 90 Sekunden alten Besucher volle Zahlungsdaten. Das war der
-        // teuerste Schritt im Funnel.
-        //
-        // Die Karte wird später über POST /api/billing/create-checkout geholt
-        // (übernimmt trialEnd korrekt und hat einen Doppelabo-Guard).
-        // SIGNUP_REQUIRE_CARD=true schaltet das alte Verhalten wieder ein, wenn
-        // genug Volumen da ist, um Trial-Qualität über Trial-Menge zu stellen.
-        //
-        // success_url/cancel_url MÜSSEN sich unterscheiden — sonst kann der Client
-        // eine erfolgreiche Zahlung nicht von einem Abbruch trennen.
-        let checkoutUrl: string | null = null;
-        let checkoutError = false;
-        const requireCardAtSignup = process.env.SIGNUP_REQUIRE_CARD === "true";
-        if (requireCardAtSignup && isStripeConfigured() && process.env.STRIPE_PRICE_ID) {
-          try {
-            const customerId = await getOrCreateStripeCustomer(user);
-            await storage.updateStripeCustomerId(user.id, customerId);
-            const appUrl = `${req.protocol}://${req.get("host")}`;
-            const session = await createCheckoutSession(
-              customerId,
-              process.env.STRIPE_PRICE_ID,
-              `${appUrl}/?checkout=success`,
-              `${appUrl}/?checkout=cancelled`,
-              { trialDays: 14, clientReferenceId: String(user.id) }
-            );
-            checkoutUrl = session.url;
-          } catch (stripeErr) {
-            console.error("Stripe checkout creation during registration failed:", stripeErr);
-            // Registrierung ist trotzdem erfolgreich — aber die Weiterleitung zur
-            // Zahlung schlug fehl. Das signalisieren wir dem Client (checkoutError),
-            // damit der Nutzer nicht stumm ohne hinterlegte Zahlungsart im Dashboard
-            // landet und glaubt, alles sei in Ordnung.
-            checkoutError = true;
-          }
-        }
-
+        // Registrierung ist immer kostenlos. Pro wird gesondert im Billing-Checkout bestellt.
         // capiEventId geht mit, damit der Browser-Pixel dasselbe Event mit
         // identischer eventID feuern kann → Meta dedupliziert.
-        res.status(201).json({ user: userWithoutPassword, checkoutUrl, checkoutError, capiEventId });
+        res.status(201).json({ user: userWithoutPassword, capiEventId });
       });
     } catch (error) {
       console.error("Registration error:", error);

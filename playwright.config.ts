@@ -18,7 +18,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Lokale Browser teilen sich dieselbe IP und damit die Produktions-Limits.
+  workers: 1,
   reporter: process.env.CI ? "github" : "html",
   use: {
     baseURL: E2E_BASE_URL,
@@ -28,6 +29,12 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      testIgnore: "**/b2b-registration.spec.ts",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "registration",
+      testMatch: "**/b2b-registration.spec.ts",
       use: { ...devices["Desktop Chrome"] },
     },
   ],
