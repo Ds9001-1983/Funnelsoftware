@@ -5,6 +5,7 @@ import { E2E_DATABASE_URL } from "./helpers/env";
 import { makeCredentials } from "./helpers/unique";
 import { getCsrfToken } from "./helpers/api";
 import { REGISTRATION_CONTRACT, legalDocumentUrl, type RegistrationContract } from "../shared/registration-contract";
+import { getLegalDocument } from "../shared/legal-documents";
 
 test("mobile B2B-Registrierung: Pflichtangaben, archivierte Annahme, kein Abo und geschützter Nachweis", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -15,7 +16,7 @@ test("mobile B2B-Registrierung: Pflichtangaben, archivierte Annahme, kein Abo un
   try {
     const missing = await page.request.post("/api/auth/register", { data: { ...payload, termsAccepted: false } });
     expect(missing.status()).toBe(400);
-    const stale = await page.request.post("/api/auth/register", { data: { ...payload, legalVersion: "2020-01-01" } });
+    const stale = await page.request.post("/api/auth/register", { data: { ...payload, legalVersion: "2026-10-12" } });
     expect(stale.status()).toBe(400);
     expect((await stale.json()).error).toContain("lade die Seite neu");
     expect((await db.query("SELECT id FROM users WHERE email = $1", [credentials.email])).rows).toHaveLength(0);
@@ -74,6 +75,34 @@ test("mobile B2B-Registrierung: Pflichtangaben, archivierte Annahme, kein Abo un
     await expect(page.getByTestId("registration-contract")).toContainText("Musterbetrieb E2E");
     await expect(page.getByTestId("registration-contract")).toContainText(contract.version);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+    // Synthetisches Bestandskonto: Nach einem Versionswechsel müssen Einstellungen
+    // und Nachweis weiterhin die tatsächlich angenommene alte Fassung liefern.
+    const previous: RegistrationContract = {
+      ...contract,
+      version: "2026-10-12",
+      acceptedAt: "2026-10-12T10:00:00.000Z",
+      documents: {
+        agb: { sha256: createHash("sha256").update(getLegalDocument("2026-10-12", "agb")!.html).digest("hex") },
+        avv: { sha256: createHash("sha256").update(getLegalDocument("2026-10-12", "avv")!.html).digest("hex") },
+      },
+    };
+    await db.query("UPDATE users SET registration_contract = $1 WHERE email = $2", [JSON.stringify(previous), credentials.email]);
+    await page.reload();
+    await expect(page.getByTestId("registration-contract")).toContainText(previous.version);
+    const previousReceipt = await (await page.request.get("/api/auth/registration-contract")).json();
+    expect(previousReceipt.version).toBe(previous.version);
+    expect(previousReceipt.acceptedAt).toBe(previous.acceptedAt);
+    for (const name of ["agb", "avv"] as const) {
+      await expect(page.getByRole("link", { name: `${name.toUpperCase()} speichern`, exact: true }))
+        .toHaveAttribute("href", `${legalDocumentUrl(previous.version, name)}?download=1`);
+      const archived = await page.request.get(legalDocumentUrl(previous.version, name));
+      expect(archived.status()).toBe(200);
+      const html = await archived.text();
+      expect(previousReceipt.documentContents[name]).toBe(html);
+      expect(createHash("sha256").update(html).digest("hex")).toBe(previous.documents[name].sha256);
+      expect(html).not.toBe(receipt.documentContents[name]);
+    }
 
     await page.request.post("/api/auth/logout", { headers: { "X-CSRF-Token": csrf } });
     expect((await page.request.get("/api/auth/registration-contract")).status()).toBe(401);

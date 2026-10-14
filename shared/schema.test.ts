@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { REGISTRATION_CONTRACT } from "./registration-contract";
 import {
   funnelSchema,
   isSafeWebhookUrl,
@@ -55,7 +56,7 @@ describe("funnelSchema Integrations-Validierung", () => {
 });
 
 describe("registerSchema", () => {
-  const valid = { email: "max@example.com", password: "a".repeat(PASSWORD_MIN_LENGTH), businessName: "Max Muster", businessConfirmed: true, termsAccepted: true, legalVersion: "2026-10-12" };
+  const valid = { email: "max@example.com", password: "a".repeat(PASSWORD_MIN_LENGTH), businessName: "Max Muster", businessConfirmed: true, termsAccepted: true, legalVersion: REGISTRATION_CONTRACT.version };
 
   it("akzeptiert eine bestätigte B2B-Registrierung ohne Benutzernamen", () => {
     // Der Benutzername war ein Pflichtfeld ohne Gegenwert — der Server leitet
@@ -81,7 +82,7 @@ describe("registerSchema", () => {
     { businessConfirmed: undefined }, { businessConfirmed: false }, { businessConfirmed: "true" },
     { termsAccepted: undefined }, { termsAccepted: false },
     { businessName: undefined }, { businessName: "  " }, { businessName: "a".repeat(201) },
-    { legalVersion: undefined }, { legalVersion: "2026-01-01" },
+    { legalVersion: undefined }, { legalVersion: "2026-01-01" }, { legalVersion: "2026-10-12" },
   ])("weist fehlende oder unbestätigte Vertragsdaten ab: %j", (invalid) => {
     expect(registerSchema.safeParse({ ...valid, ...invalid }).success).toBe(false);
   });
