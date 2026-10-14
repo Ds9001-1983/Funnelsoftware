@@ -16,7 +16,7 @@ export function LegalDocument({ name }: { name: "agb" | "avv" }) {
           <h1 className="text-3xl font-bold">{document.title}</h1>
           <p className="my-4 text-sm text-slate-600">Fassung: {version}</p>
           <a href={`${legalDocumentUrl(version, name)}?download=1`} className="underline">Diese Fassung als HTML speichern</a>
-          <div className="prose prose-slate mt-8 max-w-none break-words [&_table]:block [&_table]:overflow-x-auto"
+          <div lang="de" className="prose prose-slate mt-8 max-w-none break-words [&_table]:w-full [&_table]:table-fixed [&_th]:hyphens-auto [&_td]:hyphens-auto"
             dangerouslySetInnerHTML={{ __html: document.content }} />
         </article>
       </main>
