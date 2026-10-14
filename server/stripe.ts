@@ -31,8 +31,6 @@ export async function getOrCreateStripeCustomer(user: {
 }
 
 export interface CheckoutOptions {
-  /** Fester Trial in Tagen (Registrierungs-Flow). */
-  trialDays?: number;
   /**
    * Bestehendes Trial-Ende übernehmen (Upgrade aus laufendem Trial) —
    * der Kunde behält seine versprochenen Gratis-Tage. Stripe verlangt
@@ -58,8 +56,6 @@ export async function createCheckoutSession(
   let subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData | undefined;
   if (options.trialEnd && options.trialEnd.getTime() > Date.now() + MIN_TRIAL_END_MS) {
     subscriptionData = { trial_end: Math.floor(options.trialEnd.getTime() / 1000) };
-  } else if (options.trialDays) {
-    subscriptionData = { trial_period_days: options.trialDays };
   }
 
   // Stripe Tax (USt) — erst aktivieren, wenn Stripe Tax im Dashboard
@@ -89,8 +85,7 @@ export async function createCheckoutSession(
 /**
  * Findet eine Subscription des Customers, die einem neuen Checkout im Weg
  * steht (aktiv, im Trial, in Zahlungsverzug oder in Anbahnung). Verhindert
- * Doppel-Abos, wenn z.B. die Registrierungs-Session UND eine spätere
- * Settings-Session abgeschlossen werden.
+ * Doppel-Abos, wenn mehrere Checkout-Sessions abgeschlossen werden.
  */
 export async function findBlockingSubscription(
   customerId: string

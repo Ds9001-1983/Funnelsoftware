@@ -284,13 +284,21 @@ export async function sendVerificationEmail(email: string, token: string): Promi
 }
 
 export async function sendWelcomeEmail(email: string, displayName?: string): Promise<boolean> {
-  const name = displayName || "dort";
+  const name = displayName ? escapeHtml(displayName) : "dort";
   const loginLink = `${APP_URL}/login`;
 
   const html = baseTemplate(`
     <h2 style="margin:0 0 16px;color:#18181b;font-size:20px;">Willkommen bei Trichterwerk!</h2>
     <p style="margin:0 0 24px;color:#52525b;font-size:15px;line-height:1.6;">
-      Hallo ${name}, schön dass du dabei bist! Deine 14-tägige Testphase hat begonnen.
+      Hallo ${name}, schön dass du dabei bist! Dein kostenloses Konto ist eingerichtet,
+      zusätzlich kannst du Pro 14 Tage testen. Ohne gesonderte Bestellung läuft dein
+      Konto danach im kostenlosen Free-Plan weiter: ein veröffentlichter Funnel und
+      100 sichtbare Leads je UTC-Kalendermonat pro Konto. Es entsteht kein automatisches
+      kostenpflichtiges Abo.
+    </p>
+    <p style="margin:0 0 24px;color:#52525b;font-size:15px;line-height:1.6;">
+      Deine angenommenen AGB und den AVV einschließlich Registrierungsnachweis
+      findest du unter <a href="${APP_URL}/settings">Einstellungen → Profil</a> zum Speichern.
     </p>
     <div style="background:#f4f4f5;border-radius:8px;padding:20px;margin:0 0 24px;">
       <p style="margin:0 0 12px;color:#18181b;font-weight:600;font-size:14px;">Deine nächsten Schritte:</p>
@@ -378,7 +386,7 @@ export async function sendTrialEndingSoonEmail(
     <div style="background:#f4f4f5;border-radius:8px;padding:20px;margin:0 0 24px;">
       <p style="margin:0 0 12px;color:#18181b;font-weight:600;font-size:14px;">Nach der Testphase entfallen:</p>
       <p style="margin:0 0 8px;color:#52525b;font-size:14px;">• Unbegrenzte veröffentlichte Funnels (Free: 1)</p>
-      <p style="margin:0 0 8px;color:#52525b;font-size:14px;">• Unbegrenzte Leads (Free: 100 sichtbar pro Monat)</p>
+      <p style="margin:0 0 8px;color:#52525b;font-size:14px;">• Unbegrenzte Leads (Free: 100 sichtbar je UTC-Kalendermonat pro Konto)</p>
       <p style="margin:0 0 8px;color:#52525b;font-size:14px;">• Eigene Domain, Teams &amp; KI-Generator</p>
       <p style="margin:0;color:#52525b;font-size:14px;">• Entfernbares „Erstellt mit Trichterwerk“-Badge</p>
     </div>
@@ -503,14 +511,14 @@ export async function sendLeadLimitReachedEmail(
   const html = baseTemplate(`
     <h2 style="margin:0 0 16px;color:#18181b;font-size:20px;">100 Leads diesen Monat — stark! 🎉</h2>
     <p style="margin:0 0 24px;color:#52525b;font-size:15px;line-height:1.6;">
-      Hallo ${name}, dein Funnel <strong>„${escapeHtml(funnelName)}“</strong> hat das
-      Monatslimit deines Free-Plans erreicht. Gute Nachricht: <strong>Er sammelt
+      Hallo ${name}, dein Konto hat das Limit von 100 sichtbaren Leads je
+      UTC-Kalendermonat erreicht. Dein Funnel <strong>„${escapeHtml(funnelName)}“ sammelt
       weiter</strong> — alle neuen Leads werden gespeichert, sind aber bis zu einem
       Upgrade gesperrt. Mit Pro schaltest du sie rückwirkend frei.
     </p>
     <div style="text-align:center;margin:32px 0;">
       <a href="${upgradeLink}" style="display:inline-block;background:#6366f1;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;">
-        Leads freischalten — Pro für 49 €/Monat
+        Leads freischalten — Pro für 49 €/Monat inkl. MwSt.
       </a>
     </div>
   `);

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { REGISTRATION_CONTRACT } from "./registration-contract";
 import {
   funnelSchema,
   isSafeWebhookUrl,
@@ -55,9 +56,9 @@ describe("funnelSchema Integrations-Validierung", () => {
 });
 
 describe("registerSchema", () => {
-  const valid = { email: "max@example.com", password: "a".repeat(PASSWORD_MIN_LENGTH) };
+  const valid = { email: "max@example.com", password: "a".repeat(PASSWORD_MIN_LENGTH), businessName: "Max Muster", businessConfirmed: true, termsAccepted: true, legalVersion: REGISTRATION_CONTRACT.version };
 
-  it("akzeptiert E-Mail + Passwort ohne Benutzernamen", () => {
+  it("akzeptiert eine bestätigte B2B-Registrierung ohne Benutzernamen", () => {
     // Der Benutzername war ein Pflichtfeld ohne Gegenwert — der Server leitet
     // ihn jetzt aus der E-Mail ab.
     const r = registerSchema.safeParse(valid);
@@ -75,6 +76,21 @@ describe("registerSchema", () => {
     // ohne Großbuchstabe und Zahl ist gültig, ein kurzes "Aa1..." nicht.
     expect(registerSchema.safeParse({ ...valid, password: "pferd zaun tisch" }).success).toBe(true);
     expect(registerSchema.safeParse({ ...valid, password: "Sommer26" }).success).toBe(false);
+  });
+
+  it.each([
+    { businessConfirmed: undefined }, { businessConfirmed: false }, { businessConfirmed: "true" },
+    { termsAccepted: undefined }, { termsAccepted: false },
+    { businessName: undefined }, { businessName: "  " }, { businessName: "a".repeat(201) },
+    { legalVersion: undefined }, { legalVersion: "2026-01-01" }, { legalVersion: "2026-10-12" },
+  ])("weist fehlende oder unbestätigte Vertragsdaten ab: %j", (invalid) => {
+    expect(registerSchema.safeParse({ ...valid, ...invalid }).success).toBe(false);
+  });
+
+  it("normalisiert den Firmennamen und übernimmt keinen vom Client erfundenen Nachweis", () => {
+    const parsed = registerSchema.parse({ ...valid, businessName: "  Max Muster  ", registrationContract: { acceptedAt: "2000-01-01" } });
+    expect(parsed.businessName).toBe("Max Muster");
+    expect(parsed).not.toHaveProperty("registrationContract");
   });
 });
 

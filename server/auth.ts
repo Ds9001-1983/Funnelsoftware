@@ -6,6 +6,7 @@ import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
 import { storage, comparePasswords } from "./storage";
 import { PLAN_ERROR_CODES, type User } from "@shared/schema";
+import type { RegistrationContract } from "@shared/registration-contract";
 
 // Extend Express types for session
 declare global {
@@ -15,6 +16,7 @@ declare global {
       username: string;
       email: string;
       displayName: string | null;
+      registrationContract: RegistrationContract | null;
       isAdmin: boolean;
       trialEndsAt: Date | null;
       isPro: boolean;
