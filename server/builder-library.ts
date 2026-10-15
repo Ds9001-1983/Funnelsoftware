@@ -67,9 +67,9 @@ export async function listMediaAssets(userId: number, query: unknown) {
   return paged((await db.select().from(mediaAssets).where(and(eq(mediaAssets.userId, userId), input.archived === "true" ? isNotNull(mediaAssets.archivedAt) : isNull(mediaAssets.archivedAt), ilike(mediaAssets.name, escapedSearch(input.q)), input.cursor ? lt(mediaAssets.id, input.cursor) : undefined, input.folderId === "none" ? isNull(mediaAssets.folderId) : input.folderId ? eq(mediaAssets.folderId, input.folderId) : undefined)).orderBy(desc(mediaAssets.id)).limit(21)).map(mediaDto));
 }
 /** Called only after this authenticated request has written its own new file. */
-export async function registerMediaAsset(userId: number, file: { filename: string; originalName: string; bytes: number; width: number; height: number }) {
+export async function registerMediaAsset(userId: number, file: { filename: string; originalName: string; bytes: number; width: number; height: number }, executor: Pick<typeof db, "insert"> = db) {
   const originalName = file.originalName.replace(/[\u0000-\u001f\u007f/\\]/g, "_").slice(0, 255) || "Bild";
-  const [row] = await db.insert(mediaAssets).values({ userId, ...file, originalName, name: originalName.slice(0, 100), mimeType: "image/webp" }).returning();
+  const [row] = await executor.insert(mediaAssets).values({ userId, ...file, originalName, name: originalName.slice(0, 100), mimeType: "image/webp" }).returning();
   return mediaDto(row);
 }
 export async function updateMediaAsset(userId: number, id: number, input: unknown) {

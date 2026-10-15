@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("./marketing-consent", () => ({ purgeMarketingConsentProofs: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("./account-files", () => ({ removeSupportFile: vi.fn().mockResolvedValue(undefined) }));
+import { removeSupportFile } from "./account-files";
 
 // Storage + E-Mail mocken — die Job-Logik (Reihenfolge, Cutoffs, Dedupe-Gates)
 // ist das Testobjekt, nicht die DB.
@@ -189,5 +191,15 @@ describe("runBugReportRetentionJob", () => {
   it("räumt nichts auf, wenn keine Meldung abgelaufen ist", async () => {
     await runBugReportRetentionJob(now);
     expect(storage.clearBugReportFiles).toHaveBeenCalledWith([]);
+  });
+
+  it("behält fehlgeschlagene Dateipfade für den nächsten Lauf und verarbeitet andere Meldungen weiter", async () => {
+    vi.mocked(storage.getBugReportsWithFilesBefore).mockResolvedValue([
+      { id: 3, screenshotPath: "screenshot-a.webp", attachmentPath: null },
+      { id: 9, screenshotPath: null, attachmentPath: "anhang-b.webp" },
+    ]);
+    vi.mocked(removeSupportFile).mockRejectedValueOnce(new Error("EACCES"));
+    await runBugReportRetentionJob(now);
+    expect(storage.clearBugReportFiles).toHaveBeenCalledWith([9]);
   });
 });
