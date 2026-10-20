@@ -27,6 +27,8 @@ coverage/
 uploads/*
 !uploads/.gitkeep
 private-uploads/
+# Operator approvals contain account-specific evidence and stay on the server.
+upload-ownership-approvals.json
 
 # macOS/iCloud-Sync-Duplikate ("Name 2.ext") nie committen
 **/* 2.png

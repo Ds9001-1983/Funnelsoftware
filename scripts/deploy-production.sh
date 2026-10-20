@@ -42,6 +42,9 @@ runuser -u postgres -- pg_dump --format=custom "$DB_NAME" > "$BACKUP_DIR/db.dump
 tar -czf "$BACKUP_DIR/uploads.tar.gz" -C "$APP_DIR" uploads private-uploads
 tar -tzf "$BACKUP_DIR/uploads.tar.gz" >/dev/null
 cp -p "$APP_DIR/.env" "$BACKUP_DIR/environment"
+if [ -f "$APP_DIR/upload-ownership-approvals.json" ]; then
+  cp -p "$APP_DIR/upload-ownership-approvals.json" "$BACKUP_DIR/upload-ownership-approvals.json"
+fi
 
 RESTORE_DB="tw_restore_$(date -u +%Y%m%d%H%M%S)_${RANDOM}"
 cleanup_restore() { runuser -u postgres -- dropdb --if-exists "$RESTORE_DB" >/dev/null; }
@@ -64,41 +67,15 @@ if (!app || app.pm2_env.pm_exec_path!=="/var/www/funnelflow/dist/index.cjs" || a
 # Bereits geöffnete Browser dürfen ihre alten Hash-Assets weiter nachladen.
 cp -an "$APP_DIR/dist/public/assets/." "$RELEASE_DIR/dist/public/assets/"
 node scripts/migrate.mjs
-PREVIOUS_DIST="$(readlink -f "$APP_DIR/dist")"
-if [ ! -L "$APP_DIR/dist" ]; then
-  PREVIOUS_DIST="/var/www/funnelflow-dist-$(date -u +%Y%m%dT%H%M%S)"
-  mv "$APP_DIR/dist" "$PREVIOUS_DIST"
-fi
-printf '%s\n' "$PREVIOUS_DIST" > "$BACKUP_DIR/previous-dist"
-point_dist() {
-  ln -s "$1" "$APP_DIR/dist.next"
-  mv -Tf "$APP_DIR/dist.next" "$APP_DIR/dist"
-}
-point_dist "$RELEASE_DIR/dist"
+# Root-owned, explicitly approved legacy ownership; absent means no approvals.
+node scripts/apply-upload-ownership.mjs "$APP_DIR/upload-ownership-approvals.json"
+# Unzugeordnete Altdateien erst anhand belastbarer Nachweise klären. Die
+# Prüfung liest nur Metadaten und blockiert die Umschaltung bei offenen Fällen.
+node scripts/audit-upload-ownership.mjs
 set -a
 . "$APP_DIR/.env"
 set +a
-export APP_RELEASE_SHA="$DEPLOY_SHA"
-healthy() {
-  for attempt in $(seq 1 30); do
-    if curl --max-time 2 -sf http://127.0.0.1:5000/api/health | node -e '
-      let body=""; process.stdin.on("data", part => body+=part); process.stdin.on("end", () => {
-        try { const result=JSON.parse(body); process.exit(result.status === "ok" && (!process.argv[1] || result.release === process.argv[1]) ? 0 : 1); } catch { process.exit(1); }
-      });' "${1:-}"; then return 0; fi
-    sleep 2
-  done
-  return 1
-}
-if ! pm2 restart funnelflow --update-env || ! healthy "$DEPLOY_SHA"; then
-  echo "Release fehlgeschlagen; stelle vorherigen Code wieder her. Additives Schema und neue Leads bleiben erhalten."
-  point_dist "$PREVIOUS_DIST"
-  export APP_RELEASE_SHA="$PREVIOUS_SHA"
-  pm2 restart funnelflow --update-env
-  healthy
-  pm2 save
-  exit 1
-fi
-pm2 save
+bash scripts/activate-release.sh "$APP_DIR" "$RELEASE_DIR" "$BACKUP_DIR" "$PREVIOUS_SHA" "$DEPLOY_SHA" /etc/nginx/sites-available/funnelflow
 # Referenz-Checkout nach erfolgreichem Start nachführen; unversionierte Backups
 # und Konfigurationen bleiben erhalten. Der laufende Release ist unabhängig.
 git -C "$APP_DIR" reset --hard "$DEPLOY_SHA"

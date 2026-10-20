@@ -56,6 +56,7 @@ import { registerWorkspaceRoutes } from "./workspace-routes";
 import { registerRecruitingRoutes } from "./recruiting-routes";
 import { registerBuilderLibraryRoutes } from "./builder-library-routes";
 import { registerMediaAsset } from "./builder-library";
+import { AccountFileError, removeSupportFile, withOwnedUpload } from "./account-files";
 import { registerBrandStyleRoutes } from "./brand-style-routes";
 import { changeRecruitingStage, RecruitingError } from "./recruiting";
 import { writeControlSchema, documentVersionSchema } from "@shared/funnel-document";
@@ -758,6 +759,7 @@ export async function registerRoutes(
       });
     } catch (error) {
       console.error("Delete account error:", error);
+      if (error instanceof AccountFileError) return res.status(409).json({ error: error.message });
       res.status(500).json({ error: "Konto konnte nicht gelöscht werden" });
     }
   });
@@ -790,13 +792,15 @@ export async function registerRoutes(
       const filename = `${randomUUID()}.webp`;
       outputPath = path.join(uploadsDir, filename);
 
-      const info = await sharp(req.file.buffer)
-        .resize({ width: 1200, withoutEnlargement: true })
-        .webp({ quality: 80 })
-        .toFile(outputPath);
-
       const url = `/uploads/${filename}`;
-      const media = await registerMediaAsset(getUserId(req)!, { filename, originalName: req.file.originalname, bytes: info.size, width: info.width, height: info.height });
+      const file = req.file;
+      const media = await withOwnedUpload(getUserId(req)!, "public", filename, async tx => {
+        const info = await sharp(file.buffer)
+          .resize({ width: 1200, withoutEnlargement: true })
+          .webp({ quality: 80 })
+          .toFile(outputPath!);
+        return registerMediaAsset(getUserId(req)!, { filename, originalName: file.originalname, bytes: info.size, width: info.width, height: info.height }, tx);
+      });
       outputPath = undefined; // Persisted uploads remain valid even if the response is interrupted.
       res.json({ url, filename, media });
     } catch (error) {
@@ -856,9 +860,11 @@ export async function registerRoutes(
         const filename = `${randomUUID()}.${ext}`;
         outputPath = path.join(uploadsDir, filename);
 
-        await fs.promises.writeFile(outputPath, req.file.buffer);
+        const content = req.file.buffer;
+        await withOwnedUpload(getUserId(req)!, "public", filename, () => fs.promises.writeFile(outputPath!, content));
 
         const url = `/uploads/${filename}`;
+        outputPath = undefined;
         res.json({ url, filename });
       } catch (error) {
         console.error("Audio upload error:", error);
@@ -873,9 +879,11 @@ export async function registerRoutes(
 
   // Serve uploaded files
   app.use("/uploads", (await import("express")).default.static(uploadsDir, {
-    maxAge: "30d",
-    immutable: true,
-  }));
+    cacheControl: false,
+    etag: false,
+    lastModified: false,
+    setHeaders: res => res.setHeader("Cache-Control", "no-store"),
+  }), (_req, res) => res.setHeader("Cache-Control", "no-store").status(404).end());
 
   // ============ FEHLERMELDUNGEN ("Problem melden"-Widget) ============
 
@@ -899,13 +907,13 @@ export async function registerRoutes(
   });
 
   /** Bild normalisieren und unter private-uploads ablegen; gibt Dateiname + Buffer zurück. */
-  async function storeBugImage(buffer: Buffer, prefix: string): Promise<{ filename: string; content: Buffer }> {
+  async function storeBugImage(userId: number, buffer: Buffer, prefix: string): Promise<{ filename: string; content: Buffer }> {
     const filename = `${prefix}-${randomUUID()}.webp`;
     const content = await sharp(buffer)
       .resize({ width: 1600, withoutEnlargement: true })
       .webp({ quality: 80 })
       .toBuffer();
-    await fs.promises.writeFile(path.join(bugFilesDir, filename), content);
+    await withOwnedUpload(userId, "support", filename, () => fs.promises.writeFile(path.join(bugFilesDir, filename), content));
     return { filename, content };
   }
 
@@ -934,11 +942,11 @@ export async function registerRoutes(
         let screenshot: { filename: string; content: Buffer } | null = null;
         let attachment: { filename: string; content: Buffer } | null = null;
         if (screenshotFile) {
-          screenshot = await storeBugImage(screenshotFile.buffer, "screenshot");
+          screenshot = await storeBugImage(getUserId(req)!, screenshotFile.buffer, "screenshot");
           written.push(screenshot.filename);
         }
         if (attachmentFile) {
-          attachment = await storeBugImage(attachmentFile.buffer, "anhang");
+          attachment = await storeBugImage(getUserId(req)!, attachmentFile.buffer, "anhang");
           written.push(attachment.filename);
         }
 
@@ -2760,14 +2768,15 @@ export async function registerRoutes(
 
   app.delete("/api/admin/bug-reports/:id", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const removed = await storage.deleteBugReport(Number(req.params.id));
-      if (!removed) return res.status(404).json({ error: "Meldung nicht gefunden" });
+      const report = await storage.getBugReport(Number(req.params.id));
+      if (!report) return res.status(404).json({ error: "Meldung nicht gefunden" });
 
       await Promise.all(
-        [removed.screenshotPath, removed.attachmentPath]
+        [report.screenshotPath, report.attachmentPath]
           .filter((name): name is string => !!name)
-          .map((name) => fs.promises.unlink(path.join(bugFilesDir, path.basename(name))).catch(() => {})),
+          .map(removeSupportFile),
       );
+      await storage.deleteBugReport(report.id);
       res.json({ success: true });
     } catch (error) {
       console.error("Admin bug report delete error:", error);
@@ -2918,6 +2927,7 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       console.error("Delete user error:", error);
+      if (error instanceof AccountFileError) return res.status(409).json({ error: error.message });
       res.status(500).json({ error: "Benutzer konnte nicht gelöscht werden" });
     }
   });

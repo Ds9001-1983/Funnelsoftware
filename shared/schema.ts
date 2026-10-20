@@ -1033,6 +1033,15 @@ export const mediaFolders = pgTable("media_folders", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, table => [index("media_folders_user_id_idx").on(table.userId)]);
 
+// Auch Audio, fehlgeschlagene Uploads und private Anhänge müssen für die
+// Kontolöschung zuordenbar bleiben, unabhängig von ihrer Verwendung im Editor.
+export const ownedUploads = pgTable("owned_uploads", {
+  filename: text("filename").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  area: text("area").notNull().$type<"public" | "support">(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, table => [index("owned_uploads_user_id_idx").on(table.userId)]);
+
 export const mediaAssets = pgTable("media_assets", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
