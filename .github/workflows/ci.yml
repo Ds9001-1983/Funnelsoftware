@@ -34,7 +34,8 @@ jobs:
         run: npm run build
 
   e2e:
-    runs-on: ubuntu-latest
+    # Playwright 1.60 supports this image; ubuntu-latest can move to a newer OS.
+    runs-on: ubuntu-24.04
 
     services:
       postgres:
