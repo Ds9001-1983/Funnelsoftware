@@ -50,13 +50,34 @@ cp /var/www/funnelflow/deploy/domain-provisioner.timer /etc/systemd/system/
 cp /var/www/funnelflow/deploy/letsencrypt-reload-nginx.sh /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 
-# nginx-Config aktualisieren (Achtung: Live-Datei heißt "funnelflow", nicht "trichterwerk")
+# Nur bei einer NEUINSTALLATION: bestehende lokale nginx-Anpassungen vorher
+# übernehmen. Im laufenden Betrieb nicht die ganze Site-Datei überschreiben.
+# Die Live-Datei heißt "funnelflow", nicht "trichterwerk".
 cp /var/www/funnelflow/deploy/nginx-trichterwerk.conf /etc/nginx/sites-available/funnelflow
 nginx -t && systemctl reload nginx
 
 systemctl daemon-reload
 systemctl enable --now domain-provisioner.timer
 ```
+
+Der Provisioner liest `/etc/nginx/custom-domain-vhost.template`, passend zum
+oben installierten Dateinamen. Fehlt die Vorlage, beendet er den Lauf vor
+einem Zertifikatsantrag. vhosts werden zunächst vollständig in eine temporäre
+Datei gerendert und anschließend umbenannt. nginx-Syntaxprüfung oder Reload
+mit Fehler stellt den vorherigen vhost wieder her. Schlägt auch der
+Wiederanlauf fehl, stoppt der Lauf mit einem eindeutigen Journalhinweis;
+die Domain bleibt `pending`, weitere Hosts werden nicht bearbeitet.
+
+## Alter Plattform-Alias app.trichterwerk.de
+
+Ein vorhandenes Zertifikat allein genügt nicht: nginx benötigt einen passenden
+TLS-vhost. `deploy/nginx-app-alias.conf` bedient das bereits vorhandene
+Zertifikat für `app.trichterwerk.de` und leitet Pfad und Query auf
+`https://trichterwerk.de` weiter. Vor Installation Zertifikat und Ablauf prüfen,
+die Datei separat als `/etc/nginx/sites-available/funnelflow-app-alias` ablegen
+und unter `sites-enabled` verlinken. Erst nach `nginx -t` reloaden, bei Fehlern
+die vorherige Konfiguration wiederherstellen. Nicht unter `customer-domains`
+installieren: Plattform-Hosts gehören nicht in den Kunden-Cleanup.
 
 ## Regressionstest für Statusänderungen
 
@@ -71,6 +92,12 @@ Testdomain mit passendem DNS-Eintrag.
 DOMAINS_TEST_DATABASE_URL=postgresql://testuser@127.0.0.1:55440/funnelsoftware_e2e \
   npm run test:run -- deploy/domain-provisioner.test.mjs server/domain-verify.test.ts
 ```
+
+`deploy/domain-vhost.test.mjs` ergänzt acht Tests mit echten temporären
+Konfigurationsdateien und ersetzten nginx-/systemctl-Kommandos: passender
+Installationspfad, neue und vorhandene vhosts, fehlende Vorlage, ungültige
+Konfiguration, Reload-Fehler sowie fehlgeschlagener Wiederanlauf. Diese Tests
+stellen keine echten Zertifikate aus und ändern keine aktive Konfiguration.
 
 SQL mit `psql`-Variablen muss über stdin/Datei ausgeführt werden, nicht über
 `-c`. Für Statusänderungen ist `ON_ERROR_STOP=1` erforderlich, damit ein
