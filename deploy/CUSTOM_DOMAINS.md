@@ -44,6 +44,7 @@ cp /var/www/funnelflow/deploy/domain-provisioner.sh /usr/local/bin/
 chmod 755 /usr/local/bin/domain-provisioner.sh
 
 cp /var/www/funnelflow/deploy/custom-domain-vhost.template /etc/nginx/
+cp /var/www/funnelflow/deploy/nginx-custom-domain-http.conf /etc/nginx/conf.d/trichterwerk-custom-domains.conf
 cp /var/www/funnelflow/deploy/domain-provisioner.service /etc/systemd/system/
 cp /var/www/funnelflow/deploy/domain-provisioner.timer /etc/systemd/system/
 
@@ -67,6 +68,13 @@ Datei gerendert und anschließend umbenannt. nginx-Syntaxprüfung oder Reload
 mit Fehler stellt den vorherigen vhost wieder her. Schlägt auch der
 Wiederanlauf fehl, stoppt der Lauf mit einem eindeutigen Journalhinweis;
 die Domain bleibt `pending`, weitere Hosts werden nicht bearbeitet.
+
+Die separate HTTP-Konfiguration setzt `server_names_hash_bucket_size 512`.
+Ohne ausreichenden Platz können lange Kundendomains bei `nginx -t` scheitern,
+obwohl DNS und Zertifikat gültig sind. Sie gehört in den `http`-Kontext,
+außerhalb von `customer-domains`; bestehende gleichnamige Direktiven vor der
+Installation zusammenführen, nicht doppelt setzen. Hintergrund:
+[nginx-Dokumentation zu langen Servernamen](https://nginx.org/en/docs/http/server_names.html#optimization).
 
 ## Alter Plattform-Alias app.trichterwerk.de
 
