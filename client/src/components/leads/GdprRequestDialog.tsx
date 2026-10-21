@@ -8,9 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 
 /**
- * DSGVO-Betroffenenanfrage: Der Funnel-Owner kann alle Lead-Daten zu einer
- * E-Mail exportieren (Art. 20) oder endgültig löschen (Art. 17) — über alle
- * seine Funnels hinweg.
+ * Owner-driven export and erasure across the owner's funnels. The download
+ * contains application records for review, not an automatically sent reply.
  */
 export function GdprRequestDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { toast } = useToast();
@@ -21,21 +20,20 @@ export function GdprRequestDialog({ open, onOpenChange }: { open: boolean; onOpe
   const handleExport = async () => {
     setBusy("export");
     try {
-      const res = await fetch(`/api/leads/gdpr-export?email=${encodeURIComponent(email.trim())}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Export fehlgeschlagen");
+      const res = await apiRequest("POST", "/api/leads/gdpr-export", { email: email.trim() });
       const text = await res.text();
-      const count = (() => { try { return JSON.parse(text)?.count ?? 0; } catch { return 0; } })();
+      const data: { count: number; exportedAt: string; recruiting: { stageEvents: unknown[]; mailJobs: unknown[] } } = JSON.parse(text);
       const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
       const a = document.createElement("a");
       a.href = url;
-      a.download = `dsgvo-export-${email.trim().replace(/[^a-z0-9._@-]/gi, "_")}.json`;
+      a.download = `betroffenenauskunft-${data.exportedAt.slice(0, 10)}.json`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      toast({ title: "Export erstellt", description: `${count} Datensatz/Datensätze zu ${email.trim()} heruntergeladen.` });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Export fehlgeschlagen", description: e?.message || "Bitte erneut versuchen." });
+      toast({ title: "Export erstellt", description: `${data.count} Leads, ${data.recruiting.stageEvents.length} Statusänderungen und ${data.recruiting.mailJobs.length} gespeicherte Mails heruntergeladen.` });
+    } catch (error) {
+      toast({ variant: "destructive", title: "Export fehlgeschlagen", description: error instanceof Error ? error.message : "Bitte erneut versuchen." });
     } finally {
       setBusy(null);
     }
@@ -60,13 +58,13 @@ export function GdprRequestDialog({ open, onOpenChange }: { open: boolean; onOpe
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-primary" /> DSGVO-Betroffenenanfrage
           </DialogTitle>
           <DialogDescription>
-            E-Mail der betroffenen Person eingeben. Betrifft die Lead-Daten über alle deine Funnels.
+            E-Mail der betroffenen Person eingeben. Die Suche umfasst deine Funnels einschließlich gelöschter Funnels.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
@@ -80,9 +78,13 @@ export function GdprRequestDialog({ open, onOpenChange }: { open: boolean; onOpe
           />
         </div>
         <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground leading-relaxed">
-          <strong>Exportieren (Art. 20):</strong> lädt alle gespeicherten Daten als JSON herunter.
+          <strong>Exportieren:</strong> lädt passende Leads mit Antworten, Bewerbungsverläufen und gespeicherten Recruiting-Mails als JSON herunter. Auch frühere Mail-Empfänger werden durchsucht.
           <br />
-          <strong>Daten löschen (Art. 17):</strong> entfernt alle Lead-Datensätze dieser Person endgültig.
+          <strong>Daten löschen:</strong> entfernt Leads mit dieser aktuell gespeicherten E-Mail-Adresse einschließlich ihrer Verläufe und Mailjobs endgültig. Bereits versandte Kopien bleiben gesondert zu bearbeiten.
+        </div>
+        <div className="text-xs text-muted-foreground leading-relaxed">
+          Prüfe vor einer Weitergabe die Identität, den Umfang der Anfrage und Angaben über andere Personen.
+          Weitere E-Mail-Adressen, Support-Anhänge, Postfächer, Integrationen und Sicherungskopien sind gesondert zu prüfen.
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
           <Button variant="outline" onClick={handleExport} disabled={!validEmail || busy !== null}>

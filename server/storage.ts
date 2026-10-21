@@ -732,7 +732,7 @@ export class DatabaseStorage implements IStorage {
       .select({ lead: leads, funnelName: funnels.name })
       .from(leads)
       .leftJoin(funnels, eq(leads.funnelId, funnels.id))
-      .where(and(eq(leads.userId, userId), sql`lower(${leads.email}) = lower(${email})`))
+      .where(and(eq(leads.userId, userId), sql`lower(btrim(${leads.email})) = lower(${email.trim()})`))
       .orderBy(desc(leads.createdAt));
     return result.map(r => this.mapLeadToResponse(r.lead, r.funnelName));
   }
@@ -742,7 +742,7 @@ export class DatabaseStorage implements IStorage {
   async deleteLeadsByEmail(userId: number, email: string): Promise<number> {
     return await db.transaction(async (tx) => {
       const deleted = await tx.delete(leads)
-        .where(and(eq(leads.userId, userId), sql`lower(${leads.email}) = lower(${email})`))
+        .where(and(eq(leads.userId, userId), sql`lower(btrim(${leads.email})) = lower(${email.trim()})`))
         .returning({ funnelId: leads.funnelId });
       if (deleted.length === 0) return 0;
 

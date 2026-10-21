@@ -28,12 +28,17 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      testIgnore: "**/account-deletion.spec.ts",
+      testIgnore: ["**/account-deletion.spec.ts", "**/subject-export.spec.ts"],
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "account-deletion",
       testMatch: "**/account-deletion.spec.ts",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "subject-export",
+      testMatch: "**/subject-export.spec.ts",
       use: { ...devices["Desktop Chrome"] },
     },
   ],

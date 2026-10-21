@@ -62,6 +62,7 @@ import { changeRecruitingStage, RecruitingError } from "./recruiting";
 import { writeControlSchema, documentVersionSchema } from "@shared/funnel-document";
 import { listFunnelRevisions, FunnelWriteError } from "./funnel-revisions";
 import { generateFunnel, testConnection, AiError, type DecryptedCredential } from "./ai";
+import { exportSubjectData } from "./subject-export";
 import { z } from "zod";
 
 // Partial update schemas for PATCH endpoints
@@ -1580,24 +1581,30 @@ export async function registerRoutes(
 
   // ---- DSGVO-Betroffenenrechte (Owner-getrieben) ----
   // MÜSSEN vor "/api/leads/:id" stehen, sonst matcht die GET-Route den :id-Handler.
-  const gdprEmailSchema = z.object({ email: z.string().email().max(254) });
+  const gdprEmailSchema = z.object({ email: z.string().trim().email().max(254) });
 
-  // Art. 20 (Datenportabilität): Export aller Lead-Daten zu einer E-Mail als JSON.
-  app.get("/api/leads/gdpr-export", isAuthenticated, async (req, res) => {
+  // POST keeps the searched email out of URLs and access logs. Retain GET for
+  // existing clients; both use the same owner scope and uncached response.
+  async function subjectExport(req: Request, res: Response) {
+    res.setHeader("Cache-Control", "no-store");
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
-    const parsed = gdprEmailSchema.safeParse({ email: req.query.email });
+    const parsed = gdprEmailSchema.safeParse(
+      req.method === "GET" ? { email: req.query.email } : req.body,
+    );
     if (!parsed.success) return res.status(400).json({ error: "Gültige E-Mail-Adresse erforderlich" });
-    const rows = await storage.getLeadsByEmail(userId, parsed.data.email);
-    const safeName = parsed.data.email.replace(/[^a-z0-9._@-]/gi, "_");
-    res.setHeader("Content-Disposition", `attachment; filename="dsgvo-export-${safeName}.json"`);
-    res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.send(JSON.stringify(
-      { email: parsed.data.email, exportedAt: new Date().toISOString(), count: rows.length, leads: rows },
-      null,
-      2,
-    ));
-  });
+    try {
+      const data = await exportSubjectData(userId, parsed.data.email);
+      res.setHeader("Content-Disposition", `attachment; filename="betroffenenauskunft-${data.exportedAt.slice(0, 10)}.json"`);
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      return res.send(JSON.stringify(data, null, 2));
+    } catch (error) {
+      console.error("Betroffenenexport fehlgeschlagen:", error instanceof Error ? error.name : "unknown");
+      return res.status(500).json({ error: "Die Auskunft konnte nicht erstellt werden. Bitte erneut versuchen." });
+    }
+  }
+  app.get("/api/leads/gdpr-export", isAuthenticated, requireVerifiedEmail, subjectExport);
+  app.post("/api/leads/gdpr-export", isAuthenticated, requireVerifiedEmail, subjectExport);
 
   // Art. 17 (Löschung): alle Lead-Daten zu einer E-Mail löschen. Idempotent,
   // gibt die Anzahl gelöschter Datensätze als Nachweis zurück.
