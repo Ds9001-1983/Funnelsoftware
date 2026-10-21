@@ -74,7 +74,7 @@ test("mobile subject export includes recruiting records across deleted funnels a
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/leads");
     const freeButton = page.getByRole("button", { name: "Weiter im Free-Plan" });
-    await expect(page.getByTestId("button-gdpr").or(freeButton)).toBeVisible();
+    await expect(page.getByTestId("button-gdpr").or(freeButton).first()).toBeVisible();
     if (await freeButton.isVisible()) await freeButton.click();
     await page.getByTestId("button-gdpr").click();
     const dialog = page.getByRole("dialog");
