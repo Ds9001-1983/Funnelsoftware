@@ -80,7 +80,7 @@ export async function createPublishedFunnel(
 
   const publishRes = await request.patch(`/api/funnels/${funnel.id}`, {
     headers,
-    data: { status: "published", slug },
+    data: { status: "published", slug, impressumUrl: "https://example.com/legal", datenschutzUrl: "https://example.com/privacy" },
   });
   if (publishRes.status() !== 200) {
     throw new Error(`Publish fehlgeschlagen (${publishRes.status()}): ${await publishRes.text()}`);

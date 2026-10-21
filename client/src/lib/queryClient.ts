@@ -4,9 +4,9 @@ import { GLOBALLY_HANDLED_ERROR_CODES } from "@shared/schema";
 // CSRF Token Management
 let csrfToken: string | null = null;
 
-export async function fetchCsrfToken(): Promise<void> {
+export async function fetchCsrfToken(signal?: AbortSignal): Promise<void> {
   try {
-    const res = await fetch("/api/auth/csrf-token", { credentials: "include" });
+    const res = await fetch("/api/auth/csrf-token", { credentials: "include", signal });
     if (res.ok) {
       const data = await res.json();
       csrfToken = data.csrfToken;
@@ -56,6 +56,7 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  signal?: AbortSignal,
 ): Promise<Response> {
   // FormData (z. B. Datei-Uploads) muss roh durchgereicht werden — den
   // Content-Type setzt der Browser selbst inkl. multipart-Boundary. JSON
@@ -77,6 +78,7 @@ export async function apiRequest(
       : undefined;
 
   const res = await fetch(url, {
+    signal,
     method,
     headers,
     body,
@@ -97,10 +99,11 @@ export async function apiRequest(
       // Not JSON — continue with CSRF retry
     }
 
-    await fetchCsrfToken();
+    await fetchCsrfToken(signal);
     if (csrfToken) {
       headers["X-CSRF-Token"] = csrfToken;
       const retryRes = await fetch(url, {
+        signal,
         method,
         headers,
         body,

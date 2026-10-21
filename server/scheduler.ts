@@ -10,21 +10,19 @@
  * DISABLE_SCHEDULER=1 schaltet ihn ab (Playwright-E2E, Zweitinstanzen).
  */
 
-import fs from "fs";
-import path from "path";
+import { removeSupportFile } from "./account-files";
 import { storage } from "./storage";
+import { purgeMarketingConsentProofs } from "./marketing-consent";
 import { FREE_MAX_PUBLISHED_FUNNELS } from "@shared/schema";
 import {
   sendFreeDowngradeEmail,
-  sendReEngagementEmail,
   sendTrialEndingSoonEmail,
 } from "./email";
 
 const TICK_INTERVAL_MS = 60 * 60 * 1000; // stündlich
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Keine Downgrade-Mail an Uralt-Accounts (Trial > 60 Tage vorbei) — die
- *  bekommen ggf. die Re-Engagement-Mail, aber keine "gerade abgelaufen"-Story. */
+/** Keine Downgrade-Mail an Uralt-Accounts (Trial > 60 Tage vorbei). */
 const DOWNGRADE_MAIL_CUTOFF_MS = 60 * DAY_MS;
 
 /**
@@ -105,21 +103,6 @@ export async function runTrialEndingJob(): Promise<void> {
   }
 }
 
-/** Re-Engagement nach 14 Tagen Inaktivität — bewusst nur EINMAL pro Account. */
-export async function runReEngagementJob(): Promise<void> {
-  const cutoff = new Date(Date.now() - 14 * DAY_MS);
-  const candidates = await storage.getInactiveUsersSince(cutoff);
-  for (const user of candidates) {
-    try {
-      if (await storage.tryLogEmail(user.id, "reengagement_14d")) {
-        await sendReEngagementEmail(user.email, user.displayName);
-      }
-    } catch (error) {
-      console.error(`[scheduler] Re-Engagement-Mail für User ${user.id} fehlgeschlagen:`, error);
-    }
-  }
-}
-
 /** Bilder einer Fehlermeldung leben 90 Tage, der Datensatz 12 Monate. */
 export const BUG_FILE_RETENTION_MS = 90 * DAY_MS;
 export const BUG_REPORT_RETENTION_MS = 365 * DAY_MS;
@@ -132,8 +115,6 @@ export const BUG_REPORT_RETENTION_MS = 365 * DAY_MS;
  * unbemerkt liegen bleibt.
  */
 export async function runBugReportRetentionJob(now: Date = new Date()): Promise<void> {
-  const bugFilesDir = path.join(process.cwd(), "private-uploads", "bug-reports");
-
   const fileCutoff = new Date(now.getTime() - BUG_FILE_RETENTION_MS);
   const withFiles = await storage.getBugReportsWithFilesBefore(fileCutoff);
   const cleared: number[] = [];
@@ -141,12 +122,12 @@ export async function runBugReportRetentionJob(now: Date = new Date()): Promise<
     const names = [report.screenshotPath, report.attachmentPath].filter(
       (name): name is string => !!name,
     );
-    await Promise.all(
-      names.map((name) =>
-        fs.promises.unlink(path.join(bugFilesDir, path.basename(name))).catch(() => {}),
-      ),
-    );
-    cleared.push(report.id);
+    try {
+      await Promise.all(names.map(removeSupportFile));
+      cleared.push(report.id);
+    } catch {
+      console.error(`[scheduler] Dateien der Fehlermeldung ${report.id} bleiben zur erneuten Bereinigung vorgemerkt`);
+    }
   }
   await storage.clearBugReportFiles(cleared);
 
@@ -163,8 +144,10 @@ export async function tick(): Promise<void> {
   const jobs: Array<[string, () => Promise<void>]> = [
     ["Free-Downgrade", runFreeDowngradeJob],
     ["Trial-Ende-Mail", runTrialEndingJob],
-    ["Re-Engagement-Mail", runReEngagementJob],
+    // Keine Rückgewinnungswerbung: Ein gesondertes E-Mail-Opt-in samt
+    // Abmeldung ist noch nicht vorhanden. Cookie-Consent genügt dafür nicht.
     ["Fehlermeldungs-Aufbewahrung", () => runBugReportRetentionJob()],
+    ["Einwilligungs-Aufbewahrung", () => purgeMarketingConsentProofs()],
   ];
   for (const [name, job] of jobs) {
     try {

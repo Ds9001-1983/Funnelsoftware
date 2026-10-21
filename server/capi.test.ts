@@ -76,7 +76,7 @@ describe("buildPurchaseEvent", () => {
     // vom Hundertfachen und der ROAS wäre wertlos.
     const draft = buildPurchaseEvent(
       { id: "in_123", amount_paid: 4900, currency: "eur" },
-      consentingUser,
+      consentingUser, true,
     );
     expect(draft?.customData).toEqual({ value: 49, currency: "EUR" });
   });
@@ -84,7 +84,7 @@ describe("buildPurchaseEvent", () => {
   it("nutzt die Rechnungs-ID als eventId (idempotent bei Webhook-Retries)", () => {
     const draft = buildPurchaseEvent(
       { id: "in_abc", amount_paid: 4900, currency: "eur" },
-      consentingUser,
+      consentingUser, true,
     );
     expect(draft?.eventId).toBe("in_abc");
   });
@@ -92,7 +92,7 @@ describe("buildPurchaseEvent", () => {
   it("meldet die 0-€-Rechnung des Trial-Starts nicht", () => {
     const draft = buildPurchaseEvent(
       { id: "in_trial", amount_paid: 0, currency: "eur" },
-      consentingUser,
+      consentingUser, true,
     );
     expect(draft).toBeNull();
   });
@@ -100,35 +100,35 @@ describe("buildPurchaseEvent", () => {
   it("sendet ohne Marketing-Einwilligung nichts", () => {
     const draft = buildPurchaseEvent(
       { id: "in_123", amount_paid: 4900, currency: "eur" },
-      { email: "kunde@example.de", marketingConsent: false },
+      { email: "kunde@example.de" }, false,
     );
     expect(draft).toBeNull();
   });
 
   it("sendet nichts, wenn zur Customer-ID kein Nutzer gefunden wurde", () => {
-    expect(buildPurchaseEvent({ id: "in_123", amount_paid: 4900 }, null)).toBeNull();
-    expect(buildPurchaseEvent({ id: "in_123", amount_paid: 4900 }, undefined)).toBeNull();
+    expect(buildPurchaseEvent({ id: "in_123", amount_paid: 4900 }, null, true)).toBeNull();
+    expect(buildPurchaseEvent({ id: "in_123", amount_paid: 4900 }, undefined, true)).toBeNull();
   });
 
   it("sendet nichts ohne Rechnungs-ID — sonst ginge die Deduplizierung verloren", () => {
-    const draft = buildPurchaseEvent({ amount_paid: 4900, currency: "eur" }, consentingUser);
+    const draft = buildPurchaseEvent({ amount_paid: 4900, currency: "eur" }, consentingUser, true);
     expect(draft).toBeNull();
   });
 
   it("normalisiert die Währung auf Großbuchstaben und fällt auf EUR zurück", () => {
     expect(
-      buildPurchaseEvent({ id: "in_1", amount_paid: 100, currency: "usd" }, consentingUser)
+      buildPurchaseEvent({ id: "in_1", amount_paid: 100, currency: "usd" }, consentingUser, true)
         ?.customData.currency,
     ).toBe("USD");
     expect(
-      buildPurchaseEvent({ id: "in_2", amount_paid: 100 }, consentingUser)?.customData.currency,
+      buildPurchaseEvent({ id: "in_2", amount_paid: 100 }, consentingUser, true)?.customData.currency,
     ).toBe("EUR");
   });
 
   it("ignoriert negative Beträge (Gutschriften)", () => {
     const draft = buildPurchaseEvent(
       { id: "in_credit", amount_paid: -4900, currency: "eur" },
-      consentingUser,
+      consentingUser, true,
     );
     expect(draft).toBeNull();
   });

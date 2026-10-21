@@ -27,6 +27,7 @@ declare global {
   }
 }
 
+import { TRICHTERWERK_PIXEL_ID } from "@shared/meta";
 const SCRIPT_ID = "meta-pixel-script";
 /** Bereits initialisierte Pixel-IDs — doppeltes fbq('init') erzeugt
  *  Warnungen und doppelte PageViews. */
@@ -60,7 +61,7 @@ export function injectMetaPixel(pixelId: string): () => void {
   if (!initializedPixels.has(pixelId)) {
     initializedPixels.add(pixelId);
     window.fbq("init", pixelId);
-    window.fbq("track", "PageView");
+    window.fbq("trackSingle", pixelId, "PageView");
   }
 
   if (!document.getElementById(SCRIPT_ID)) {
@@ -85,13 +86,14 @@ export function fbqTrack(
   event: string,
   params?: Record<string, unknown>,
   options?: { eventID?: string },
+  pixelId = TRICHTERWERK_PIXEL_ID,
 ): void {
   if (typeof window === "undefined" || !window.fbq) return;
   if (options?.eventID) {
-    window.fbq("track", event, params ?? {}, options);
+    window.fbq("trackSingle", pixelId, event, params ?? {}, options);
   } else if (params) {
-    window.fbq("track", event, params);
+    window.fbq("trackSingle", pixelId, event, params);
   } else {
-    window.fbq("track", event);
+    window.fbq("trackSingle", pixelId, event);
   }
 }

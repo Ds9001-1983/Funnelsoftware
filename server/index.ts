@@ -2,6 +2,7 @@
 // haben Vorrang — dotenv überschreibt vorhandene Variablen standardmäßig nicht.
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
+import { isPlatformHost } from "@shared/platform-host";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { doubleCsrf } from "csrf-csrf";
@@ -149,6 +150,12 @@ export function log(message: string, source = "express") {
 app.use(cookieParser());
 
 // Setup authentication (session + passport)
+// Kundendomains dienen ausschließlich öffentlichen Funnels. Dort sollen weder
+// Kontozugangsdaten eingegeben noch authentifizierte APIs verwendet werden.
+app.use("/api", (req, res, next) => {
+  if (isPlatformHost(req.hostname) || req.path.startsWith("/public/")) return next();
+  return res.status(req.path === "/auth/user" ? 401 : 403).json({ error: "Bitte nutze für dein Konto https://trichterwerk.de.", code: "PLATFORM_HOST_REQUIRED" });
+});
 setupAuth(app);
 
 // API-Key Auth (Enterprise): Bearer-Token als Alternative zu Session
@@ -157,7 +164,10 @@ app.use("/api", apiKeyAuth);
 // CSRF Protection (Double Submit Cookie)
 const { doubleCsrfProtection, generateCsrfToken } = doubleCsrf({
   getSecret: () => process.env.CSRF_SECRET || process.env.SESSION_SECRET || "dev-csrf-secret",
-  getSessionIdentifier: (req: Request) => (req as any).sessionID || "",
+  // Anonyme Consent-Anfragen haben noch keine gespeicherte Login-Session.
+  // Der signierte Double-Submit-Cookie bleibt erforderlich; nach dem Login
+  // binden wir das Token zusätzlich an die tatsächlich bestehende Session.
+  getSessionIdentifier: (req: Request) => req.isAuthenticated() ? req.sessionID : "anonymous",
   cookieName: "__csrf",
   cookieOptions: {
     httpOnly: true,

@@ -1,7 +1,8 @@
 import { requiredDocumentVersion } from "@shared/funnel-document";
-import { eq, desc, and, sql, gte, lt, inArray } from "drizzle-orm";
+import { eq, desc, and, sql, gte, lt, inArray, isNull } from "drizzle-orm";
 import { quizTemplateElement } from "@shared/quiz-template";
 import { db } from "./db";
+import { deleteAccountWithFiles } from "./account-files";
 import { queueRecruitingEmails } from "./recruiting";
 import { publishedDocument, writeFunnel } from "./funnel-revisions";
 import { needsLayoutDocument } from "@shared/funnel-layout";
@@ -776,6 +777,7 @@ export class DatabaseStorage implements IStorage {
       source: lead.source,
       marketingConsent: lead.marketingConsent,
       consentAt: lead.consentAt ? lead.consentAt.toISOString() : null,
+      consentVersion: lead.consentVersion,
       createdAt: lead.createdAt.toISOString(),
     };
   }
@@ -1299,11 +1301,7 @@ export class DatabaseStorage implements IStorage {
 
   // Delete user (admin only)
   async deleteUserAdmin(userId: number): Promise<boolean> {
-    const result = await db.delete(users)
-      .where(eq(users.id, userId))
-      .returning({ id: users.id });
-
-    return result.length > 0;
+    return deleteAccountWithFiles(userId);
   }
 
   // Update last login timestamp
@@ -1718,7 +1716,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteBugReportsBefore(cutoff: Date): Promise<number> {
-    const result = await db.delete(bugReports).where(lt(bugReports.createdAt, cutoff));
+    const result = await db.delete(bugReports).where(and(lt(bugReports.createdAt, cutoff), isNull(bugReports.screenshotPath), isNull(bugReports.attachmentPath)));
     return (result as any).rowCount ?? 0;
   }
 }

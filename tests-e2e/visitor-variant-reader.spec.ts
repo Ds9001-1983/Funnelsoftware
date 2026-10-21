@@ -1,9 +1,10 @@
+import { funnelConsentVersion, CONSENT_MAX_AGE_MS } from "../shared/privacy-consent";
 import { test, expect } from "@playwright/test";
 
 for (const variant of ["control", "alternative"]) {
   test(`Besucherantworten bleiben versioniert, wenn nur die A/B-Alternative neue Optionen enthält: ${variant}`, async ({ page, baseURL }) => {
     const funnel = {
-      uuid: "variant-reader", name: "Varianten", documentVersion: 3, publishedRevisionId: 321,
+      datenschutzUrl: "https://example.com/privacy", uuid: "variant-reader", name: "Varianten", documentVersion: 3, publishedRevisionId: 321,
       theme: { primaryColor: "#123456", textColor: "#111111", backgroundColor: "#ffffff", fontFamily: "Inter" },
       pages: [
         { id: "question", type: "question", title: "Auswahl", elements: [{ id: "legacy", type: "radio", label: "Bedarf", required: true, options: ["Beratung"] }] },
@@ -18,10 +19,10 @@ for (const variant of ["control", "alternative"]) {
     const payloads: any[] = [];
     const errors: string[] = [];
     page.on("pageerror", error => errors.push(error.message));
-    await page.addInitScript(variant => {
+    await page.addInitScript(({ variant, version, expiresAt }) => {
       sessionStorage.setItem("tw_ab_variant-reader", JSON.stringify({ test: variant }));
-      localStorage.setItem("trichterwerk-cookie-consent", "true");
-    }, variant);
+      localStorage.setItem("tw-consent-v2:funnel:variant-reader", JSON.stringify({ version, expiresAt, preferences: { necessary: true, analytics: true, marketing: false } }));
+    }, { variant, version: funnelConsentVersion(funnel), expiresAt: Date.now() + CONSENT_MAX_AGE_MS });
     await page.route("**/*", route => {
       const request = route.request(), url = new URL(request.url());
       if (url.origin !== new URL(baseURL!).origin) return route.abort();

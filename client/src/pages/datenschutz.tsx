@@ -1,3 +1,4 @@
+import { resetCookieConsent } from "@/components/cookie-consent";
 import { Link } from "wouter";
 import { usePageMeta } from "@/hooks/use-document-title";
 import { ArrowLeft, Mail, Phone } from "lucide-react";
@@ -7,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 export default function Datenschutz() {
   usePageMeta({
     title: "Datenschutzerklärung",
-    description: "Datenschutzerklärung von Trichterwerk — DSGVO-konform, cookieless Reichweitenmessung, Hosting in der EU.",
+    description: "Informationen zur Verarbeitung personenbezogener Daten bei Trichterwerk und zu Ihren Datenschutzrechten.",
     canonical: "/datenschutz",
   });
 
@@ -288,28 +289,57 @@ export default function Datenschutz() {
                 Funnel-Seiten unserer Kunden wird unser Pixel nicht geladen.
               </p>
               <p className="text-slate-600 text-sm leading-relaxed mb-4">
-                Zusätzlich übermitteln wir bei einer Registrierung und bei einer
-                Zahlung serverseitig ein Ereignis über die Meta Conversions API
-                (Ereignisse <span className="font-mono">CompleteRegistration</span>{" "}
-                und <span className="font-mono">Purchase</span>). Übermittelt
-                werden dabei Ihre E-Mail-Adresse in SHA-256-gehashter Form sowie
-                IP-Adresse und User-Agent. Auch dies geschieht nur, wenn Sie in
-                Marketing-Cookies eingewilligt haben; ohne Einwilligung findet
-                keine Übermittlung statt. Ihre Einwilligung können Sie jederzeit
-                über den Link „Cookie-Einstellungen" im Seitenfuß widerrufen.
+                Zusätzlich übermitteln wir mit Ihrer Marketing-Einwilligung Registrierungen und
+                Zahlungen einschließlich späterer Aborechnungen über die Meta Conversions API.
+                Zur Registrierung werden Ihre gehashte E-Mail-Adresse, IP-Adresse und
+                Browserkennung übermittelt; bei Zahlungen Ihre gehashte E-Mail-Adresse,
+                Rechnungskennung, Betrag und Währung. Vor jedem Versand prüfen wir, ob eine
+                aktuelle, nicht widerrufene Einwilligung für Ihr Konto vorliegt.
               </p>
+              <div id="einwilligung" className="rounded-lg border p-4 mb-6 scroll-mt-24">
+                <h3 className="font-medium mb-2">Einwilligung verwalten und widerrufen</h3>
+                <p className="text-slate-600 text-sm leading-relaxed mb-3">
+                  Wir speichern Ihre Auswahl und deren Fassung bis zu 180 Tage im Browser.
+                  Für die Marketing-Zustimmung speichern wir serverseitig die Fassung,
+                  den Zeitpunkt, das Ablaufdatum und gegebenenfalls den Widerruf sowie
+                  nach Anmeldung eine Zuordnung zu Ihrem Konto. Ein zufälliger HttpOnly-Cookie
+                  (tw_marketing_consent) ermöglicht den Widerruf auch nach dem Logout im selben
+                  Browser; serverseitig speichern wir nur dessen Hash. Abgelaufene oder
+                  widerrufene Nachweise werden nach 365 Tagen beim nächsten stündlichen
+                  Bereinigungslauf gelöscht. Bei Kontolöschung werden zugeordnete Nachweise
+                  ebenfalls gelöscht. Die Verarbeitung dient der Verwaltung und dem Nachweis
+                  Ihrer Einwilligung (Art. 6 Abs. 1 lit. c in Verbindung mit Art. 7 Abs. 1 DSGVO).
+                </p>
+                <p className="text-slate-600 text-sm leading-relaxed mb-3">
+                  Mit dem folgenden Knopf widerrufen Sie die Zustimmung dieses Browsers.
+                  Ist sie Ihrem Konto zugeordnet oder sind Sie angemeldet, gilt der Widerruf
+                  auch für serverseitige Werbemessung dieses Kontos einschließlich späterer
+                  Aborechnungen. Ohne Browser-Cookie melden Sie sich für den kontoweiten
+                  Widerruf bitte an oder kontaktieren uns. Bei Verbindungsfehlern bleibt
+                  Browser-Tracking gesperrt; ein Hinweis fordert zur Wiederholung auf,
+                  bis der Server den Widerruf bestätigt.
+                </p>
+                <Button variant="outline" onClick={() => void resetCookieConsent()} data-testid="privacy-revoke">
+                  Tracking-Einwilligung widerrufen
+                </Button>
+              </div>
 
               <h3 className="text-lg font-medium text-slate-700 mb-3 mt-6 border-t border-slate-200 pt-4">
                 Tracking auf veröffentlichten Funnel-Seiten
               </h3>
               <h4 className="text-base font-medium text-slate-700 mb-2">Google Tag Manager</h4>
               <p className="text-slate-600 text-sm leading-relaxed mb-4">
-                Betreiber von Funnels können den Google Tag Manager (Google Ireland Limited,
+                Auf ihrer eigenen, verifizierten Domain können Betreiber von Funnels den Google Tag Manager (Google Ireland Limited,
                 Gordon House, Barrow Street, Dublin 4, Irland) einbinden. Der Tag Manager
                 wird ausschließlich geladen, wenn Sie über den Cookie-Banner in Analyse-
                 oder Marketing-Cookies eingewilligt haben (Art. 6 Abs. 1 lit. a DSGVO,
                 § 25 Abs. 1 TDDDG). Ihre Einwilligung können Sie jederzeit über den Link
-                „Cookie-Einstellungen" im Seitenfuß widerrufen.
+                „Cookie-Einstellungen" im Seitenfuß widerrufen. Die Auswahl gilt nur für diesen
+                Funnel und wird nicht von unserer Plattform oder einem anderen Kunden-Funnel
+                übernommen. Änderungen der hinterlegten Anbieter- und Tracking-Einstellungen
+                erfordern eine neue Auswahl. Der Betreiber muss die tatsächlich eingesetzten
+                Dienste in seinen Datenschutzhinweisen nennen und seine Tags entsprechend
+                Ihrer Auswahl konfigurieren.
               </p>
               <h4 className="text-base font-medium text-slate-700 mb-2">Meta Conversions API</h4>
               <p className="text-slate-600 text-sm leading-relaxed mb-4">
@@ -321,6 +351,23 @@ export default function Datenschutz() {
                 Messung und Optimierung von Werbekampagnen. Rechtsgrundlage ist Ihre
                 Einwilligung (Art. 6 Abs. 1 lit. a DSGVO). Ohne Einwilligung findet keine
                 Übermittlung statt; die erteilte Einwilligung wird zum Nachweis gespeichert.
+              </p>
+            </section>
+
+            <section className="mb-8">
+              <h2 className="text-xl font-semibold text-slate-800 mb-4">Externe Inhalte und Empfehlungen</h2>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                Videos von YouTube und Vimeo sowie Termin-Kalender von Calendly und Cal.com
+                stellen erst nach „Inhalt laden“ eine Verbindung zum jeweiligen Anbieter her.
+                Der Hinweis am Inhalt nennt Anbieter, Datenverarbeitung und Datenschutzerklärung.
+                Die Aktivierung gilt nur für diesen Inhalt bis zum Neuladen der Seite; ein
+                Widerruf der Tracking-Auswahl beendet ebenfalls die eingebetteten Inhalte.
+              </p>
+              <p className="text-slate-600 text-sm leading-relaxed">
+                Ein Empfehlungscode in der Registrierungs-URL wird bei der Registrierung zur
+                Zuordnung zum empfehlenden Partner verarbeitet. Wir speichern dafür keinen
+                Empfehlungscode dauerhaft im Browser. Eine für Analysezwecke gespeicherte
+                A/B-Test-Zuweisung in einem Kunden-Funnel setzt dessen Analyse-Einwilligung voraus.
               </p>
             </section>
 

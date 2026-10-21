@@ -1,5 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -401,6 +401,14 @@ function AppShell() {
   const [location] = useLocation();
   const { isAuthenticated, isLoading } = useAuth();
   const showCookieConsent = isPublicRoute(location, isAuthenticated);
+  const controllerScope = location.startsWith("/f/") || location.startsWith("/preview/") ? location.split("?")[0] : "platform";
+  const documentController = useRef(controllerScope);
+  const controllerChanged = documentController.current !== controllerScope;
+  useEffect(() => {
+    // Bereits geladene Fremdskripte überleben eine SPA-Navigation. Bei einem
+    // Betreiberwechsel muss das gesamte Dokument beendet werden.
+    if (controllerChanged) window.location.reload();
+  }, [controllerChanged]);
 
   // Cookieless Reichweitenmessung: nur ANONYME Besucher zählen (echte Akquise —
   // nicht eingeloggte Owner, die die App unter "/" nutzen). Erst tracken, wenn
@@ -420,11 +428,11 @@ function AppShell() {
     <ErrorBoundary fallbackTitle="Ein unerwarteter Fehler ist aufgetreten">
       <Toaster />
       <GlobalErrorHandler />
-      <Router />
+      {!controllerChanged && <Router />}
       {/* Free-Plan-Info nach Trial-Ende (schließbar, keine Sperre mehr) */}
       <UpgradeBanner variant="expired" />
       {/* Cookie-Banner nur auf öffentlichen Seiten — blockiert sonst den App-Bereich */}
-      {showCookieConsent && <CookieConsent />}
+      {showCookieConsent && !location.startsWith("/f/") && isPlatformHost() && <CookieConsent />}
       {/* Fehlermeldung aus dem Produkt — nur im eingeloggten Arbeitsbereich */}
       {!isLoading && showBugWidget(location, isAuthenticated) && (
         <Suspense fallback={null}>

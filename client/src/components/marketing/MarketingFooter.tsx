@@ -95,7 +95,7 @@ export function MarketingFooter() {
               <li><Link href="/agb" className="hover:text-foreground">AGB</Link></li>
               <li>
                 <button
-                  onClick={resetCookieConsent}
+                  onClick={() => void resetCookieConsent()}
                   className="hover:text-foreground flex items-center gap-1"
                 >
                   <Cookie className="h-3 w-3" />

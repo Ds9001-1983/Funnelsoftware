@@ -1,4 +1,5 @@
 import { elementChoices } from "@shared/funnel-routing";
+import { ExternalEmbed } from "@/components/external-embed";
 import { resolvePersonalizedContent, type PersonalizationContext } from "@shared/funnel-personalization";
 import { memo, useEffect, useState } from "react";
 import {
@@ -494,6 +495,7 @@ function ElementPreviewRendererBase({
           return (
             <ElementWrapper {...wrapperProps}>
               <video
+                preload="none"
                 controls
                 playsInline
                 src={el.videoUrl}
@@ -506,11 +508,11 @@ function ElementPreviewRendererBase({
         if (embedUrl) {
           return (
             <ElementWrapper {...wrapperProps}>
-              <div className="w-full aspect-video rounded-lg overflow-hidden shadow-md bg-black">
-                <iframe
+              <div className="w-full rounded-lg overflow-hidden shadow-md bg-black">
+                <ExternalEmbed
                   src={embedUrl}
                   title="Video"
-                  className="w-full h-full"
+                  className="w-full aspect-video"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
                 />
@@ -1040,7 +1042,7 @@ function ElementPreviewRendererBase({
         if (!calendarEmbed) return null;
         return (
           <ElementWrapper {...wrapperProps}>
-            <iframe
+            <ExternalEmbed
               src={calendarEmbed}
               title="Terminbuchung"
               className="w-full rounded-xl border bg-white"

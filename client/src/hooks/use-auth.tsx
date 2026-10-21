@@ -1,3 +1,4 @@
+import { invalidateConsentStatus, notifyConsent, PLATFORM_CONSENT } from "@/lib/consent-store";
 import { clearAllEditorRecovery } from "@/lib/editor-recovery";
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { useLocation } from "wouter";
@@ -46,7 +47,7 @@ interface RegisterData {
   email: string;
   password: string;
   displayName?: string;
-  /** Marketing-Einwilligung aus dem Cookie-Banner — steuert das CAPI-Event. */
+  /** Legacy-Feld; der Server prüft den aktuellen Cookie-gebundenen Nachweis. */
   marketingConsent?: boolean;
   /** Empfehlungscode aus /register?ref=… (Partnerprogramm). */
   referralCode?: string;
@@ -72,9 +73,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         queryClient.clear();
         sessionUserId.current = data.user?.id ?? null;
       }
+      invalidateConsentStatus();
+      notifyConsent(PLATFORM_CONSENT);
       setUser(data.user);
     } catch (error) {
       console.error("Failed to fetch user:", error);
+      invalidateConsentStatus();
+      notifyConsent(PLATFORM_CONSENT);
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -104,6 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await queryClient.cancelQueries();
       queryClient.clear();
       sessionUserId.current = data.user.id;
+      invalidateConsentStatus();
+      notifyConsent(PLATFORM_CONSENT);
       setUser(data.user);
       return { success: true };
     } catch (error) {
@@ -131,6 +138,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await queryClient.cancelQueries();
       queryClient.clear();
       sessionUserId.current = result.user.id;
+      invalidateConsentStatus();
+      notifyConsent(PLATFORM_CONSENT);
       setUser(result.user);
       return {
         success: true,
@@ -158,6 +167,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.clear();
       sessionUserId.current = null;
       clearAllEditorRecovery();
+      invalidateConsentStatus();
+      notifyConsent(PLATFORM_CONSENT);
       setUser(null);
       setLocation("/login");
     }

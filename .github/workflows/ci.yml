@@ -34,7 +34,8 @@ jobs:
         run: npm run build
 
   e2e:
-    runs-on: ubuntu-latest
+    # Playwright 1.60 supports this image; ubuntu-latest can move to a newer OS.
+    runs-on: ubuntu-24.04
 
     services:
       postgres:
@@ -84,6 +85,7 @@ jobs:
         env:
           DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
           WORKSPACE_TEST_DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
+          PRIVACY_TEST_DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
           RECRUITING_TEST_DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
           RECRUITING_MAIL_INTEGRATION: "1"
           MIGRATION_TEST_DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
@@ -91,7 +93,8 @@ jobs:
           LIBRARY_TEST_DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
           BRAND_STYLE_TEST_DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
           DOMAINS_TEST_DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
-        run: npm run test:run -- server/recruiting.integration.test.ts server/workspaces.integration.test.ts server/recruiting-mail.integration.test.ts server/funnel-revisions.integration.test.ts server/brand-styles.integration.test.ts server/builder-library.integration.test.ts scripts/migrate.test.mjs deploy/domain-provisioner.test.mjs
+          FILE_DELETION_TEST_DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
+        run: npm run test:run -- server/marketing-consent.integration.test.ts server/recruiting.integration.test.ts server/workspaces.integration.test.ts server/recruiting-mail.integration.test.ts server/funnel-revisions.integration.test.ts server/brand-styles.integration.test.ts server/builder-library.integration.test.ts server/account-files.integration.test.ts scripts/migrate.test.mjs deploy/domain-provisioner.test.mjs
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

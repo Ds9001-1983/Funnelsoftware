@@ -11,13 +11,15 @@ import {
 
 import { getMutedContrastColor, sanitizeUrl } from "@/lib/utils";
 import { injectMetaPixel, fbqTrack } from "@/lib/meta-pixel";
-import { useCookieConsent, resetCookieConsent } from "@/components/cookie-consent";
+import { CookieConsent, useCookieConsent, resetCookieConsent } from "@/components/cookie-consent";
 import {
   FunnelRenderer,
   type FunnelLeadPayload,
 } from "@/components/funnel-viewer/FunnelRenderer";
 import type { FunnelPage, Theme, ABTest } from "@shared/schema";
 import { applyVariantOverrides } from "@shared/funnel-layout";
+import { funnelConsentScope, readConsent } from "@/lib/consent-store";
+import { hasFunnelPrivacyInformation } from "@shared/privacy-consent";
 import { SITE_ORIGIN } from "@shared/seo-links";
 
 declare global {
@@ -35,7 +37,9 @@ interface PublicFunnel {
   pages: FunnelPage[];
   theme: Theme;
   gtmId?: string | null;
+  allowCustomScripts?: boolean;
   metaPixelId?: string | null;
+  capiEnabled?: boolean;
   abTests?: ABTest[];
   impressumUrl?: string | null;
   datenschutzUrl?: string | null;
@@ -44,39 +48,14 @@ interface PublicFunnel {
   showBranding?: boolean;
 }
 
-/** Analytics-Consent direkt aus dem gespeicherten Banner-Stand lesen (default-deny). */
-function hasAnalyticsConsent(): boolean {
-  try {
-    const prefs = localStorage.getItem("trichterwerk-cookie-preferences");
-    return prefs ? !!JSON.parse(prefs)?.analytics : false;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Cookie-basiertes A/B-Test Variant-Assignment.
- * Gibt für jeden aktiven Test die zugewiesene Variante zurück.
- */
-function getVariantAssignments(funnelUuid: string, abTests: ABTest[]): Record<string, string> {
-  const storageKey = `tw_ab_${funnelUuid}`;
-
-  // Bestehende Zuweisung lesen: Cookie (mit Consent gesetzt) vor sessionStorage
+/** Ohne Analyse-Freigabe bleibt die Variante nur für diesen Seitenlauf im RAM. */
+function getVariantAssignments(funnel: PublicFunnel, abTests: ABTest[]): Record<string, string> {
+  const storageKey = `tw_ab_${funnel.uuid}`;
+  const allowsAnalytics = hasFunnelPrivacyInformation(funnel) && readConsent(funnelConsentScope(funnel))?.preferences.analytics === true;
   let assignments: Record<string, string> = {};
-  const existingCookie = document.cookie
-    .split("; ")
-    .find((c) => c.startsWith(storageKey + "="));
-  try {
-    if (existingCookie) {
-      assignments = JSON.parse(decodeURIComponent(existingCookie.split("=")[1]));
-    } else {
-      const fromSession = sessionStorage.getItem(storageKey);
-      if (fromSession) assignments = JSON.parse(fromSession);
-    }
-  } catch {
-    assignments = {};
+  if (allowsAnalytics) {
+    try { assignments = JSON.parse(sessionStorage.getItem(storageKey) || "{}"); } catch { /* Keine gespeicherte Zuweisung. */ }
   }
-
   let changed = false;
   for (const test of abTests) {
     if (test.status !== "running") continue;
@@ -95,18 +74,8 @@ function getVariantAssignments(funnelUuid: string, abTests: ABTest[]): Record<st
     }
   }
 
-  if (changed) {
-    // § 25 TDDDG: sessionStorage (Session-Konsistenz, technisch erforderlich)
-    // immer; das 30-Tage-Cookie nur mit Analytics-Consent des Besuchers.
-    try {
-      sessionStorage.setItem(storageKey, JSON.stringify(assignments));
-    } catch {
-      // Storage voll/blockiert → Zuweisung gilt nur für diesen Seitenaufruf
-    }
-    if (hasAnalyticsConsent()) {
-      const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toUTCString();
-      document.cookie = `${storageKey}=${encodeURIComponent(JSON.stringify(assignments))}; expires=${expires}; path=/; SameSite=Lax`;
-    }
+  if (changed && allowsAnalytics) {
+    try { sessionStorage.setItem(storageKey, JSON.stringify(assignments)); } catch { /* Nur im RAM. */ }
   }
 
   return assignments;
@@ -175,7 +144,7 @@ export default function PublicFunnelView() {
         // A/B-Test Varianten anwenden (nur public, nicht im Preview)
         const activeTests: ABTest[] = data.abTests || [];
         if (!isPreviewMode && activeTests.length > 0) {
-          const assignments = getVariantAssignments(data.uuid, activeTests);
+          const assignments = getVariantAssignments(data, activeTests);
           data.pages = applyVariantOverrides(data.pages, activeTests, assignments);
           setVariantAssignments(assignments);
         }
@@ -212,14 +181,18 @@ export default function PublicFunnelView() {
   }, [funnel]);
 
   // Cookie-Consent des Besuchers — gated GTM (§ 25 TDDDG / DSGVO)
-  const { allowsAnalytics, allowsMarketing } = useCookieConsent();
+  const consentScope = funnelConsentScope(funnel ?? { uuid: "pending" });
+  const consent = useCookieConsent(consentScope);
+  const canTrack = !!funnel && hasFunnelPrivacyInformation(funnel) && !isPreviewMode;
+  const allowsAnalytics = canTrack && consent.allowsAnalytics;
+  const allowsMarketing = canTrack && consent.allowsMarketing;
   const gtmAllowed = allowsAnalytics || allowsMarketing;
 
   // Load GTM script — NUR mit Consent. Vorher lud der Container (inkl. der
   // darüber konfigurierten Tracking-Tags) unbedingt bei Seitenaufruf, auch
   // nach "Nur Notwendige" — abmahnfähig auf jedem Kunden-Funnel.
   useEffect(() => {
-    if (!funnel?.gtmId || !gtmAllowed) return;
+    if (!funnel?.gtmId || !funnel.allowCustomScripts || !gtmAllowed) return;
     const gtmId = funnel.gtmId;
 
     // Initialize dataLayer
@@ -246,7 +219,7 @@ export default function PublicFunnelView() {
     // Bei Widerruf führt resetCookieConsent() einen Reload aus —
     // ein geladener Container lässt sich nicht sauber entladen.
     return () => { script.remove(); };
-  }, [funnel?.gtmId, gtmAllowed, allowsAnalytics, allowsMarketing]);
+  }, [funnel?.gtmId, funnel?.allowCustomScripts, gtmAllowed, allowsAnalytics, allowsMarketing]);
 
   // Browser-Meta-Pixel — die Client-Hälfte zur Server-CAPI. Lädt NUR mit
   // Marketing-Consent (das Pixel setzt _fbp/_fbc-Cookies) und nie im
@@ -300,7 +273,7 @@ export default function PublicFunnelView() {
 
       // Virtueller PageView pro Funnel-Schritt (Standard-SPA-Praxis) —
       // No-op ohne Consent/Pixel.
-      fbqTrack("PageView");
+      if (allowsMarketing && funnel.metaPixelId) fbqTrack("PageView", undefined, undefined, funnel.metaPixelId);
 
       const page = funnel.pages[pageIndex];
       if (page) {
@@ -313,7 +286,7 @@ export default function PublicFunnelView() {
         });
       }
     },
-    [funnel, pushDataLayer]
+    [funnel, pushDataLayer, allowsMarketing]
   );
 
   // Lead absenden: Payload kommt fertig gemappt aus dem FunnelRenderer,
@@ -325,13 +298,7 @@ export default function PublicFunnelView() {
       // DSGVO: Marketing-Consent aus dem Cookie-Banner auslesen — gated
       // server-side Tracking (z. B. Meta CAPI). Wenn kein Banner gespeichert
       // wurde, gilt default-deny.
-      let marketingConsent = false;
-      try {
-        const prefs = localStorage.getItem("trichterwerk-cookie-preferences");
-        if (prefs) marketingConsent = !!JSON.parse(prefs)?.marketing;
-      } catch {
-        // ungültiges JSON → kein Consent
-      }
+      const marketingConsent = hasFunnelPrivacyInformation(funnel) && readConsent(funnelConsentScope(funnel))?.preferences.marketing === true;
 
       const res = await fetch("/api/public/leads", {
         method: "POST",
@@ -347,8 +314,9 @@ export default function PublicFunnelView() {
           message: payload.message,
           answers: payload.answers,
           answerSnapshot: payload.answerSnapshot,
-          source: document.referrer || "direct",
+          source: document.referrer ? new URL(document.referrer).origin : "direct",
           marketingConsent,
+          consentVersion: marketingConsent ? funnelConsentScope(funnel).version : undefined,
         }),
       });
 
@@ -358,7 +326,7 @@ export default function PublicFunnelView() {
       // dedupliziert gegen das server-seitige CAPI-Event mit derselben
       // event_id — beide Events zählen als eines.
       const data = (await res.json().catch(() => null)) as { id?: string } | null;
-      fbqTrack("Lead", {}, data?.id ? { eventID: data.id } : undefined);
+      if (marketingConsent && funnel.metaPixelId) fbqTrack("Lead", {}, data?.id ? { eventID: data.id } : undefined, funnel.metaPixelId);
 
       fetch("/api/public/analytics", {
         method: "POST",
@@ -456,6 +424,8 @@ export default function PublicFunnelView() {
   ) : undefined;
 
   return (
+    <>
+    {canTrack && <CookieConsent key={consentScope.key + consentScope.version} scope={consentScope} />}
     <FunnelRenderer
       key={`${funnel.uuid}:${params.uuid}:${window.location.search}`}
       funnel={{ ...funnel, variantAssignments }}
@@ -493,7 +463,7 @@ export default function PublicFunnelView() {
             )}
             {/* Art. 7 Abs. 3 DSGVO: Widerruf so einfach wie die Erteilung */}
             <button
-              onClick={resetCookieConsent}
+              onClick={() => void resetCookieConsent(consentScope)}
               className="underline underline-offset-2 hover:opacity-80"
             >
               Cookie-Einstellungen
@@ -519,5 +489,6 @@ export default function PublicFunnelView() {
         </div>
       )}
     />
+    </>
   );
 }

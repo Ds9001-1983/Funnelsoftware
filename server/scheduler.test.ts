@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+vi.mock("./marketing-consent", () => ({ purgeMarketingConsentProofs: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("./account-files", () => ({ removeSupportFile: vi.fn().mockResolvedValue(undefined) }));
+import { removeSupportFile } from "./account-files";
 
 // Storage + E-Mail mocken — die Job-Logik (Reihenfolge, Cutoffs, Dedupe-Gates)
 // ist das Testobjekt, nicht die DB.
@@ -30,7 +33,7 @@ import {
 } from "./email";
 import {
   runFreeDowngradeJob,
-  runReEngagementJob,
+  tick,
   runTrialEndingJob,
   runBugReportRetentionJob,
   BUG_FILE_RETENTION_MS,
@@ -147,14 +150,15 @@ describe("runTrialEndingJob", () => {
   });
 });
 
-describe("runReEngagementJob", () => {
-  it("einmalig pro Account (Gate false → keine Mail)", async () => {
-    vi.mocked(storage.getInactiveUsersSince).mockResolvedValue([user()]);
-    vi.mocked(storage.tryLogEmail).mockResolvedValue(false);
-
-    await runReEngagementJob();
-
+describe("Scheduler ohne Werbeeinwilligung", () => {
+  it("versendet auch bei vorhandenen inaktiven Konten keine Rückgewinnungswerbung", async () => {
+    vi.mocked(storage.getUsersForFreeDowngrade).mockResolvedValue([]);
+    vi.mocked(storage.getUsersForTrialEndingMail).mockResolvedValue([]);
+    vi.mocked(storage.getInactiveUsersSince).mockResolvedValue([user({ marketingConsent: true })]);
+    await tick();
     expect(sendReEngagementEmail).not.toHaveBeenCalled();
+    expect(storage.getInactiveUsersSince).not.toHaveBeenCalled();
+    expect(storage.tryLogEmail).not.toHaveBeenCalled();
   });
 });
 
@@ -187,5 +191,15 @@ describe("runBugReportRetentionJob", () => {
   it("räumt nichts auf, wenn keine Meldung abgelaufen ist", async () => {
     await runBugReportRetentionJob(now);
     expect(storage.clearBugReportFiles).toHaveBeenCalledWith([]);
+  });
+
+  it("behält fehlgeschlagene Dateipfade für den nächsten Lauf und verarbeitet andere Meldungen weiter", async () => {
+    vi.mocked(storage.getBugReportsWithFilesBefore).mockResolvedValue([
+      { id: 3, screenshotPath: "screenshot-a.webp", attachmentPath: null },
+      { id: 9, screenshotPath: null, attachmentPath: "anhang-b.webp" },
+    ]);
+    vi.mocked(removeSupportFile).mockRejectedValueOnce(new Error("EACCES"));
+    await runBugReportRetentionJob(now);
+    expect(storage.clearBugReportFiles).toHaveBeenCalledWith([9]);
   });
 });

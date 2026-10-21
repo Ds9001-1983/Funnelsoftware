@@ -1614,7 +1614,8 @@ export default function FunnelEditor() {
                     className="text-sm"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Container-ID für Tracking (Google Ads, Meta Pixel, etc.)
+                    Wird nur auf deiner verifizierten eigenen Domain und nach Zustimmung geladen.
+                    Beschreibe alle enthaltenen Dienste in deinen Datenschutzhinweisen und beachte die Einwilligung je Tag.
                   </p>
                 </div>
 

@@ -36,11 +36,26 @@ describe.skipIf(!connection)("additive migration on existing funnels and leads",
     const revisions = (await client.query("SELECT content FROM funnel_revisions")).rows;
     expect(revisions[0].content.pages).toEqual(before[0].pages);
     await expect(client.query("UPDATE funnels SET name = 'Alter Client' WHERE id=1")).rejects.toMatchObject({ code: "40001" });
-    expect((await client.query("SELECT * FROM leads")).rows).toEqual([{ id: 1, funnel_id: 1, status: "qualified", answers: { "old-field": "Antwort bleibt" }, stage_id: null, stage_version: 0, answer_snapshot: null }]);
+    expect((await client.query("SELECT * FROM leads")).rows).toEqual([{ id: 1, funnel_id: 1, status: "qualified", answers: { "old-field": "Antwort bleibt" }, stage_id: null, stage_version: 0, answer_snapshot: null, consent_version: null }]);
     expect((await client.query("SELECT * FROM recruiting_mail_jobs")).rows).toEqual([]);
     expect((await client.query("SELECT * FROM brand_styles")).rows).toEqual([]);
-    for (const table of ["content_templates", "media_folders", "media_assets"]) expect((await client.query(`SELECT * FROM ${table}`)).rows).toEqual([]);
-    expect((await client.query("SELECT count(*)::int AS count FROM app_migrations")).rows[0].count).toBe(5);
+    for (const table of ["content_templates", "media_folders", "media_assets", "marketing_consents", "owned_uploads"]) expect((await client.query(`SELECT * FROM ${table}`)).rows).toEqual([]);
+    expect((await client.query("SELECT count(*)::int AS count FROM app_migrations")).rows[0].count).toBe(7);
+  });
+  it("backfills only recorded media/support ownership and remains idempotent", async () => {
+    await client.query("DELETE FROM app_migrations WHERE name='20261014_owned_uploads.sql'; DROP TABLE owned_uploads");
+    await client.query(`
+      INSERT INTO media_assets (user_id,filename,original_name,name,mime_type,bytes,width,height)
+      VALUES (1,'recorded.webp','recorded','recorded','image/webp',10,2,2);
+      CREATE TABLE bug_reports (user_id integer REFERENCES users(id), screenshot_path text, attachment_path text, created_at timestamp DEFAULT now());
+      INSERT INTO bug_reports (user_id,screenshot_path,attachment_path) VALUES (1,'screenshot-recorded.webp',NULL);
+    `);
+    await migrate(client); await migrate(client);
+    expect((await client.query("SELECT filename,user_id,area FROM owned_uploads ORDER BY filename")).rows).toEqual([
+      { filename: "recorded.webp", user_id: 1, area: "public" },
+      { filename: "screenshot-recorded.webp", user_id: 1, area: "support" },
+    ]);
+    expect((await client.query("SELECT filename FROM media_assets")).rows).toEqual([{ filename: "recorded.webp" }]);
   });
   it("rejects changed migration checksums and rolls back", async () => {
     await client.query("UPDATE app_migrations SET checksum = 'changed'");
