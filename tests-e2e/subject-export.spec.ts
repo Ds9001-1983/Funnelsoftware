@@ -59,7 +59,7 @@ test("mobile subject export includes recruiting records across deleted funnels a
     expect((await other.request.post("/api/public/leads", {
       data: { funnelId: foreign.uuid, name: "Fremde Personendaten", email },
     })).status()).toBe(201);
-    expect((await page.request.delete(`/api/funnels/${funnel.id}`, { headers: await headers(page.request) })).status()).toBe(200);
+    expect((await page.request.delete(`/api/funnels/${funnel.id}`, { headers: await headers(page.request) })).status()).toBe(204);
     await database.query(
       "UPDATE users SET is_pro = false, trial_ends_at = NULL, subscription_status = 'free' WHERE id = $1", [owner.id],
     );
