@@ -1,3 +1,4 @@
+import { nextClosedAt } from "@shared/retention-contract";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
@@ -127,7 +128,7 @@ export async function changeRecruitingStage(options: ChangeStageOptions) {
     if (!target) throw new RecruitingError(400, "Unbekannte Statusspalte");
     const previous = lead.stageId ?? lead.status;
     if (previous === target.id) return leadSchema.parse({ ...lead, funnelName: funnel.name });
-    const [updated] = await tx.update(leads).set({ stageId: target.id, status: target.legacyStatus, stageVersion: lead.stageVersion + 1 }).where(eq(leads.id, lead.id)).returning();
+    const [updated] = await tx.update(leads).set({ stageId: target.id, status: target.legacyStatus, stageVersion: lead.stageVersion + 1, closedAt: nextClosedAt(lead.status, target.legacyStatus, lead.closedAt, new Date()) }).where(eq(leads.id, lead.id)).returning();
     await tx.insert(leadStageEvents).values({ leadId: lead.id, actorId: options.actorId, fromStageId: previous, toStageId: target.id, version: updated.stageVersion });
     // Noch nicht versandte Nachrichten eines verlassenen Status sofort verwerfen.
     await tx.update(recruitingMailJobs).set({ status: "cancelled", errorCode: "STATUS_CHANGED" }).where(and(eq(recruitingMailJobs.leadId, lead.id), eq(recruitingMailJobs.status, "pending"), sql`${recruitingMailJobs.stageId} IS NOT NULL`, sql`${recruitingMailJobs.stageId} <> ${target.id}`));

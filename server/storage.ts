@@ -687,7 +687,8 @@ export class DatabaseStorage implements IStorage {
     if (updates.company !== undefined) updateData.company = updates.company;
     if (updates.message !== undefined) updateData.message = updates.message;
     if (updates.answers !== undefined) updateData.answers = updates.answers;
-    if (updates.status !== undefined) updateData.status = updates.status;
+    // Status transitions must use changeRecruitingStage (history and closure date).
+    if (updates.status !== undefined) throw new Error("Use changeRecruitingStage for status changes");
     if (updates.source !== undefined) updateData.source = updates.source;
 
     // Leerer Body: Drizzle wirft bei .set({}) "No values to set" (500er) —
@@ -786,6 +787,7 @@ export class DatabaseStorage implements IStorage {
       status: lead.status as "new" | "contacted" | "qualified" | "converted" | "lost",
       stageId: lead.stageId,
       stageVersion: lead.stageVersion,
+      closedAt: lead.closedAt?.toISOString() ?? null,
       source: lead.source,
       marketingConsent: lead.marketingConsent,
       consentAt: lead.consentAt ? lead.consentAt.toISOString() : null,
