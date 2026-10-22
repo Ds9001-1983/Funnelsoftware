@@ -36,7 +36,17 @@ test("Kontolöschung entfernt Bild, Audio und private Anhänge; fremde Dateien b
     for (const file of paths) await expect(fs.stat(file)).resolves.toBeDefined();
     for (const url of [imgFile.url, audioFile.url]) {
       const response = await page.request.get(url); expect(response.status()).toBe(200); expect(response.headers()["cache-control"]).toBe("no-store");
+      expect(response.headers()["cross-origin-resource-policy"]).toBe("cross-origin");
     }
+    // A customer's domain may embed an absolute upload URL from the platform.
+    const embedding = new URL("/embedding-test", baseURL);
+    embedding.hostname = embedding.hostname === "localhost" ? "127.0.0.1" : "localhost";
+    // Both test origins are loopback; Chromium asks separately for local
+    // network access when the synthetic embedding document is intercepted.
+    await page.context().grantPermissions(["local-network-access"], { origin: embedding.origin });
+    await page.route(embedding.href, route => route.fulfill({ contentType: "text/html", body: `<img id="public-media" src="${new URL(imgFile.url, baseURL).href}">` }));
+    await page.goto(embedding.href);
+    await expect(page.locator("#public-media")).toHaveJSProperty("naturalWidth", 2);
     expect((await db.query("SELECT filename FROM owned_uploads WHERE user_id=$1", [ownId])).rows).toHaveLength(4);
 
     const foreign = await registerAndVerify(admin.request), foreignId = await remember(foreign.email);

@@ -73,6 +73,7 @@ ACTIVATING=1
 # for process exit; interrupted/partial legacy files are caught by the audit.
 pm2 stop funnelflow
 node scripts/audit-upload-ownership.mjs
+NODE_ENV=production node --import tsx scripts/erasure-journal.ts prepare-release "$BACKUP_DIR" "$APP_DIR"
 replace_file "$NEXT_NGINX" "$NGINX_SITE"
 nginx -t
 systemctl reload nginx

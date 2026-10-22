@@ -40,7 +40,7 @@ describe.skipIf(!connection)("additive migration on existing funnels and leads",
     expect((await client.query("SELECT * FROM recruiting_mail_jobs")).rows).toEqual([]);
     expect((await client.query("SELECT * FROM brand_styles")).rows).toEqual([]);
     for (const table of ["content_templates", "media_folders", "media_assets", "marketing_consents", "owned_uploads"]) expect((await client.query(`SELECT * FROM ${table}`)).rows).toEqual([]);
-    expect((await client.query("SELECT count(*)::int AS count FROM app_migrations")).rows[0].count).toBe(7);
+    expect((await client.query("SELECT count(*)::int AS count FROM app_migrations")).rows[0].count).toBe(8);
   });
   it("backfills only recorded media/support ownership and remains idempotent", async () => {
     await client.query("DELETE FROM app_migrations WHERE name='20261014_owned_uploads.sql'; DROP TABLE owned_uploads");

@@ -883,7 +883,11 @@ export async function registerRoutes(
     cacheControl: false,
     etag: false,
     lastModified: false,
-    setHeaders: res => res.setHeader("Cache-Control", "no-store"),
+    setHeaders: res => {
+      res.setHeader("Cache-Control", "no-store");
+      // Public funnel media may also be embedded on a customer's own domain.
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    },
   }), (_req, res) => res.setHeader("Cache-Control", "no-store").status(404).end());
 
   // ============ FEHLERMELDUNGEN ("Problem melden"-Widget) ============

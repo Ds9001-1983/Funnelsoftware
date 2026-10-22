@@ -16,6 +16,7 @@ import { storage } from "./storage";
 import { startScheduler } from "./scheduler";
 import { startRecruitingMailWorker } from "./recruiting-mail";
 import { pool } from "./db";
+import { assertErasureJournalReady } from "./erasure-journal";
 
 // ============ ENV-VALIDIERUNG ============
 // Fail-fast statt "gesund booten ohne DB/Session": Ein Server ohne diese
@@ -249,6 +250,9 @@ app.get("/api/health", async (_req, res) => {
 });
 
 (async () => {
+  // Never expose restored contacts/files or send mail before erasures agree
+  // with the independent journal. A failure aborts startup, including workers.
+  await assertErasureJournalReady();
   // Initialize database (seed templates)
   try {
     await storage.seedTemplates();
@@ -342,4 +346,9 @@ app.get("/api/health", async (_req, res) => {
       Sentry.captureException(reason instanceof Error ? reason : new Error(String(reason)));
     }
   });
-})();
+})().catch(async () => {
+  // Never leave a half-started process alive after a restore gate failure.
+  console.error("FATAL: Serverstart abgebrochen; Datenbank und Löschjournal prüfen.");
+  await pool.end();
+  process.exit(1);
+});

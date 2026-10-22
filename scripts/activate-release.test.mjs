@@ -32,6 +32,9 @@ describe("upload cache configuration", () => {
     expect(updated).not.toContain("immutable");
     expect(updated).toContain("server_name example.test;");
     expect(updated).toContain("location /assets/ { expires 1y; }");
+    expect(updated).not.toContain("alias /var/www/funnelflow/uploads/");
+    expect(updated).toContain("proxy_pass http://127.0.0.1:5000;");
+    expect(updated).toContain("proxy_cache off;");
     expect(updated).toContain("include /etc/nginx/snippets/security-headers.conf;");
     expect(configureUploadCache(updated)).toBe(updated);
   });
@@ -56,6 +59,11 @@ const statePath=path.join(root,'state.json'), state=JSON.parse(fs.readFileSync(s
 const fail=process.env.RELEASE_TEST_FAILURE;
 const record=value=>fs.appendFileSync(path.join(root,'commands.log'),value+'\\n');
 if(name==='node') {
+  if(args.includes('scripts/erasure-journal.ts')) {
+    record('journal:'+state.status);
+    if(state.status!=='stopped') process.exit(90);
+    process.exit(fail==='journal'?2:0);
+  }
   if(args[0]==='scripts/audit-upload-ownership.mjs') {
     record('audit:'+state.status);
     if(state.status!=='stopped') process.exit(90);
@@ -101,10 +109,10 @@ describe("production release activation", () => {
     expect(run.state).toEqual({ status: "online", release: "new" });
     expect(run.dist).toBe(`${run.root}/release/dist`);
     expect(run.config).toBe(configureUploadCache(site));
-    expect(run.commands).toContain("pm2:stop\naudit:stopped\nnginx:test\nnginx:reload\npm2:restart");
+    expect(run.commands).toContain("pm2:stop\naudit:stopped\njournal:stopped\nnginx:test\nnginx:reload\npm2:restart");
     expect(await readFile(`${run.root}/backup/nginx-site`, "utf8")).toBe(site);
   });
-  it.each(["inventory", "nginx", "reload", "restart", "health"])("restores the old live release and cache config after %s failure", async failure => {
+  it.each(["inventory", "journal", "nginx", "reload", "restart", "health"])("restores the old live release and cache config after %s failure", async failure => {
     const run = await fixture(failure);
     expect(run.result.code).toBe(1);
     expect(run.state).toEqual({ status: "online", release: "old" });
