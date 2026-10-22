@@ -3,6 +3,7 @@ import { eq, desc, and, sql, gte, lt, inArray, isNull } from "drizzle-orm";
 import { quizTemplateElement } from "@shared/quiz-template";
 import { db } from "./db";
 import { deleteAccountWithFiles } from "./account-files";
+import { lockErasureJournal, recordErasure } from "./erasure-journal";
 import { queueRecruitingEmails } from "./recruiting";
 import { publishedDocument, writeFunnel } from "./funnel-revisions";
 import { needsLayoutDocument } from "@shared/funnel-layout";
@@ -711,6 +712,11 @@ export class DatabaseStorage implements IStorage {
 
   async deleteLead(id: number, userId: number): Promise<boolean> {
     return await db.transaction(async (tx) => {
+      await lockErasureJournal(tx);
+      const selected = await tx.select({ uuid: leads.uuid }).from(leads)
+        .where(and(eq(leads.id, id), eq(leads.userId, userId))).for("update");
+      if (!selected.length) return false;
+      await recordErasure(tx, { type: "leads", keys: selected.map(lead => lead.uuid) });
       const result = await tx.delete(leads)
         .where(and(eq(leads.id, id), eq(leads.userId, userId)))
         .returning({ id: leads.id, funnelId: leads.funnelId });
@@ -741,8 +747,14 @@ export class DatabaseStorage implements IStorage {
   // (0 = auch Erfolg), transaktional, korrigiert die Funnel-Lead-Zähler.
   async deleteLeadsByEmail(userId: number, email: string): Promise<number> {
     return await db.transaction(async (tx) => {
-      const deleted = await tx.delete(leads)
+      await lockErasureJournal(tx);
+      const selected = await tx.select({ id: leads.id, uuid: leads.uuid }).from(leads)
         .where(and(eq(leads.userId, userId), sql`lower(btrim(${leads.email})) = lower(${email.trim()})`))
+        .orderBy(leads.id).for("update");
+      if (!selected.length) return 0;
+      await recordErasure(tx, { type: "leads", keys: selected.map(lead => lead.uuid) });
+      const deleted = await tx.delete(leads)
+        .where(inArray(leads.id, selected.map(lead => lead.id)))
         .returning({ funnelId: leads.funnelId });
       if (deleted.length === 0) return 0;
 

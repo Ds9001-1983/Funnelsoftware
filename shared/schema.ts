@@ -86,9 +86,20 @@ export const GLOBALLY_HANDLED_ERROR_CODES: readonly string[] = [
 
 // ============ DATABASE TABLES ============
 
+// Independent filesystem journal; receipts are committed with each deletion.
+export const erasureJournalIdentity = pgTable("erasure_journal_identity", {
+  id: integer("id").primaryKey(),
+  instanceId: text("instance_id").notNull().unique(),
+});
+export const erasureJournalReceipts = pgTable("erasure_journal_receipts", {
+  sequence: integer("sequence").primaryKey(),
+  hash: text("hash").notNull(),
+});
+
 // Users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
+  erasureKey: text("erasure_key").notNull().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
@@ -125,6 +136,7 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
 }, (table) => [
+  uniqueIndex("users_erasure_key_idx").on(table.erasureKey),
   // Jeder Stripe-Webhook macht einen Lookup über die Customer-ID
   index("users_stripe_customer_id_idx").on(table.stripeCustomerId),
   // Admin-Partnerübersicht joint über referredById

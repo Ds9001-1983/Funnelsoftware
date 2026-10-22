@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { bugReports, mediaAssets, ownedUploads, users } from "@shared/schema";
 import { db } from "./db";
+import { lockErasureJournal, recordErasure } from "./erasure-journal";
 
 type Area = "public" | "support";
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -41,7 +42,8 @@ export async function deleteAccountWithFiles(userId: number, options: {
   const root = options.root ?? process.cwd();
   const remove = options.removeFile ?? fs.unlink;
   return db.transaction(async tx => {
-    const [user] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
+    await lockErasureJournal(tx);
+    const [user] = await tx.select({ id: users.id, key: users.erasureKey }).from(users).where(eq(users.id, userId)).for("update");
     if (!user) return false;
     const registered = await tx.select({ filename: ownedUploads.filename, area: ownedUploads.area }).from(ownedUploads).where(eq(ownedUploads.userId, userId));
     const images = await tx.select({ filename: mediaAssets.filename }).from(mediaAssets).where(eq(mediaAssets.userId, userId));
@@ -53,6 +55,7 @@ export async function deleteAccountWithFiles(userId: number, options: {
     ];
     // Validate every path before removing the first file.
     const paths = Array.from(new Set(files.map(file => accountFilePath(root, file.area, file.filename))));
+    await recordErasure(tx, { type: "account", key: user.key, files });
     for (const file of paths) {
       try { await remove(file); }
       catch (error) {
@@ -71,5 +74,6 @@ export async function removeSupportFile(filename: string): Promise<void> {
   const file = accountFilePath(process.cwd(), "support", filename);
   try { await fs.unlink(file); }
   catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
-  await db.delete(ownedUploads).where(and(eq(ownedUploads.filename, filename), eq(ownedUploads.area, "support")));
+  // Retain the filename's ownership until account deletion. An older backup
+  // may still contain this file, even after its support report has expired.
 }
