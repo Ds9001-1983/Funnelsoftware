@@ -22,7 +22,7 @@ test("retention drafts preview without deletion, preserve exceptions and enforce
     const name = `Aufbewahrung ${key}`;
     const funnel = await createPublishedFunnel(page.request, { name, slug: makeSlug(key) });
     const { rows: [lead] } = await database.query(`INSERT INTO leads (user_id,funnel_id,name,email,status,closed_at,created_at)
-      SELECT id,$1,'Ada Frist','ada@example.invalid','lost',now()-interval '31 days',now()-interval '90 days' FROM users WHERE email=$2 RETURNING id`, [funnel.id, owner.email]);
+      SELECT id,$1,'Ada Frist','ada@example.invalid','lost',now()-interval '31 days',now()-interval '90 days' FROM users WHERE email=$2 RETURNING id, closed_at`, [funnel.id, owner.email]);
     const url = `/api/retention/funnels/${funnel.id}`;
     expect((await anonymous.request.get(url)).status()).toBe(401);
     expect((await other.request.get(url)).status()).toBe(404);
@@ -34,7 +34,7 @@ test("retention drafts preview without deletion, preserve exceptions and enforce
     // Clients cannot forge completion evidence via the generic lead endpoint.
     expect((await page.request.patch(`/api/leads/${lead.id}`, { headers: await headers(page.request), data: { closedAt: "2000-01-01" } })).status()).toBe(200);
     const original = (await database.query("SELECT closed_at FROM leads WHERE id=$1", [lead.id])).rows[0].closed_at;
-    expect(new Date(original).getUTCFullYear()).toBe(new Date().getUTCFullYear());
+    expect(original).toEqual(lead.closed_at);
     await page.goto("/leads");
     await page.getByLabel("Bewerberprozess", { exact: true }).click();
     await page.getByRole("option", { name, exact: true }).click();
