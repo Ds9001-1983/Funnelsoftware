@@ -1,6 +1,6 @@
 import { and, asc, eq, or, sql } from "drizzle-orm";
 import { db } from "./db";
-import { funnels, leads, leadStageEvents, recruitingMailJobs, funnelRecruitingConfigs } from "@shared/schema";
+import { funnels, leads, leadStageEvents, recruitingMailJobs, funnelRecruitingConfigs, leadRetentionExceptions } from "@shared/schema";
 import { DEFAULT_PIPELINE } from "@shared/recruiting-contract";
 
 /**
@@ -18,8 +18,10 @@ export async function exportSubjectData(ownerId: number, email: string) {
       funnelName: funnels.name,
       funnelDeletedAt: funnels.deletedAt,
       stages: funnelRecruitingConfigs.stages,
+      retentionException: leadRetentionExceptions,
     }).from(leads)
       .innerJoin(funnels, eq(funnels.id, leads.funnelId))
+      .leftJoin(leadRetentionExceptions, eq(leadRetentionExceptions.leadId, leads.id))
       .leftJoin(funnelRecruitingConfigs, eq(funnelRecruitingConfigs.funnelId, funnels.id))
       .where(and(ownerScope, leadEmailMatches))
       .orderBy(asc(leads.createdAt), asc(leads.id));
@@ -47,8 +49,8 @@ export async function exportSubjectData(ownerId: number, email: string) {
       email: normalizedEmail,
       exportedAt: new Date().toISOString(),
       count: matched.length,
-      leads: matched.map(({ lead, funnelName, funnelDeletedAt, stages }) => ({
-        ...lead, funnelName, funnelDeletedAt,
+      leads: matched.map(({ lead, funnelName, funnelDeletedAt, stages, retentionException }) => ({
+        ...lead, funnelName, funnelDeletedAt, retentionException,
         // Labels describe the currently stored pipeline, not historic labels.
         currentRecruitingStages: stages ?? DEFAULT_PIPELINE,
       })),
@@ -61,6 +63,7 @@ export async function exportSubjectData(ownerId: number, email: string) {
         matching: "Groß-/Kleinschreibung und äußere Leerzeichen werden ignoriert. Gesucht wird in Lead-E-Mail und gespeicherten Recruiting-Mail-Empfängern.",
         included: [
           "Lead-Daten einschließlich Antworten, Antwort-Snapshots und gespeicherter Einwilligungsangaben",
+          "Gespeichertes Abschlussdatum und begründete Aufbewahrungsausnahmen",
           "Statusverlauf der passenden Leads und derzeit gespeicherte Spaltenbezeichnungen",
           "Gespeicherte Recruiting-Mails einschließlich Inhalt, Empfänger und Versandstatus",
           "Vorhandene Daten aus gelöschten Funnels und aus im Free-Plan gesperrten Leads",

@@ -1,3 +1,4 @@
+import { RetentionDialog } from "@/components/leads/RetentionDialog";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
@@ -616,6 +617,7 @@ export default function Leads() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [showGdprDialog, setShowGdprDialog] = useState(false);
+  const [showRetention, setShowRetention] = useState(false);
   const { toast } = useToast();
 
   const { data: leads, isLoading: leadsLoading } = useQuery<MaskedLead[]>({
@@ -754,6 +756,7 @@ export default function Leads() {
             {funnels?.map(funnel => <SelectItem key={funnel.id} value={String(funnel.id)}>{funnel.name}</SelectItem>)}
           </SelectContent>
         </Select>
+        {funnelFilter !== "all" && <Button variant="outline" onClick={() => setShowRetention(true)}>Aufbewahrung planen</Button>}
         {funnelFilter === "all" && <p className="text-sm text-muted-foreground">Wähle einen Funnel für eigene Spalten, Drag-and-drop und automatische Bewerbermails.</p>}
       </div>
       {funnelFilter !== "all" ? <RecruitingBoard funnelId={Number(funnelFilter)} /> : (
@@ -943,6 +946,7 @@ export default function Leads() {
         funnelName={funnels?.find(f => String(f.id) === funnelFilter)?.name}
       />
 
+      {funnelFilter !== "all" && <RetentionDialog funnelId={Number(funnelFilter)} funnelName={funnels?.find(f => String(f.id) === funnelFilter)?.name ?? "Funnel"} names={new Map((leads ?? []).map(lead => [lead.id, lead.locked ? `Lead #${lead.id}` : lead.name || lead.email || `Lead #${lead.id}`]))} open={showRetention} onOpenChange={setShowRetention} />}
       <GdprRequestDialog open={showGdprDialog} onOpenChange={setShowGdprDialog} />
     </div>
   );

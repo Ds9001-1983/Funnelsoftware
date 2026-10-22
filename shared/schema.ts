@@ -242,6 +242,7 @@ export const leads = pgTable("leads", {
   status: text("status").notNull().default("new"), // new, contacted, qualified, converted, lost
   stageId: text("stage_id"),
   stageVersion: integer("stage_version").notNull().default(0),
+  closedAt: timestamp("closed_at"),
   source: text("source"),
   // Einwilligungsnachweis (Art. 7 Abs. 1 DSGVO): Der Marketing-Consent des
   // Besuchers gated die CAPI-Übermittlung — ohne Persistierung ist die
@@ -254,6 +255,23 @@ export const leads = pgTable("leads", {
   index("leads_user_id_idx").on(table.userId),
   index("leads_funnel_id_idx").on(table.funnelId),
 ]);
+
+// These are drafts only; no automatic erasure is activated by saving them.
+export const funnelRetentionDrafts = pgTable("funnel_retention_drafts", {
+  funnelId: integer("funnel_id").primaryKey().references(() => funnels.id, { onDelete: "cascade" }),
+  mode: text("mode").notNull(),
+  days: integer("days").notNull(),
+  purpose: text("purpose").notNull(),
+  version: integer("version").notNull().default(1),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export const leadRetentionExceptions = pgTable("lead_retention_exceptions", {
+  leadId: integer("lead_id").primaryKey().references(() => leads.id, { onDelete: "cascade" }),
+  reason: text("reason"),
+  reviewAt: timestamp("review_at"),
+  version: integer("version").notNull().default(1),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
 
 // Additive Recruiting-Daten; bestehende Eigentümer und Statuswerte bleiben erhalten.
 export const funnelRecruitingConfigs = pgTable("funnel_recruiting_configs", {
@@ -1273,6 +1291,7 @@ export const leadSchema = z.object({
   status: z.enum(["new", "contacted", "qualified", "converted", "lost"]),
   stageId: z.string().nullable().optional(),
   stageVersion: z.number().int().nonnegative().optional(),
+  closedAt: z.string().or(z.date()).nullable().optional(),
   source: z.string().optional().nullable(),
   // Einwilligungsnachweis (Art. 7 Abs. 1 DSGVO)
   marketingConsent: z.boolean().optional(),
