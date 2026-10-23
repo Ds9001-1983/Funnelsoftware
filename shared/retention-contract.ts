@@ -16,12 +16,14 @@ export const retentionExceptionSchema = z.object({
   }).strict().nullable(),
 }).strict();
 export type RetentionExceptionInput = z.infer<typeof retentionExceptionSchema>;
-export const RETENTION_STATES = ["due", "waiting", "open", "unknown", "excluded", "review"] as const;
+export const RETENTION_STATES = ["due", "waiting", "open", "unknown", "excluded", "review", "committed"] as const;
 export type RetentionState = typeof RETENTION_STATES[number];
 export interface RetentionException { version: number; reason: string | null; reviewAt: string | null }
 export interface RetentionPreview {
   draft: RetentionDraft | null;
-  automaticDeletion: false;
+  automaticDeletion: boolean;
+  backupReady: boolean;
+  previewToken: string;
   asOf: string;
   counts: Record<RetentionState, number>;
   total: number;
@@ -37,3 +39,11 @@ export function nextClosedAt(previous: string, next: string, closedAt: Date | nu
   if (!terminal(next)) return null;
   return terminal(previous) ? closedAt : now;
 }
+
+export const retentionActivationSchema = z.object({
+  expectedVersion: z.number().int().positive(),
+  active: z.boolean(),
+  confirmed: z.boolean().optional(),
+  previewToken: z.string().max(300).optional(),
+}).strict();
+export type RetentionActivationInput = z.infer<typeof retentionActivationSchema>;

@@ -1,3 +1,4 @@
+import { RetentionCommittedError } from "./erasure-journal";
 import { registerRetentionRoutes } from "./retention-routes";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
@@ -1822,7 +1823,7 @@ export async function registerRoutes(
       res.json(lead);
     } catch (error) {
       console.error("Update lead error:", error);
-      if (error instanceof RecruitingError) return res.status(error.status).json({ error: error.message, code: error.code });
+      if (error instanceof RetentionCommittedError || error instanceof RecruitingError) return res.status(error.status).json({ error: error.message, code: error.code });
       res.status(500).json({ error: "Lead konnte nicht aktualisiert werden" });
     }
   });

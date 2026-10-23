@@ -49,6 +49,15 @@ describe('external append-only erasure journal backup', () => {
     expect((await readJournal(current.journal)).checkpoint).toEqual(journal.checkpoint);
     expect(JSON.parse(await fs.readFile(current.checkpointFile, 'utf8'))).toEqual(journal.checkpoint);
   });
+  it('durably backs up and confirms bounded automatic intents for restore', async () => {
+    await append({ type: 'retention_leads', keys: Array.from({ length: 20 }, () => randomUUID()) });
+    const confirmed = { ...config, confirmRemote: true };
+    await runBackup(confirmed, remote, async (_config, checkpoint, nonce) => ({ receipt: await confirmExternalCopy(source, checkpoint), nonce }));
+    expect((await externalCopyStatus(source)).fullyBackedUp).toBe(true);
+    const saved = await verifyCurrent(confirmed, remote);
+    expect((await readJournal(saved.journal)).records[0].entry.target.type).toBe('retention_leads');
+    await expect(append({ type: 'retention_leads', keys: Array.from({ length: 21 }, () => randomUUID()) })).rejects.toThrow();
+  });
   it('uses owner-only permissions and exports no unrelated files', async () => {
     await append(); await runBackup(config, remote);
     const result = await verifyCurrent(config, remote);

@@ -1,5 +1,6 @@
 import { and, asc, eq, or, sql } from "drizzle-orm";
 import { db } from "./db";
+import { committedRetentionKeys } from "./erasure-journal";
 import { funnels, leads, leadStageEvents, recruitingMailJobs, funnelRecruitingConfigs, leadRetentionExceptions } from "@shared/schema";
 import { DEFAULT_PIPELINE } from "@shared/recruiting-contract";
 
@@ -44,13 +45,14 @@ export async function exportSubjectData(ownerId: number, email: string) {
       )))
       .orderBy(asc(recruitingMailJobs.createdAt), asc(recruitingMailJobs.id));
 
+    const committed = await committedRetentionKeys();
     return {
       schemaVersion: 2,
       email: normalizedEmail,
       exportedAt: new Date().toISOString(),
       count: matched.length,
       leads: matched.map(({ lead, funnelName, funnelDeletedAt, stages, retentionException }) => ({
-        ...lead, funnelName, funnelDeletedAt, retentionException,
+        ...lead, funnelName, funnelDeletedAt, retentionException, erasureRequested: committed.has(lead.uuid),
         // Labels describe the currently stored pipeline, not historic labels.
         currentRecruitingStages: stages ?? DEFAULT_PIPELINE,
       })),
@@ -63,7 +65,7 @@ export async function exportSubjectData(ownerId: number, email: string) {
         matching: "Groß-/Kleinschreibung und äußere Leerzeichen werden ignoriert. Gesucht wird in Lead-E-Mail und gespeicherten Recruiting-Mail-Empfängern.",
         included: [
           "Lead-Daten einschließlich Antworten, Antwort-Snapshots und gespeicherter Einwilligungsangaben",
-          "Gespeichertes Abschlussdatum und begründete Aufbewahrungsausnahmen",
+          "Gespeichertes Abschlussdatum, begründete Aufbewahrungsausnahmen und bereits verbindlich beauftragte Löschung",
           "Statusverlauf der passenden Leads und derzeit gespeicherte Spaltenbezeichnungen",
           "Gespeicherte Recruiting-Mails einschließlich Inhalt, Empfänger und Versandstatus",
           "Vorhandene Daten aus gelöschten Funnels und aus im Free-Plan gesperrten Leads",

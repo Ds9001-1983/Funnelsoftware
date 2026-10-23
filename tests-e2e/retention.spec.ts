@@ -46,6 +46,14 @@ test("retention drafts preview without deletion, preserve exceptions and enforce
     await dialog.getByLabel("Begründung für die gewählte Frist").fill(input.purpose);
     await dialog.getByRole("button", { name: "Entwurf speichern und Vorschau aktualisieren" }).click();
     await expect(dialog.getByTestId("retention-count-due")).toHaveText("1");
+    await expect(dialog.getByText(/Wartet auf externe Journalsicherung/)).toBeVisible();
+    await dialog.getByRole("checkbox").check();
+    await expect(dialog.getByRole("button", { name: "Löschautomatik aktivieren", exact: true })).toBeDisabled();
+    const activation = { expectedVersion: 1, active: true, confirmed: true, previewToken: (await (await page.request.get(url)).json()).previewToken };
+    expect((await anonymous.request.put(`${url}/activation`, { data: activation })).status()).toBe(403);
+    expect((await other.request.put(`${url}/activation`, { headers: await headers(other.request), data: activation })).status()).toBe(404);
+    expect((await page.request.put(`${url}/activation`, { headers: await headers(page.request), data: { ...activation, previewToken: "forged" } })).status()).toBe(409);
+    expect((await page.request.put(`${url}/activation`, { headers: await headers(page.request), data: activation })).status()).toBe(503);
     await dialog.getByRole("button", { name: "Ausnahme", exact: true }).click();
     await dialog.getByLabel(`Ausnahmegrund für Lead #${lead.id}`).fill("Beleg wird noch benötigt");
     await dialog.getByLabel("Nächster Prüftermin").fill(`${new Date().getUTCFullYear() + 1}-01-15T12:00`);

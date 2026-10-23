@@ -91,6 +91,19 @@ describe.skipIf(!runIntegration)("Bewerbermail-Worker mit PostgreSQL und Memoryt
     expect((await processJobs({ transport })).claimed).toBe(0);
   });
 
+  it("holds the lead lock through SMTP and releases it after completion", async () => {
+    await addJob(1);
+    const transport: RecruitingEmailTransport = { sendMail: async () => {
+      const { rows } = await fixture.query("SELECT pg_try_advisory_lock(734193830, 1) AS locked");
+      expect(rows[0].locked).toBe(false);
+      return { accepted: ["candidate1@example.test"], messageId: "synthetic" };
+    } };
+    expect((await processJobs({ transport })).sent).toBe(1);
+    const { rows } = await fixture.query("SELECT pg_try_advisory_lock(734193830, 1) AS locked");
+    try { expect(rows[0].locked).toBe(true); }
+    finally { await fixture.query("SELECT pg_advisory_unlock(734193830, 1)"); }
+  });
+
   it("wiederholt nur eindeutig abgelehnte Mails zeitversetzt und beendet nach drei Versuchen", async () => {
     await addJob(1);
     const transport = { sendMail: vi.fn().mockRejectedValue({ responseCode: 451 }) };
@@ -149,13 +162,13 @@ describe.skipIf(!runIntegration)("Bewerbermail-Worker mit PostgreSQL und Memoryt
   it("behandelt einen DB-Ausfall nach SMTP-Annahme nach Wiederanlauf als unklar", async () => {
     await addJob(1);
     const transport = memoryTransport();
-    const realQuery = workerPool.query.bind(workerPool);
-    const querySpy = vi.spyOn(workerPool, "query").mockImplementation(((...args: unknown[]) => {
+    const realQuery = pg.Client.prototype.query;
+    const querySpy = vi.spyOn(pg.Client.prototype, "query").mockImplementation((function (this: pg.Client, ...args: unknown[]) {
       if (typeof args[0] === "string" && args[0].includes("SET status = 'sent'")) {
         return Promise.reject(new Error("simulated database outage after SMTP accepted"));
       }
-      return (realQuery as (...args: unknown[]) => unknown)(...args);
-    }) as typeof workerPool.query);
+      return (realQuery as (...args: unknown[]) => unknown).apply(this, args);
+    }) as typeof pg.Client.prototype.query);
     try { await expect(processJobs({ transport })).rejects.toThrow("simulated database outage"); }
     finally { querySpy.mockRestore(); }
     expect(transport.sendMail).toHaveBeenCalledOnce();

@@ -215,9 +215,10 @@ absichtlich neben dem Journalverzeichnis.
 **Ist die Quelle verloren oder nicht erreichbar, scheitert `verify-current`.**
 Ein zuletzt grüner Status oder eine aktuelle lokale Uhrzeit beweisen nicht, dass
 nach dem letzten Abruf keine Löschung mehr stattfand. Ohne anderweitig belegte
-Vollständigkeit bleibt die öffentliche Wiederinbetriebnahme gesperrt. Der
-Mac-Dienst allein erfüllt deshalb keine Voraussetzung für eine garantiert
-verlustfreie automatische Bereinigung. Deren Aktivierung bleibt gesondert offen.
+Vollständigkeit bleibt die öffentliche Wiederinbetriebnahme gesperrt. Für automatische Aufbewahrungslöschungen wartet der Worker auf eine passende
+Bestätigung jedes konkreten Auftrags. Manuelle Löschwege warten weiterhin nicht
+auf den Mac. Deshalb ersetzt dieser Ablauf keinen aktuellen Restore-Abgleich.
+Details: [RETENTION_AUTOMATION.md](RETENTION_AUTOMATION.md).
 
 ## Abnahme
 

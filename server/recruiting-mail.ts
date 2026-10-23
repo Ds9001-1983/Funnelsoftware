@@ -1,4 +1,7 @@
+import { committedRetentionKeys } from "./erasure-journal";
+import { RETENTION_MAIL_LOCK } from "./retention-worker";
 import { pool } from "./db";
+import type { PoolClient } from "pg";
 import { hasProFeatures } from "./auth";
 import {
   assertRecruitingTestTransportAllowed,
@@ -26,6 +29,7 @@ interface ClaimedJob {
 }
 
 interface CurrentContext {
+  lead_uuid: string;
   owner_email: string;
   owner_verified: Date | null;
   owner_deleted: Date | null;
@@ -48,11 +52,11 @@ export interface RecruitingMailRunResult {
   cancelled: number;
 }
 
-async function cancellationReason(job: ClaimedJob): Promise<string | null> {
+async function cancellationReason(job: ClaimedJob, client: PoolClient): Promise<string | null> {
   // Alle Zuordnungen erneut prüfen: Ein Snapshot ist keine Zugriffsfreigabe.
   // Leads werden hart gelöscht; Owner und Funnels besitzen Soft-Delete-Felder.
-  const { rows } = await pool.query<CurrentContext>(`
-    SELECT u.email AS owner_email, u.email_verified_at AS owner_verified,
+  const { rows } = await client.query<CurrentContext>(`
+    SELECT l.uuid AS lead_uuid, u.email AS owner_email, u.email_verified_at AS owner_verified,
            u.deleted_at AS owner_deleted, u.is_pro AS owner_pro,
            u.is_admin AS owner_admin, u.trial_ends_at AS owner_trial,
            f.deleted_at AS funnel_deleted, r.enabled AS rule_enabled,
@@ -66,6 +70,7 @@ async function cancellationReason(job: ClaimedJob): Promise<string | null> {
   `, [job.lead_id, job.rule_id, job.owner_id]);
   const context = rows[0];
   if (!context || context.owner_deleted || context.funnel_deleted) return "resource_unavailable";
+  if ((await committedRetentionKeys()).has(context.lead_uuid)) return "retention_committed";
   if (!context.owner_verified) return "owner_not_verified";
   if (!hasProFeatures({
     isAdmin: context.owner_admin,
@@ -126,48 +131,59 @@ export async function processRecruitingMailJobs(
     if (!job) break;
     result.claimed++;
 
-    const obsolete = await cancellationReason(job);
-    if (obsolete) {
-      const cancelled = await pool.query(`
-        UPDATE recruiting_mail_jobs
-           SET status = 'cancelled', error_code = $3, processing_at = NULL
-         WHERE id = $1 AND status = 'processing' AND attempts = $2
-      `, [job.id, job.attempts, obsolete]);
-      if (cancelled.rowCount) result.cancelled++;
-      continue;
-    }
+    // Keep the per-lead session lock through SMTP. Retention uses a nonblocking
+    // transaction lock with the same key and skips an in-flight send.
+    const mailLock = await pool.connect();
+    try {
+      await mailLock.query("SELECT pg_advisory_lock($1::int, $2::int)", [RETENTION_MAIL_LOCK, job.lead_id]);
+      const obsolete = await cancellationReason(job, mailLock);
+      if (obsolete) {
+        const cancelled = await mailLock.query(`
+          UPDATE recruiting_mail_jobs
+             SET status = 'cancelled', error_code = $3, processing_at = NULL
+           WHERE id = $1 AND status = 'processing' AND attempts = $2
+        `, [job.id, job.attempts, obsolete]);
+        if (cancelled.rowCount) result.cancelled++;
+        continue;
+      }
 
-    const outcome = await sendRecruitingEmail({
-      recipient: job.recipient,
-      replyTo: job.reply_to,
-      senderName: job.sender_name,
-      subject: job.subject,
-      body: job.body,
-      messageId: `<recruiting-${job.id}@trichterwerk.de>`,
-    }, options);
-    if (outcome.status === "sent") {
-      const saved = await pool.query(`
-        UPDATE recruiting_mail_jobs
-           SET status = 'sent', sent_at = NOW(), message_id = $3,
-               error_code = NULL, processing_at = NULL
-         WHERE id = $1 AND status = 'processing' AND attempts = $2
-      `, [job.id, job.attempts, outcome.messageId]);
-      if (saved.rowCount) result.sent++;
-      continue;
-    }
+      const outcome = await sendRecruitingEmail({
+        recipient: job.recipient,
+        replyTo: job.reply_to,
+        senderName: job.sender_name,
+        subject: job.subject,
+        body: job.body,
+        messageId: `<recruiting-${job.id}@trichterwerk.de>`,
+      }, options);
+      if (outcome.status === "sent") {
+        const saved = await mailLock.query(`
+          UPDATE recruiting_mail_jobs
+             SET status = 'sent', sent_at = NOW(), message_id = $3,
+                 error_code = NULL, processing_at = NULL
+           WHERE id = $1 AND status = 'processing' AND attempts = $2
+        `, [job.id, job.attempts, outcome.messageId]);
+        if (saved.rowCount) result.sent++;
+        continue;
+      }
 
-    const retry = outcome.status === "retryable" && job.attempts < RECRUITING_MAIL_MAX_ATTEMPTS;
-    const status = retry ? "pending" : outcome.status === "uncertain" ? "uncertain" : "failed";
-    const saved = await pool.query(`
-      UPDATE recruiting_mail_jobs
-         SET status = $3, error_code = $4, processing_at = NULL,
-             next_attempt_at = NOW() + ($5 * INTERVAL '1 millisecond')
-       WHERE id = $1 AND status = 'processing' AND attempts = $2
-    `, [job.id, job.attempts, status, outcome.errorCode, retry ? 60_000 * (2 ** (job.attempts - 1)) : 0]);
-    if (saved.rowCount) {
-      if (retry) result.retried++;
-      else if (status === "uncertain") result.uncertain++;
-      else result.failed++;
+      const retry = outcome.status === "retryable" && job.attempts < RECRUITING_MAIL_MAX_ATTEMPTS;
+      const status = retry ? "pending" : outcome.status === "uncertain" ? "uncertain" : "failed";
+      const saved = await mailLock.query(`
+        UPDATE recruiting_mail_jobs
+           SET status = $3, error_code = $4, processing_at = NULL,
+               next_attempt_at = NOW() + ($5 * INTERVAL '1 millisecond')
+         WHERE id = $1 AND status = 'processing' AND attempts = $2
+      `, [job.id, job.attempts, status, outcome.errorCode, retry ? 60_000 * (2 ** (job.attempts - 1)) : 0]);
+      if (saved.rowCount) {
+        if (retry) result.retried++;
+        else if (status === "uncertain") result.uncertain++;
+        else result.failed++;
+      }
+    } finally {
+      let broken = false;
+      try { await mailLock.query("SELECT pg_advisory_unlock($1::int, $2::int)", [RETENTION_MAIL_LOCK, job.lead_id]); }
+      catch { broken = true; }
+      finally { mailLock.release(broken); }
     }
   }
   return result;

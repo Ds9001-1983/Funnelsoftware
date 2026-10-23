@@ -239,4 +239,148 @@ describe.skipIf(!connection)("independent erasure journal and real backup replay
       expect(JSON.parse((await execute(process.execPath, ["--import", "tsx", "scripts/erasure-journal.ts", "check", restoredFiles], restoreOptions)).stdout)).toEqual({ ready: true });
     } finally { await admin.query(`DROP DATABASE "${restoreName}" WITH (FORCE)`); }
   }, 30_000);
+  async function acknowledge(overrides: Record<string, unknown> = {}) {
+    const destination = `${journal}-offsite`;
+    await fs.mkdir(destination, { mode: 0o700, recursive: true });
+    await fs.writeFile(path.join(destination, "receipt.json"), JSON.stringify({ version: 1, checkpoint: await checkpoint(), confirmedAt: new Date().toISOString(), ...overrides }), { mode: 0o600 });
+  }
+  async function retentionFixture() {
+    const f = await fixture();
+    await database.db.update(leads).set({ status: "lost", stageId: "lost", closedAt: new Date(Date.now() - 31 * 86400000) }).where(eq(leads.id, f.lead.id));
+    const retention = await import("./retention");
+    const worker = await import("./retention-worker");
+    await retention.saveRetentionDraft(f.funnel.id, f.owner.id, { expectedVersion: 0, mode: "closed_applications", days: 30, purpose: "Synthetic retention test" });
+    const activate = async () => {
+      const preview = await retention.previewRetention(f.funnel.id, f.owner.id);
+      return retention.setRetentionActivation(f.funnel.id, f.owner.id, { expectedVersion: preview.draft!.version, active: true, confirmed: true, previewToken: preview.previewToken });
+    };
+    return { ...f, retention, worker, activate };
+  }
+  it("requires an owned, confirmed fresh preview and external backup before activation", async () => {
+    const f = await retentionFixture(), stranger = await fixture();
+    await expect(f.activate()).rejects.toMatchObject({ status: 503 });
+    await acknowledge();
+    await expect(f.retention.setRetentionActivation(f.funnel.id, stranger.owner.id, { expectedVersion: 1, active: true })).rejects.toMatchObject({ status: 404 });
+    for (const input of [{ confirmed: false }, { confirmed: true, previewToken: "forged" }]) {
+      await expect(f.retention.setRetentionActivation(f.funnel.id, f.owner.id, { expectedVersion: 1, active: true, ...input })).rejects.toMatchObject({ status: 409 });
+    }
+    expect(await f.activate()).toMatchObject({ automaticDeletion: true, draft: { version: 2 } });
+    await f.retention.saveRetentionDraft(f.funnel.id, f.owner.id, { expectedVersion: 2, mode: "closed_applications", days: 60, purpose: "Changed rule must be confirmed again" });
+    expect(await f.retention.previewRetention(f.funnel.id, f.owner.id)).toMatchObject({ automaticDeletion: false });
+    expect(await f.worker.runRetentionBatch()).toMatchObject({ queued: 0, deleted: 0 });
+  });
+  it("waits for the exact external prefix across restart, freezes committed data, then cascades exactly once", async () => {
+    const f = await retentionFixture(); await acknowledge(); await f.activate();
+    const [rule] = await database.db.insert(recruitingMailRules).values({ funnelId: f.funnel.id, ruleKey: "auto", trigger: "created", subject: "test", body: "test", senderName: "test", enabled: true }).returning();
+    await database.db.insert(recruitingMailJobs).values({ ownerId: f.owner.id, leadId: f.lead.id, ruleId: rule.id, recipient: f.lead.email!, replyTo: f.owner.email, senderName: "test", subject: "test", body: "test" });
+    await database.db.insert(leadStageEvents).values({ leadId: f.lead.id, actorId: f.owner.id, fromStageId: "new", toStageId: "lost", version: 1 });
+    expect(await f.worker.runRetentionBatch()).toEqual({ queued: 1, deleted: 0, waitingForBackup: true });
+    expect(await f.worker.runRetentionBatch()).toEqual({ queued: 0, deleted: 0, waitingForBackup: true });
+    await api.assertErasureJournalReady(root); // restart accepts a durable waiting intent
+    expect(await f.retention.previewRetention(f.funnel.id, f.owner.id)).toMatchObject({ counts: { committed: 1 }, backupReady: false });
+    await expect(storage.updateLead(f.lead.id, f.owner.id, { name: "changed" })).rejects.toMatchObject({ code: "RETENTION_COMMITTED" });
+    await expect(f.retention.saveRetentionException(f.lead.id, f.owner.id, { expectedVersion: 0, exception: null })).rejects.toMatchObject({ code: "RETENTION_COMMITTED" });
+    const recruiting = await import("./recruiting");
+    await expect(recruiting.changeRecruitingStage({ leadId: f.lead.id, ownerId: f.owner.id, actorId: f.owner.id, expectedVersion: 0, stageId: "new" })).rejects.toMatchObject({ code: "RETENTION_COMMITTED" });
+    const exporter = await import("./subject-export");
+    expect((await exporter.exportSubjectData(f.owner.id, f.lead.email!)).leads[0].erasureRequested).toBe(true);
+    const mail = await import("./recruiting-mail");
+    expect(await mail.processRecruitingMailJobs()).toMatchObject({ cancelled: 1, sent: 0 });
+    // Pausing remains possible but does not revoke a durable deletion request.
+    await f.retention.setRetentionActivation(f.funnel.id, f.owner.id, { expectedVersion: 2, active: false });
+    await acknowledge();
+    expect(await f.worker.runRetentionBatch()).toEqual({ queued: 0, deleted: 1, waitingForBackup: false });
+    expect(await count("leads")).toBe(0); expect(await count("lead_stage_events")).toBe(0); expect(await count("recruiting_mail_jobs")).toBe(0);
+    expect((await database.db.select().from(funnels))[0].leads).toBe(0);
+    expect(await f.worker.runRetentionBatch()).toMatchObject({ queued: 0, deleted: 0 });
+  });
+  it("fails closed on missing, stale, future, malformed or mismatched receipts", async () => {
+    const f = await retentionFixture(); await acknowledge(); await f.activate();
+    for (const overrides of [
+      { confirmedAt: new Date(Date.now() - 16 * 60_000).toISOString() },
+      { confirmedAt: new Date(Date.now() + 60_000).toISOString() },
+      { checkpoint: { ...await checkpoint(), hash: "0".repeat(64) } },
+      { checkpoint: { ...await checkpoint(), instanceId: randomUUID() } },
+      { unexpected: true },
+    ]) {
+      await acknowledge(overrides);
+      expect(await f.worker.runRetentionBatch()).toEqual({ queued: 0, deleted: 0, waitingForBackup: true });
+    }
+    await fs.unlink(path.join(`${journal}-offsite`, "receipt.json"));
+    expect(await f.worker.runRetentionBatch()).toMatchObject({ queued: 0, deleted: 0 });
+    await acknowledge(); expect(await f.worker.runRetentionBatch()).toMatchObject({ queued: 1, deleted: 0 });
+    await acknowledge({ confirmedAt: new Date(Date.now() - 16 * 60_000).toISOString() });
+    expect(await f.worker.runRetentionBatch()).toMatchObject({ queued: 0, deleted: 0 });
+    expect(await count("leads")).toBe(1);
+  });
+  it("protects exceptions, reopened and unproven cases before commitment", async () => {
+    const f = await retentionFixture(); await acknowledge(); await f.activate();
+    await f.retention.saveRetentionException(f.lead.id, f.owner.id, { expectedVersion: 0, exception: { reason: "Protected case", reviewAt: new Date(Date.now() + 86400000).toISOString() } });
+    await database.pool.query("UPDATE lead_retention_exceptions SET review_at=now()-interval '1 day'");
+    expect(await f.worker.runRetentionBatch()).toMatchObject({ queued: 0 });
+    await f.retention.saveRetentionException(f.lead.id, f.owner.id, { expectedVersion: 1, exception: null });
+    const recruiting = await import("./recruiting");
+    await recruiting.changeRecruitingStage({ leadId: f.lead.id, ownerId: f.owner.id, actorId: f.owner.id, expectedVersion: 0, stageId: "new" });
+    expect(await f.worker.runRetentionBatch()).toMatchObject({ queued: 0 });
+    await database.db.update(leads).set({ status: "lost", closedAt: null }).where(eq(leads.id, f.lead.id));
+    expect(await f.worker.runRetentionBatch()).toMatchObject({ queued: 0 });
+    expect(await count("leads")).toBe(1);
+  });
+  it("skips removed funnels and unavailable owners while honoring explicitly activated general-lead rules", async () => {
+    const removed = await retentionFixture(), unverified = await retentionFixture(), deletedOwner = await retentionFixture(), general = await retentionFixture();
+    await acknowledge();
+    for (const f of [removed, unverified, deletedOwner]) await f.activate();
+    await database.db.update(funnels).set({ deletedAt: new Date() }).where(eq(funnels.id, removed.funnel.id));
+    await database.db.update(users).set({ emailVerifiedAt: null }).where(eq(users.id, unverified.owner.id));
+    await database.db.update(users).set({ deletedAt: new Date() }).where(eq(users.id, deletedOwner.owner.id));
+    await general.retention.saveRetentionDraft(general.funnel.id, general.owner.id, { expectedVersion: 1, mode: "general_leads", days: 30, purpose: "Explicit general lead retention" });
+    await database.db.update(leads).set({ status: "new", closedAt: null, createdAt: new Date(Date.now() - 31 * 86400000) }).where(eq(leads.id, general.lead.id));
+    await general.activate();
+    expect(await general.worker.runRetentionBatch()).toMatchObject({ queued: 1, deleted: 0 });
+    expect((await api.readJournal(journal)).entries[0].entry.target).toEqual({ type: "retention_leads", keys: [general.lead.uuid] });
+    await acknowledge(); expect(await general.worker.runRetentionBatch()).toMatchObject({ deleted: 1 });
+    expect(await count("leads")).toBe(3);
+  });
+  it("bounds concurrent runs to 20 intents and waits before advancing the next batch", async () => {
+    const f = await retentionFixture(); await acknowledge(); await f.activate();
+    await database.db.insert(leads).values(Array.from({ length: 24 }, () => ({ userId: f.owner.id, funnelId: f.funnel.id, status: "lost", closedAt: new Date(Date.now() - 40 * 86400000) })));
+    await database.db.update(funnels).set({ leads: 25 }).where(eq(funnels.id, f.funnel.id));
+    const first = await Promise.all([f.worker.runRetentionBatch(), f.worker.runRetentionBatch()]);
+    expect(first.reduce((sum, run) => sum + run.queued, 0)).toBe(20);
+    expect(await count("leads")).toBe(25);
+    await acknowledge();
+    expect(await f.worker.runRetentionBatch()).toEqual({ queued: 5, deleted: 20, waitingForBackup: true });
+    expect(await count("leads")).toBe(5);
+    await acknowledge(); expect(await f.worker.runRetentionBatch()).toMatchObject({ deleted: 5 });
+    expect((await database.db.select().from(funnels))[0].leads).toBe(0);
+  });
+  it("skips a lead held by an in-flight SMTP lock without waiting", async () => {
+    const f = await retentionFixture(); await acknowledge(); await f.activate();
+    const client = await database.pool.connect();
+    try {
+      await client.query("SELECT pg_advisory_lock($1::int,$2::int)", [f.worker.RETENTION_MAIL_LOCK, f.lead.id]);
+      expect(await f.worker.runRetentionBatch()).toMatchObject({ queued: 0, deleted: 0 });
+    } finally { await client.query("SELECT pg_advisory_unlock($1::int,$2::int)", [f.worker.RETENTION_MAIL_LOCK, f.lead.id]); client.release(); }
+    expect(await f.worker.runRetentionBatch()).toMatchObject({ queued: 1 });
+  });
+  it("recovers an intent persisted before SQL rollback and replays it on a real restored dump", async () => {
+    const f = await retentionFixture();
+    const dump = path.join(root, "retention-before.dump");
+    await execute("pg_dump", ["--format=custom", "--file", dump, databaseUrl]);
+    await expect(database.db.transaction(async tx => {
+      await api.lockErasureJournal(tx);
+      await api.recordErasure(tx, { type: "retention_leads", keys: [f.lead.uuid] });
+      throw new Error("simulated commit interruption");
+    })).rejects.toThrow("simulated");
+    await api.assertErasureJournalReady(root);
+    expect(await f.worker.runRetentionBatch()).toMatchObject({ deleted: 0 });
+    await acknowledge(); expect(await f.worker.runRetentionBatch()).toMatchObject({ deleted: 1 });
+    const head = await checkpoint();
+    await execute("pg_restore", ["--clean", "--if-exists", "--no-owner", "--no-acl", "--exit-on-error", "--dbname", databaseUrl, dump]);
+    expect(await count("leads")).toBe(1);
+    expect(await api.replayErasureJournal(journal, root, head)).toMatchObject({ leads: 1 });
+    expect(await api.replayErasureJournal(journal, root, head)).toMatchObject({ leads: 0 });
+    expect(await count("leads")).toBe(0);
+  });
+
 });

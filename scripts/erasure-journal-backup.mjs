@@ -41,10 +41,11 @@ function record(value) {
   object(e, ['version', 'instanceId', 'sequence', 'previousHash', 'requestedAt', 'target']);
   if (e.version !== 1 || !Number.isSafeInteger(e.sequence) || e.sequence < 1) fail('Invalid sequence.');
   let target;
-  if (e.target?.type === 'leads') {
+  if (e.target?.type === 'leads' || e.target?.type === 'retention_leads') {
     object(e.target, ['type', 'keys']);
     if (!Array.isArray(e.target.keys) || !e.target.keys.length) fail('Missing lead identities.');
-    target = { type: 'leads', keys: e.target.keys.map(uuid) };
+    if (e.target.type === 'retention_leads' && e.target.keys.length > 20) fail('Automatic batch exceeds limit.');
+    target = { type: e.target.type, keys: e.target.keys.map(uuid) };
   } else {
     object(e.target, ['type', 'key', 'files']);
     if (e.target.type !== 'account' || !Array.isArray(e.target.files)) fail('Invalid account target.');
