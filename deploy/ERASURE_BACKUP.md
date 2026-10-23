@@ -131,9 +131,10 @@ node scripts/erasure-journal-backup.mjs source-status /var/lib/funnelflow/erasur
 Exitcode 0 bedeutet, dass alle beim Lesen vorgefundenen Aufträge bestätigt sind.
 Noch nicht bestätigte Einträge, fehlende, falsche oder beschädigte Bestätigungen
 führen zu Exitcode 1. Diese Prüfung sperrt keine laufenden Journal-Schreiber und
-ist daher nur eine Momentaufnahme. Ein künftiger Löschworker muss unter derselben
+ist daher nur eine Momentaufnahme. Der Aufbewahrungsworker prüft unter derselben
 Sperre wie die Journal-Schreiber den **konkreten Auftrag** mit Instanz, Sequenz und
-Hash prüfen; eine frühere grüne Momentaufnahme genügt nicht.
+Hash sowie das Alter der Bestätigung; eine frühere grüne Momentaufnahme genügt
+nicht. Siehe [RETENTION_AUTOMATION.md](RETENTION_AUTOMATION.md).
 
 Bei Fehlern im Bestätigungsaufruf bleibt die lokale Kopie erhalten, der lokale
 Status wird jedoch als fehlgeschlagen markiert. Eine verlorene Antwort darf die
