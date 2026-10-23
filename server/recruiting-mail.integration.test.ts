@@ -161,16 +161,15 @@ describe.skipIf(!runIntegration)("Bewerbermail-Worker mit PostgreSQL und Memoryt
 
   it("behandelt einen DB-Ausfall nach SMTP-Annahme nach Wiederanlauf als unklar", async () => {
     await addJob(1);
-    const transport = memoryTransport();
-    const realQuery = pg.Client.prototype.query;
-    const querySpy = vi.spyOn(pg.Client.prototype, "query").mockImplementation((function (this: pg.Client, ...args: unknown[]) {
-      if (typeof args[0] === "string" && args[0].includes("SET status = 'sent'")) {
-        return Promise.reject(new Error("simulated database outage after SMTP accepted"));
-      }
-      return (realQuery as (...args: unknown[]) => unknown).apply(this, args);
-    }) as typeof pg.Client.prototype.query);
-    try { await expect(processJobs({ transport })).rejects.toThrow("simulated database outage"); }
-    finally { querySpy.mockRestore(); }
+    const transport: RecruitingEmailTransport = { sendMail: vi.fn().mockImplementation(async () => {
+      const { rows } = await fixture.query("SELECT pid FROM pg_locks WHERE locktype='advisory' AND classid=734193830 AND objid=1 AND granted");
+      expect(rows).toHaveLength(1);
+      await fixture.query("SELECT pg_terminate_backend($1)", [rows[0].pid]);
+      // SMTP may have accepted while its dedicated DB connection disappeared.
+      await new Promise(resolve => setTimeout(resolve, 20));
+      return { accepted: ["candidate1@example.test"], messageId: "synthetic" };
+    }) };
+    await expect(processJobs({ transport })).rejects.toThrow();
     expect(transport.sendMail).toHaveBeenCalledOnce();
     await workerPool.query("UPDATE recruiting_mail_jobs SET processing_at = NOW() - INTERVAL '6 minutes'");
     expect((await processJobs({ transport })).uncertain).toBe(1);

@@ -134,6 +134,10 @@ export async function processRecruitingMailJobs(
     // Keep the per-lead session lock through SMTP. Retention uses a nonblocking
     // transaction lock with the same key and skips an in-flight send.
     const mailLock = await pool.connect();
+    let broken = false;
+    const connectionError = () => { broken = true; };
+    // A checked-out client has no pool idle-error listener during SMTP.
+    mailLock.on("error", connectionError);
     try {
       await mailLock.query("SELECT pg_advisory_lock($1::int, $2::int)", [RETENTION_MAIL_LOCK, job.lead_id]);
       const obsolete = await cancellationReason(job, mailLock);
@@ -180,10 +184,9 @@ export async function processRecruitingMailJobs(
         else result.failed++;
       }
     } finally {
-      let broken = false;
-      try { await mailLock.query("SELECT pg_advisory_unlock($1::int, $2::int)", [RETENTION_MAIL_LOCK, job.lead_id]); }
+      try { if (!broken) await mailLock.query("SELECT pg_advisory_unlock($1::int, $2::int)", [RETENTION_MAIL_LOCK, job.lead_id]); }
       catch { broken = true; }
-      finally { mailLock.release(broken); }
+      finally { mailLock.release(broken); mailLock.removeListener("error", connectionError); }
     }
   }
   return result;
