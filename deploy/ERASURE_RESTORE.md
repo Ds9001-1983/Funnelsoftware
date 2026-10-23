@@ -99,7 +99,11 @@ Die Initialisierung darf dafür nicht erneut ausgeführt werden.
 Ein aktueller Checkpoint wird nie aus dem gerade zurückgespielten Backup als
 Freigabe übernommen. Alte Backups oder Journalteile werden von diesen Werkzeugen
 nicht gelöscht. Eine Betreiberfrist für Backups, ein automatischer externer
-Journal-Backupdienst und kundengesteuerte Aufbewahrungsjobs sind separate Arbeiten.
+Journal-Backupdienst mit lückenloser Replikation und kundengesteuerte Aufbewahrungsjobs
+sind separate Arbeiten. Der zeitgesteuerte externe Mac-Abruf ist in
+[ERASURE_BACKUP.md](ERASURE_BACKUP.md) beschrieben. Er prüft Kopien und Aktualität,
+kann aber Offline-Zeiten des Macs nicht überbrücken und ersetzt keinen
+abschließenden aktuellen Quellenvergleich.
 
 ## Automatisierte Abnahme
 
