@@ -256,8 +256,10 @@ export const leads = pgTable("leads", {
   index("leads_funnel_id_idx").on(table.funnelId),
 ]);
 
-// These are drafts only; no automatic erasure is activated by saving them.
+// Saving always pauses the rule; activation requires a separate reviewed request.
 export const funnelRetentionDrafts = pgTable("funnel_retention_drafts", {
+  activeVersion: integer("active_version"),
+  activatedAt: timestamp("activated_at"),
   funnelId: integer("funnel_id").primaryKey().references(() => funnels.id, { onDelete: "cascade" }),
   mode: text("mode").notNull(),
   days: integer("days").notNull(),

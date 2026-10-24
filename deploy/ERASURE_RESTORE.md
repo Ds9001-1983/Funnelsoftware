@@ -1,6 +1,7 @@
 # Löschjournal und Wiederherstellung
 
-Dieser Ablauf deckt die bestehenden manuellen Löschwege ab: einzelner Lead,
+Dieser Ablauf deckt automatische Aufbewahrungsaufträge und die bestehenden
+manuellen Löschwege ab: einzelner Lead,
 Leads zur aktuellen E-Mail eines Kundenkontos sowie vollständige Kontolöschung
 einschließlich ihrer Datenbankkaskaden, Sitzungen und zugeordneten Dateien.
 Er aktiviert keine Aufbewahrungsfrist und entfernt keine alten Sicherungen.
@@ -23,7 +24,13 @@ Dateien und Datenbankdaten entfernt. Eine Datenbankquittung wird gemeinsam mit
 der Löschung committed. Auch bei einer fehlgeschlagenen Antwort bleibt ein
 bereits geschriebenes Löschbegehren verbindlich: erneuter Versuch bzw. Replay
 führt es zu Ende. Ein Fehler ist deshalb keine Rücknahme des Löschauftrags.
-Ein ausstehender Auftrag mit noch vorhandenen Daten sperrt den nächsten Start.
+Ein ausstehender manueller Auftrag mit noch vorhandenen Daten sperrt den nächsten
+Start. Automatische Aufträge (`retention_leads`) dürfen bis zur externen
+Bestätigung warten; ihre Leads bleiben für Änderungen und automatische Mails
+gesperrt. Die Datenbankquittung bindet dabei bereits den Auftrag und ist kein
+Nachweis einer abgeschlossenen Löschung. Offline-Replay führt auch diese
+verbindlichen Aufträge aus. Vor der Freigabe eines Restore immer Replay ausführen,
+nicht nur den Startcheck.
 
 Mehrere App-Prozesse derselben Datenbank koordinieren sich über eine
 Transaktionssperre. Es darf nur eine produktiv schreibende Datenbank pro Journal
@@ -99,8 +106,8 @@ Die Initialisierung darf dafür nicht erneut ausgeführt werden.
 Ein aktueller Checkpoint wird nie aus dem gerade zurückgespielten Backup als
 Freigabe übernommen. Alte Backups oder Journalteile werden von diesen Werkzeugen
 nicht gelöscht. Eine Betreiberfrist für Backups, ein automatischer externer
-Journal-Backupdienst mit lückenloser Replikation und kundengesteuerte Aufbewahrungsjobs
-sind separate Arbeiten. Der zeitgesteuerte externe Mac-Abruf ist in
+Journal-Backupdienst mit lückenloser Replikation bleiben separate Arbeiten.
+Kundengesteuerte Aufbewahrungsjobs sind in [RETENTION_AUTOMATION.md](RETENTION_AUTOMATION.md) beschrieben. Der zeitgesteuerte externe Mac-Abruf ist in
 [ERASURE_BACKUP.md](ERASURE_BACKUP.md) beschrieben. Er prüft Kopien und Aktualität,
 kann aber Offline-Zeiten des Macs nicht überbrücken und ersetzt keinen
 abschließenden aktuellen Quellenvergleich.

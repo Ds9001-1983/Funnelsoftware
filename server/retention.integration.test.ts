@@ -89,7 +89,7 @@ describe.skipIf(!connection)("retention drafts, closure evidence and protected e
     ]);
     await service.saveRetentionDraft(f.funnel.id, f.owner.id, draft);
     const preview = await service.previewRetention(f.funnel.id, f.owner.id);
-    expect(preview.counts).toEqual({ due: 1, waiting: 1, open: 1, unknown: 2, excluded: 1, review: 1 });
+    expect(preview.counts).toEqual({ due: 1, waiting: 1, open: 1, unknown: 2, excluded: 1, review: 1, committed: 0 });
     expect(preview.total).toBe(7);
     expect((await database.db.select().from(leads).where(eq(leads.funnelId, f.funnel.id)))).toHaveLength(7);
     expect(preview.items.find(item => item.id === rows[0].id)?.dueAt).toBe(new Date(age(31).getTime() + 30 * 86400000).toISOString());

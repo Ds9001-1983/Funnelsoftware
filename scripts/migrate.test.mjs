@@ -40,7 +40,15 @@ describe.skipIf(!connection)("additive migration on existing funnels and leads",
     expect((await client.query("SELECT * FROM recruiting_mail_jobs")).rows).toEqual([]);
     expect((await client.query("SELECT * FROM brand_styles")).rows).toEqual([]);
     for (const table of ["content_templates", "media_folders", "media_assets", "marketing_consents", "owned_uploads", "funnel_retention_drafts", "lead_retention_exceptions"]) expect((await client.query(`SELECT * FROM ${table}`)).rows).toEqual([]);
-    expect((await client.query("SELECT count(*)::int AS count FROM app_migrations")).rows[0].count).toBe(9);
+    expect((await client.query("SELECT count(*)::int AS count FROM app_migrations")).rows[0].count).toBe(10);
+  });
+  it("preserves an existing retention draft without activating deletion", async () => {
+    await client.query("DELETE FROM app_migrations WHERE name='20261023_retention_activation.sql'");
+    await client.query("ALTER TABLE funnel_retention_drafts DROP COLUMN active_version, DROP COLUMN activated_at");
+    await client.query("INSERT INTO funnel_retention_drafts (funnel_id, mode, days, purpose, version) VALUES (1, 'closed_applications', 30, 'Existing reviewed draft', 4)");
+    const before = (await client.query("SELECT * FROM funnel_retention_drafts")).rows[0];
+    await migrate(client); await migrate(client);
+    expect((await client.query("SELECT * FROM funnel_retention_drafts")).rows).toEqual([{ ...before, active_version: null, activated_at: null }]);
   });
   it("backfills only recorded media/support ownership and remains idempotent", async () => {
     await client.query("DELETE FROM app_migrations WHERE name='20261014_owned_uploads.sql'; DROP TABLE owned_uploads");

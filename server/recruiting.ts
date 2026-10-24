@@ -1,3 +1,4 @@
+import { assertRetentionEditable, lockErasureJournal } from "./erasure-journal";
 import { nextClosedAt } from "@shared/retention-contract";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "./db";
@@ -102,6 +103,7 @@ export async function updateRecruitingPipeline(funnelId: number, ownerId: number
 export interface ChangeStageOptions { leadId: number; ownerId: number; actorId: number; stageId: string; expectedVersion: number; workspaceId?: number }
 export async function changeRecruitingStage(options: ChangeStageOptions) {
   return db.transaction(async tx => {
+    await lockErasureJournal(tx);
     // Wie Freigabeentzug zuerst den Workspace sperren; anschließend Lead vor
     // Funnel wie bei der bestehenden Lead-Löschung (keine inverse Sperrfolge).
     if (options.workspaceId !== undefined) await lockWorkspace(options.workspaceId, tx);
@@ -114,6 +116,7 @@ export async function changeRecruitingStage(options: ChangeStageOptions) {
     } else if (options.actorId !== options.ownerId) throw new RecruitingError(404, "Bewerbung nicht gefunden");
     const [lead] = await tx.select().from(leads).where(and(eq(leads.id, initial.id), eq(leads.userId, options.ownerId))).for("update");
     if (!lead) throw new RecruitingError(404, "Bewerbung nicht gefunden");
+    await assertRetentionEditable(lead.uuid);
     const funnel = await lockFunnel(tx, lead.funnelId, options.ownerId);
     const [owner] = await tx.select().from(users).where(eq(users.id, options.ownerId));
     if (!owner || owner.deletedAt || !owner.emailVerifiedAt) throw new RecruitingError(403, "E-Mail-Bestätigung erforderlich");

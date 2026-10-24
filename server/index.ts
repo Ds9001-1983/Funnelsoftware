@@ -13,6 +13,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { setupAuth, apiKeyAuth } from "./auth";
 import { storage } from "./storage";
+import { startRetentionWorker } from "./retention-worker";
 import { startScheduler } from "./scheduler";
 import { startRecruitingMailWorker } from "./recruiting-mail";
 import { pool } from "./db";
@@ -315,6 +316,7 @@ app.get("/api/health", async (_req, res) => {
       // damit ein Job-Fehler den Serverstart nie verhindert.
       startScheduler();
       startRecruitingMailWorker();
+      startRetentionWorker();
     },
   );
 

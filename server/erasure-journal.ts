@@ -16,6 +16,7 @@ const fileSchema = z.object({
 const targetSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("account"), key: z.string().uuid(), files: z.array(fileSchema) }).strict(),
   z.object({ type: z.literal("leads"), keys: z.array(z.string().uuid()).min(1) }).strict(),
+  z.object({ type: z.literal("retention_leads"), keys: z.array(z.string().uuid()).min(1).max(20) }).strict(),
 ]);
 export type ErasureTarget = z.infer<typeof targetSchema>;
 const anchorSchema = z.object({ version: z.literal(1), instanceId: z.string().uuid() }).strict();
@@ -99,7 +100,7 @@ export async function lockErasureJournal(tx: Transaction) {
   if (journalDirectory()) await tx.execute(sql`SELECT pg_advisory_xact_lock(734193829)`);
 }
 
-async function boundJournal(tx: Transaction, directory: string) {
+export async function boundJournal(tx: Transaction, directory: string) {
   const journal = await readJournal(directory);
   const [identity] = await tx.select().from(erasureJournalIdentity).where(eq(erasureJournalIdentity.id, 1));
   if (!identity || identity.instanceId !== journal.checkpoint.instanceId) throw new ErasureJournalError();
@@ -157,10 +158,11 @@ async function filePath(root: string, file: z.infer<typeof fileSchema>) {
   return path.join(parent, file.filename);
 }
 
-async function assertNoErasedData(tx: Transaction, entries: Envelope[], root: string) {
+async function assertNoErasedData(tx: Transaction, entries: Envelope[], root: string, allowWaitingRetention = false) {
   for (const { entry } of entries) {
     const target = entry.target;
-    if (target.type === "leads") {
+    if (target.type === "retention_leads" && allowWaitingRetention) continue;
+    if (target.type === "leads" || target.type === "retention_leads") {
       if ((await tx.select({ id: leads.id }).from(leads).where(inArray(leads.uuid, target.keys)).limit(1)).length) throw new ErasureJournalError();
     } else {
       if ((await tx.select({ id: users.id }).from(users).where(eq(users.erasureKey, target.key)).limit(1)).length) throw new ErasureJournalError();
@@ -181,7 +183,7 @@ export async function assertErasureJournalReady(root = process.cwd()) {
   await db.transaction(async tx => {
     await lockErasureJournal(tx);
     const journal = await boundJournal(tx, directory);
-    await assertNoErasedData(tx, journal.entries, root);
+    await assertNoErasedData(tx, journal.entries, root, true);
     // Resolve an interrupted response/commit or an already retried deletion.
     for (const record of journal.entries) {
       await tx.insert(erasureJournalReceipts).values({ sequence: record.entry.sequence, hash: record.hash }).onConflictDoNothing();
@@ -200,7 +202,7 @@ export async function replayErasureJournal(directory: string, root: string, expe
     let accounts = 0, leadCount = 0;
     for (const { entry, hash } of journal.entries) {
       const target = entry.target;
-      if (target.type === "leads") {
+      if (target.type === "leads" || target.type === "retention_leads") {
         const removed = await tx.delete(leads).where(inArray(leads.uuid, target.keys)).returning({ funnelId: leads.funnelId });
         const counts = new Map<number, number>();
         for (const lead of removed) counts.set(lead.funnelId, (counts.get(lead.funnelId) ?? 0) + 1);
@@ -241,4 +243,37 @@ export async function replayErasureJournal(directory: string, root: string, expe
     if (JSON.stringify((await readJournal(directory)).checkpoint) !== JSON.stringify(checkpoint)) throw new ErasureJournalError();
     return { accounts, leads: leadCount, checkpoint };
   });
+}
+
+/** Durable automatic intents are authoritative even if their SQL transaction
+ * failed. No DB-only pending flag can miss a filesystem/commit interruption. */
+export async function committedRetentionKeys(): Promise<Set<string>> {
+  const directory = journalDirectory();
+  if (!directory) return new Set();
+  const journal = await readJournal(directory);
+  return new Set(journal.entries.flatMap(({ entry }) => entry.target.type === "retention_leads" ? entry.target.keys : []));
+}
+export class RetentionCommittedError extends Error {
+  status = 409;
+  code = "RETENTION_COMMITTED";
+  constructor() { super("Die Löschung ist bereits verbindlich beauftragt und wartet auf ihre gesicherte Ausführung. Änderungen sind nicht mehr möglich."); }
+}
+export async function assertRetentionEditable(key: string) {
+  if ((await committedRetentionKeys()).has(key)) throw new RetentionCommittedError();
+}
+/** A receipt covers an immutable prefix; freshness never substitutes for the
+ * exact sequence/hash comparison made while holding the journal writer lock. */
+export async function externalJournalReceipt(directory: string, journal: Awaited<ReturnType<typeof readJournal>>) {
+  try {
+    const root = `${path.resolve(directory)}-offsite`;
+    const stat = await fs.lstat(root);
+    if (!stat.isDirectory() || stat.isSymbolicLink() || (stat.mode & 0o077)) return null;
+    const receipt = z.object({ version: z.literal(1), checkpoint: checkpointSchema, confirmedAt: z.string().datetime() }).strict()
+      .parse(await readPrivateJson(path.join(root, "receipt.json")));
+    const head = receipt.checkpoint;
+    const hash = head.sequence ? journal.entries[head.sequence - 1]?.hash : digest({ version: 1, instanceId: journal.checkpoint.instanceId });
+    const age = Date.now() - Date.parse(receipt.confirmedAt);
+    if (head.instanceId !== journal.checkpoint.instanceId || hash !== head.hash || age < 0 || age > 15 * 60_000) return null;
+    return receipt;
+  } catch { return null; }
 }

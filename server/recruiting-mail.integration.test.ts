@@ -91,6 +91,19 @@ describe.skipIf(!runIntegration)("Bewerbermail-Worker mit PostgreSQL und Memoryt
     expect((await processJobs({ transport })).claimed).toBe(0);
   });
 
+  it("holds the lead lock through SMTP and releases it after completion", async () => {
+    await addJob(1);
+    const transport: RecruitingEmailTransport = { sendMail: async () => {
+      const { rows } = await fixture.query("SELECT pg_try_advisory_lock(734193830, 1) AS locked");
+      expect(rows[0].locked).toBe(false);
+      return { accepted: ["candidate1@example.test"], messageId: "synthetic" };
+    } };
+    expect((await processJobs({ transport })).sent).toBe(1);
+    const { rows } = await fixture.query("SELECT pg_try_advisory_lock(734193830, 1) AS locked");
+    try { expect(rows[0].locked).toBe(true); }
+    finally { await fixture.query("SELECT pg_advisory_unlock(734193830, 1)"); }
+  });
+
   it("wiederholt nur eindeutig abgelehnte Mails zeitversetzt und beendet nach drei Versuchen", async () => {
     await addJob(1);
     const transport = { sendMail: vi.fn().mockRejectedValue({ responseCode: 451 }) };
@@ -148,16 +161,15 @@ describe.skipIf(!runIntegration)("Bewerbermail-Worker mit PostgreSQL und Memoryt
 
   it("behandelt einen DB-Ausfall nach SMTP-Annahme nach Wiederanlauf als unklar", async () => {
     await addJob(1);
-    const transport = memoryTransport();
-    const realQuery = workerPool.query.bind(workerPool);
-    const querySpy = vi.spyOn(workerPool, "query").mockImplementation(((...args: unknown[]) => {
-      if (typeof args[0] === "string" && args[0].includes("SET status = 'sent'")) {
-        return Promise.reject(new Error("simulated database outage after SMTP accepted"));
-      }
-      return (realQuery as (...args: unknown[]) => unknown)(...args);
-    }) as typeof workerPool.query);
-    try { await expect(processJobs({ transport })).rejects.toThrow("simulated database outage"); }
-    finally { querySpy.mockRestore(); }
+    const transport: RecruitingEmailTransport = { sendMail: vi.fn().mockImplementation(async () => {
+      const { rows } = await fixture.query("SELECT pid FROM pg_locks WHERE locktype='advisory' AND classid=734193830 AND objid=1 AND granted");
+      expect(rows).toHaveLength(1);
+      await fixture.query("SELECT pg_terminate_backend($1)", [rows[0].pid]);
+      // SMTP may have accepted while its dedicated DB connection disappeared.
+      await new Promise(resolve => setTimeout(resolve, 20));
+      return { accepted: ["candidate1@example.test"], messageId: "synthetic" };
+    }) };
+    await expect(processJobs({ transport })).rejects.toThrow();
     expect(transport.sendMail).toHaveBeenCalledOnce();
     await workerPool.query("UPDATE recruiting_mail_jobs SET processing_at = NOW() - INTERVAL '6 minutes'");
     expect((await processJobs({ transport })).uncertain).toBe(1);

@@ -6,7 +6,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { validateJournal, readJournal, exportJournal, runBackup, backupStatus, verifyCurrent } from './erasure-journal-backup.mjs';
+import { validateJournal, readJournal, exportJournal, runBackup, backupStatus, verifyCurrent, confirmExternalCopy, externalCopyStatus } from './erasure-journal-backup.mjs';
 const digest = v => createHash('sha256').update(JSON.stringify(v)).digest('hex');
 const execute = promisify(execFile);
 let base, source, config, journal;
@@ -48,6 +48,15 @@ describe('external append-only erasure journal backup', () => {
     expect(current.matchesSource).toBe(true);
     expect((await readJournal(current.journal)).checkpoint).toEqual(journal.checkpoint);
     expect(JSON.parse(await fs.readFile(current.checkpointFile, 'utf8'))).toEqual(journal.checkpoint);
+  });
+  it('durably backs up and confirms bounded automatic intents for restore', async () => {
+    await append({ type: 'retention_leads', keys: Array.from({ length: 20 }, () => randomUUID()) });
+    const confirmed = { ...config, confirmRemote: true };
+    await runBackup(confirmed, remote, async (_config, checkpoint, nonce) => ({ receipt: await confirmExternalCopy(source, checkpoint), nonce }));
+    expect((await externalCopyStatus(source)).fullyBackedUp).toBe(true);
+    const saved = await verifyCurrent(confirmed, remote);
+    expect((await readJournal(saved.journal)).records[0].entry.target.type).toBe('retention_leads');
+    await expect(append({ type: 'retention_leads', keys: Array.from({ length: 21 }, () => randomUUID()) })).rejects.toThrow();
   });
   it('uses owner-only permissions and exports no unrelated files', async () => {
     await append(); await runBackup(config, remote);
@@ -199,4 +208,126 @@ it('escapes launchd arguments and installs a five-minute, noninteractive schedul
     const file = path.join(base, 'agent.plist'); await fs.writeFile(file, plist);
     const result = await execute('/usr/bin/plutil', ['-lint', file]); expect(result.stdout).toContain('OK');
   }
+});
+
+describe('durable external-copy receipts', () => {
+  const acknowledge = async (_config, expected, nonce) => ({ receipt: await confirmExternalCopy(source, expected), nonce });
+  it('confirms only after a published local copy can be read back', async () => {
+    config.confirmRemote = true; await append();
+    let called = false;
+    await runBackup(config, remote, async (c, expected, nonce) => {
+      const pointer = JSON.parse(await fs.readFile(path.join(c.destination, 'latest.json'), 'utf8'));
+      const saved = await readJournal(path.join(c.destination, 'snapshots', pointer.snapshot, 'journal'));
+      expect(saved.checkpoint).toEqual(expected); called = true;
+      return acknowledge(c, expected, nonce);
+    });
+    expect(called).toBe(true);
+    expect(await externalCopyStatus(source)).toMatchObject({ fullyBackedUp: true, coveredThrough: 1, pendingRecords: 0 });
+    expect(await backupStatus(config)).toMatchObject({ ok: true, remoteConfirmation: true });
+  });
+  it('distinguishes newly appended, uncovered records from the confirmed prefix', async () => {
+    config.confirmRemote = true;
+    await runBackup(config, remote, acknowledge); await append();
+    expect(await externalCopyStatus(source)).toMatchObject({ fullyBackedUp: false, coveredThrough: 0, pendingRecords: 1 });
+    await runBackup(config, remote, acknowledge);
+    expect(await externalCopyStatus(source)).toMatchObject({ fullyBackedUp: true, coveredThrough: 1, pendingRecords: 0 });
+  });
+  it('accepts a copied prefix even when the source advances during the confirmation round trip', async () => {
+    config.confirmRemote = true;
+    await runBackup(config, remote, async (c, head, nonce) => { await append(); return acknowledge(c, head, nonce); });
+    expect(await externalCopyStatus(source)).toMatchObject({ fullyBackedUp: false, coveredThrough: 0, pendingRecords: 1 });
+    expect((await backupStatus(config)).remoteConfirmation).toBe(true);
+    await expect(verifyCurrent(config, remote)).rejects.toThrow('current source');
+  });
+  it('retains the complete backup but flags a failed confirmation and recovers on retry', async () => {
+    config.confirmRemote = true; await append();
+    await expect(runBackup(config, remote, async () => { throw new Error('connection lost'); })).rejects.toThrow('connection lost');
+    const pointer = JSON.parse(await fs.readFile(path.join(config.destination, 'latest.json'), 'utf8'));
+    expect((await readJournal(path.join(config.destination, 'snapshots', pointer.snapshot, 'journal'))).checkpoint.sequence).toBe(1);
+    await expect(backupStatus(config)).rejects.toThrow('failed');
+    await expect(externalCopyStatus(source)).rejects.toThrow();
+    await runBackup(config, remote, acknowledge);
+    expect(await backupStatus(config)).toMatchObject({ ok: true, remoteConfirmation: true });
+  });
+  it('does not acknowledge an export error or a corrupted local copy', async () => {
+    config.confirmRemote = true; let calls = 0;
+    const count = (...args) => { calls++; return acknowledge(...args); };
+    await expect(runBackup(config, async () => { throw new Error('broken export'); }, count)).rejects.toThrow();
+    expect(calls).toBe(0);
+    await runBackup(config, remote, count);
+    const pointer = JSON.parse(await fs.readFile(path.join(config.destination, 'latest.json'), 'utf8'));
+    await json(path.join(config.destination, 'snapshots', pointer.snapshot, 'checkpoint.json'), { ...pointer.checkpoint, hash: '0'.repeat(64) });
+    calls = 0;
+    await expect(runBackup(config, remote, count)).rejects.toThrow('mismatch');
+    expect(calls).toBe(0);
+  });
+  it('does not let a lost response remove the already durable source receipt', async () => {
+    config.confirmRemote = true; await append();
+    await expect(runBackup(config, remote, async (c, h, n) => { await acknowledge(c, h, n); throw new Error('response lost'); })).rejects.toThrow('response lost');
+    expect((await externalCopyStatus(source)).fullyBackedUp).toBe(true);
+    await expect(backupStatus(config)).rejects.toThrow('failed');
+    await runBackup(config, remote, acknowledge);
+    expect((await backupStatus(config)).ok).toBe(true);
+  });
+  it('rejects wrong hashes, foreign instances and receipts beyond the source head', async () => {
+    await append();
+    await expect(confirmExternalCopy(source, { ...journal.checkpoint, hash: '0'.repeat(64) })).rejects.toThrow('prefix');
+    await expect(confirmExternalCopy(source, { ...journal.checkpoint, instanceId: randomUUID() })).rejects.toThrow('identity');
+    await expect(confirmExternalCopy(source, { ...journal.checkpoint, sequence: 2 })).rejects.toThrow('regressed');
+  });
+  it('never replaces a newer receipt with an older one', async () => {
+    const old = journal.checkpoint; await append();
+    const saved = await confirmExternalCopy(source, journal.checkpoint);
+    await expect(confirmExternalCopy(source, old)).rejects.toThrow('backwards');
+    const current = JSON.parse(await fs.readFile(path.join(`${source}-offsite`, 'receipt.json'), 'utf8'));
+    expect(current).toEqual(saved);
+  });
+  it('keeps confirmation storage outside the journal even with a trailing slash', async () => {
+    const before = await fs.readdir(source);
+    await confirmExternalCopy(`${source}/`, journal.checkpoint);
+    expect(await fs.readdir(source)).toEqual(before);
+    expect((await externalCopyStatus(`${source}/`)).fullyBackedUp).toBe(true);
+    expect((await fs.stat(`${source}-offsite/receipt.json`)).mode & 0o077).toBe(0);
+  });
+  it('rejects symlinked or damaged receipt storage without modifying the journal', async () => {
+    const before = await readJournal(source);
+    const elsewhere = path.join(base, 'elsewhere'); await fs.mkdir(elsewhere, { mode: 0o700 });
+    await fs.symlink(elsewhere, `${source}-offsite`);
+    await expect(confirmExternalCopy(source, journal.checkpoint)).rejects.toThrow('symlink');
+    await fs.unlink(`${source}-offsite`);
+    await confirmExternalCopy(source, journal.checkpoint);
+    await json(path.join(`${source}-offsite`, 'receipt.json'), { broken: true });
+    await expect(confirmExternalCopy(source, journal.checkpoint)).rejects.toThrow('structure');
+    expect(await readJournal(source)).toEqual(before);
+  });
+  it('refuses a wrong confirmation response or an unconfirmed latest snapshot', async () => {
+    config.confirmRemote = true;
+    await expect(runBackup(config, remote, async (c, h, n) => ({ ...(await acknowledge(c, h, n)), nonce: randomUUID() }))).rejects.toThrow('mismatch');
+    await runBackup(config, remote, acknowledge);
+    await fs.unlink(path.join(config.destination, 'receipt.json'));
+    await expect(backupStatus(config)).rejects.toThrow();
+  });
+  it('handles concurrent confirmations without ever regressing the receipt', async () => {
+    const old = journal.checkpoint; await append();
+    const results = await Promise.allSettled([confirmExternalCopy(source, old), confirmExternalCopy(source, journal.checkpoint)]);
+    expect(results.some(r => r.status === 'fulfilled')).toBe(true);
+    await confirmExternalCopy(source, journal.checkpoint);
+    expect((await externalCopyStatus(source)).fullyBackedUp).toBe(true);
+  });
+  it('treats an interrupted receipt lock as an explicit error, never deletes it automatically', async () => {
+    await fs.mkdir(`${source}-offsite`, { mode: 0o700 });
+    await fs.mkdir(path.join(`${source}-offsite`, '.receipt-lock'), { mode: 0o700 });
+    await expect(confirmExternalCopy(source, journal.checkpoint)).rejects.toThrow('lock');
+    expect((await fs.stat(path.join(`${source}-offsite`, '.receipt-lock'))).isDirectory()).toBe(true);
+  });
+  it('supports source status and confirmation as standalone stdin commands', async () => {
+    await append();
+    const nonce = randomUUID(), encoded = Buffer.from(JSON.stringify(journal.checkpoint)).toString('base64url');
+    const { stdout } = await execute(process.execPath, ['scripts/erasure-journal-backup.mjs', '--ack', source, encoded, nonce]);
+    expect(JSON.parse(stdout)).toMatchObject({ nonce, receipt: { checkpoint: journal.checkpoint } });
+    const status = await execute(process.execPath, ['scripts/erasure-journal-backup.mjs', 'source-status', source]);
+    expect(JSON.parse(status.stdout).fullyBackedUp).toBe(true);
+    await append();
+    await expect(execute(process.execPath, ['scripts/erasure-journal-backup.mjs', 'source-status', source])).rejects.toMatchObject({ code: 1 });
+  });
 });

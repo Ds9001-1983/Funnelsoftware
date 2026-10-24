@@ -3,7 +3,7 @@ import { eq, desc, and, sql, gte, lt, inArray, isNull } from "drizzle-orm";
 import { quizTemplateElement } from "@shared/quiz-template";
 import { db } from "./db";
 import { deleteAccountWithFiles } from "./account-files";
-import { lockErasureJournal, recordErasure } from "./erasure-journal";
+import { assertRetentionEditable, lockErasureJournal, recordErasure } from "./erasure-journal";
 import { queueRecruitingEmails } from "./recruiting";
 import { publishedDocument, writeFunnel } from "./funnel-revisions";
 import { needsLayoutDocument } from "@shared/funnel-layout";
@@ -697,18 +697,15 @@ export class DatabaseStorage implements IStorage {
       return this.getLead(id, userId);
     }
 
-    const [lead] = await db.update(leads)
-      .set(updateData)
-      .where(and(eq(leads.id, id), eq(leads.userId, userId)))
-      .returning();
-
-    if (!lead) return undefined;
-
-    const [funnel] = await db.select({ name: funnels.name })
-      .from(funnels)
-      .where(eq(funnels.id, lead.funnelId));
-
-    return this.mapLeadToResponse(lead, funnel?.name);
+    return db.transaction(async tx => {
+      await lockErasureJournal(tx);
+      const [current] = await tx.select().from(leads).where(and(eq(leads.id, id), eq(leads.userId, userId))).for("update");
+      if (!current) return undefined;
+      await assertRetentionEditable(current.uuid);
+      const [lead] = await tx.update(leads).set(updateData).where(eq(leads.id, id)).returning();
+      const [funnel] = await tx.select({ name: funnels.name }).from(funnels).where(eq(funnels.id, lead.funnelId));
+      return this.mapLeadToResponse(lead, funnel?.name);
+    });
   }
 
   async deleteLead(id: number, userId: number): Promise<boolean> {

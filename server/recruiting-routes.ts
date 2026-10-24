@@ -1,3 +1,4 @@
+import { RetentionCommittedError } from "./erasure-journal";
 import type { Express, Request, Response } from "express";
 import { and, eq } from "drizzle-orm";
 import rateLimit from "express-rate-limit";
@@ -15,7 +16,7 @@ function id(value: unknown): number { return idSchema.parse(value); }
 function workspaceId(req: Request): number | undefined { return req.query.workspaceId === undefined ? undefined : id(req.query.workspaceId); }
 function fail(res: Response, error: unknown) {
   if (error instanceof z.ZodError) return res.status(400).json({ error: "Ungültige Eingabe", details: error.errors });
-  if (error instanceof RecruitingError || error instanceof WorkspaceError) return res.status(error.status).json({ error: error.message, code: error.code });
+  if (error instanceof RetentionCommittedError || error instanceof RecruitingError || error instanceof WorkspaceError) return res.status(error.status).json({ error: error.message, code: error.code });
   console.error("Recruiting-Anfrage fehlgeschlagen:", error instanceof Error ? error.name : "unknown");
   return res.status(500).json({ error: "Die Anfrage konnte nicht verarbeitet werden" });
 }

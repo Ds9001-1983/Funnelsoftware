@@ -7,10 +7,12 @@ Die Auswahl gilt nur für den gewählten, nicht gelöschten Funnel. Kundenzugän
 Die Funktion ist auch im Free-Plan verfügbar; Kontaktfelder gesperrter Leads
 werden durch die Vorschau nicht offengelegt.
 
-**Speichern aktiviert keine automatische Löschung.** Es gibt in diesem Paket
-keinen Aufbewahrungsscheduler und keinen Endpunkt zum Ausführen der Vorschau.
-Die Vorschau ist kein dauerhafter Löschauftrag. Bestehende manuelle Löschwege
-bleiben unverändert nutzbar und verwenden weiterhin das Löschjournal.
+**Speichern aktiviert keine automatische Löschung und pausiert eine aktive Regel.**
+Die Vorschau ist kein dauerhafter Löschauftrag. Die gesonderte ausdrückliche
+Aktivierung und Wartefunktion sind in [RETENTION_AUTOMATION.md](RETENTION_AUTOMATION.md)
+beschrieben. Bereits verbindlich beauftragte Löschungen sind als solche markiert;
+Änderungen und Ausnahmen sind dann nicht mehr möglich. Bestehende manuelle
+Löschwege bleiben nutzbar und verwenden weiterhin das Löschjournal.
 
 ## Zeitbezug und Ausnahmen
 
@@ -47,10 +49,10 @@ geladen. Die API liefert keine Namen, E-Mail-Adressen oder Antworten. Die UI
 verwendet nur bereits sichtbare Leadnamen aus der vorhandenen Leadübersicht.
 Analytics, gelöschte Funnels, Medien und Backups haben keine Regel in diesem Paket.
 
-## Folgeumfang
+## Automatik und verbleibender Umfang
 
-Vor automatischer Bereinigung: laufende externe Journalsicherung mit unabhängig
-prüfbaren aktuellen Checkpoints fertigstellen; bewusste Aktivierung nach aktueller
-Vorschau sowie begrenzte, wiederholbare Jobs mit erneuter Prüfung von Regelversion,
-Ausnahme, Status, Eigentümer und laufendem Mailversand implementieren. Keine feste
-Betreiberfrist oder pauschale Kundentagesfrist wird aus diesem Entwurf abgeleitet.
+Die Automatik prüft Regel, Ausnahmen, Status und laufenden Mailversand vor der
+Beauftragung und wartet vor der Löschung auf die bestätigte externe Journalkopie.
+Siehe [RETENTION_AUTOMATION.md](RETENTION_AUTOMATION.md). Bestehende Entwürfe
+werden nicht automatisch aktiviert. Eine feste Betreiberfrist für Backups oder
+pauschale Kundentagesfrist wird nicht aus einem Entwurf abgeleitet.

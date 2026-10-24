@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Installs only the local Mac backup agent. Never changes the source server.
+// Installs the local Mac agent. Optional confirmations write only separate
+// receipt metadata on the source, never application data or journal entries.
 import { promises as fs, constants } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -42,6 +43,10 @@ async function main() {
     raw = await h.readFile('utf8');
   } finally { await h.close(); }
   const config = JSON.parse(raw);
+  const domain = `gui/${process.getuid()}`, target = `${domain}/${label}`;
+  let loaded = false;
+  try { await execute('/bin/launchctl', ['print', target]); loaded = true; } catch { /* First installation or stopped update. */ }
+  if (loaded) throw new Error(`Wait for the current backup to finish, then stop ${target} before updating.`);
   // Use the actual CLI validator and transfer before installing a recurring task.
   await execute(process.execPath, [fileURLToPath(new URL('./erasure-journal-backup.mjs', import.meta.url)), 'run', input], { timeout: 90_000 });
   await backupStatus(config);
@@ -51,10 +56,6 @@ async function main() {
   if (!stat.isDirectory() || stat.isSymbolicLink() || (stat.mode & 0o077)) throw new Error('Installation directory must be private and not a symlink.');
   const script = path.join(directory, 'backup.mjs'), configPath = path.join(directory, 'config.json'), log = path.join(directory, 'backup.log');
   const agent = path.join(os.homedir(), 'Library/LaunchAgents', `${label}.plist`);
-  const domain = `gui/${process.getuid()}`, target = `${domain}/${label}`;
-  let loaded = false;
-  try { await execute('/bin/launchctl', ['print', target]); loaded = true; } catch { /* First installation. */ }
-  if (loaded) await execute('/bin/launchctl', ['bootout', target]);
   await replace(script, await fs.readFile(new URL('./erasure-journal-backup.mjs', import.meta.url)));
   await replace(configPath, raw);
   await fs.mkdir(path.dirname(agent), { recursive: true });

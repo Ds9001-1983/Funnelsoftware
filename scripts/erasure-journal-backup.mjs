@@ -41,10 +41,11 @@ function record(value) {
   object(e, ['version', 'instanceId', 'sequence', 'previousHash', 'requestedAt', 'target']);
   if (e.version !== 1 || !Number.isSafeInteger(e.sequence) || e.sequence < 1) fail('Invalid sequence.');
   let target;
-  if (e.target?.type === 'leads') {
+  if (e.target?.type === 'leads' || e.target?.type === 'retention_leads') {
     object(e.target, ['type', 'keys']);
     if (!Array.isArray(e.target.keys) || !e.target.keys.length) fail('Missing lead identities.');
-    target = { type: 'leads', keys: e.target.keys.map(uuid) };
+    if (e.target.type === 'retention_leads' && e.target.keys.length > 20) fail('Automatic batch exceeds limit.');
+    target = { type: e.target.type, keys: e.target.keys.map(uuid) };
   } else {
     object(e.target, ['type', 'key', 'files']);
     if (e.target.type !== 'account' || !Array.isArray(e.target.files)) fail('Invalid account target.');
@@ -128,12 +129,55 @@ export async function exportJournal(directory, nonce) {
   if (!equal(journal.checkpoint, (await readJournal(directory)).checkpoint)) fail('Source advanced during export; retry.');
   return { ...journal, nonce };
 }
+function receipt(value) {
+  object(value, ['version', 'checkpoint', 'confirmedAt']);
+  if (value.version !== 1) fail('Invalid backup receipt version.');
+  return { version: 1, checkpoint: checkpoint(value.checkpoint), confirmedAt: date(value.confirmedAt) };
+}
+// Kept next to, never inside, the append-only journal. A receipt is evidence
+// of an external copy, not a deletion instruction or a restore authorization.
+export async function confirmExternalCopy(directory, expected) {
+  const requested = checkpoint(expected);
+  await privateDir(directory);
+  directory = path.resolve(directory);
+  // Validate the source before creating any confirmation storage.
+  assertExtension(requested, await readJournal(directory));
+  const root = `${directory}-offsite`;
+  await privateDir(root, true);
+  const lock = path.join(root, '.receipt-lock');
+  try { await fs.mkdir(lock, { mode: 0o700 }); }
+  catch (e) { if (e.code === 'EEXIST') fail('Backup receipt lock exists; check for an interrupted confirmation.'); throw e; }
+  try {
+    const source = await readJournal(directory);
+    assertExtension(requested, source);
+    let previous;
+    try { previous = receipt(await readJson(path.join(root, 'receipt.json'))); }
+    catch (e) { if (e.code !== 'ENOENT') throw e; }
+    if (previous) {
+      assertExtension(previous.checkpoint, source);
+      if (previous.checkpoint.sequence > requested.sequence) fail('External receipt cannot move backwards.');
+    }
+    const result = { version: 1, checkpoint: requested, confirmedAt: new Date().toISOString() };
+    await replaceJson(root, 'receipt.json', result);
+    return result;
+  } finally { await fs.rmdir(lock); await syncDir(root); }
+}
+export async function externalCopyStatus(directory) {
+  const source = await readJournal(directory);
+  directory = path.resolve(directory);
+  await privateDir(`${directory}-offsite`);
+  const saved = receipt(await readJson(path.join(`${directory}-offsite`, 'receipt.json')));
+  assertExtension(saved.checkpoint, source);
+  return { fullyBackedUp: equal(saved.checkpoint, source.checkpoint),
+    coveredThrough: saved.checkpoint.sequence, pendingRecords: source.checkpoint.sequence - saved.checkpoint.sequence,
+    confirmedAt: saved.confirmedAt, checkpoint: saved.checkpoint, sourceCheckpoint: source.checkpoint };
+}
 const shellQuote = value => "'" + value.replaceAll("'", "'\\''") + "'";
-export async function fetchRemote(config, nonce) {
+async function remoteCommand(config, args) {
   if (typeof config.host !== 'string' || !/^(?:[a-zA-Z0-9_][a-zA-Z0-9_.-]*@)?[a-zA-Z0-9][a-zA-Z0-9.-]*$/.test(config.host)) fail('Invalid SSH host.');
   if (!path.isAbsolute(config.source) || /[\r\n\0]/.test(config.source)) fail('Invalid source path.');
   const script = await fs.readFile(fileURLToPath(import.meta.url));
-  const command = `/usr/bin/node --input-type=module - --remote ${shellQuote(config.source)} ${shellQuote(nonce)}`;
+  const command = `/usr/bin/node --input-type=module - ${args.map(shellQuote).join(' ')}`;
   return new Promise((resolve, reject) => {
     const child = spawn('/usr/bin/ssh', ['-T', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
       '-o', 'ConnectTimeout=15', '-o', 'ServerAliveInterval=10', '-o', 'ServerAliveCountMax=2', config.host, command], { stdio: ['pipe', 'pipe', 'pipe'] });
@@ -150,12 +194,19 @@ export async function fetchRemote(config, nonce) {
       else output.push(chunk);
     });
     child.on('close', code => {
-      if (code !== 0) return finish(new Error(`Journal SSH export failed (exit ${code}).`));
+      if (code !== 0) return finish(new Error(`Journal SSH request failed (exit ${code}).`));
       try { finish(null, JSON.parse(Buffer.concat(output).toString('utf8'))); }
       catch { finish(new Error('Invalid journal export.')); }
     });
     child.stdin.end(script);
   });
+}
+export function fetchRemote(config, nonce) {
+  return remoteCommand(config, ['--remote', config.source, nonce]);
+}
+export async function acknowledgeRemote(config, expected, nonce) {
+  const encoded = Buffer.from(JSON.stringify(checkpoint(expected))).toString('base64url');
+  return remoteCommand(config, ['--ack', config.source, encoded, nonce]);
 }
 async function readLatest(destination) {
   let latest;
@@ -180,7 +231,7 @@ async function saveSnapshot(destination, journal) {
   await fs.rename(staging, path.join(root, id)); await syncDir(root);
   return id;
 }
-export async function runBackup(config, remote = fetchRemote) {
+export async function runBackup(config, remote = fetchRemote, acknowledge = acknowledgeRemote) {
   await privateDir(config.destination, true);
   const lock = path.join(config.destination, '.backup-lock');
   try { await fs.mkdir(lock, { mode: 0o700 }); }
@@ -203,6 +254,17 @@ export async function runBackup(config, remote = fetchRemote) {
       ? previous.snapshot : await saveSnapshot(config.destination, journal);
     const latest = { version: 1, snapshot, checkpoint: journal.checkpoint, verifiedAt: startedAt };
     await replaceJson(config.destination, 'latest.json', latest);
+    if (config.confirmRemote) {
+      // Reopen the published copy using the same strict parser before any
+      // acknowledgment is sent. No receipt can precede durable local storage.
+      const saved = await readLatest(config.destination);
+      if (!saved || !equal(saved.checkpoint, journal.checkpoint)) fail('Local snapshot changed before confirmation.');
+      const challenge = randomUUID(), answer = await acknowledge(config, saved.checkpoint, challenge);
+      object(answer, ['receipt', 'nonce']);
+      const confirmation = receipt(answer.receipt);
+      if (answer.nonce !== challenge || !equal(confirmation.checkpoint, saved.checkpoint)) fail('Backup confirmation mismatch.');
+      await replaceJson(config.destination, 'receipt.json', confirmation);
+    }
     await replaceJson(config.destination, 'status.json', { version: 1, ok: true, attemptedAt: startedAt, sequence: journal.checkpoint.sequence });
     return latest;
   } catch (error) {
@@ -216,10 +278,15 @@ export async function backupStatus(config, now = Date.now()) {
   if (!latest) fail('No verified backup.');
   const state = await readJson(path.join(config.destination, 'status.json'));
   if (state.ok !== true) fail('Last backup attempt failed.');
+  if (config.confirmRemote) {
+    const confirmation = receipt(await readJson(path.join(config.destination, 'receipt.json')));
+    if (!equal(confirmation.checkpoint, latest.checkpoint)) fail('Remote confirmation is missing for the latest snapshot.');
+  }
   const age = now - Date.parse(latest.verifiedAt);
   if (age < 0 || age > config.maxAgeSeconds * 1000) fail('Backup is stale or clock moved backwards.');
   if (await fs.lstat(path.join(config.destination, '.backup-lock')).then(() => true, e => { if (e.code === 'ENOENT') return false; throw e; })) fail('Backup in progress or interrupted.');
-  return { ok: true, verifiedAt: latest.verifiedAt, ageSeconds: Math.floor(age / 1000), checkpoint: latest.checkpoint, snapshot: latest.snapshot };
+  return { ok: true, verifiedAt: latest.verifiedAt, ageSeconds: Math.floor(age / 1000), checkpoint: latest.checkpoint, snapshot: latest.snapshot,
+    remoteConfirmation: config.confirmRemote === true };
 }
 export async function verifyCurrent(config, remote = fetchRemote) {
   await privateDir(config.destination);
@@ -236,7 +303,9 @@ export async function verifyCurrent(config, remote = fetchRemote) {
 }
 async function configFile(filename) {
   const config = await readJson(path.resolve(filename));
-  object(config, ['version', 'host', 'source', 'destination', 'maxAgeSeconds', 'initialCheckpoint']);
+  object(config, ['version', 'host', 'source', 'destination', 'maxAgeSeconds', 'initialCheckpoint',
+    ...('confirmRemote' in config ? ['confirmRemote'] : [])]);
+  if ('confirmRemote' in config && typeof config.confirmRemote !== 'boolean') fail('Invalid remote confirmation setting.');
   if (config.version !== 1 || !path.isAbsolute(config.destination) || !Number.isInteger(config.maxAgeSeconds)
     || config.maxAgeSeconds < 60 || config.maxAgeSeconds > 86400) fail('Invalid backup configuration.');
   checkpoint(config.initialCheckpoint);
@@ -250,11 +319,23 @@ async function main() {
     if (Buffer.byteLength(output) > MAX_BYTES) fail('Journal exceeds export limit.');
     process.stdout.write(output + '\n'); return;
   }
+  if (command === '--ack' && args.length === 3) {
+    uuid(args[2]);
+    if (args[1].length > 2048 || !/^[A-Za-z0-9_-]+$/.test(args[1])) fail('Invalid confirmation payload.');
+    const expected = checkpoint(JSON.parse(Buffer.from(args[1], 'base64url').toString('utf8')));
+    process.stdout.write(JSON.stringify({ receipt: await confirmExternalCopy(args[0], expected), nonce: args[2] }) + '\n'); return;
+  }
+  if (command === 'source-status' && args.length === 1) {
+    const status = await externalCopyStatus(args[0]);
+    process.stdout.write(JSON.stringify(status) + '\n');
+    if (!status.fullyBackedUp) process.exitCode = 1;
+    return;
+  }
   if (!['run', 'status', 'verify-current'].includes(command) || args.length !== 1) fail('Usage: run|status|verify-current <private-config.json>');
   const config = await configFile(args[0]);
   const result = command === 'run' ? await runBackup(config) : command === 'status' ? await backupStatus(config) : await verifyCurrent(config);
   process.stdout.write(JSON.stringify(result) + '\n');
 }
-if (process.argv[2] === '--remote' || (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))) {
+if (['--remote', '--ack', 'source-status'].includes(process.argv[2]) || (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))) {
   main().catch(error => { console.error(`${new Date().toISOString()} ${error.message}`); process.exitCode = 1; });
 }

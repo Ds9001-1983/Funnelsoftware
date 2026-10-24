@@ -1,9 +1,11 @@
-import { and, eq, sql } from "drizzle-orm";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { assertRetentionEditable, committedRetentionKeys, externalJournalReceipt, journalDirectory, lockErasureJournal, readJournal } from "./erasure-journal";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "./db";
 import { funnels, users, leads, funnelRetentionDrafts, leadRetentionExceptions } from "@shared/schema";
 import {
-  retentionDraftSchema, retentionExceptionSchema, RETENTION_STATES,
-  type RetentionDraft, type RetentionDraftInput, type RetentionExceptionInput, type RetentionPreview, type RetentionState,
+  retentionDraftSchema, retentionExceptionSchema, retentionActivationSchema, RETENTION_STATES,
+  type RetentionActivationInput, type RetentionDraft, type RetentionDraftInput, type RetentionExceptionInput, type RetentionPreview, type RetentionState,
 } from "@shared/retention-contract";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -20,12 +22,13 @@ function conflict() { throw new RetentionError(409, "Die Angaben wurden inzwisch
 export async function saveRetentionDraft(funnelId: number, ownerId: number, raw: RetentionDraftInput): Promise<RetentionDraft> {
   const { expectedVersion, ...input } = retentionDraftSchema.parse(raw);
   return db.transaction(async tx => {
+    await lockErasureJournal(tx);
     await ownerFunnel(tx, funnelId, ownerId, true);
     const [current] = await tx.select().from(funnelRetentionDrafts).where(eq(funnelRetentionDrafts.funnelId, funnelId));
     if ((current?.version ?? 0) !== expectedVersion) conflict();
     const version = expectedVersion + 1;
-    await tx.insert(funnelRetentionDrafts).values({ funnelId, ...input, version })
-      .onConflictDoUpdate({ target: funnelRetentionDrafts.funnelId, set: { ...input, version, updatedAt: new Date() } });
+    await tx.insert(funnelRetentionDrafts).values({ funnelId, ...input, version, activeVersion: null, activatedAt: null })
+      .onConflictDoUpdate({ target: funnelRetentionDrafts.funnelId, set: { ...input, version, activeVersion: null, activatedAt: null, updatedAt: new Date() } });
     return { ...input, version };
   });
 }
@@ -35,10 +38,12 @@ export async function saveRetentionException(leadId: number, ownerId: number, ra
     throw new RetentionError(400, "Der Prüftermin muss in der Zukunft liegen.");
   }
   return db.transaction(async tx => {
-    // Same ordering as stage changes: lead, then funnel. No deletion is performed.
-    const [lead] = await tx.select({ funnelId: leads.funnelId }).from(leads)
+    await lockErasureJournal(tx);
+    // Same ordering as stage changes: journal, lead, then funnel.
+    const [lead] = await tx.select({ funnelId: leads.funnelId, uuid: leads.uuid }).from(leads)
       .where(and(eq(leads.id, leadId), eq(leads.userId, ownerId))).for("update");
     if (!lead) throw new RetentionError(404, "Lead nicht gefunden");
+    await assertRetentionEditable(lead.uuid);
     await ownerFunnel(tx, lead.funnelId, ownerId, true);
     const [current] = await tx.select().from(leadRetentionExceptions).where(eq(leadRetentionExceptions.leadId, leadId));
     if ((current?.version ?? 0) !== input.expectedVersion) conflict();
@@ -61,7 +66,9 @@ export async function previewRetention(funnelId: number, ownerId: number, page =
     const base = draft?.mode === "general_leads" ? sql`${leads.createdAt}` : sql`${leads.closedAt}`;
     // UTC timestamps and a duration of 24h per day, independent of server/DST timezone.
     const dueAt = draft ? sql`(${base} + ${draft.days} * interval '24 hours')` : sql`NULL::timestamp`;
+    const pending = Array.from(await committedRetentionKeys());
     const state = sql`CASE
+      WHEN ${pending.length ? inArray(leads.uuid, pending) : sql`false`} THEN 'committed'
       WHEN ${leadRetentionExceptions.reason} IS NOT NULL THEN
         CASE WHEN ${leadRetentionExceptions.reviewAt} <= ${now.toISOString()}::timestamptz AT TIME ZONE 'UTC' THEN 'review' ELSE 'excluded' END
       WHEN ${draft === null} THEN 'unknown'
@@ -80,8 +87,46 @@ export async function previewRetention(funnelId: number, ownerId: number, page =
       reason: leadRetentionExceptions.reason, reviewAt: leadRetentionExceptions.reviewAt, version: leadRetentionExceptions.version,
     }).from(leads).leftJoin(leadRetentionExceptions, eq(leadRetentionExceptions.leadId, leads.id))
       .where(scope).orderBy(leads.id).limit(pageSize).offset(page * pageSize);
-    return { draft, automaticDeletion: false, asOf: now.toISOString(), counts, total: Object.values(counts).reduce((a, b) => a + b, 0), page, pageSize,
+    return { draft, automaticDeletion: !!stored && stored.activeVersion === stored.version,
+      backupReady: await backupReady(), previewToken: draft ? signPreview(ownerId, funnelId, draft.version, now.getTime()) : "", asOf: now.toISOString(), counts, total: Object.values(counts).reduce((a, b) => a + b, 0), page, pageSize,
       items: rows.map(row => ({ id: row.id, state: row.state as RetentionState, dueAt: row.dueAt,
         exception: { reason: row.reason, reviewAt: row.reviewAt?.toISOString() ?? null, version: row.version ?? 0 } })) };
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
+}
+
+const previewSecret = process.env.SESSION_SECRET || randomBytes(32).toString("hex");
+function signPreview(ownerId: number, funnelId: number, version: number, time: number) {
+  const message = `${ownerId}.${funnelId}.${version}.${time}`;
+  return `${time}.${createHmac("sha256", previewSecret).update(message).digest("hex")}`;
+}
+async function backupReady() {
+  const directory = journalDirectory();
+  if (!directory) return false;
+  try {
+    const journal = await readJournal(directory), receipt = await externalJournalReceipt(directory, journal);
+    return !!receipt && receipt.checkpoint.sequence === journal.checkpoint.sequence;
+  } catch { return false; }
+}
+export async function setRetentionActivation(funnelId: number, ownerId: number, raw: RetentionActivationInput) {
+  const input = retentionActivationSchema.parse(raw);
+  await db.transaction(async tx => {
+    await lockErasureJournal(tx);
+    await ownerFunnel(tx, funnelId, ownerId, true);
+    const [rule] = await tx.select().from(funnelRetentionDrafts).where(eq(funnelRetentionDrafts.funnelId, funnelId));
+    if (!rule || rule.version !== input.expectedVersion) conflict();
+    if (input.active) {
+      const time = Number(input.previewToken?.split(".")[0]);
+      const expected = signPreview(ownerId, funnelId, rule.version, time);
+      const received = input.previewToken || "";
+      if (!input.confirmed || !Number.isSafeInteger(time) || Date.now() - time < 0 || Date.now() - time > 5 * 60_000
+        || Buffer.byteLength(received) !== Buffer.byteLength(expected) || !timingSafeEqual(Buffer.from(received), Buffer.from(expected))) {
+        throw new RetentionError(409, "Bitte lade die Vorschau neu und bestätige den Löschauftrag ausdrücklich.");
+      }
+      if (!await backupReady()) throw new RetentionError(503, "Die externe Sicherung ist noch nicht bestätigt. Bitte später erneut versuchen.");
+    }
+    const version = rule.version + 1;
+    await tx.update(funnelRetentionDrafts).set({ version, activeVersion: input.active ? version : null,
+      activatedAt: input.active ? new Date() : null, updatedAt: new Date() }).where(eq(funnelRetentionDrafts.funnelId, funnelId));
+  });
+  return previewRetention(funnelId, ownerId);
 }
