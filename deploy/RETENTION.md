@@ -56,3 +56,7 @@ Beauftragung und wartet vor der Löschung auf die bestätigte externe Journalkop
 Siehe [RETENTION_AUTOMATION.md](RETENTION_AUTOMATION.md). Bestehende Entwürfe
 werden nicht automatisch aktiviert. Eine feste Betreiberfrist für Backups oder
 pauschale Kundentagesfrist wird nicht aus einem Entwurf abgeleitet.
+
+Für die getrennte Inventur von Server- und Mac-Sicherungen gibt es eine rein
+lesende [Aufbewahrungsvorschau](BACKUP_RETENTION.md). Sie enthält keine
+Löschfunktion und setzt keine Betreiberfristen voraus.
