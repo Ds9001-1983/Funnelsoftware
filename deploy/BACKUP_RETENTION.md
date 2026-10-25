@@ -1,5 +1,9 @@
 # Sicherungsinventur und Aufbewahrungsvorschau
 
+Die beschlossenen Fristen und der getrennte ausführende Dienst sind in
+[BACKUP_AUTOMATION.md](BACKUP_AUTOMATION.md) beschrieben. Der hier beschriebene
+Scanner bleibt ausschließlich lesend.
+
 `scripts/backup-retention-preview.mjs` liest ausdrücklich konfigurierte
 Sicherungsablagen. Es erzeugt eine konkrete Dateiliste mit Größen und SHA-256,
 verändert aber keine Sicherung und besitzt keinen Löschbefehl. Es startet weder
@@ -79,6 +83,15 @@ Sicherungen sowie je Ablage der jüngste vollständige Satz. Weitere Ausnahmen
 lassen sich über `holds` mit den Satzkennungen festhalten. Fehlt ein ausdrücklich
 festgehaltener Satz, wird die gesamte betreffende Ablage zur Prüfung gesperrt.
 Bei fehlender oder beschädigter Wiederherstellungsreferenz ist nichts freigegeben.
+
+Optional kann `dailyRecovery` einen zusätzlich geprüften Tages-Restore benennen
+(`rootId`, `entry`, `verifiedAt`, `verificationRef`, `hashes` beider Dateien).
+Stimmen beide Dateien mit dem belegten Restore überein, darf für diese Tagesablage
+die neuere Tagesreferenz als zeitliche Schutzgrenze dienen. Dadurch bleibt die
+Tagesaufbewahrung unabhängig von der Deploymenthäufigkeit. Die Release-Referenz
+mit Journalbaseline bleibt zwingend; ein ungültiger Tagesnachweis sperrt die
+gesamte betreffende Tagesablage. Auch hier prüft der Scanner Hashes und Metadaten,
+nicht die externe Restore-Dokumentation selbst.
 
 Zur Altersberechnung wird der jüngste Zeitpunkt aus Name und Dateimetadaten
 verwendet; bei Releases zusätzlich der Verzeichniszeitpunkt. Ein altes Namensdatum

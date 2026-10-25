@@ -30,7 +30,7 @@ function filenameDate(name, kind) {
   return date(iso);
 }
 export function validateConfig(config) {
-  object(config, ['version', 'roots', 'recoveryAnchor']);
+  object(config, ['version', 'roots', 'recoveryAnchor', ...('dailyRecovery' in config ? ['dailyRecovery'] : [])]);
   if (config.version !== 1 || !Array.isArray(config.roots) || !config.roots.length || config.roots.length > 20) fail('Invalid inventory roots.');
   const ids = new Set(), paths = new Set();
   for (const root of config.roots) {
@@ -51,6 +51,15 @@ export function validateConfig(config) {
     if (!a.hashes || typeof a.hashes !== 'object' || Array.isArray(a.hashes) || Object.keys(a.hashes).length > 64
       || Object.entries(a.hashes).some(([n, h]) => !RELEASE_FILES.has(n) || typeof h !== 'string' || !HASH.test(h))
       || ANCHOR_FILES.some(n => !a.hashes[n])) fail('Anchor requires complete file hashes and a journal baseline.');
+  }
+  if (config.dailyRecovery != null) {
+    const a = config.dailyRecovery;
+    object(a, ['rootId', 'entry', 'verifiedAt', 'verificationRef', 'hashes']);
+    if (!config.roots.some(r => r.id === a.rootId && r.kind === 'daily') || typeof a.entry !== 'string') fail('Invalid daily restore root.');
+    filenameDate(a.entry, 'daily'); date(a.verifiedAt);
+    if (typeof a.verificationRef !== 'string' || !a.verificationRef.trim() || a.verificationRef.length > 1000) fail('Daily restore evidence required.');
+    object(a.hashes, [`db_${a.entry}.gz`, `uploads_${a.entry}.tar.gz`]);
+    if (Object.values(a.hashes).some(h => typeof h !== 'string' || !HASH.test(h))) fail('Daily restore hashes required.');
   }
   return config;
 }
@@ -145,6 +154,10 @@ export async function previewRetention(raw, now = new Date()) {
     && date(a.verifiedAt) <= time && anchor.timestampMs <= date(a.verifiedAt)
     && Object.keys(a.hashes).length === anchor.files.length && anchor.files.every(f => a.hashes[f.name] === f.sha256));
   const anchorTime = anchor?.timestampMs;
+  const d = config.dailyRecovery, dailyRoot = d && roots.find(r => r.id === d.rootId), daily = dailyRoot?.entries.find(e => e.id === d.entry);
+  const dailyValid = !!(d && daily?.complete && !dailyRoot.issues.length && date(d.verifiedAt) <= time
+    && daily.timestampMs <= date(d.verifiedAt) && daily.files.every(f => d.hashes[f.name] === f.sha256));
+  const dailyTime = daily?.timestampMs;
   const candidates = [];
   for (const root of roots) {
     const complete = root.entries.filter(e => e.complete);
@@ -156,11 +169,14 @@ export async function previewRetention(raw, now = new Date()) {
       if (root.issues.length) e.reasons.push('root_requires_review');
       if (root.retentionDays === null) e.reasons.push('policy_unset');
       if (!anchorValid) e.reasons.push('no_matching_verified_recovery_anchor');
+      if (d?.rootId === root.id && !dailyValid) e.reasons.push('invalid_daily_recovery_reference');
       if (a?.rootId === root.id && a.entry === e.id) e.reasons.push('verified_recovery_anchor');
       if (e.timestampMs === newest) e.reasons.push('newest_complete_backup');
       if (root.holds.includes(e.id)) e.reasons.push('explicit_hold');
       if (e.timestampMs > time) e.reasons.push('future_timestamp');
-      if (anchorValid && e.timestampMs >= anchorTime) e.reasons.push('not_older_than_recovery_anchor');
+      const recoveryTime = dailyValid && d.rootId === root.id ? Math.max(anchorTime ?? -Infinity, dailyTime) : anchorTime;
+      if (dailyValid && d.rootId === root.id && d.entry === e.id) e.reasons.push('verified_daily_recovery');
+      if (anchorValid && e.timestampMs >= recoveryTime) e.reasons.push('not_older_than_recovery_anchor');
       if (root.retentionDays !== null && time - e.timestampMs < root.retentionDays * DAY) e.reasons.push('within_retention');
       e.decision = e.reasons.length ? 'protected' : 'candidate';
       if (e.decision === 'candidate') candidates.push({ rootId: root.id, entry: e.id, bytes: e.bytes,
@@ -171,6 +187,7 @@ export async function previewRetention(raw, now = new Date()) {
   }
   return { version: 1, readOnly: true, generatedAt: now.toISOString(), recoveryAnchor: { valid: anchorValid,
     reference: a?.verificationRef ?? null, verifiedAt: a?.verifiedAt ?? null }, roots, candidates,
+    dailyRecovery: { valid: dailyValid, reference: d?.verificationRef ?? null },
     summary: { completeBackups: roots.reduce((sum, r) => sum + r.entries.filter(e => e.complete).length, 0),
       candidateBackups: candidates.length, candidateFiles: candidates.reduce((sum, e) => sum + e.files.length, 0), candidateBytes: candidates.reduce((sum, e) => sum + e.bytes, 0) } };
 }

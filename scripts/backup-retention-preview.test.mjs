@@ -101,6 +101,32 @@ describe('read-only backup inventory and retention preview', () => {
     expect(entries(result, 'daily').find(e => e.id === '2026-10-23_12-00').reasons).toContain('not_older_than_recovery_anchor');
     expect(result.candidates.map(e => e.entry)).toEqual([old.id, '2026-08-01_12-00']);
   });
+  it('uses a newer verified daily restore without weakening release or journal protection', async () => {
+    const id = '2026-10-24_11-00';
+    const names = await pair(id, new Date('2026-10-24T11:00:00Z'));
+    config.dailyRecovery = { rootId: 'daily', entry: id, verifiedAt: '2026-10-24T11:30:00.000Z', verificationRef: 'synthetic isolated daily restore', hashes: {} };
+    for (const n of names) config.dailyRecovery.hashes[n] = hash(await fs.readFile(path.join(daily, n)));
+    const result = await previewRetention(config, new Date('2026-12-24T12:00:00.000Z'));
+    expect(result.dailyRecovery.valid).toBe(true);
+    expect(result.candidates.map(e => e.entry)).toContain('2026-10-23_12-00');
+    expect(entries(result).find(e => e.id === current.id).decision).toBe('protected');
+    expect(entries(result, 'daily').find(e => e.id === id).decision).toBe('protected');
+    config.recoveryAnchor = null;
+    expect((await previewRetention(config, new Date('2026-12-24T12:00:00.000Z'))).summary.candidateBackups).toBe(0);
+  });
+  it('blocks daily cleanup with incomplete, altered or future-dated daily restore proof', async () => {
+    const id = '2026-10-23_12-00';
+    config.dailyRecovery = { rootId: 'daily', entry: id, verifiedAt: '2026-10-23T13:00:00.000Z', verificationRef: 'synthetic restore', hashes: {} };
+    expect(() => validateConfig(config)).toThrow();
+    for (const n of [`db_${id}.gz`, `uploads_${id}.tar.gz`]) config.dailyRecovery.hashes[n] = '0'.repeat(64);
+    let result = await previewRetention(config, now);
+    expect(result.candidates.some(e => e.rootId === 'daily')).toBe(false);
+    for (const n of Object.keys(config.dailyRecovery.hashes)) config.dailyRecovery.hashes[n] = hash(await fs.readFile(path.join(daily, n)));
+    config.dailyRecovery.verifiedAt = '2027-01-01T00:00:00.000Z';
+    result = await previewRetention(config, now);
+    expect(result.dailyRecovery.valid).toBe(false);
+    expect(result.candidates.some(e => e.rootId === 'daily')).toBe(false);
+  });
   it('uses elapsed 24-hour periods and the most recent file time, never just an old name', async () => {
     const fresh = new Date(now.getTime() - 30 * 86400000 + 1);
     await stamp(path.join(old.dir, 'environment'), fresh);
