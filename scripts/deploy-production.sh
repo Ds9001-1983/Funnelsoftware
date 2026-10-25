@@ -6,6 +6,13 @@ umask 022
 DEPLOY_SHA="${1:?Geprüfter Commit fehlt}"
 [[ "$DEPLOY_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 64
 APP_DIR=/var/www/funnelflow
+# Coordinate with the installed backup service. Before initial installation
+# deployments keep their existing behavior; the operator installs this directory.
+BACKUP_RUNTIME=/var/lib/funnelflow/backup-retention
+if [ -f "$BACKUP_RUNTIME/config.json" ]; then
+  exec 9>"$BACKUP_RUNTIME/operation.lock"
+  flock -w 1800 9
+fi
 cd "$APP_DIR"
 git diff --quiet
 git diff --cached --quiet
@@ -79,4 +86,7 @@ bash scripts/activate-release.sh "$APP_DIR" "$RELEASE_DIR" "$BACKUP_DIR" "$PREVI
 # Referenz-Checkout nach erfolgreichem Start nachführen; unversionierte Backups
 # und Konfigurationen bleiben erhalten. Der laufende Release ist unabhängig.
 git -C "$APP_DIR" reset --hard "$DEPLOY_SHA"
+if [ -f "$BACKUP_RUNTIME/config.json" ]; then
+  python3 "$BACKUP_RUNTIME/backup-operations.py" record-release "$BACKUP_RUNTIME/config.json" "$(basename "$BACKUP_DIR")"
+fi
 printf 'Release erfolgreich: %s\nBackup mit Restore-Test: %s\n' "$DEPLOY_SHA" "$BACKUP_DIR"
