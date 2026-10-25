@@ -33,7 +33,11 @@ gzip -t "$STAGING/db.gz"
 tar -tzf "$STAGING/uploads.tar.gz" >/dev/null
 runuser -u postgres -- createdb "$RESTORE_DB"
 gzip -dc "$STAGING/db.gz" | runuser -u postgres -- psql -X --set ON_ERROR_STOP=on -d "$RESTORE_DB" >/dev/null
-runuser -u postgres -- env DATABASE_URL="postgresql://postgres@localhost/$RESTORE_DB?host=/var/run/postgresql" node scripts/verify-migration.mjs
+# The reference checkout may contain root-only files after deployment. The
+# active build worktree is the readable code that already serves production.
+VERIFY_DIR="$(dirname "$(readlink -f "$APP/dist")")"
+[[ "$VERIFY_DIR" == /var/www/funnelflow-release-* ]]
+runuser -u postgres -- env DATABASE_URL="postgresql://postgres@localhost/$RESTORE_DB?host=/var/run/postgresql" node "$VERIFY_DIR/scripts/verify-migration.mjs"
 mv "$STAGING/db.gz" "$ROOT/db_$STAMP.gz"
 mv "$STAGING/uploads.tar.gz" "$ROOT/uploads_$STAMP.tar.gz"
 python3 "$RUNTIME/backup-operations.py" record-daily "$RUNTIME/config.json" "$STAMP"
