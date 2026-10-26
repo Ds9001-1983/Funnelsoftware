@@ -161,7 +161,7 @@ test("queued manual requests show pending instead of deletion success in list an
       await confirmation.accept();
     });
     await page.getByRole("menuitem", { name: "Löschen", exact: true }).click();
-    await expect(page.getByText("Löschung beauftragt", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Notifications (F8)").getByText("Löschung beauftragt", { exact: true })).toBeVisible();
     await expect(page.getByText("Lead gelöscht", { exact: true })).not.toBeVisible();
     await expect(page.getByTestId(`erasure-pending-${lead.id}`)).toBeVisible();
     await expect(page.getByTestId(`select-status-${lead.id}`)).toBeDisabled();
