@@ -125,3 +125,53 @@ test("mobile subject export includes recruiting records across deleted funnels a
     await Promise.allSettled([database.end(), other.close(), anonymous.close()]);
   }
 });
+
+
+test("queued manual requests show pending instead of deletion success in list and subject dialog", async ({ page }) => {
+  const database = new pg.Pool({ connectionString: E2E_DATABASE_URL, max: 1 });
+  try {
+    await page.addInitScript(() => {
+      localStorage.setItem("onboarding-completed", "true");
+      localStorage.setItem("trichterwerk-cookie-consent", "true");
+    });
+    const owner = await registerAndVerify(page.request);
+    const key = runId();
+    const funnel = await createPublishedFunnel(page.request, { name: `Wartender Auftrag ${key}`, slug: makeSlug(key) });
+    const email = `waiting-${key}@example.test`;
+    const { rows: [lead] } = await database.query(`INSERT INTO leads (user_id,funnel_id,name,email)
+      SELECT id,$1,'Wartende Person',$2 FROM users WHERE email=$3 RETURNING id`, [funnel.id, email, owner.email]);
+    let queued = false;
+    // UI contract test: real registration/list, only the queued server response
+    // is simulated. Actual journal/offsite execution is exercised with PostgreSQL.
+    await page.route(`**/api/leads/${lead.id}`, async route => {
+      if (route.request().method() !== "DELETE") return route.continue();
+      queued = true;
+      await route.fulfill({ status: 202, json: { status: "queued", queuedCount: 1, deletedCount: 0 } });
+    });
+    await page.route("**/api/leads", async route => {
+      const response = await route.fetch();
+      const rows = await response.json();
+      await route.fulfill({ response, json: rows.map((item: { id: number }) => ({ ...item, erasureRequested: item.id === lead.id && queued })) });
+    });
+    await page.goto("/leads");
+    const row = page.getByText("Wartende Person", { exact: true }).locator("xpath=../../..");
+    await row.getByRole("button").last().click();
+    page.once("dialog", async confirmation => {
+      expect(confirmation.message()).toContain("nicht zurückgenommen");
+      await confirmation.accept();
+    });
+    await page.getByRole("menuitem", { name: "Löschen", exact: true }).click();
+    await expect(page.getByLabel("Notifications (F8)").getByText("Löschung beauftragt", { exact: true })).toBeVisible();
+    await expect(page.getByText("Lead gelöscht", { exact: true })).not.toBeVisible();
+    await expect(page.getByTestId(`erasure-pending-${lead.id}`)).toBeVisible();
+    await expect(page.getByTestId(`select-status-${lead.id}`)).toBeDisabled();
+    await page.route("**/api/leads/gdpr-erasure", route => route.fulfill({ status: 202, json: { status: "queued", queuedCount: 1, deletedCount: 0, email } }));
+    await page.getByTestId("button-gdpr").click();
+    await page.getByLabel("E-Mail der Person").fill(email);
+    page.once("dialog", confirmation => confirmation.accept());
+    await page.getByRole("dialog").getByRole("button", { name: "Daten löschen", exact: true }).click();
+    await expect(page.getByText("1 Datensatz/Datensätze warten auf die gesicherte Ausführung. Der Auftrag ist verbindlich.", { exact: true })).toBeVisible();
+    await expect(page.getByText("Löschung ausgeführt", { exact: true })).not.toBeVisible();
+    expect((await database.query("SELECT id FROM leads WHERE id=$1", [lead.id])).rowCount).toBe(1);
+  } finally { await database.end(); }
+});

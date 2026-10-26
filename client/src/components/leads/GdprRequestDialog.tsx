@@ -40,13 +40,15 @@ export function GdprRequestDialog({ open, onOpenChange }: { open: boolean; onOpe
   };
 
   const handleErase = async () => {
-    if (!window.confirm(`Wirklich ALLE Lead-Daten zu „${email.trim()}" endgültig löschen? Das kann nicht rückgängig gemacht werden.`)) return;
+    if (!window.confirm(`Wirklich ALLE Lead-Daten zu „${email.trim()}" endgültig löschen? Der Auftrag kann nicht zurückgenommen werden. Die Ausführung wartet auf die bestätigte Sicherung des Löschauftrags.`)) return;
     setBusy("erase");
     try {
       const res = await apiRequest("POST", "/api/leads/gdpr-erasure", { email: email.trim() });
       const data = await res.json();
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      toast({ title: "Löschung ausgeführt", description: `${data.deletedCount} Datensatz/Datensätze zu ${email.trim()} gelöscht.` });
+      toast(res.status === 202
+        ? { title: "Löschung beauftragt", description: `${data.queuedCount} Datensatz/Datensätze warten auf die gesicherte Ausführung. Der Auftrag ist verbindlich.` }
+        : { title: "Löschung ausgeführt", description: `${data.deletedCount} Datensatz/Datensätze zu ${email.trim()} gelöscht.` });
       onOpenChange(false);
       setEmail("");
     } catch (e: any) {
@@ -80,7 +82,7 @@ export function GdprRequestDialog({ open, onOpenChange }: { open: boolean; onOpe
         <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground leading-relaxed">
           <strong>Exportieren:</strong> lädt passende Leads mit Antworten, Bewerbungsverläufen und gespeicherten Recruiting-Mails als JSON herunter. Auch frühere Mail-Empfänger werden durchsucht.
           <br />
-          <strong>Daten löschen:</strong> entfernt Leads mit dieser aktuell gespeicherten E-Mail-Adresse einschließlich ihrer Verläufe und Mailjobs endgültig. Bereits versandte Kopien bleiben gesondert zu bearbeiten.
+          <strong>Daten löschen:</strong> beauftragt die endgültige Löschung der Leads mit dieser aktuell gespeicherten E-Mail-Adresse einschließlich ihrer Verläufe und Mailjobs. Der Auftrag ist verbindlich und wird nach bestätigter Sicherung automatisch ausgeführt. Bereits versandte Kopien bleiben gesondert zu bearbeiten.
         </div>
         <div className="text-xs text-muted-foreground leading-relaxed">
           Prüfe vor einer Weitergabe die Identität, den Umfang der Anfrage und Angaben über andere Personen.

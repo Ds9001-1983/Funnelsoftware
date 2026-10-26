@@ -119,6 +119,7 @@ function LeadDetailDialog({
             </div>
             <div className="min-w-0">
               <h2 className="text-lg font-bold truncate">{lead.name || "Unbekannt"}</h2>
+              {lead.erasureRequested && <p className="text-xs text-muted-foreground">Löschung beauftragt – wartet auf gesicherte Ausführung</p>}
               <Badge className={`${statusColors[lead.status]} text-white text-[10px]`}>
                 {statusLabels[lead.status]}
               </Badge>
@@ -526,6 +527,7 @@ function LeadRow({
             {lead.locked ? "Gesperrter Lead — Upgrade für Details" : lead.name || "Unbekannt"}
           </span>
         </div>
+        {lead.erasureRequested && <p className="text-xs text-muted-foreground" data-testid={`erasure-pending-${lead.id}`}>Löschung beauftragt – wartet auf gesicherte Ausführung</p>}
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           {lead.email && (
             <span className="truncate max-w-[200px]">{lead.email}</span>
@@ -544,6 +546,7 @@ function LeadRow({
       <div className="shrink-0">
         <Select
           value={lead.status}
+          disabled={lead.erasureRequested}
           onValueChange={(v) => onStatusChange(v as Lead["status"])}
         >
           <SelectTrigger className="w-[130px] h-8" data-testid={`select-status-${lead.id}`}>
@@ -597,6 +600,7 @@ function LeadRow({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"
+            disabled={lead.erasureRequested}
             onClick={onDelete}
           >
             <Trash2 className="h-4 w-4 mr-2" />
@@ -622,6 +626,7 @@ export default function Leads() {
 
   const { data: leads, isLoading: leadsLoading } = useQuery<MaskedLead[]>({
     queryKey: ["/api/leads"],
+    refetchInterval: query => query.state.data?.some(lead => lead.erasureRequested) ? 10_000 : false,
   });
   const { user } = useAuth();
   const lockedCount = leads?.filter((l) => l.locked).length ?? 0;
@@ -650,13 +655,14 @@ export default function Leads() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/leads/${id}`);
+      const response = await apiRequest("DELETE", `/api/leads/${id}`);
+      return response.status === 202;
     },
-    onSuccess: () => {
+    onSuccess: (queued) => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       toast({
-        title: "Lead gelöscht",
-        description: "Der Lead wurde erfolgreich gelöscht.",
+        title: queued ? "Löschung beauftragt" : "Lead gelöscht",
+        description: queued ? "Der Auftrag ist verbindlich. Die Löschung erfolgt automatisch nach bestätigter Sicherung des Auftrags." : "Der Lead wurde erfolgreich gelöscht.",
       });
     },
     onError: () => {
@@ -670,8 +676,9 @@ export default function Leads() {
 
   // Löschen ist endgültig (Kundendaten!) — ein Fehlklick darf nicht reichen
   const confirmDelete = (lead: Lead) => {
+    if (lead.erasureRequested) return;
     const label = lead.name || lead.email || `Lead #${lead.id}`;
-    if (window.confirm(`„${label}" endgültig löschen? Das kann nicht rückgängig gemacht werden.`)) {
+    if (window.confirm(`„${label}" endgültig löschen? Der Auftrag kann nicht zurückgenommen werden. Die Ausführung wartet auf die bestätigte Sicherung des Löschauftrags.`)) {
       deleteMutation.mutate(lead.id);
     }
   };
@@ -784,6 +791,7 @@ export default function Leads() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium truncate">{lead.name || lead.email || "Unbekannt"}</p>
+                          {lead.erasureRequested && <p className="text-xs text-muted-foreground">Löschung beauftragt</p>}
                           <p className="text-xs text-muted-foreground">
                             {new Date(lead.createdAt as string).toLocaleDateString("de-DE", { day: "2-digit", month: "short" })}
                           </p>
@@ -798,7 +806,7 @@ export default function Leads() {
                             {(Object.entries(statusLabels) as [Lead["status"], string][])
                               .filter(([s]) => s !== lead.status)
                               .map(([s, l]) => (
-                                <DropdownMenuItem key={s} onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: lead.id, status: s }); }}>
+                                <DropdownMenuItem key={s} disabled={lead.erasureRequested} onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: lead.id, status: s }); }}>
                                   <div className={`h-2 w-2 rounded-full ${statusColors[s]} mr-2`} />
                                   {l}
                                 </DropdownMenuItem>
@@ -806,6 +814,7 @@ export default function Leads() {
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="text-destructive"
+                              disabled={lead.erasureRequested}
                               onClick={(e) => { e.stopPropagation(); confirmDelete(lead); }}
                             >
                               <Trash2 className="h-3 w-3 mr-2" />
@@ -932,8 +941,8 @@ export default function Leads() {
       </Card>
 
       <LeadDetailDialog
-        lead={selectedLead}
-        open={!!selectedLead}
+        lead={leads?.find(lead => lead.id === selectedLead?.id) ?? null}
+        open={!!selectedLead && !!leads?.some(lead => lead.id === selectedLead.id)}
         onOpenChange={(open) => !open && setSelectedLead(null)}
       />
 

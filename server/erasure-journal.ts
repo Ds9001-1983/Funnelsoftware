@@ -245,7 +245,7 @@ export async function replayErasureJournal(directory: string, root: string, expe
   });
 }
 
-/** Durable automatic intents are authoritative even if their SQL transaction
+/** Durable queued lead intents (manual or automatic) are authoritative even if their SQL transaction
  * failed. No DB-only pending flag can miss a filesystem/commit interruption. */
 export async function committedRetentionKeys(): Promise<Set<string>> {
   const directory = journalDirectory();
@@ -276,4 +276,21 @@ export async function externalJournalReceipt(directory: string, journal: Awaited
     if (head.instanceId !== journal.checkpoint.instanceId || hash !== head.hash || age < 0 || age > 15 * 60_000) return null;
     return receipt;
   } catch { return null; }
+}
+
+export type QueuedLeadErasure = { status: "queued"; queuedCount: number; deletedCount: 0 };
+
+/** Called with the journal lock and owner-scoped lead row locks held. Manual
+ * requests use the same durable, externally confirmed queue as retention.
+ * Existing intents survive SQL rollback; retries must never duplicate them. */
+export async function queueLeadErasure(tx: Transaction, keys: string[]): Promise<QueuedLeadErasure | undefined> {
+  const directory = journalDirectory();
+  if (!directory) return undefined;
+  const journal = await boundJournal(tx, directory);
+  const pending = new Set(journal.entries.flatMap(({ entry }) => entry.target.type === "retention_leads" ? entry.target.keys : []));
+  const fresh = Array.from(new Set(keys)).filter(key => !pending.has(key));
+  for (let offset = 0; offset < fresh.length; offset += 20) {
+    await recordErasure(tx, { type: "retention_leads", keys: fresh.slice(offset, offset + 20) });
+  }
+  return { status: "queued", queuedCount: new Set(keys).size, deletedCount: 0 };
 }

@@ -24,8 +24,9 @@ Dateien und Datenbankdaten entfernt. Eine Datenbankquittung wird gemeinsam mit
 der Löschung committed. Auch bei einer fehlgeschlagenen Antwort bleibt ein
 bereits geschriebenes Löschbegehren verbindlich: erneuter Versuch bzw. Replay
 führt es zu Ende. Ein Fehler ist deshalb keine Rücknahme des Löschauftrags.
-Ein ausstehender manueller Auftrag mit noch vorhandenen Daten sperrt den nächsten
-Start. Automatische Aufträge (`retention_leads`) dürfen bis zur externen
+Ein alter unmittelbarer Lead-Auftrag (`leads`) oder Kontoauftrag (`account`)
+mit noch vorhandenen Daten sperrt den nächsten Start. Wartende Lead-Aufträge
+(`retention_leads`) aus manuellen Anfragen oder Aufbewahrungsregeln dürfen bis zur externen
 Bestätigung warten; ihre Leads bleiben für Änderungen und automatische Mails
 gesperrt. Die Datenbankquittung bindet dabei bereits den Auftrag und ist kein
 Nachweis einer abgeschlossenen Löschung. Offline-Replay führt auch diese

@@ -1278,6 +1278,7 @@ export type InsertFunnel = z.infer<typeof insertFunnelSchema>;
 
 // Lead schema (for API responses)
 export const leadSchema = z.object({
+  erasureRequested: z.boolean().optional(),
   id: z.number(),
   uuid: z.string(),
   funnelId: z.number(),

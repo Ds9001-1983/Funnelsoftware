@@ -1614,13 +1614,15 @@ export async function registerRoutes(
   app.post("/api/leads/gdpr-export", isAuthenticated, requireVerifiedEmail, subjectExport);
 
   // Art. 17 (Löschung): alle Lead-Daten zu einer E-Mail löschen. Idempotent,
-  // gibt die Anzahl gelöschter Datensätze als Nachweis zurück.
+  // unterscheidet verbindlich beauftragte und tatsächlich gelöschte Datensätze.
   app.post("/api/leads/gdpr-erasure", isAuthenticated, async (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
     const parsed = gdprEmailSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Gültige E-Mail-Adresse erforderlich" });
     const deletedCount = await storage.deleteLeadsByEmail(userId, parsed.data.email);
+    res.setHeader("Cache-Control", "no-store");
+    if (typeof deletedCount !== "number") return res.status(202).json({ email: parsed.data.email, ...deletedCount });
     res.json({ email: parsed.data.email, deletedCount });
   });
 
@@ -1843,6 +1845,8 @@ export async function registerRoutes(
       if (!deleted) {
         return res.status(404).json({ error: "Lead nicht gefunden" });
       }
+      res.setHeader("Cache-Control", "no-store");
+      if (typeof deleted === "object") return res.status(202).json(deleted);
       res.status(204).send();
     } catch (error) {
       console.error("Delete lead error:", error);
