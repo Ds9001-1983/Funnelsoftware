@@ -1,4 +1,5 @@
 import passport from "passport";
+import { accountErasurePending } from "./erasure-journal";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
 import session from "express-session";
@@ -37,11 +38,11 @@ passport.use(
     try {
       // Try to find user by username or email
       let user = await storage.getUserByUsername(username);
-      if (!user) {
+      if (!user || await accountErasurePending(user)) {
         user = await storage.getUserByEmail(username);
       }
 
-      if (!user) {
+      if (!user || await accountErasurePending(user)) {
         return done(null, false, { message: "Benutzer nicht gefunden" });
       }
 
@@ -68,7 +69,7 @@ passport.serializeUser((user, done) => {
 passport.deserializeUser(async (id: number, done) => {
   try {
     const user = await storage.getUser(id);
-    if (!user) {
+    if (!user || await accountErasurePending(user)) {
       return done(null, false);
     }
     const { password: _, ...userWithoutPassword } = user;
@@ -268,7 +269,7 @@ export async function apiKeyAuth(
     }
 
     const user = await storage.getUser(apiKey.userId);
-    if (!user) {
+    if (!user || await accountErasurePending(user)) {
       return res.status(401).json({ error: "Benutzer nicht gefunden." });
     }
 

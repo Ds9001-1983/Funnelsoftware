@@ -1,4 +1,4 @@
-import { assertRetentionEditable, lockErasureJournal } from "./erasure-journal";
+import { accountErasurePending, assertRetentionEditable, lockErasureJournal } from "./erasure-journal";
 import { nextClosedAt } from "@shared/retention-contract";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "./db";
@@ -27,7 +27,7 @@ export async function recruitingOwner(funnelId: number, ownerId: number) {
   const [row] = await db.select({ funnel: funnels, owner: users }).from(funnels)
     .innerJoin(users, eq(users.id, funnels.userId))
     .where(and(eq(funnels.id, funnelId), eq(funnels.userId, ownerId), sql`${funnels.deletedAt} IS NULL`, sql`${users.deletedAt} IS NULL`));
-  if (!row) throw new RecruitingError(404, "Funnel nicht gefunden");
+  if (!row || await accountErasurePending(row.owner)) throw new RecruitingError(404, "Funnel nicht gefunden");
   return row;
 }
 export function requireRecruitingPro(owner: User) {

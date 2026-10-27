@@ -58,6 +58,16 @@ describe('external append-only erasure journal backup', () => {
     expect((await readJournal(saved.journal)).records[0].entry.target.type).toBe('retention_leads');
     await expect(append({ type: 'retention_leads', keys: Array.from({ length: 21 }, () => randomUUID()) })).rejects.toThrow();
   });
+  it('copies and confirms queued account manifests without changing historical entries', async () => {
+    const target = { type: 'queued_account', key: randomUUID(), files: [{ area: 'public', filename: 'waiting.webp' }], billingCustomerId: 'cus_synthetic', billingClosed: false };
+    await append(target);
+    await append({ ...target, billingClosed: true });
+    await runBackup({ ...config, confirmRemote: true }, remote, async (_config, checkpoint, nonce) => ({ receipt: await confirmExternalCopy(source, checkpoint), nonce }));
+    expect((await externalCopyStatus(source)).fullyBackedUp).toBe(true);
+    const records = (await readJournal((await verifyCurrent(config, remote)).journal)).records;
+    expect(records.map(record => record.entry.target.billingClosed)).toEqual([false, true]);
+    expect(records[0].entry.target).toEqual(target);
+  });
   it('uses owner-only permissions and exports no unrelated files', async () => {
     await append(); await runBackup(config, remote);
     const result = await verifyCurrent(config, remote);

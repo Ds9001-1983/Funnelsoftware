@@ -47,14 +47,19 @@ function record(value) {
     if (e.target.type === 'retention_leads' && e.target.keys.length > 20) fail('Automatic batch exceeds limit.');
     target = { type: e.target.type, keys: e.target.keys.map(uuid) };
   } else {
-    object(e.target, ['type', 'key', 'files']);
-    if (e.target.type !== 'account' || !Array.isArray(e.target.files)) fail('Invalid account target.');
-    target = { type: 'account', key: uuid(e.target.key), files: e.target.files.map(file => {
+    object(e.target, e.target.type === 'queued_account' ? ['type', 'key', 'files', 'billingCustomerId', 'billingClosed'] : ['type', 'key', 'files']);
+    if (!['account', 'queued_account'].includes(e.target.type) || !Array.isArray(e.target.files)) fail('Invalid account target.');
+    target = { type: e.target.type, key: uuid(e.target.key), files: e.target.files.map(file => {
       object(file, ['area', 'filename']);
       if (!['public', 'support'].includes(file.area) || typeof file.filename !== 'string'
         || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,254}$/.test(file.filename) || file.filename.includes('..')) fail('Invalid upload filename.');
       return { area: file.area, filename: file.filename };
     }) };
+    if (e.target.type === 'queued_account') {
+      if ((e.target.billingCustomerId !== null && (typeof e.target.billingCustomerId !== 'string' || !/^cus_[a-zA-Z0-9_]+$/.test(e.target.billingCustomerId))) || typeof e.target.billingClosed !== 'boolean') fail('Invalid billing fence.');
+      target.billingCustomerId = e.target.billingCustomerId;
+      target.billingClosed = e.target.billingClosed;
+    }
   }
   return { entry: { version: 1, instanceId: uuid(e.instanceId), sequence: e.sequence,
     previousHash: hash(e.previousHash), requestedAt: date(e.requestedAt), target }, hash: hash(value.hash) };

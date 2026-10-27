@@ -14,6 +14,7 @@ const fileSchema = z.object({
   filename: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,254}$/).refine(name => !name.includes("..")),
 }).strict();
 const targetSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("queued_account"), key: z.string().uuid(), files: z.array(fileSchema), billingCustomerId: z.string().regex(/^cus_[a-zA-Z0-9_]+$/).nullable(), billingClosed: z.boolean() }).strict(),
   z.object({ type: z.literal("account"), key: z.string().uuid(), files: z.array(fileSchema) }).strict(),
   z.object({ type: z.literal("leads"), keys: z.array(z.string().uuid()).min(1) }).strict(),
   z.object({ type: z.literal("retention_leads"), keys: z.array(z.string().uuid()).min(1).max(20) }).strict(),
@@ -145,7 +146,7 @@ export async function recordErasure(tx: Transaction, target: ErasureTarget) {
   } catch { throw new ErasureJournalError(); }
 }
 
-async function filePath(root: string, file: z.infer<typeof fileSchema>) {
+export async function filePath(root: string, file: z.infer<typeof fileSchema>) {
   const parts = file.area === "public" ? ["uploads"] : ["private-uploads", "bug-reports"];
   let parent = root;
   for (const part of parts) {
@@ -162,10 +163,17 @@ async function assertNoErasedData(tx: Transaction, entries: Envelope[], root: st
   for (const { entry } of entries) {
     const target = entry.target;
     if (target.type === "retention_leads" && allowWaitingRetention) continue;
+    if (target.type === "queued_account" && allowWaitingRetention) {
+      const owner = await tx.select({ id: users.id }).from(users).where(eq(users.erasureKey, target.key)).limit(1);
+      if (owner.length || !target.billingClosed) continue;
+      // A completed account cannot legitimately have remaining files. Require
+      // offline replay if an upload archive alone resurrected those files.
+    }
     if (target.type === "leads" || target.type === "retention_leads") {
       if ((await tx.select({ id: leads.id }).from(leads).where(inArray(leads.uuid, target.keys)).limit(1)).length) throw new ErasureJournalError();
     } else {
-      if ((await tx.select({ id: users.id }).from(users).where(eq(users.erasureKey, target.key)).limit(1)).length) throw new ErasureJournalError();
+      const [owner] = await tx.select({ deletedAt: users.deletedAt }).from(users).where(eq(users.erasureKey, target.key)).limit(1);
+      if (owner && !(target.type === "queued_account" && !target.billingClosed && owner.deletedAt)) throw new ErasureJournalError();
       for (const file of target.files) {
         try { await fs.lstat(await filePath(root, file)); }
         catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") continue; throw error; }
@@ -184,6 +192,10 @@ export async function assertErasureJournalReady(root = process.cwd()) {
     await lockErasureJournal(tx);
     const journal = await boundJournal(tx, directory);
     await assertNoErasedData(tx, journal.entries, root, true);
+    // The filesystem intent survives an interrupted SQL commit. Restore the
+    // account fence before any authentication, public route or worker starts.
+    const keys = journal.entries.flatMap(({ entry }) => entry.target.type === "queued_account" ? [entry.target.key] : []);
+    if (keys.length) await tx.update(users).set({ deletedAt: sql`COALESCE(${users.deletedAt}, now())` }).where(inArray(users.erasureKey, keys));
     // Resolve an interrupted response/commit or an already retried deletion.
     for (const record of journal.entries) {
       await tx.insert(erasureJournalReceipts).values({ sequence: record.entry.sequence, hash: record.hash }).onConflictDoNothing();
@@ -232,9 +244,11 @@ export async function replayErasureJournal(directory: string, root: string, expe
           try { await fs.unlink(filename); }
           catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
         }
-        const removed = await tx.delete(users).where(eq(users.erasureKey, target.key)).returning({ id: users.id });
+        const removed = target.type === "queued_account" && !target.billingClosed
+          ? await tx.update(users).set({ deletedAt: sql`COALESCE(${users.deletedAt}, now())` }).where(eq(users.erasureKey, target.key)).returning({ id: users.id })
+          : await tx.delete(users).where(eq(users.erasureKey, target.key)).returning({ id: users.id });
         for (const user of removed) await tx.execute(sql`DELETE FROM "session" WHERE sess->'passport'->>'user' = ${String(user.id)}`);
-        accounts += removed.length;
+        if (target.type !== "queued_account" || target.billingClosed) accounts += removed.length;
       }
       await tx.insert(erasureJournalReceipts).values({ sequence: entry.sequence, hash }).onConflictDoNothing();
     }
@@ -293,4 +307,14 @@ export async function queueLeadErasure(tx: Transaction, keys: string[]): Promise
     await recordErasure(tx, { type: "retention_leads", keys: fresh.slice(offset, offset + 20) });
   }
   return { status: "queued", queuedCount: new Set(keys).size, deletedCount: 0 };
+}
+
+/** Account fences are authoritative even between durable intent and SQL commit. */
+export async function committedAccountKeys(): Promise<Set<string>> {
+  const directory = journalDirectory();
+  if (!directory) return new Set();
+  return new Set((await readJournal(directory)).entries.flatMap(({ entry }) => entry.target.type === "queued_account" ? [entry.target.key] : []));
+}
+export async function accountErasurePending(user: { erasureKey: string; deletedAt: Date | null }): Promise<boolean> {
+  return !!user.deletedAt || (await committedAccountKeys()).has(user.erasureKey);
 }

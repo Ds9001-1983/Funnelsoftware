@@ -87,3 +87,16 @@ test("Kontolöschung entfernt Bild, Audio und private Anhänge; fremde Dateien b
     await db.end(); await admin.close(); await victim.close();
   }
 });
+
+
+test("wartende Kontolöschung zeigt den verbindlichen Auftrag statt einer abgeschlossenen Löschung", async ({ page }) => {
+  const user = await registerAndVerify(page.request);
+  await page.route("**/api/auth/account", route => route.fulfill({ status: 202, contentType: "application/json", body: JSON.stringify({ success: true, status: "queued" }) }));
+  await page.goto("/settings");
+  await page.locator("#delete-password").fill(user.password);
+  await page.locator("#delete-confirm").fill("LÖSCHEN");
+  await page.getByRole("button", { name: "Konto endgültig löschen", exact: true }).click();
+  await expect(page.getByText("Kontolöschung beauftragt", { exact: true })).toBeVisible();
+  await expect(page.getByText("Dein Konto ist gesperrt und du bist abgemeldet.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Zur Startseite", exact: true })).toBeVisible();
+});

@@ -147,3 +147,21 @@ export function constructWebhookEvent(
 
   return stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
 }
+
+/** Freeze precedes this call. Invalidate outstanding purchase links before
+ * enumerating ALL subscriptions; errors leave the local account fenced. */
+export async function closeAccountBilling(customerId: string): Promise<void> {
+  if (!stripe) throw new Error("Stripe ist nicht konfiguriert");
+  const request = { timeout: 15_000, maxNetworkRetries: 0 };
+  for await (const session of stripe.checkout.sessions.list({ customer: customerId, status: "open", limit: 100 }, request)) {
+    await stripe.checkout.sessions.expire(session.id, {}, request);
+  }
+  // A checkout completing concurrently with expiration must settle before its
+  // subscription can be enumerated and cancelled. Retry rather than lose it.
+  for await (const session of stripe.checkout.sessions.list({ customer: customerId, status: "complete", limit: 100 }, request)) {
+    if (session.mode === "subscription" && !session.subscription) throw new Error("Checkout wird noch verarbeitet");
+  }
+  for await (const sub of stripe.subscriptions.list({ customer: customerId, status: "all", limit: 100 }, request)) {
+    if (sub.status !== "canceled" && sub.status !== "incomplete_expired") await stripe.subscriptions.cancel(sub.id, {}, request);
+  }
+}

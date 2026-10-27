@@ -1,3 +1,4 @@
+import { startAccountErasureWorker } from "./account-erasure-worker";
 // Lädt .env im lokalen Development. Bereits gesetzte echte Env-Vars (Production)
 // haben Vorrang — dotenv überschreibt vorhandene Variablen standardmäßig nicht.
 import "dotenv/config";
@@ -317,6 +318,7 @@ app.get("/api/health", async (_req, res) => {
       startScheduler();
       startRecruitingMailWorker();
       startRetentionWorker();
+  startAccountErasureWorker();
     },
   );
 

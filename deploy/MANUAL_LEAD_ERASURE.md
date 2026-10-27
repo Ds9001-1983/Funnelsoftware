@@ -43,10 +43,9 @@ In isolierten Entwicklungs-/Testumgebungen ohne konfiguriertes Journal bleibt
 die unmittelbare Löschung möglich. Produktion hat immer ein Journalverzeichnis;
 ein fehlendes oder beschädigtes Journal führt dort nicht zu diesem Ausweichweg.
 
-## Verbleibender Umfang
+## Kontokaskade und verbleibender Umfang
 
-Kontolöschung durch den Kontoinhaber oder Administrator verwendet weiterhin den
-bisherigen Ablauf. Ihre Kaskade kann auch wartende Leads entfernen, ohne auf die
-externe Bestätigung zu warten. Dieser gesonderte R11-Punkt benötigt eine dauerhafte
-Kontosperre einschließlich Uploads, Veröffentlichungen und Abonnementablauf.
-Analytics-Regeln und Aufbewahrung logisch gelöschter Funnels sind ebenfalls separat.
+Auch Kontolöschungen warten jetzt auf die externe Bestätigung ihres vollständigen
+Manifests. Die Kontosperre und der Abonnementablauf sind in
+[ACCOUNT_ERASURE.md](ACCOUNT_ERASURE.md) beschrieben. Analytics-Regeln und
+Aufbewahrung logisch gelöschter Funnels bleiben separat.

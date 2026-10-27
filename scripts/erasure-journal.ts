@@ -63,7 +63,7 @@ async function main() {
     const root = await fs.realpath(args[0]);
     const relative = path.relative(process.cwd(), root);
     if (!relative || (!relative.startsWith(`..${path.sep}`) && relative !== "..")) throw new Error("Restore-Dateien müssen außerhalb der Anwendung liegen.");
-    const active = await pool.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()");
+    const active = await pool.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid() AND backend_type = 'client backend'");
     if (active.rowCount) throw new Error("Restore-Datenbank hat weitere Verbindungen; Anwendung und Worker müssen gestoppt sein.");
     const checkpoint = checkpointSchema.parse(JSON.parse(await fs.readFile(args[1], "utf8")));
     console.log(JSON.stringify(await replayErasureJournal(directory, root, checkpoint)));

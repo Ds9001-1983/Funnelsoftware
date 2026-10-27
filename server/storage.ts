@@ -2,8 +2,8 @@ import { requiredDocumentVersion } from "@shared/funnel-document";
 import { eq, desc, and, sql, gte, lt, inArray, isNull } from "drizzle-orm";
 import { quizTemplateElement } from "@shared/quiz-template";
 import { db } from "./db";
-import { deleteAccountWithFiles } from "./account-files";
-import { assertRetentionEditable, committedRetentionKeys, lockErasureJournal, queueLeadErasure, type QueuedLeadErasure } from "./erasure-journal";
+import { requestAccountErasure, type QueuedAccountErasure } from "./account-files";
+import { accountErasurePending, assertRetentionEditable, committedAccountKeys, committedRetentionKeys, lockErasureJournal, queueLeadErasure, type QueuedLeadErasure } from "./erasure-journal";
 import { queueRecruitingEmails } from "./recruiting";
 import { publishedDocument, writeFunnel } from "./funnel-revisions";
 import { needsLayoutDocument } from "@shared/funnel-layout";
@@ -184,7 +184,7 @@ export class DatabaseStorage implements IStorage {
 
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    return user && await accountErasurePending(user) ? { ...user, deletedAt: user.deletedAt ?? new Date(0) } : user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
@@ -449,12 +449,14 @@ export class DatabaseStorage implements IStorage {
   async getFunnelByUuid(uuid: string): Promise<Funnel | undefined> {
     const [funnel] = await db.select().from(funnels)
       .where(and(eq(funnels.uuid, uuid), sql`${funnels.deletedAt} IS NULL`));
+    if (funnel) { const owner = await this.getUser(funnel.userId); if (!owner || owner.deletedAt) return undefined; }
     return funnel ? publishedDocument(this.mapFunnelToResponse(funnel)) : undefined;
   }
 
   async getFunnelBySlug(slug: string): Promise<Funnel | undefined> {
     const [funnel] = await db.select().from(funnels)
       .where(and(eq(funnels.slug, slug), sql`${funnels.deletedAt} IS NULL`));
+    if (funnel) { const owner = await this.getUser(funnel.userId); if (!owner || owner.deletedAt) return undefined; }
     return funnel ? publishedDocument(this.mapFunnelToResponse(funnel)) : undefined;
   }
 
@@ -471,9 +473,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPublishedFunnelsForSitemap(): Promise<{ slug: string | null; uuid: string; updatedAt: Date }[]> {
+    const pending = Array.from(await committedAccountKeys());
     return db.select({ slug: funnels.slug, uuid: funnels.uuid, updatedAt: funnels.updatedAt })
-      .from(funnels)
-      .where(and(eq(funnels.status, "published"), sql`${funnels.deletedAt} IS NULL`));
+      .from(funnels).innerJoin(users, eq(users.id, funnels.userId))
+      .where(and(eq(funnels.status, "published"), isNull(funnels.deletedAt), isNull(users.deletedAt),
+        pending.length ? sql`${users.erasureKey} NOT IN (${sql.join(pending.map(key => sql`${key}`), sql`, `)})` : sql`true`));
   }
 
   async isSlugAvailable(slug: string, excludeFunnelId?: number): Promise<boolean> {
@@ -1191,6 +1195,8 @@ export class DatabaseStorage implements IStorage {
   async getAllUsers(limit = 50, offset = 0, search?: string): Promise<{
     users: Array<{
       id: number;
+      erasureKey: string;
+      deletedAt: Date | null;
       username: string;
       email: string;
       displayName: string | null;
@@ -1220,6 +1226,8 @@ export class DatabaseStorage implements IStorage {
 
     const usersWithCounts = await db.select({
       id: users.id,
+      erasureKey: users.erasureKey,
+      deletedAt: users.deletedAt,
       username: users.username,
       email: users.email,
       displayName: users.displayName,
@@ -1317,8 +1325,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Delete user (admin only)
-  async deleteUserAdmin(userId: number): Promise<boolean> {
-    return deleteAccountWithFiles(userId);
+  async deleteUserAdmin(userId: number): Promise<boolean | QueuedAccountErasure> {
+    return requestAccountErasure(userId);
   }
 
   // Update last login timestamp
