@@ -4,8 +4,9 @@ Der eigenständige Dienst ruft alle fünf Minuten über SSH das Journal vom
 Produktionsserver ab. Er läuft als LaunchAgent des angemeldeten Mac-Benutzers.
 Der Mac muss eingeschaltet, angemeldet und mit dem Server verbunden sein.
 Schlaf, ausgeschalteter Mac, fehlendes Netz oder fehlende SSH-Anmeldung erzeugen
-Sicherungslücken. **Das ist keine lückenlose Replikation und keine Zusicherung,
-dass jede bestätigte Löschung bereits extern gespeichert ist.**
+Sicherungslücken. Neue Aufträge können bis zum nächsten erfolgreichen Abruf nur
+auf dem Server liegen. Die Lead- und Kontolöschworker warten deshalb vor der
+physischen Löschung auf die Bestätigung des konkreten Journalauftrags.
 
 Der Abruf schreibt die Sicherung auf den Mac. Mit `confirmRemote: true`
 legt er zusätzlich eine separate Bestätigung auf dem Quellserver ab. Dafür
@@ -148,10 +149,12 @@ Vor manuellem Entfernen sicherstellen, dass kein Bestätigungsprozess läuft.
 Bestätigungsdaten gehören nicht zu einer zurückzuspielenden alten Anwendungskopie.
 Sie ersetzen weder das externe Journal noch den finalen aktuellen Quellenvergleich.
 
-**Diese Erweiterung aktiviert keine Löschung.** Der begrenzte Löschworker mit
-bewusster Regelaktivierung, überprüfbaren Wartezuständen und erneuter Prüfung von
-Ausnahmen, Status und Mailversand muss gesondert implementiert und abgenommen
-werden. Bestehende manuelle Löschwege warten noch nicht auf diese Bestätigung.
+Die bestätigten Aufträge werden durch die getrennten Löschworker ausgeführt:
+[RETENTION_AUTOMATION.md](RETENTION_AUTOMATION.md),
+[MANUAL_LEAD_ERASURE.md](MANUAL_LEAD_ERASURE.md) und
+[ACCOUNT_ERASURE.md](ACCOUNT_ERASURE.md). Der Mac-Dienst selbst löscht keine
+Anwendungsdaten. Vor dem ersten `queued_account`-Auftrag muss sein Parser auf
+mindestens den zugehörigen kompatiblen Programmstand aktualisiert sein.
 
 ## Betrieb und Fehler erkennen
 
@@ -217,8 +220,8 @@ absichtlich neben dem Journalverzeichnis.
 Ein zuletzt grüner Status oder eine aktuelle lokale Uhrzeit beweisen nicht, dass
 nach dem letzten Abruf keine Löschung mehr stattfand. Ohne anderweitig belegte
 Vollständigkeit bleibt die öffentliche Wiederinbetriebnahme gesperrt. Für automatische Aufbewahrungslöschungen wartet der Worker auf eine passende
-Bestätigung jedes konkreten Auftrags. Manuelle Löschwege warten weiterhin nicht
-auf den Mac. Deshalb ersetzt dieser Ablauf keinen aktuellen Restore-Abgleich.
+Bestätigung jedes konkreten Auftrags. Auch manuelle Lead- und Kontoaufträge warten vor der physischen Löschung auf
+diese Bestätigung. Trotzdem ersetzt dieser Ablauf keinen aktuellen Restore-Abgleich.
 Details: [RETENTION_AUTOMATION.md](RETENTION_AUTOMATION.md).
 
 ## Abnahme

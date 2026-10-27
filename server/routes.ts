@@ -1,4 +1,4 @@
-import { RetentionCommittedError } from "./erasure-journal";
+import { accountErasurePending, committedAccountKeys, journalDirectory, RetentionCommittedError } from "./erasure-journal";
 import { registerRetentionRoutes } from "./retention-routes";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
@@ -58,7 +58,7 @@ import { registerWorkspaceRoutes } from "./workspace-routes";
 import { registerRecruitingRoutes } from "./recruiting-routes";
 import { registerBuilderLibraryRoutes } from "./builder-library-routes";
 import { registerMediaAsset } from "./builder-library";
-import { AccountFileError, removeSupportFile, withOwnedUpload } from "./account-files";
+import { AccountFileError, removeSupportFile, withOwnedUpload, withActiveAccount } from "./account-files";
 import { registerBrandStyleRoutes } from "./brand-style-routes";
 import { changeRecruitingStage, RecruitingError } from "./recruiting";
 import { writeControlSchema, documentVersionSchema } from "@shared/funnel-document";
@@ -426,17 +426,19 @@ export async function registerRoutes(
         const requireCardAtSignup = process.env.SIGNUP_REQUIRE_CARD === "true";
         if (requireCardAtSignup && isStripeConfigured() && process.env.STRIPE_PRICE_ID) {
           try {
-            const customerId = await getOrCreateStripeCustomer(user);
-            await storage.updateStripeCustomerId(user.id, customerId);
-            const appUrl = `${req.protocol}://${req.get("host")}`;
-            const session = await createCheckoutSession(
-              customerId,
-              process.env.STRIPE_PRICE_ID,
-              `${appUrl}/?checkout=success`,
-              `${appUrl}/?checkout=cancelled`,
-              { trialDays: 14, clientReferenceId: String(user.id) }
-            );
-            checkoutUrl = session.url;
+            checkoutUrl = await withActiveAccount(user.id, async user => {
+              const customerId = await getOrCreateStripeCustomer(user);
+              await storage.updateStripeCustomerId(user.id, customerId);
+              const appUrl = `${req.protocol}://${req.get("host")}`;
+              const session = await createCheckoutSession(
+                customerId,
+                process.env.STRIPE_PRICE_ID!,
+                `${appUrl}/?checkout=success`,
+                `${appUrl}/?checkout=cancelled`,
+                { trialDays: 14, clientReferenceId: String(user.id) }
+              );
+              return session.url;
+            });
           } catch (stripeErr) {
             console.error("Stripe checkout creation during registration failed:", stripeErr);
             // Registrierung ist trotzdem erfolgreich — aber die Weiterleitung zur
@@ -571,7 +573,7 @@ export async function registerRoutes(
       }
 
       const user = await storage.getUserByEmail(email);
-      if (user) {
+      if (user && !await accountErasurePending(user)) {
         const token = await storage.createPasswordResetToken(user.id);
         await sendPasswordResetEmail(email, token);
       }
@@ -599,7 +601,7 @@ export async function registerRoutes(
       }
 
       const userId = await storage.validatePasswordResetToken(token);
-      if (!userId) {
+      if (!userId || (await storage.getUser(userId))?.deletedAt) {
         return res.status(400).json({ error: "Token ungültig oder abgelaufen" });
       }
 
@@ -742,7 +744,7 @@ export async function registerRoutes(
 
       // Stripe-Abos ZUERST kündigen — nach dem Löschen findet kein Webhook
       // mehr einen User und Stripe würde dauerhaft weiter abbuchen.
-      if (user.stripeCustomerId && isStripeConfigured()) {
+      if (!journalDirectory() && user.stripeCustomerId && isStripeConfigured()) {
         try {
           await cancelAllSubscriptions(user.stripeCustomerId);
         } catch (stripeErr) {
@@ -754,11 +756,12 @@ export async function registerRoutes(
         }
       }
 
-      await storage.deleteUserAdmin(userId);
+      const result = await storage.deleteUserAdmin(userId);
+      const queued = typeof result === "object";
 
       req.logout(() => {
         req.session?.destroy(() => {
-          res.json({ success: true, message: "Dein Konto wurde gelöscht." });
+          res.status(queued ? 202 : 200).json({ success: true, status: queued ? "queued" : "deleted", message: queued ? "Dein Konto ist gesperrt und die Löschung verbindlich beauftragt. Die Ausführung wartet auf die gesicherte Bestätigung und die Beendigung laufender Abonnements." : "Dein Konto wurde gelöscht." });
         });
       });
     } catch (error) {
@@ -2098,49 +2101,49 @@ export async function registerRoutes(
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
 
-      const user = await storage.getUser(userId);
-      if (!user) return res.status(404).json({ error: "Benutzer nicht gefunden" });
+      return await withActiveAccount(userId, async user => {
+        if (user.isPro) {
+          return res.status(400).json({ error: "Du hast bereits ein aktives Abo" });
+        }
 
-      if (user.isPro) {
-        return res.status(400).json({ error: "Du hast bereits ein aktives Abo" });
-      }
+        const priceId = process.env.STRIPE_PRICE_ID;
+        if (!priceId) return res.status(500).json({ error: "Preis nicht konfiguriert" });
 
-      const priceId = process.env.STRIPE_PRICE_ID;
-      if (!priceId) return res.status(500).json({ error: "Preis nicht konfiguriert" });
+        // Get or create Stripe customer — Customer-ID VOR der Session-Erstellung
+        // persistieren, damit der Webhook den User sicher findet.
+        const customerId = await getOrCreateStripeCustomer(user);
+        if (!user.stripeCustomerId) {
+          await storage.updateStripeCustomerId(userId, customerId);
+        }
 
-      // Get or create Stripe customer — Customer-ID VOR der Session-Erstellung
-      // persistieren, damit der Webhook den User sicher findet.
-      const customerId = await getOrCreateStripeCustomer(user);
-      if (!user.stripeCustomerId) {
-        await storage.updateStripeCustomerId(userId, customerId);
-      }
+        // Doppel-Abos verhindern: Die Registrierung erzeugt bereits eine 24h
+        // gültige Checkout-Session. Ohne diesen Guard kann derselbe Customer
+        // zwei Subscriptions abschließen und wird doppelt abgebucht.
+        const existing = await findBlockingSubscription(customerId);
+        if (existing) {
+          return res.status(400).json({
+            error: "Du hast bereits ein aktives Abo. Verwalte es über das Kundenportal in den Einstellungen.",
+          });
+        }
 
-      // Doppel-Abos verhindern: Die Registrierung erzeugt bereits eine 24h
-      // gültige Checkout-Session. Ohne diesen Guard kann derselbe Customer
-      // zwei Subscriptions abschließen und wird doppelt abgebucht.
-      const existing = await findBlockingSubscription(customerId);
-      if (existing) {
-        return res.status(400).json({
-          error: "Du hast bereits ein aktives Abo. Verwalte es über das Kundenportal in den Einstellungen.",
-        });
-      }
+        // Versprochenen Trial beim Upgrade übernehmen: "Zahlungsdaten hinterlegen"
+        // darf laufende Gratis-Tage nicht verfallen lassen (sofortige Abbuchung).
+        const trialEnd =
+          user.trialEndsAt && user.trialEndsAt.getTime() > Date.now() ? user.trialEndsAt : null;
 
-      // Versprochenen Trial beim Upgrade übernehmen: "Zahlungsdaten hinterlegen"
-      // darf laufende Gratis-Tage nicht verfallen lassen (sofortige Abbuchung).
-      const trialEnd =
-        user.trialEndsAt && user.trialEndsAt.getTime() > Date.now() ? user.trialEndsAt : null;
+        const appUrl = `${req.protocol}://${req.get("host")}`;
+        const session = await createCheckoutSession(
+          customerId,
+          priceId,
+          `${appUrl}/settings?tab=billing&upgraded=true`,
+          `${appUrl}/settings?tab=billing&cancelled=true`,
+          { trialEnd, clientReferenceId: String(userId) }
+        );
 
-      const appUrl = `${req.protocol}://${req.get("host")}`;
-      const session = await createCheckoutSession(
-        customerId,
-        priceId,
-        `${appUrl}/settings?tab=billing&upgraded=true`,
-        `${appUrl}/settings?tab=billing&cancelled=true`,
-        { trialEnd, clientReferenceId: String(userId) }
-      );
-
-      res.json({ url: session.url });
+        return res.json({ url: session.url });
+      });
     } catch (error) {
+      if (error instanceof AccountFileError) return res.status(409).json({ error: error.message });
       console.error("Create checkout error:", error);
       res.status(500).json({ error: "Checkout konnte nicht erstellt werden" });
     }
@@ -2156,19 +2159,21 @@ export async function registerRoutes(
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
 
-      const user = await storage.getUser(userId);
-      if (!user?.stripeCustomerId) {
-        return res.status(400).json({ error: "Kein Stripe-Konto vorhanden" });
-      }
+      return await withActiveAccount(userId, async user => {
+        if (!user?.stripeCustomerId) {
+          return res.status(400).json({ error: "Kein Stripe-Konto vorhanden" });
+        }
 
-      const appUrl = `${req.protocol}://${req.get("host")}`;
-      const session = await createPortalSession(
-        user.stripeCustomerId,
-        `${appUrl}/settings?tab=billing`
-      );
+        const appUrl = `${req.protocol}://${req.get("host")}`;
+        const session = await createPortalSession(
+          user.stripeCustomerId,
+          `${appUrl}/settings?tab=billing`
+        );
 
-      res.json({ url: session.url });
+        return res.json({ url: session.url });
+      });
     } catch (error) {
+      if (error instanceof AccountFileError) return res.status(409).json({ error: error.message });
       console.error("Create portal error:", error);
       res.status(500).json({ error: "Portal konnte nicht geöffnet werden" });
     }
@@ -2834,8 +2839,10 @@ export async function registerRoutes(
       const result = await storage.getAllUsers(limit, offset, search);
 
       // Map users to response format
+      const pendingAccounts = await committedAccountKeys();
       const users = result.users.map(user => ({
         id: user.id,
+        erasureRequested: !!user.deletedAt || pendingAccounts.has(user.erasureKey),
         username: user.username,
         email: user.email,
         displayName: user.displayName,
@@ -2925,7 +2932,7 @@ export async function registerRoutes(
       if (!userToDelete) {
         return res.status(404).json({ error: "Benutzer nicht gefunden" });
       }
-      if (userToDelete.stripeCustomerId && isStripeConfigured()) {
+      if (!journalDirectory() && userToDelete.stripeCustomerId && isStripeConfigured()) {
         try {
           await cancelAllSubscriptions(userToDelete.stripeCustomerId);
         } catch (stripeErr) {
@@ -2942,7 +2949,7 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Benutzer nicht gefunden" });
       }
 
-      res.json({ success: true });
+      res.status(typeof deleted === "object" ? 202 : 200).json({ success: true, status: typeof deleted === "object" ? "queued" : "deleted" });
     } catch (error) {
       console.error("Delete user error:", error);
       if (error instanceof AccountFileError) return res.status(409).json({ error: error.message });

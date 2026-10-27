@@ -1,4 +1,4 @@
-import { committedRetentionKeys } from "./erasure-journal";
+import { committedAccountKeys, committedRetentionKeys } from "./erasure-journal";
 import { RETENTION_MAIL_LOCK } from "./retention-worker";
 import { pool } from "./db";
 import type { PoolClient } from "pg";
@@ -31,6 +31,7 @@ interface ClaimedJob {
 interface CurrentContext {
   lead_uuid: string;
   owner_email: string;
+  owner_key: string;
   owner_verified: Date | null;
   owner_deleted: Date | null;
   owner_pro: boolean;
@@ -56,7 +57,7 @@ async function cancellationReason(job: ClaimedJob, client: PoolClient): Promise<
   // Alle Zuordnungen erneut prüfen: Ein Snapshot ist keine Zugriffsfreigabe.
   // Leads werden hart gelöscht; Owner und Funnels besitzen Soft-Delete-Felder.
   const { rows } = await client.query<CurrentContext>(`
-    SELECT l.uuid AS lead_uuid, u.email AS owner_email, u.email_verified_at AS owner_verified,
+    SELECT l.uuid AS lead_uuid, u.erasure_key AS owner_key, u.email AS owner_email, u.email_verified_at AS owner_verified,
            u.deleted_at AS owner_deleted, u.is_pro AS owner_pro,
            u.is_admin AS owner_admin, u.trial_ends_at AS owner_trial,
            f.deleted_at AS funnel_deleted, r.enabled AS rule_enabled,
@@ -70,6 +71,7 @@ async function cancellationReason(job: ClaimedJob, client: PoolClient): Promise<
   `, [job.lead_id, job.rule_id, job.owner_id]);
   const context = rows[0];
   if (!context || context.owner_deleted || context.funnel_deleted) return "resource_unavailable";
+  if ((await committedAccountKeys()).has(context.owner_key)) return "resource_unavailable";
   if ((await committedRetentionKeys()).has(context.lead_uuid)) return "retention_committed";
   if (!context.owner_verified) return "owner_not_verified";
   if (!hasProFeatures({

@@ -69,9 +69,16 @@ Die Bestätigung vertraut dem bestehenden SSH-Zugang des Backupbetreibers. Sie
 belegt die gesicherte Kopie zum Bestätigungszeitpunkt, nicht den späteren Zustand
 der Mac-Festplatte. Manuelle Lead-Löschungen verwenden ebenfalls diese
 Warteschlange, siehe [MANUAL_LEAD_ERASURE.md](MANUAL_LEAD_ERASURE.md).
-Kontolöschungen warten weiterhin nicht auf eine externe Bestätigung. Für einen
-vollständigen Restore bleibt der aktuelle Quellenabgleich notwendig.
+Kontolöschungen warten ebenfalls auf die Bestätigung ihres vollständigen
+Manifests, siehe [ACCOUNT_ERASURE.md](ACCOUNT_ERASURE.md). Für einen vollständigen
+Restore bleibt der aktuelle Quellenabgleich notwendig.
 
 Die Datenbanktests prüfen Offline-Wartezeit, genaue Bestätigung, Neustart,
 Abbruch zwischen Journal und SQL-Commit, Ausnahmen, Wiederöffnen, begrenzte und
 parallele Läufe, SMTP-Sperren sowie Wiederherstellung mit echtem pg_dump/pg_restore.
+
+## Kontolöschung
+
+Die Kontokaskade verwendet ebenfalls eine externe Bestätigung und eine dauerhafte
+Sperre. Ihr separater Worker und der Stripe-/Restore-Ablauf stehen in
+[ACCOUNT_ERASURE.md](ACCOUNT_ERASURE.md).

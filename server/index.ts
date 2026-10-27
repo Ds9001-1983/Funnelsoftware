@@ -13,6 +13,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { setupAuth, apiKeyAuth } from "./auth";
 import { storage } from "./storage";
+import { startAccountErasureWorker } from "./account-erasure-worker";
 import { startRetentionWorker } from "./retention-worker";
 import { startScheduler } from "./scheduler";
 import { startRecruitingMailWorker } from "./recruiting-mail";
@@ -317,6 +318,7 @@ app.get("/api/health", async (_req, res) => {
       startScheduler();
       startRecruitingMailWorker();
       startRetentionWorker();
+  startAccountErasureWorker();
     },
   );
 

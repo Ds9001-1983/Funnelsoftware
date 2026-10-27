@@ -122,3 +122,12 @@ werden unter anderem Kaskaden, Dateientfernung, Sessions, fremde Konten,
 wiederverwendete IDs, unterbrochene Aufträge, Parallelität, beschädigte Journale,
 veraltete Checkpoints und symbolische Verzeichnisse. Die Release-Tests prüfen
 zusätzlich die Startreihenfolge und den Rücksprung bei fehlgeschlagener Prüfung.
+
+## Wartende Konten
+
+`queued_account` mit noch offenem Abrechnungsabschluss entfernt beim Replay
+Dateien und Sitzungen, erhält eine vorhandene Kontozuordnung jedoch gesperrt.
+Die Stripe-Kennung im Journal bleibt auch bei älteren Dumps erhalten. Der
+Kontoworker übernimmt die noch ausstehende Kündigung nach kontrolliertem Start.
+Mit dauerhaft bestätigtem Abrechnungsabschluss führt Replay die Kontokaskade aus.
+Details und notwendige Parser-Update-Reihenfolge: [ACCOUNT_ERASURE.md](ACCOUNT_ERASURE.md).

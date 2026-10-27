@@ -8,7 +8,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import pg from "pg";
 import { eq, sql } from "drizzle-orm";
-import { erasureJournalIdentity, erasureJournalReceipts, funnels, leads, leadStageEvents, ownedUploads, recruitingMailJobs, recruitingMailRules, users } from "@shared/schema";
+import { erasureJournalIdentity, erasureJournalReceipts, domains, funnels, leads, leadStageEvents, ownedUploads, recruitingMailJobs, recruitingMailRules, users } from "@shared/schema";
 
 const connection = process.env.ERASURE_TEST_DATABASE_URL;
 if (connection) {
@@ -238,6 +238,10 @@ describe.skipIf(!connection)("independent erasure journal and real backup replay
       const restoreOptions = { env: { ...options.env, DATABASE_URL: restoreUrl.toString() } };
       await expect(execute(process.execPath, [...replayArgs.slice(0, -1), path.join(backup, "journal-baseline-checkpoint.json")], restoreOptions)).rejects.toThrow();
       expect(await exists(path.join(restoredFiles, "uploads", file.filename))).toBe(true);
+      const otherClient = new pg.Client({ connectionString: restoreUrl.toString() });
+      await otherClient.connect();
+      try { await expect(execute(process.execPath, replayArgs, restoreOptions)).rejects.toThrow("weitere Verbindungen"); }
+      finally { await otherClient.end(); }
       expect(JSON.parse((await execute(process.execPath, replayArgs, restoreOptions)).stdout)).toMatchObject({ accounts: 1 });
       expect(JSON.parse((await execute(process.execPath, replayArgs, restoreOptions)).stdout)).toMatchObject({ accounts: 0 });
       expect(await exists(path.join(restoredFiles, "uploads", file.filename))).toBe(false);
@@ -332,6 +336,148 @@ describe.skipIf(!connection)("independent erasure journal and real backup replay
     expect(await mail.processRecruitingMailJobs()).toMatchObject({ cancelled: 1, sent: 0 });
     expect(await worker.runRetentionBatch()).toMatchObject({ deleted: 1 });
     expect(await count("recruiting_mail_jobs")).toBe(0);
+  });
+
+
+  it("fences an account offline, deduplicates requests and waits for its exact manifest before deleting files and cascades", async () => {
+    const f = await fixture(), survivor = await fixture();
+    const file = await upload(f.owner.id), support = await upload(f.owner.id, "support"), foreign = await upload(survivor.owner.id);
+    await database.db.update(funnels).set({ status: "published" }).where(eq(funnels.id, f.funnel.id));
+    await database.db.update(users).set({ isPro: true }).where(eq(users.id, f.owner.id));
+    const host = `${f.owner.erasureKey}.example.test`;
+    await database.db.insert(domains).values({ userId: f.owner.id, funnelId: f.funnel.id, hostname: host, verified: true, verificationToken: "synthetic" });
+    const resolver = await import("./custom-domain");
+    expect(await resolver.resolveCustomDomainFunnel(host)).not.toBeNull();
+    await database.pool.query(`INSERT INTO "session" VALUES ($1,$2,now()+interval '1 day')`, ["waiting-account", JSON.stringify({ passport: { user: f.owner.id } })]);
+    await acknowledge(); // Covers the old head only.
+    expect(await storage.deleteUserAdmin(f.owner.id)).toEqual({ status: "queued", accountLocked: true });
+    expect(await storage.deleteUserAdmin(f.owner.id)).toEqual({ status: "queued", accountLocked: true });
+    expect((await checkpoint()).sequence).toBe(1);
+    expect(await count("users")).toBe(2); expect(await count('"session"')).toBe(0);
+    expect((await storage.getUser(f.owner.id))?.deletedAt).not.toBeNull();
+    expect(await storage.getFunnelByUuid(f.funnel.uuid)).toBeUndefined();
+    expect(await resolver.resolveCustomDomainFunnel(host)).toBeNull();
+    expect((await storage.getPublishedFunnelsForSitemap()).some(row => row.uuid === f.funnel.uuid)).toBe(false);
+    await expect(account.withOwnedUpload(f.owner.id, "public", "blocked.webp", async () => {})).rejects.toThrow();
+    await expect(account.withActiveAccount(f.owner.id, async () => true)).rejects.toThrow();
+    const worker = await import("./account-erasure-worker");
+    expect(await worker.runAccountErasureBatch({ root })).toEqual({ deleted: 0, waiting: 1, failed: 0 });
+    expect(await exists(file.full)).toBe(true); expect(await exists(support.full)).toBe(true);
+    await api.assertErasureJournalReady(root);
+    await acknowledge();
+    // The rejected upload reserved a filename but wrote nothing. Its ownership
+    // is also added to the manifest before any destruction.
+    expect(await worker.runAccountErasureBatch({ root })).toMatchObject({ deleted: 0, waiting: 1 });
+    expect((await checkpoint()).sequence).toBe(2);
+    await acknowledge();
+    expect(await worker.runAccountErasureBatch({ root })).toEqual({ deleted: 1, waiting: 0, failed: 0 });
+    expect(await exists(file.full)).toBe(false); expect(await exists(support.full)).toBe(false); expect(await exists(foreign.full)).toBe(true);
+    expect(await count("users")).toBe(1); expect(await count("leads")).toBe(1);
+    expect(await worker.runAccountErasureBatch({ root })).toMatchObject({ deleted: 0 });
+    await fs.writeFile(file.full, "restored old file");
+    await expect(api.assertErasureJournalReady(root)).rejects.toThrow();
+    await api.replayErasureJournal(journal, root, await checkpoint());
+    expect(await exists(file.full)).toBe(false);
+  });
+  it("keeps a durable account fence after SQL rollback and retries Stripe failures without touching files", async () => {
+    const f = await fixture(), file = await upload(f.owner.id);
+    await database.db.update(users).set({ stripeCustomerId: "cus_synthetic" }).where(eq(users.id, f.owner.id));
+    await expect(database.db.transaction(async tx => {
+      await api.lockErasureJournal(tx);
+      await api.recordErasure(tx, { type: "queued_account", key: f.owner.erasureKey, files: [{ area: "public", filename: file.filename }], billingCustomerId: "cus_synthetic", billingClosed: false });
+      throw new Error("simulated rollback");
+    })).rejects.toThrow("simulated rollback");
+    expect((await database.db.select().from(users))[0].deletedAt).toBeNull();
+    expect((await storage.getUser(f.owner.id))?.deletedAt).not.toBeNull();
+    await expect(account.withActiveAccount(f.owner.id, async () => true)).rejects.toThrow();
+    const worker = await import("./account-erasure-worker");
+    await acknowledge();
+    expect(await worker.runAccountErasureBatch({ root, closeBilling: async () => { throw new Error("Stripe unavailable"); } })).toMatchObject({ failed: 1, deleted: 0 });
+    expect((await database.db.select().from(users))[0].deletedAt).not.toBeNull();
+    expect(await exists(file.full)).toBe(true);
+    let cancelled = false;
+    expect(await worker.runAccountErasureBatch({ root, closeBilling: async id => { expect(id).toBe("cus_synthetic"); cancelled = true; } })).toMatchObject({ deleted: 0, waiting: 1 });
+    await acknowledge();
+    expect(await worker.runAccountErasureBatch({ root, closeBilling: async () => { throw new Error("must not re-cancel"); } })).toMatchObject({ deleted: 1 });
+    expect(cancelled).toBe(true); expect(await exists(file.full)).toBe(false);
+  });
+  it("cancels billing while offline but refuses missing, stale and mismatched account receipts", async () => {
+    const f = await fixture(), file = await upload(f.owner.id);
+    await database.db.update(users).set({ stripeCustomerId: "cus_synthetic" }).where(eq(users.id, f.owner.id));
+    await storage.deleteUserAdmin(f.owner.id);
+    const worker = await import("./account-erasure-worker"); let calls = 0;
+    const options = { root, closeBilling: async () => { calls++; } };
+    expect(await worker.runAccountErasureBatch(options)).toMatchObject({ deleted: 0, waiting: 1 });
+    for (const overrides of [{ confirmedAt: new Date(Date.now()-16*60_000).toISOString() }, { checkpoint: { ...await checkpoint(), hash: "0".repeat(64) } }]) {
+      await acknowledge(overrides);
+      expect(await worker.runAccountErasureBatch(options)).toMatchObject({ deleted: 0, waiting: 1 });
+    }
+    expect(calls).toBe(1); expect(await exists(file.full)).toBe(true);
+    await acknowledge(); expect(await worker.runAccountErasureBatch(options)).toMatchObject({ deleted: 1 });
+  });
+  it("waits for in-flight account mail and resumes after partial file failure", async () => {
+    const f = await fixture(), first = await upload(f.owner.id), second = await upload(f.owner.id);
+    await storage.deleteUserAdmin(f.owner.id); await acknowledge();
+    const worker = await import("./account-erasure-worker");
+    const client = await database.pool.connect();
+    try {
+      await client.query("SELECT pg_advisory_lock(734193830::int,$1::int)", [f.lead.id]);
+      expect(await worker.runAccountErasureBatch({ root })).toMatchObject({ deleted: 0, waiting: 1 });
+    } finally { await client.query("SELECT pg_advisory_unlock(734193830::int,$1::int)", [f.lead.id]); client.release(); }
+    let n = 0;
+    expect(await worker.runAccountErasureBatch({ root, removeFile: async filename => { if (++n === 2) throw new Error("synthetic file error"); await fs.unlink(filename); } })).toMatchObject({ failed: 1, deleted: 0 });
+    expect(await count("users")).toBe(1); await api.assertErasureJournalReady(root);
+    expect(await worker.runAccountErasureBatch({ root })).toMatchObject({ deleted: 1 });
+    expect(await exists(first.full)).toBe(false); expect(await exists(second.full)).toBe(false);
+  });
+  it("waits for an existing billing operation before committing the account manifest", async () => {
+    const f = await fixture();
+    let entered!: () => void, release!: () => void;
+    const ready = new Promise<void>(resolve => { entered = resolve; });
+    const resume = new Promise<void>(resolve => { release = resolve; });
+    const billing = account.withActiveAccount(f.owner.id, async () => { entered(); await resume; await storage.updateStripeCustomerId(f.owner.id, "cus_before_fence"); });
+    await ready;
+    let finished = false;
+    const deletion = storage.deleteUserAdmin(f.owner.id).then(result => { finished = true; return result; });
+    await new Promise(resolve => setTimeout(resolve, 30));
+    expect(finished).toBe(false); release(); await billing; await deletion;
+    expect((await storage.getUser(f.owner.id))?.stripeCustomerId).toBe("cus_before_fence");
+    await expect(account.withActiveAccount(f.owner.id, async () => true)).rejects.toThrow();
+  });
+  it("replays waiting account intents against a real old dump without reusing numeric identities", async () => {
+    const f = await fixture(), file = await upload(f.owner.id);
+    const dump = path.join(root, "account-before.dump");
+    await execute("pg_dump", ["--format=custom", "--file", dump, databaseUrl]);
+    await storage.deleteUserAdmin(f.owner.id);
+    const head = await checkpoint();
+    await execute("pg_restore", ["--clean", "--if-exists", "--no-owner", "--no-acl", "--exit-on-error", "--dbname", databaseUrl, dump]);
+    expect(await api.replayErasureJournal(journal, root, head)).toMatchObject({ accounts: 1 });
+    expect(await exists(file.full)).toBe(false);
+    const [replacement] = await database.db.insert(users).values({ id: f.owner.id, username: "reused-id", email: "reused@example.test", password: "synthetic" }).returning();
+    expect(await api.replayErasureJournal(journal, root, head)).toMatchObject({ accounts: 0 });
+    expect((await storage.getUser(replacement.id))?.deletedAt).toBeNull();
+  });
+
+  it("preserves billing identity across an older dump and closes a customer even when the restored account is absent", async () => {
+    const f = await fixture(), file = await upload(f.owner.id);
+    const dump = path.join(root, "before-stripe.dump");
+    await execute("pg_dump", ["--format=custom", "--file", dump, databaseUrl]);
+    await database.db.update(users).set({ stripeCustomerId: "cus_afterbackup" }).where(eq(users.id, f.owner.id));
+    await storage.deleteUserAdmin(f.owner.id);
+    const head = await checkpoint();
+    await execute("pg_restore", ["--clean", "--if-exists", "--no-owner", "--no-acl", "--exit-on-error", "--dbname", databaseUrl, dump]);
+    expect(await api.replayErasureJournal(journal, root, head)).toMatchObject({ accounts: 0 });
+    expect((await storage.getUser(f.owner.id))?.deletedAt).not.toBeNull();
+    expect(await exists(file.full)).toBe(false);
+    await database.db.delete(users).where(eq(users.id, f.owner.id)); // A dump predating the whole account.
+    const worker = await import("./account-erasure-worker");
+    let customer = "";
+    expect(await worker.runAccountErasureBatch({ root, closeBilling: async id => { customer = id; } })).toMatchObject({ waiting: 1 });
+    expect(customer).toBe("cus_afterbackup");
+    expect((await api.readJournal(journal)).entries.at(-1)?.entry.target).toMatchObject({ billingClosed: true });
+    await execute("pg_restore", ["--clean", "--if-exists", "--no-owner", "--no-acl", "--exit-on-error", "--dbname", databaseUrl, dump]);
+    expect(await api.replayErasureJournal(journal, root, await checkpoint())).toMatchObject({ accounts: 1 });
+    expect(await count("users")).toBe(0);
   });
 
   async function retentionFixture() {
