@@ -4,8 +4,9 @@ Der eigenständige Dienst ruft alle fünf Minuten über SSH das Journal vom
 Produktionsserver ab. Er läuft als LaunchAgent des angemeldeten Mac-Benutzers.
 Der Mac muss eingeschaltet, angemeldet und mit dem Server verbunden sein.
 Schlaf, ausgeschalteter Mac, fehlendes Netz oder fehlende SSH-Anmeldung erzeugen
-Sicherungslücken. **Das ist keine lückenlose Replikation und keine Zusicherung,
-dass jede bestätigte Löschung bereits extern gespeichert ist.**
+Sicherungslücken. Neue Aufträge können bis zum nächsten erfolgreichen Abruf nur
+auf dem Server liegen. Die Lead- und Kontolöschworker warten deshalb vor der
+physischen Löschung auf die Bestätigung des konkreten Journalauftrags.
 
 Der Abruf schreibt die Sicherung auf den Mac. Mit `confirmRemote: true`
 legt er zusätzlich eine separate Bestätigung auf dem Quellserver ab. Dafür
