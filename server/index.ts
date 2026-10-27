@@ -1,4 +1,3 @@
-import { startAccountErasureWorker } from "./account-erasure-worker";
 // Lädt .env im lokalen Development. Bereits gesetzte echte Env-Vars (Production)
 // haben Vorrang — dotenv überschreibt vorhandene Variablen standardmäßig nicht.
 import "dotenv/config";
@@ -14,6 +13,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { setupAuth, apiKeyAuth } from "./auth";
 import { storage } from "./storage";
+import { startAccountErasureWorker } from "./account-erasure-worker";
 import { startRetentionWorker } from "./retention-worker";
 import { startScheduler } from "./scheduler";
 import { startRecruitingMailWorker } from "./recruiting-mail";
