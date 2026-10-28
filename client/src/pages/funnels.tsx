@@ -20,6 +20,7 @@ import {
   List,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { DeletedFunnelRetention } from "@/components/DeletedFunnelRetention";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -564,6 +565,7 @@ export default function Funnels() {
         </div>
       </div>
 
+      <DeletedFunnelRetention />
       {/* Status-Filter + Auswahl */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Tabs

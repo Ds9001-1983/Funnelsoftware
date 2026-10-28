@@ -58,6 +58,20 @@ describe('external append-only erasure journal backup', () => {
     expect((await readJournal(saved.journal)).records[0].entry.target.type).toBe('retention_leads');
     await expect(append({ type: 'retention_leads', keys: Array.from({ length: 21 }, () => randomUUID()) })).rejects.toThrow();
   });
+  it('copies and confirms analytics cutoffs without broadening their scope', async () => {
+    const target = { type: 'analytics_before', key: randomUUID(), before: '2026-01-15T12:30:00.123Z', maxId: 42 };
+    await append(target);
+    await runBackup({ ...config, confirmRemote: true }, remote, async (_config, checkpoint, nonce) => ({ receipt: await confirmExternalCopy(source, checkpoint), nonce }));
+    expect((await externalCopyStatus(source)).fullyBackedUp).toBe(true);
+    expect((await readJournal((await verifyCurrent(config, remote)).journal)).records[0].entry.target).toEqual(target);
+    await expect(append({ ...target, maxId: 0 })).rejects.toThrow();
+  });
+  it('copies final funnel intents and rejects an oversized batch', async () => {
+    const target = { type: 'queued_funnels', keys: [randomUUID(), randomUUID(), randomUUID()] };
+    await append(target); await runBackup(config, remote);
+    expect((await readJournal((await verifyCurrent(config, remote)).journal)).records[0].entry.target).toEqual(target);
+    await expect(append({ type: 'queued_funnels', keys: Array.from({ length: 4 }, () => randomUUID()) })).rejects.toThrow();
+  });
   it('copies and confirms queued account manifests without changing historical entries', async () => {
     const target = { type: 'queued_account', key: randomUUID(), files: [{ area: 'public', filename: 'waiting.webp' }], billingCustomerId: 'cus_synthetic', billingClosed: false };
     await append(target);

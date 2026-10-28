@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { AnalyticsRetention } from "@/components/AnalyticsRetention";
 import {
   Eye,
   Users,
@@ -600,6 +601,8 @@ export default function Analytics() {
         />
       </div>
 
+      <AnalyticsRetention funnels={funnels ?? []} />
+      <p className="text-sm text-muted-foreground">Seiten- und Zeitverläufe beruhen auf den noch gespeicherten Statistikereignissen. Eine Aufbewahrungsfrist kann ältere Detaildaten entfernen; die Gesamtzähler für Aufrufe bleiben erhalten.</p>
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
