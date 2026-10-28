@@ -267,6 +267,24 @@ export const funnelRetentionDrafts = pgTable("funnel_retention_drafts", {
   version: integer("version").notNull().default(1),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+export const funnelAnalyticsRetention = pgTable("funnel_analytics_retention", {
+  funnelId: integer("funnel_id").primaryKey().references(() => funnels.id, { onDelete: "cascade" }),
+  days: integer("days").notNull(),
+  purpose: text("purpose").notNull(),
+  version: integer("version").notNull().default(1),
+  activeVersion: integer("active_version"),
+  activatedAt: timestamp("activated_at"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export const deletedFunnelRetention = pgTable("deleted_funnel_retention", {
+  userId: integer("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  days: integer("days").notNull(),
+  purpose: text("purpose").notNull(),
+  version: integer("version").notNull().default(1),
+  activeVersion: integer("active_version"),
+  activatedAt: timestamp("activated_at"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
 export const leadRetentionExceptions = pgTable("lead_retention_exceptions", {
   leadId: integer("lead_id").primaryKey().references(() => leads.id, { onDelete: "cascade" }),
   reason: text("reason"),
@@ -377,7 +395,7 @@ export const analyticsEvents = pgTable("analytics_events", {
   eventType: text("event_type").notNull(), // view, pageView, click, submit, complete
   pageId: text("page_id"),
   metadata: jsonb("metadata").default({}),
-  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  timestamp: timestamp("timestamp").default(sql`(now() AT TIME ZONE 'UTC')`).notNull(),
 }, (table) => [
   index("analytics_events_funnel_id_idx").on(table.funnelId),
   index("analytics_events_funnel_event_idx").on(table.funnelId, table.eventType),

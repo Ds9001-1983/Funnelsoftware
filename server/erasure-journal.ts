@@ -2,8 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { constants, promises as fs } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { eq, inArray, sql } from "drizzle-orm";
-import { bugReports, erasureJournalIdentity, erasureJournalReceipts, funnels, leads, mediaAssets, ownedUploads, users } from "@shared/schema";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { analyticsEvents, bugReports, deletedFunnelRetention, funnelAnalyticsRetention, erasureJournalIdentity, erasureJournalReceipts, funnels, leads, mediaAssets, ownedUploads, users } from "@shared/schema";
 import { db } from "./db";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -14,12 +14,24 @@ const fileSchema = z.object({
   filename: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,254}$/).refine(name => !name.includes("..")),
 }).strict();
 const targetSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("queued_funnels"), keys: z.array(z.string().uuid()).min(1).max(3) }).strict(),
+  z.object({ type: z.literal("analytics_before"), key: z.string().uuid(), before: z.string().datetime(), maxId: z.number().int().positive().max(2147483647) }).strict(),
   z.object({ type: z.literal("queued_account"), key: z.string().uuid(), files: z.array(fileSchema), billingCustomerId: z.string().regex(/^cus_[a-zA-Z0-9_]+$/).nullable(), billingClosed: z.boolean() }).strict(),
   z.object({ type: z.literal("account"), key: z.string().uuid(), files: z.array(fileSchema) }).strict(),
   z.object({ type: z.literal("leads"), keys: z.array(z.string().uuid()).min(1) }).strict(),
   z.object({ type: z.literal("retention_leads"), keys: z.array(z.string().uuid()).min(1).max(20) }).strict(),
 ]);
 export type ErasureTarget = z.infer<typeof targetSchema>;
+export type AnalyticsErasureTarget = Extract<ErasureTarget, { type: "analytics_before" }>;
+/** Stable funnel identity plus time AND sequence fences. New events and reused
+ * numeric funnel IDs cannot be selected by an old intent, including on restore. */
+export function analyticsErasureScope(target: AnalyticsErasureTarget) {
+  return and(
+    sql`${analyticsEvents.funnelId} IN (SELECT id FROM funnels WHERE uuid = ${target.key})`,
+    sql`${analyticsEvents.timestamp} <= ${target.before}::timestamptz AT TIME ZONE 'UTC'`,
+    sql`${analyticsEvents.id} <= ${target.maxId}`,
+  )!;
+}
 const anchorSchema = z.object({ version: z.literal(1), instanceId: z.string().uuid() }).strict();
 const entrySchema = z.object({
   version: z.literal(1), instanceId: z.string().uuid(), sequence: z.number().int().positive(),
@@ -162,7 +174,7 @@ export async function filePath(root: string, file: z.infer<typeof fileSchema>) {
 async function assertNoErasedData(tx: Transaction, entries: Envelope[], root: string, allowWaitingRetention = false) {
   for (const { entry } of entries) {
     const target = entry.target;
-    if (target.type === "retention_leads" && allowWaitingRetention) continue;
+    if ((target.type === "retention_leads" || target.type === "analytics_before" || target.type === "queued_funnels") && allowWaitingRetention) continue;
     if (target.type === "queued_account" && allowWaitingRetention) {
       const owner = await tx.select({ id: users.id }).from(users).where(eq(users.erasureKey, target.key)).limit(1);
       if (owner.length || !target.billingClosed) continue;
@@ -171,6 +183,10 @@ async function assertNoErasedData(tx: Transaction, entries: Envelope[], root: st
     }
     if (target.type === "leads" || target.type === "retention_leads") {
       if ((await tx.select({ id: leads.id }).from(leads).where(inArray(leads.uuid, target.keys)).limit(1)).length) throw new ErasureJournalError();
+    } else if (target.type === "analytics_before") {
+      if ((await tx.select({ id: analyticsEvents.id }).from(analyticsEvents).where(analyticsErasureScope(target)).limit(1)).length) throw new ErasureJournalError();
+    } else if (target.type === "queued_funnels") {
+      if ((await tx.select({ id: funnels.id }).from(funnels).where(inArray(funnels.uuid, target.keys)).limit(1)).length) throw new ErasureJournalError();
     } else {
       const [owner] = await tx.select({ deletedAt: users.deletedAt }).from(users).where(eq(users.erasureKey, target.key)).limit(1);
       if (owner && !(target.type === "queued_account" && !target.billingClosed && owner.deletedAt)) throw new ErasureJournalError();
@@ -196,6 +212,8 @@ export async function assertErasureJournalReady(root = process.cwd()) {
     // account fence before any authentication, public route or worker starts.
     const keys = journal.entries.flatMap(({ entry }) => entry.target.type === "queued_account" ? [entry.target.key] : []);
     if (keys.length) await tx.update(users).set({ deletedAt: sql`COALESCE(${users.deletedAt}, now())` }).where(inArray(users.erasureKey, keys));
+    const funnelKeys = journal.entries.flatMap(({ entry }) => entry.target.type === "queued_funnels" ? entry.target.keys : []);
+    if (funnelKeys.length) await tx.update(funnels).set({ deletedAt: sql`COALESCE(${funnels.deletedAt}, now() AT TIME ZONE 'UTC')` }).where(inArray(funnels.uuid, funnelKeys));
     // Resolve an interrupted response/commit or an already retried deletion.
     for (const record of journal.entries) {
       await tx.insert(erasureJournalReceipts).values({ sequence: record.entry.sequence, hash: record.hash }).onConflictDoNothing();
@@ -204,22 +222,28 @@ export async function assertErasureJournalReady(root = process.cwd()) {
 }
 
 /** Offline restore only; the caller pins a fresh, independently obtained head.
- * Numeric IDs never select targets. Reapplying is safe and repairs counters. */
+ * Numeric IDs alone never select targets. Reapplying is safe and repairs counters. */
 export async function replayErasureJournal(directory: string, root: string, expected: JournalCheckpoint) {
   const checkpoint = checkpointSchema.parse(expected);
   return db.transaction(async tx => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(734193829)`);
     const journal = await boundJournal(tx, directory);
     if (JSON.stringify(journal.checkpoint) !== JSON.stringify(checkpoint)) throw new ErasureJournalError();
-    let accounts = 0, leadCount = 0;
+    let accounts = 0, leadCount = 0, analyticsCount = 0, funnelCount = 0;
     for (const { entry, hash } of journal.entries) {
       const target = entry.target;
+      // Replay all independent lead/account erasures before removing empty
+      // funnels. An older backup may still contain leads erased later.
+      if (target.type === "queued_funnels") continue;
       if (target.type === "leads" || target.type === "retention_leads") {
         const removed = await tx.delete(leads).where(inArray(leads.uuid, target.keys)).returning({ funnelId: leads.funnelId });
         const counts = new Map<number, number>();
         for (const lead of removed) counts.set(lead.funnelId, (counts.get(lead.funnelId) ?? 0) + 1);
         for (const [funnelId, count] of Array.from(counts)) await tx.update(funnels).set({ leads: sql`GREATEST(${funnels.leads} - ${count}, 0)` }).where(eq(funnels.id, funnelId));
         leadCount += removed.length;
+      } else if (target.type === "analytics_before") {
+        const removed = await tx.delete(analyticsEvents).where(analyticsErasureScope(target)).returning({ id: analyticsEvents.id });
+        analyticsCount += removed.length;
       } else {
         const [owner] = await tx.select({ id: users.id }).from(users).where(eq(users.erasureKey, target.key)).for("update");
         const files = [...target.files];
@@ -252,10 +276,26 @@ export async function replayErasureJournal(directory: string, root: string, expe
       }
       await tx.insert(erasureJournalReceipts).values({ sequence: entry.sequence, hash }).onConflictDoNothing();
     }
+    for (const { entry, hash } of journal.entries) {
+      if (entry.target.type !== "queued_funnels") continue;
+      const targets = await tx.select({ id: funnels.id }).from(funnels).where(inArray(funnels.uuid, entry.target.keys)).for("update");
+      for (const funnel of targets) {
+        if ((await tx.select({ id: leads.id }).from(leads).where(eq(leads.funnelId, funnel.id)).limit(1)).length) throw new ErasureJournalError();
+        await tx.delete(funnels).where(eq(funnels.id, funnel.id));
+        funnelCount++;
+      }
+      await tx.insert(erasureJournalReceipts).values({ sequence: entry.sequence, hash }).onConflictDoNothing();
+    }
     await assertNoErasedData(tx, journal.entries, root);
+    // An old snapshot must not silently reactivate a subsequently paused or
+    // changed rule. Existing intents are replayed above; future work needs review.
+    await tx.update(funnelAnalyticsRetention).set({ activeVersion: null, activatedAt: null, version: sql`${funnelAnalyticsRetention.version} + 1`, updatedAt: new Date() })
+      .where(sql`${funnelAnalyticsRetention.activeVersion} IS NOT NULL`);
+    await tx.update(deletedFunnelRetention).set({ activeVersion: null, activatedAt: null, version: sql`${deletedFunnelRetention.version} + 1`, updatedAt: new Date() })
+      .where(sql`${deletedFunnelRetention.activeVersion} IS NOT NULL`);
     // No approval survives a concurrently advancing source journal.
     if (JSON.stringify((await readJournal(directory)).checkpoint) !== JSON.stringify(checkpoint)) throw new ErasureJournalError();
-    return { accounts, leads: leadCount, checkpoint };
+    return { accounts, leads: leadCount, analytics: analyticsCount, funnels: funnelCount, checkpoint };
   });
 }
 
@@ -314,6 +354,11 @@ export async function committedAccountKeys(): Promise<Set<string>> {
   const directory = journalDirectory();
   if (!directory) return new Set();
   return new Set((await readJournal(directory)).entries.flatMap(({ entry }) => entry.target.type === "queued_account" ? [entry.target.key] : []));
+}
+export async function committedFunnelKeys(): Promise<Set<string>> {
+  const directory = journalDirectory();
+  if (!directory) return new Set();
+  return new Set((await readJournal(directory)).entries.flatMap(({ entry }) => entry.target.type === "queued_funnels" ? entry.target.keys : []));
 }
 export async function accountErasurePending(user: { erasureKey: string; deletedAt: Date | null }): Promise<boolean> {
   return !!user.deletedAt || (await committedAccountKeys()).has(user.erasureKey);

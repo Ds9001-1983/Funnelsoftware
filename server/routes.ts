@@ -1346,7 +1346,10 @@ export async function registerRoutes(
       ]);
 
       // Aggregate metrics
-      const totalViews = analytics.filter(e => e.eventType === "view").length;
+      // Lifetime views remain valid after event retention; detail charts use
+      // retained events only. Do not divide lifetime leads by retained views.
+      const retainedViews = analytics.filter(e => e.eventType === "view").length;
+      const totalViews = funnel.views;
       const totalLeads = leads.length;
       const conversionRate = totalViews > 0 ? ((totalLeads / totalViews) * 100).toFixed(1) : "0.0";
 
@@ -1360,7 +1363,7 @@ export async function registerRoutes(
         pageId: page.id,
         title: page.title,
         stepNumber: idx + 1,
-        visitors: pageViews[page.id] || (idx === 0 ? totalViews : 0),
+        visitors: pageViews[page.id] || (idx === 0 ? retainedViews : 0),
       }));
 
       // Answer distribution per question page

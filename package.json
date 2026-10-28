@@ -16,7 +16,7 @@
     "test:coverage": "vitest run --coverage",
     "optimize-images": "node scripts/optimize-images.cjs",
     "lighthouse": "npx --yes lighthouse https://trichterwerk.de/ --preset=desktop --output=html --output-path=./lighthouse-report.html --chrome-flags=\"--headless\" --view",
-    "test:e2e": "npm run test:e2e:app && npm run test:e2e:deletion && npm run test:e2e:subject-export && npm run test:e2e:retention",
+    "test:e2e": "npm run test:e2e:app && npm run test:e2e:deletion && npm run test:e2e:subject-export && npm run test:e2e:retention && npm run test:e2e:analytics-retention",
     "test:e2e:app": "playwright test --project=chromium",
     "test:e2e:deletion": "playwright test --project=account-deletion",
     "test:e2e:subject-export": "playwright test --project=subject-export",
@@ -24,7 +24,8 @@
     "test:e2e:install": "playwright install --with-deps chromium",
     "generate:template-videos": "tsx scripts/record-template-videos.ts",
     "capture:hero": "tsx scripts/capture-hero-screenshot.ts",
-    "test:e2e:retention": "playwright test --project=retention"
+    "test:e2e:retention": "playwright test --project=retention",
+    "test:e2e:analytics-retention": "playwright test --project=analytics-retention"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

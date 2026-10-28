@@ -1,4 +1,8 @@
 import { RetentionCommittedError } from "./erasure-journal";
+import { analyticsRetentionDraftSchema } from "@shared/analytics-retention-contract";
+import { deletedFunnelRetentionSchema } from "@shared/deleted-funnel-retention-contract";
+import { activateDeletedFunnelRetention, previewDeletedFunnelRetention, saveDeletedFunnelRetention } from "./deleted-funnel-retention";
+import { activateAnalyticsRetention, previewAnalyticsRetention, saveAnalyticsRetention } from "./analytics-retention";
 import type { Express, Response } from "express";
 import { z } from "zod";
 import { isAuthenticated, requireVerifiedEmail } from "./auth";
@@ -13,6 +17,34 @@ function fail(res: Response, error: unknown) {
   return res.status(500).json({ error: "Die Anfrage konnte nicht verarbeitet werden." });
 }
 export function registerRetentionRoutes(app: Express) {
+  app.get("/api/retention/deleted-funnels", isAuthenticated, requireVerifiedEmail, async (req, res) => {
+    try {
+      res.setHeader("Cache-Control", "no-store");
+      res.json(await previewDeletedFunnelRetention(req.user!.id, z.coerce.number().int().min(0).max(1_000_000).parse(req.query.page ?? 0)));
+    } catch (error) { fail(res, error); }
+  });
+  app.put("/api/retention/deleted-funnels", isAuthenticated, requireVerifiedEmail, async (req, res) => {
+    try { res.json(await saveDeletedFunnelRetention(req.user!.id, deletedFunnelRetentionSchema.parse(req.body))); }
+    catch (error) { fail(res, error); }
+  });
+  app.put("/api/retention/deleted-funnels/activation", isAuthenticated, requireVerifiedEmail, async (req, res) => {
+    try { res.json(await activateDeletedFunnelRetention(req.user!.id, retentionActivationSchema.parse(req.body))); }
+    catch (error) { fail(res, error); }
+  });
+  app.get("/api/retention/analytics/:id", isAuthenticated, requireVerifiedEmail, async (req, res) => {
+    try {
+      res.setHeader("Cache-Control", "no-store");
+      res.json(await previewAnalyticsRetention(id.parse(req.params.id), req.user!.id));
+    } catch (error) { fail(res, error); }
+  });
+  app.put("/api/retention/analytics/:id", isAuthenticated, requireVerifiedEmail, async (req, res) => {
+    try { res.json(await saveAnalyticsRetention(id.parse(req.params.id), req.user!.id, analyticsRetentionDraftSchema.parse(req.body))); }
+    catch (error) { fail(res, error); }
+  });
+  app.put("/api/retention/analytics/:id/activation", isAuthenticated, requireVerifiedEmail, async (req, res) => {
+    try { res.json(await activateAnalyticsRetention(id.parse(req.params.id), req.user!.id, retentionActivationSchema.parse(req.body))); }
+    catch (error) { fail(res, error); }
+  });
   // Only the authenticated owner can plan retention; workspace membership does not grant this right.
   app.get("/api/retention/funnels/:id", isAuthenticated, requireVerifiedEmail, async (req, res) => {
     try {

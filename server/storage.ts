@@ -3,7 +3,7 @@ import { eq, desc, and, sql, gte, lt, inArray, isNull } from "drizzle-orm";
 import { quizTemplateElement } from "@shared/quiz-template";
 import { db } from "./db";
 import { requestAccountErasure, type QueuedAccountErasure } from "./account-files";
-import { accountErasurePending, assertRetentionEditable, committedAccountKeys, committedRetentionKeys, lockErasureJournal, queueLeadErasure, type QueuedLeadErasure } from "./erasure-journal";
+import { accountErasurePending, assertRetentionEditable, committedAccountKeys, committedFunnelKeys, committedRetentionKeys, lockErasureJournal, queueLeadErasure, type QueuedLeadErasure } from "./erasure-journal";
 import { queueRecruitingEmails } from "./recruiting";
 import { publishedDocument, writeFunnel } from "./funnel-revisions";
 import { needsLayoutDocument } from "@shared/funnel-layout";
@@ -651,6 +651,14 @@ export class DatabaseStorage implements IStorage {
   async createLead(insertLead: InsertLead, userId: number): Promise<Lead & { deduplicated?: boolean }> {
     // Transaction: Lead erstellen + Counter erhöhen atomar
     return await db.transaction(async (tx) => {
+      // Match account-erasure ordering: account before funnel. Taking the FK
+      // key-share lock first avoids a cycle with the account cascade.
+      const [owner] = await tx.select().from(users).where(and(eq(users.id, userId), isNull(users.deletedAt))).for("key share");
+      if (!owner || await accountErasurePending(owner)) throw new Error("Konto nicht mehr verfügbar");
+      // A public request may have read the funnel before it was soft-deleted.
+      // Serialize against final removal before inserting any dependent data.
+      const [available] = await tx.select({ id: funnels.id }).from(funnels).where(and(eq(funnels.id, insertLead.funnelId), eq(funnels.userId, userId), isNull(funnels.deletedAt))).for("update");
+      if (!available) throw new Error("Funnel nicht mehr verfügbar");
       // Serialisiert Wiederholungen derselben Bewerbung; die bisherige
       // Vorabprüfung allein war bei parallelen Formular-Requests nicht atomar.
       if (insertLead.email) {
@@ -1035,12 +1043,13 @@ export class DatabaseStorage implements IStorage {
 
   // Restore soft-deleted funnel
   async restoreFunnel(id: number, userId: number): Promise<boolean> {
-    const result = await db.update(funnels)
-      .set({ deletedAt: null })
-      .where(and(eq(funnels.id, id), eq(funnels.userId, userId), sql`${funnels.deletedAt} IS NOT NULL`))
-      .returning({ id: funnels.id });
-
-    return result.length > 0;
+    return db.transaction(async tx => {
+      await lockErasureJournal(tx);
+      const [funnel] = await tx.select().from(funnels).where(and(eq(funnels.id, id), eq(funnels.userId, userId), sql`${funnels.deletedAt} IS NOT NULL`)).for("update");
+      if (!funnel || (await committedFunnelKeys()).has(funnel.uuid)) return false;
+      await tx.update(funnels).set({ deletedAt: null }).where(eq(funnels.id, id));
+      return true;
+    });
   }
 
   // Email Verification

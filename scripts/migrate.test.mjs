@@ -21,9 +21,11 @@ describe.skipIf(!connection)("additive migration on existing funnels and leads",
         ab_tests jsonb DEFAULT '[]', gtm_id text, meta_pixel_id text, impressum_url text, datenschutz_url text,
         og_image_url text, updated_at timestamp DEFAULT now());
       CREATE TABLE leads (id serial PRIMARY KEY, funnel_id integer REFERENCES funnels(id), status text, answers jsonb);
+      CREATE TABLE analytics_events (id serial PRIMARY KEY, funnel_id integer REFERENCES funnels(id), event_type text, timestamp timestamp DEFAULT now());
       INSERT INTO users VALUES (1, 'migration@example.test');
       INSERT INTO funnels (id,user_id,slug,pages) VALUES (1, 1, 'bestehender-funnel', '[{"id":"old-page","elements":[{"id":"old-field"}]}]');
       INSERT INTO leads VALUES (1, 1, 'qualified', '{"old-field":"Antwort bleibt"}');
+      INSERT INTO analytics_events (funnel_id,event_type,timestamp) VALUES (1,'view','2026-01-01 12:00:00.123456');
     `);
   });
   afterAll(async () => {
@@ -31,7 +33,11 @@ describe.skipIf(!connection)("additive migration on existing funnels and leads",
   });
   it("preserves existing identities, contents, answers and status, including on rerun", async () => {
     const before = (await client.query("SELECT id,user_id,slug,pages,name,description,status,theme,ab_tests,gtm_id,meta_pixel_id,impressum_url,datenschutz_url,og_image_url,updated_at FROM funnels")).rows;
+    const eventsBefore = (await client.query("SELECT id,funnel_id,event_type,timestamp::text FROM analytics_events")).rows;
     await migrate(client); await migrate(client);
+    expect((await client.query("SELECT id,funnel_id,event_type,timestamp::text FROM analytics_events")).rows).toEqual(eventsBefore);
+    await client.query("SET TIME ZONE 'Europe/Berlin'");
+    expect((await client.query("INSERT INTO analytics_events(funnel_id,event_type) VALUES(1,'view') RETURNING abs(extract(epoch FROM (timestamp - (now() AT TIME ZONE 'UTC')))) < 1 AS utc")).rows[0].utc).toBe(true);
     expect((await client.query("SELECT id,user_id,slug,pages,name,description,status,theme,ab_tests,gtm_id,meta_pixel_id,impressum_url,datenschutz_url,og_image_url,updated_at FROM funnels")).rows).toEqual(before);
     const revisions = (await client.query("SELECT content FROM funnel_revisions")).rows;
     expect(revisions[0].content.pages).toEqual(before[0].pages);
@@ -39,8 +45,8 @@ describe.skipIf(!connection)("additive migration on existing funnels and leads",
     expect((await client.query("SELECT * FROM leads")).rows).toEqual([{ id: 1, funnel_id: 1, status: "qualified", answers: { "old-field": "Antwort bleibt" }, stage_id: null, stage_version: 0, answer_snapshot: null, consent_version: null, closed_at: null }]);
     expect((await client.query("SELECT * FROM recruiting_mail_jobs")).rows).toEqual([]);
     expect((await client.query("SELECT * FROM brand_styles")).rows).toEqual([]);
-    for (const table of ["content_templates", "media_folders", "media_assets", "marketing_consents", "owned_uploads", "funnel_retention_drafts", "lead_retention_exceptions"]) expect((await client.query(`SELECT * FROM ${table}`)).rows).toEqual([]);
-    expect((await client.query("SELECT count(*)::int AS count FROM app_migrations")).rows[0].count).toBe(10);
+    for (const table of ["content_templates", "media_folders", "media_assets", "marketing_consents", "owned_uploads", "funnel_retention_drafts", "lead_retention_exceptions", "funnel_analytics_retention", "deleted_funnel_retention"]) expect((await client.query(`SELECT * FROM ${table}`)).rows).toEqual([]);
+    expect((await client.query("SELECT count(*)::int AS count FROM app_migrations")).rows[0].count).toBe(12);
   });
   it("preserves an existing retention draft without activating deletion", async () => {
     await client.query("DELETE FROM app_migrations WHERE name='20261023_retention_activation.sql'");

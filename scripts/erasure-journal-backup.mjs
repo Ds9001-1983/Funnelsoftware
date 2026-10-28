@@ -41,11 +41,16 @@ function record(value) {
   object(e, ['version', 'instanceId', 'sequence', 'previousHash', 'requestedAt', 'target']);
   if (e.version !== 1 || !Number.isSafeInteger(e.sequence) || e.sequence < 1) fail('Invalid sequence.');
   let target;
-  if (e.target?.type === 'leads' || e.target?.type === 'retention_leads') {
+  if (e.target?.type === 'leads' || e.target?.type === 'retention_leads' || e.target?.type === 'queued_funnels') {
     object(e.target, ['type', 'keys']);
     if (!Array.isArray(e.target.keys) || !e.target.keys.length) fail('Missing lead identities.');
     if (e.target.type === 'retention_leads' && e.target.keys.length > 20) fail('Automatic batch exceeds limit.');
+    if (e.target.type === 'queued_funnels' && e.target.keys.length > 3) fail('Funnel batch exceeds limit.');
     target = { type: e.target.type, keys: e.target.keys.map(uuid) };
+  } else if (e.target?.type === 'analytics_before') {
+    object(e.target, ['type', 'key', 'before', 'maxId']);
+    if (!Number.isInteger(e.target.maxId) || e.target.maxId < 1 || e.target.maxId > 2147483647) fail('Invalid analytics sequence fence.');
+    target = { type: e.target.type, key: uuid(e.target.key), before: date(e.target.before), maxId: e.target.maxId };
   } else {
     object(e.target, e.target.type === 'queued_account' ? ['type', 'key', 'files', 'billingCustomerId', 'billingClosed'] : ['type', 'key', 'files']);
     if (!['account', 'queued_account'].includes(e.target.type) || !Array.isArray(e.target.files)) fail('Invalid account target.');
