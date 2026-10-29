@@ -196,6 +196,7 @@ import { DesignPanel } from "@/components/funnel-editor/DesignPanel";
 import { RevisionDialog } from "@/components/funnel-editor/RevisionDialog";
 import { EditorRecoveryBar } from "@/components/funnel-editor/EditorRecoveryBar";
 import { PublishDialog } from "@/components/funnel-editor/PublishDialog";
+import { publicationLegalErrors } from "@shared/funnel-legal";
 
 const LogicFlowView = lazy(() =>
   import("@/components/funnel-editor/LogicFlowView").then((m) => ({ default: m.LogicFlowView })),
@@ -1145,6 +1146,10 @@ export default function FunnelEditor() {
       {libraryEditing && selectedPage && <div className="px-3 py-1 border-b"><BuilderLibrary funnel={localFunnel} pageIndex={selectedPageIndex} onInsert={pages => updateLocalFunnel({ pages })} /></div>}
       {localFunnel.status === "published" && <p className="text-xs text-muted-foreground px-4 py-1 border-b">Du bearbeitest den Entwurf. Inhaltsänderungen werden erst mit „Veröffentlichen“ live.</p>}
       <RevisionDialog open={showRevisions} onOpenChange={setShowRevisions} funnelId={localFunnel.id} onRestore={restoreRevision} />
+      {publicationLegalErrors(localFunnel).length > 0 && <div className="px-4 py-2 border-b text-xs flex flex-wrap items-center gap-2" role="status">
+        <span>Vor der nächsten Veröffentlichung: Impressum- und Datenschutzlinks vervollständigen.</span>
+        <Button variant="ghost" size="sm" onClick={() => setShowSettings(true)}>Rechtliche Links bearbeiten</Button>
+      </div>}
 
       {/* Main content - 3-Panel Layout */}
       <div className="flex-1 flex overflow-hidden">
@@ -1533,8 +1538,9 @@ export default function FunnelEditor() {
               <h3 className="font-medium text-sm mb-3">Rechtliches</h3>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label className="text-sm">Impressum-URL</Label>
+                  <Label htmlFor="funnel-impressum" className="text-sm">Impressum-URL</Label>
                   <Input
+                    id="funnel-impressum"
                     value={localFunnel.impressumUrl || ""}
                     onChange={(e) => updateLocalFunnel({ impressumUrl: e.target.value || null })}
                     placeholder="https://deine-website.de/impressum"
@@ -1542,8 +1548,9 @@ export default function FunnelEditor() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm">Datenschutzerklärung-URL</Label>
+                  <Label htmlFor="funnel-datenschutz" className="text-sm">Datenschutzerklärung-URL</Label>
                   <Input
+                    id="funnel-datenschutz"
                     value={localFunnel.datenschutzUrl || ""}
                     onChange={(e) => updateLocalFunnel({ datenschutzUrl: e.target.value || null })}
                     placeholder="https://deine-website.de/datenschutz"
@@ -1551,9 +1558,10 @@ export default function FunnelEditor() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Wird im Footer deines veröffentlichten Funnels verlinkt. Du erhebst
-                  über den Funnel personenbezogene Daten — Impressum und
-                  Datenschutzerklärung sind Pflicht (§ 5 DDG, Art. 13 DSGVO).
+                  Beide Links werden für die Veröffentlichung benötigt und im Footer angezeigt.
+                  Verwende vollständige Adressen mit https:// oder http://, damit sie auch auf eigenen Domains funktionieren.
+                  Prüfe, dass die Seiten erreichbar sind und zu deinem Unternehmen und der Datenerhebung dieses Funnels passen.
+                  Trichterwerk prüft die Adressen, nicht die Rechtstexte.
                 </p>
               </div>
             </div>
@@ -1723,6 +1731,7 @@ export default function FunnelEditor() {
           onOpenChange={setShowPublishDialog}
           funnel={localFunnel}
           onPublish={async (slug) => { await publishMutation.mutateAsync(slug); }}
+          onEditLegal={() => setShowSettings(true)}
         />
       )}
     </div>

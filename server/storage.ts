@@ -6,6 +6,7 @@ import { requestAccountErasure, type QueuedAccountErasure } from "./account-file
 import { accountErasurePending, assertRetentionEditable, committedAccountKeys, committedFunnelKeys, committedRetentionKeys, lockErasureJournal, queueLeadErasure, type QueuedLeadErasure } from "./erasure-journal";
 import { queueRecruitingEmails } from "./recruiting";
 import { publishedDocument, writeFunnel } from "./funnel-revisions";
+import { publicationLegalErrors } from "@shared/funnel-legal";
 import { needsLayoutDocument } from "@shared/funnel-layout";
 import { documentFromFunnel, type WriteControl } from "@shared/funnel-document";
 import {
@@ -1047,7 +1048,18 @@ export class DatabaseStorage implements IStorage {
       await lockErasureJournal(tx);
       const [funnel] = await tx.select().from(funnels).where(and(eq(funnels.id, id), eq(funnels.userId, userId), sql`${funnels.deletedAt} IS NOT NULL`)).for("update");
       if (!funnel || (await committedFunnelKeys()).has(funnel.uuid)) return false;
-      await tx.update(funnels).set({ deletedAt: null }).where(eq(funnels.id, id));
+      // Restoring a deleted live funnel exposes its published snapshot again,
+      // not its current draft. Incomplete historical snapshots return offline.
+      let restoreAsDraft = false;
+      if (funnel.status === "published") {
+        const [revision] = funnel.publishedRevisionId ? await tx.select().from(funnelRevisions)
+          .where(and(eq(funnelRevisions.id, funnel.publishedRevisionId), eq(funnelRevisions.funnelId, id))) : [];
+        const content = revision?.content as { impressumUrl?: string | null; datenschutzUrl?: string | null } | undefined;
+        restoreAsDraft = funnel.publishedRevisionId || funnel.editorProtocol
+          ? !content || publicationLegalErrors(content).length > 0
+          : publicationLegalErrors(funnel).length > 0;
+      }
+      await tx.update(funnels).set({ deletedAt: null, ...(restoreAsDraft ? { status: "draft" } : {}) }).where(eq(funnels.id, id));
       return true;
     });
   }

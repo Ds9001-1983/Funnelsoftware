@@ -1271,6 +1271,7 @@ export async function registerRoutes(
       let demotedToDraft = false;
       if (req.user) {
         const funnel = await storage.getFunnel(funnelId, userId);
+        demotedToDraft = funnel?.status === "draft";
         if (
           funnel?.status === "published" &&
           (await isOverFreePublishLimit(req.user, "published", funnelId))
@@ -1282,7 +1283,7 @@ export async function registerRoutes(
 
       res.json({
         message: demotedToDraft
-          ? "Funnel wiederhergestellt — als Entwurf, weil dein Free-Plan nur einen veröffentlichten Funnel erlaubt."
+          ? "Funnel als Entwurf wiederhergestellt. Öffne den Editor, um die Veröffentlichung zu prüfen."
           : "Funnel wiederhergestellt",
         demotedToDraft,
       });

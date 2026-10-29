@@ -27,8 +27,13 @@ export default defineConfig({
   },
   projects: [
     {
+      name: "publication-legal",
+      testMatch: "**/publication-legal.spec.ts",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
       name: "chromium",
-      testIgnore: ["**/account-deletion.spec.ts", "**/subject-export.spec.ts", "**/retention.spec.ts", "**/analytics-retention.spec.ts"],
+      testIgnore: ["**/account-deletion.spec.ts", "**/subject-export.spec.ts", "**/retention.spec.ts", "**/analytics-retention.spec.ts", "**/publication-legal.spec.ts"],
       use: { ...devices["Desktop Chrome"] },
     },
     {

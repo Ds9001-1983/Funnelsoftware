@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -16,12 +16,14 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { generateSlug } from "@shared/schema";
 import type { Funnel } from "@shared/schema";
+import { publicationLegalErrors } from "@shared/funnel-legal";
 
 interface PublishDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   funnel: Funnel;
   onPublish: (slug: string) => Promise<void>;
+  onEditLegal: () => void;
 }
 
 export function PublishDialog({
@@ -29,9 +31,11 @@ export function PublishDialog({
   onOpenChange,
   funnel,
   onPublish,
+  onEditLegal,
 }: PublishDialogProps) {
   const { toast } = useToast();
   const isPublished = funnel.status === "published";
+  const legalErrors = publicationLegalErrors(funnel);
   const [slug, setSlug] = useState("");
   const [isChecking, setIsChecking] = useState(false);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
@@ -39,27 +43,33 @@ export function PublishDialog({
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<"url" | "share">("url");
   const qrRef = useRef<HTMLDivElement>(null);
+  const wasOpen = useRef(false);
 
-  // Initialize slug when dialog opens
-  useEffect(() => {
-    if (open) {
+  // Initialize before the user can type. Autosave responses must not reset
+  // the URL while this dialog is already open.
+  useLayoutEffect(() => {
+    if (open && !wasOpen.current) {
       const initial = funnel.slug || generateSlug(funnel.name);
       setSlug(initial);
       setIsAvailable(funnel.slug ? true : null);
       setCopied(false);
       setActiveTab("url");
     }
+    wasOpen.current = open;
   }, [open, funnel.slug, funnel.name]);
 
   // Debounced slug availability check
   useEffect(() => {
+    let cancelled = false;
     if (!slug || slug.length < 3) {
       setIsAvailable(null);
+      setIsChecking(false);
       return;
     }
 
     if (slug === funnel.slug) {
       setIsAvailable(true);
+      setIsChecking(false);
       return;
     }
 
@@ -71,15 +81,15 @@ export function PublishDialog({
           `/api/funnels/check-slug?slug=${encodeURIComponent(slug)}&funnelId=${funnel.id}`
         );
         const data = await response.json();
-        setIsAvailable(data.available);
+        if (!cancelled) setIsAvailable(data.available);
       } catch {
-        setIsAvailable(null);
+        if (!cancelled) setIsAvailable(null);
       } finally {
-        setIsChecking(false);
+        if (!cancelled) setIsChecking(false);
       }
     }, 300);
 
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [slug, funnel.id, funnel.slug]);
 
   const baseUrl = typeof window !== "undefined"
@@ -138,7 +148,7 @@ export function PublishDialog({
   }, [slug]);
 
   const handleSubmit = useCallback(async () => {
-    if (!slug || slug.length < 3 || isAvailable === false) return;
+    if (!slug || slug.length < 3 || isAvailable === false || legalErrors.length) return;
     setIsSubmitting(true);
     try {
       await onPublish(slug);
@@ -147,13 +157,13 @@ export function PublishDialog({
     } finally {
       setIsSubmitting(false);
     }
-  }, [slug, isAvailable, onPublish]);
+  }, [slug, isAvailable, onPublish, legalErrors]);
 
   const isSlugValid = slug.length >= 3 && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5 text-primary" />
@@ -253,6 +263,20 @@ export function PublishDialog({
             </div>
 
             {/* Actions */}
+            {legalErrors.length > 0 && <div role="alert" className="rounded-md border border-destructive/40 p-3 space-y-2 text-sm">
+              <p className="font-medium">Rechtliche Links vor der Veröffentlichung ergänzen</p>
+              {legalErrors.map(error => <p key={error}>{error}</p>)}
+              {isPublished && <p>Der bisherige Live-Stand bleibt erreichbar.</p>}
+              <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); onEditLegal(); }}>Rechtliche Links bearbeiten</Button>
+            </div>}
+            {legalErrors.length === 0 && <div className="rounded-md border p-3 space-y-2 text-sm">
+              <p>Prüfe vor dem Veröffentlichen, dass beide Seiten erreichbar sind und zu deinem Unternehmen und diesem Funnel passen.</p>
+              <div className="flex flex-wrap gap-4">
+                <a className="underline" href={funnel.impressumUrl!} target="_blank" rel="noopener noreferrer">Impressum prüfen</a>
+                <a className="underline" href={funnel.datenschutzUrl!} target="_blank" rel="noopener noreferrer">Datenschutzerklärung prüfen</a>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); onEditLegal(); }}>Rechtliche Links bearbeiten</Button>
+            </div>}
             <div className="flex items-center gap-2">
               {isPublished && (
                 <Button
@@ -280,6 +304,7 @@ export function PublishDialog({
                 data-testid="button-confirm-publish"
                 disabled={
                   isSubmitting ||
+                  legalErrors.length > 0 ||
                   !isSlugValid ||
                   isAvailable === false ||
                   isChecking
