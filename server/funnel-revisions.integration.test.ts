@@ -3,7 +3,7 @@ import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
 import { users, funnels, leads, analyticsEvents, funnelRevisions, type Funnel } from "@shared/schema";
-import type { WriteControl } from "@shared/funnel-document";
+import { documentFromFunnel, type WriteControl } from "@shared/funnel-document";
 import { enablePageLayout } from "@shared/funnel-layout-edit";
 
 const connection = process.env.REVISION_TEST_DATABASE_URL;
@@ -32,6 +32,7 @@ describe.skipIf(!connection)("versioned drafts, live content and recovery", () =
     const [owner] = await database.db.insert(users).values({ username: id, email: `${id}@example.test`, password: "fixture", isPro: pro, emailVerifiedAt: new Date() }).returning();
     owners.push(owner.id);
     const funnel = await storage.createFunnel({ name: "Live A", status: "draft", pages: [{ id: "welcome", type: "welcome", title: "Bestehender Inhalt", elements: [] }], theme: { primaryColor: "#123456", backgroundColor: "#ffffff", textColor: "#000000", fontFamily: "Inter" } }, owner.id);
+    await database.db.update(funnels).set({ impressumUrl: "https://example.test/legal", datenschutzUrl: "https://example.test/privacy" }).where(eq(funnels.id, funnel.id));
     return { owner, funnel };
   }
   it("keeps public content stable until an explicit version is published", async () => {
@@ -43,6 +44,55 @@ describe.skipIf(!connection)("versioned drafts, live content and recovery", () =
     expect(draft.publishedRevisionId).toBe(live.publishedRevisionId);
     await storage.updateFunnel(f.funnel.id, f.owner.id, {}, control(2, true));
     expect((await storage.getFunnelByUuid(f.funnel.uuid))?.name).toBe("Entwurf B");
+  });
+  it("saves incomplete drafts but rejects publishing them atomically via both protocols", async () => {
+    const f = await fixture();
+    await database.db.update(funnels).set({ impressumUrl: null, datenschutzUrl: null }).where(eq(funnels.id, f.funnel.id));
+    await expect(storage.updateFunnel(f.funnel.id, f.owner.id, { status: "published" })).rejects.toMatchObject({ code: "LEGAL_LINKS_REQUIRED" });
+    await storage.updateFunnel(f.funnel.id, f.owner.id, { name: "Unvollständiger Entwurf" }, control(0));
+    for (const updates of [{}, { impressumUrl: "https://example.test/legal" }, { impressumUrl: "/legal", datenschutzUrl: "https://example.test/privacy" }]) {
+      await expect(storage.updateFunnel(f.funnel.id, f.owner.id, updates, control(1, true))).rejects.toMatchObject({ code: "LEGAL_LINKS_REQUIRED" });
+    }
+    expect(await storage.getFunnel(f.funnel.id, f.owner.id)).toMatchObject({ status: "draft", editVersion: 1, publishedRevisionId: null });
+    expect(await service.listFunnelRevisions(f.funnel.id, f.owner.id)).toHaveLength(2);
+  });
+  it("keeps legacy live pages reachable and snapshots them when an incomplete draft is saved", async () => {
+    const f = await fixture();
+    await database.db.update(funnels).set({ status: "published", impressumUrl: null, datenschutzUrl: null }).where(eq(funnels.id, f.funnel.id));
+    expect((await storage.getFunnelByUuid(f.funnel.uuid))?.status).toBe("published");
+    await storage.updateFunnel(f.funnel.id, f.owner.id, { name: "Neuer Entwurf" }, control(0));
+    await expect(storage.updateFunnel(f.funnel.id, f.owner.id, {}, control(1, true))).rejects.toMatchObject({ code: "LEGAL_LINKS_REQUIRED" });
+    expect(await storage.getFunnelByUuid(f.funnel.uuid)).toMatchObject({ name: "Live A", impressumUrl: null });
+    await storage.updateFunnel(f.funnel.id, f.owner.id, { impressumUrl: "https://example.test/legal", datenschutzUrl: "https://example.test/privacy" }, control(1, true));
+    expect(await storage.getFunnelByUuid(f.funnel.uuid)).toMatchObject({ name: "Neuer Entwurf", impressumUrl: "https://example.test/legal" });
+  });
+  it("does not replace a valid live snapshot when links are removed or historical drafts restored", async () => {
+    const f = await fixture();
+    const live = (await storage.updateFunnel(f.funnel.id, f.owner.id, {}, control(0, true)))!;
+    await storage.updateFunnel(f.funnel.id, f.owner.id, { datenschutzUrl: null }, control(1));
+    await expect(storage.updateFunnel(f.funnel.id, f.owner.id, {}, control(2, true))).rejects.toMatchObject({ code: "LEGAL_LINKS_REQUIRED" });
+    const initial = (await service.listFunnelRevisions(f.funnel.id, f.owner.id)).find(row => row.version === 0)!;
+    await storage.restoreFunnelRevision(f.funnel.id, f.owner.id, initial.id, control(2));
+    await expect(storage.updateFunnel(f.funnel.id, f.owner.id, {}, control(3, true))).rejects.toMatchObject({ code: "LEGAL_LINKS_REQUIRED" });
+    expect(await storage.getFunnelByUuid(f.funnel.uuid)).toMatchObject({ publishedRevisionId: live.publishedRevisionId, datenschutzUrl: "https://example.test/privacy" });
+  });
+  it("restores deleted legacy pages without legal links offline", async () => {
+    const f = await fixture();
+    await database.db.update(funnels).set({ status: "published", impressumUrl: null, deletedAt: new Date() }).where(eq(funnels.id, f.funnel.id));
+    expect(await storage.restoreFunnel(f.funnel.id, f.owner.id)).toBe(true);
+    expect(await storage.getFunnel(f.funnel.id, f.owner.id)).toMatchObject({ status: "draft" });
+  });
+  it("checks the published snapshot rather than draft links when restoring a deleted page", async () => {
+    const f = await fixture();
+    const live = (await storage.updateFunnel(f.funnel.id, f.owner.id, {}, control(0, true)))!;
+    await storage.updateFunnel(f.funnel.id, f.owner.id, { impressumUrl: null }, control(1));
+    await database.db.update(funnels).set({ deletedAt: new Date() }).where(eq(funnels.id, f.funnel.id));
+    expect(await storage.restoreFunnel(f.funnel.id, f.owner.id)).toBe(true);
+    expect(await storage.getFunnelByUuid(f.funnel.uuid)).toMatchObject({ status: "published", impressumUrl: "https://example.test/legal" });
+    await database.db.update(funnelRevisions).set({ content: { ...documentFromFunnel(live), impressumUrl: null } }).where(eq(funnelRevisions.id, live.publishedRevisionId!));
+    await database.db.update(funnels).set({ deletedAt: new Date(), impressumUrl: "https://example.test/fixed-draft" }).where(eq(funnels.id, f.funnel.id));
+    expect(await storage.restoreFunnel(f.funnel.id, f.owner.id)).toBe(true);
+    expect(await storage.getFunnel(f.funnel.id, f.owner.id)).toMatchObject({ status: "draft" });
   });
   it("publishes layout snapshots atomically and rejects incompatible editors or broken references", async () => {
     const f = await fixture();
@@ -174,7 +224,7 @@ describe.skipIf(!connection)("versioned drafts, live content and recovery", () =
     const other = await storage.createFunnel({ name: "Zweiter", pages: f.funnel.pages, theme: f.funnel.theme, status: "draft" }, f.owner.id);
     const results = await Promise.allSettled([
       storage.updateFunnel(f.funnel.id, f.owner.id, {}, control(0, true)),
-      storage.updateFunnel(other.id, f.owner.id, {}, control(0, true)),
+      storage.updateFunnel(other.id, f.owner.id, { impressumUrl: "https://example.test/legal", datenschutzUrl: "https://example.test/privacy" }, control(0, true)),
     ]);
     expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
     expect((await database.db.select().from(funnels).where(eq(funnels.userId, f.owner.id))).filter(row => row.status === "published")).toHaveLength(1);

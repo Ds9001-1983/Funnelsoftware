@@ -379,7 +379,9 @@ export default function Funnels() {
             altText="Rückgängig machen"
             onClick={async () => {
               try {
-                await apiRequest("PATCH", `/api/funnels/${deletedId}/restore`);
+                const response = await apiRequest("PATCH", `/api/funnels/${deletedId}/restore`);
+                const result = await response.json();
+                toast({ title: "Funnel wiederhergestellt", description: result.message });
                 queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
               } catch {
                 toast({ title: "Fehler", description: "Funnel konnte nicht wiederhergestellt werden.", variant: "destructive" });

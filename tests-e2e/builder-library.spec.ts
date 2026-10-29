@@ -82,7 +82,7 @@ test("Eigene Seiten und Abschnitte: zuordnen, Design wählen, Undo und unabhäng
   const undone = await save(page, target.id); expect(undone.pages).toEqual(saved.pages);
   await page.reload();
   const slug = makeSlug(runId());
-  const published = await page.request.patch(`/api/funnels/${target.id}`, { headers, data: { slug, expectedVersion: undone.editVersion, documentVersion: 5, mutationId: crypto.randomUUID(), publish: true } });
+  const published = await page.request.patch(`/api/funnels/${target.id}`, { headers, data: { impressumUrl: "https://example.test/legal", datenschutzUrl: "https://example.test/privacy", slug, expectedVersion: undone.editVersion, documentVersion: 5, mutationId: crypto.randomUUID(), publish: true } });
   expect(published.status()).toBe(200); const live = await published.json();
   expect((await page.request.patch(`/api/funnels/${target.id}`, { headers, data: { name: "Alter Tab", expectedVersion: live.editVersion, documentVersion: 4, mutationId: crypto.randomUUID() } })).status()).toBe(409);
   const changed = structuredClone(template.content); changed.page.elements[0].content = "Geänderte Vorlage";

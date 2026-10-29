@@ -71,6 +71,10 @@ test("Kompletter Funnel-Lebenszyklus: Registrieren → Erstellen → Publizieren
   });
 
   await test.step("Publizieren mit eigenem Slug", async () => {
+    await page.getByTestId("button-settings").click();
+    await page.getByLabel("Impressum-URL", { exact: true }).fill("https://example.test/legal");
+    await page.getByLabel("Datenschutzerklärung-URL", { exact: true }).fill("https://example.test/privacy");
+    await page.keyboard.press("Escape");
     await page.getByTestId("button-publish").click();
     await page.getByTestId("input-publish-slug").fill(slug);
     // Debounce + check-slug-Roundtrip abwarten: Button wird erst danach klickbar.
