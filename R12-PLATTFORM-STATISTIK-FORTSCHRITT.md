@@ -51,6 +51,14 @@ Tests ausschließlich mit eigenen lokalen Wegwerf-Datenbanken und synthetischen
 Daten. Keine Live-Abfragen, produktiven Löschaufträge, Kundenmails, Zahlungen,
 Deployments oder Änderungen am installierten Mac-Dienst in dieser Fortsetzung.
 
+## CI-Nachprüfung
+
+Der erste vollständige CI-Browserlauf erreichte nach 51 bestandenen Abläufen
+im letzten bisherigen Besucherregel-Test das echte Registrierungslimit (HTTP 429).
+Die fünf neuen R12-Tests laufen deshalb nun wie die vorhandenen Sonderpakete in
+einem eigenen Playwright-Projekt mit eigenem Serverstart. Die produktiven Limits
+bleiben unverändert. Vollständige CI-Nachprüfung läuft erneut.
+
 ## Noch offen
 
 Der Betreiber hat am 31.10.2026 **90 Tage** bestätigt. Die Aktivierung mit
