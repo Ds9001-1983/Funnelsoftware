@@ -3,7 +3,7 @@ import { constants, promises as fs } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { analyticsEvents, bugReports, deletedFunnelRetention, funnelAnalyticsRetention, erasureJournalIdentity, erasureJournalReceipts, funnels, leads, mediaAssets, ownedUploads, users } from "@shared/schema";
+import { platformVisits, analyticsEvents, bugReports, deletedFunnelRetention, funnelAnalyticsRetention, erasureJournalIdentity, erasureJournalReceipts, funnels, leads, mediaAssets, ownedUploads, users } from "@shared/schema";
 import { db } from "./db";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -14,6 +14,7 @@ const fileSchema = z.object({
   filename: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,254}$/).refine(name => !name.includes("..")),
 }).strict();
 const targetSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("platform_before"), before: z.string().datetime(), maxId: z.number().int().positive().max(2147483647) }).strict(),
   z.object({ type: z.literal("queued_funnels"), keys: z.array(z.string().uuid()).min(1).max(3) }).strict(),
   z.object({ type: z.literal("analytics_before"), key: z.string().uuid(), before: z.string().datetime(), maxId: z.number().int().positive().max(2147483647) }).strict(),
   z.object({ type: z.literal("queued_account"), key: z.string().uuid(), files: z.array(fileSchema), billingCustomerId: z.string().regex(/^cus_[a-zA-Z0-9_]+$/).nullable(), billingClosed: z.boolean() }).strict(),
@@ -31,6 +32,10 @@ export function analyticsErasureScope(target: AnalyticsErasureTarget) {
     sql`${analyticsEvents.timestamp} <= ${target.before}::timestamptz AT TIME ZONE 'UTC'`,
     sql`${analyticsEvents.id} <= ${target.maxId}`,
   )!;
+}
+export function platformErasureScope(target: Extract<ErasureTarget, { type: "platform_before" }>) {
+  return and(sql`${platformVisits.timestamp} <= ${target.before}::timestamptz AT TIME ZONE 'UTC'`,
+    sql`${platformVisits.id} <= ${target.maxId}`)!;
 }
 const anchorSchema = z.object({ version: z.literal(1), instanceId: z.string().uuid() }).strict();
 const entrySchema = z.object({
@@ -174,7 +179,7 @@ export async function filePath(root: string, file: z.infer<typeof fileSchema>) {
 async function assertNoErasedData(tx: Transaction, entries: Envelope[], root: string, allowWaitingRetention = false) {
   for (const { entry } of entries) {
     const target = entry.target;
-    if ((target.type === "retention_leads" || target.type === "analytics_before" || target.type === "queued_funnels") && allowWaitingRetention) continue;
+    if ((target.type === "platform_before" || target.type === "retention_leads" || target.type === "analytics_before" || target.type === "queued_funnels") && allowWaitingRetention) continue;
     if (target.type === "queued_account" && allowWaitingRetention) {
       const owner = await tx.select({ id: users.id }).from(users).where(eq(users.erasureKey, target.key)).limit(1);
       if (owner.length || !target.billingClosed) continue;
@@ -183,6 +188,8 @@ async function assertNoErasedData(tx: Transaction, entries: Envelope[], root: st
     }
     if (target.type === "leads" || target.type === "retention_leads") {
       if ((await tx.select({ id: leads.id }).from(leads).where(inArray(leads.uuid, target.keys)).limit(1)).length) throw new ErasureJournalError();
+    } else if (target.type === "platform_before") {
+      if ((await tx.select({ id: platformVisits.id }).from(platformVisits).where(platformErasureScope(target)).limit(1)).length) throw new ErasureJournalError();
     } else if (target.type === "analytics_before") {
       if ((await tx.select({ id: analyticsEvents.id }).from(analyticsEvents).where(analyticsErasureScope(target)).limit(1)).length) throw new ErasureJournalError();
     } else if (target.type === "queued_funnels") {
@@ -229,7 +236,7 @@ export async function replayErasureJournal(directory: string, root: string, expe
     await tx.execute(sql`SELECT pg_advisory_xact_lock(734193829)`);
     const journal = await boundJournal(tx, directory);
     if (JSON.stringify(journal.checkpoint) !== JSON.stringify(checkpoint)) throw new ErasureJournalError();
-    let accounts = 0, leadCount = 0, analyticsCount = 0, funnelCount = 0;
+    let accounts = 0, leadCount = 0, analyticsCount = 0, funnelCount = 0, platformCount = 0;
     for (const { entry, hash } of journal.entries) {
       const target = entry.target;
       // Replay all independent lead/account erasures before removing empty
@@ -241,6 +248,9 @@ export async function replayErasureJournal(directory: string, root: string, expe
         for (const lead of removed) counts.set(lead.funnelId, (counts.get(lead.funnelId) ?? 0) + 1);
         for (const [funnelId, count] of Array.from(counts)) await tx.update(funnels).set({ leads: sql`GREATEST(${funnels.leads} - ${count}, 0)` }).where(eq(funnels.id, funnelId));
         leadCount += removed.length;
+      } else if (target.type === "platform_before") {
+        const removed = await tx.delete(platformVisits).where(platformErasureScope(target)).returning({ id: platformVisits.id });
+        platformCount += removed.length;
       } else if (target.type === "analytics_before") {
         const removed = await tx.delete(analyticsEvents).where(analyticsErasureScope(target)).returning({ id: analyticsEvents.id });
         analyticsCount += removed.length;
@@ -295,7 +305,7 @@ export async function replayErasureJournal(directory: string, root: string, expe
       .where(sql`${deletedFunnelRetention.activeVersion} IS NOT NULL`);
     // No approval survives a concurrently advancing source journal.
     if (JSON.stringify((await readJournal(directory)).checkpoint) !== JSON.stringify(checkpoint)) throw new ErasureJournalError();
-    return { accounts, leads: leadCount, analytics: analyticsCount, funnels: funnelCount, checkpoint };
+    return { accounts, leads: leadCount, analytics: analyticsCount, funnels: funnelCount, platformAnalytics: platformCount, checkpoint };
   });
 }
 

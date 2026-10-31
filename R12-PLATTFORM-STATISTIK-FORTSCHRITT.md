@@ -1,0 +1,66 @@
+# R12 – Datenschutz der eigenen Plattform-Statistik
+
+Stand: 31. Oktober 2026. **Lokal umgesetzt und geprüft; nicht veröffentlicht.**
+Arbeitsverzeichnis: `../Funnelsoftware-platform-privacy`, Branch
+`fix/platform-analytics-privacy`, Grundlage `5bf29de` (einschließlich PR #197).
+
+## Ergebnis
+
+- Zufälliger, flüchtiger HMAC-Schlüssel pro Prozess/UTC-Tag statt Ableitung aus
+  SESSION_SECRET. Neue Kennung bei Neustart; keine Zusage vollständiger Anonymität.
+- Sofortiger Widerspruch in `/datenschutz`, hostgebundene Präferenz für maximal
+  ein Jahr; serverseitige Beachtung auch bei Registrierung, DNT und GPC.
+  Bei blockierten Cookies gilt die Wahl im Tab; der Registrierungsrequest trägt
+  sie zusätzlich als Header. Marketing-Einwilligungen bleiben separat.
+- Neue Ereignisse übernehmen keine freien Referrer-/UTM-Werte. Aktionslabels
+  sind auf Produktcodes begrenzt. Damit entfällt die Quellen-/Kampagnenzuordnung
+  neuer Ereignisse; alte Einträge bleiben bis zur bestätigten Bereinigung erhalten.
+- Zahlungs-/Abo-Ereignisse enthalten keine abgeleitete Kontokennung mehr und
+  erscheinen als separate Ereigniszähler außerhalb der Besucherfolge im Admin.
+- Konfigurierbare Aufbewahrung ohne Standardaktivierung, lesende Vorschau,
+  höchstens ein Journalbereich pro UTC-Tag und 500 Löschungen je Minutenlauf.
+- Neuer Typ `platform_before` in Anwendung, Offline-Replay und Mac-Parser.
+  Löschung wartet auf die externe Bestätigung des konkreten Auftrags.
+  Bereits geschriebene Aufträge bleiben bei SQL-Rollback und Deaktivierung erhalten.
+- Additive Migration verändert nur den UTC-Standard neuer Statistikzeitstempel.
+  Kunden-Funnels, Leads, Kundenstatistiken und Medien bleiben außerhalb des Pakets.
+- Betriebsanleitung und Entwurf einer Interessenabwägung liegen in
+  [deploy/PLATFORM_ANALYTICS_PRIVACY.md](deploy/PLATFORM_ANALYTICS_PRIVACY.md).
+
+## Prüfung
+
+- Beide TypeScript-Prüfungen und Produktionsbuild bestanden.
+- 537 Unit-/Komponenten-/Skripttests bestanden. Die standardmäßig deaktivierten
+  Datenbanksuiten sind damit nicht pauschal mitgeprüft.
+- 54 gezielt aktivierte Datenbanktests bestanden: neues Paket (5), bestehendes
+  Löschjournal (31) und bisherige Analytics-/Funnel-Aufbewahrung (18).
+- Vier Migrationsprüfungen bestanden, einschließlich UTC-Standard unter Berliner
+  Datenbankzeitzone und zweimaliger Migration ohne Änderung bestehender Inhalte.
+- 13 Browserabläufe bestanden: fünf neue R12-Abläufe sowie acht bestehende
+  Consent-Abläufe. Mobilbreite 390 Pixel; Widerspruch, Reload, Registrierung,
+  blockierte Cookies, DNT/GPC, Hostgrenzen und verworfene freie Metadaten geprüft.
+- Echte pg_dump/pg_restore-Kette mit wiederholtem Replay und SQL-Rollback;
+  exakte Stichtagsgrenze bis zur Mikrosekunde, höhere IDs, Batches, Parallelität,
+  fehlende/exakte externe Bestätigung und unveränderte Kundenstatistik geprüft.
+- Ein erster Browserlauf scheiterte an Vites Zugriff auf über einen Symlink
+  eingebundene Schriftdateien. Eigene lokale Abhängigkeiten beheben dies;
+  der vollständige anschließende Lauf ist grün. Ein erster Unit-Test musste
+  seinen vom Vorgängertest gesetzten Host-Mock zurücksetzen.
+
+Tests ausschließlich mit eigenen lokalen Wegwerf-Datenbanken und synthetischen
+Daten. Keine Live-Abfragen, produktiven Löschaufträge, Kundenmails, Zahlungen,
+Deployments oder Änderungen am installierten Mac-Dienst in dieser Fortsetzung.
+
+## Noch offen
+
+Die Fristfrage (90 Tage / 30 Tage / vorerst offen) wurde dem Betreiber gestellt;
+es liegt noch keine Antwort vor. `PLATFORM_ANALYTICS_RETENTION_DAYS` bleibt leer.
+Die Oberfläche zeigt die fehlende Aktivierung ausdrücklich an. Der bisherige
+90-Tage-Auswertungszeitraum ist keine automatische Löschfreigabe.
+
+Vor Veröffentlichung: kompatiblen Mac-Parser installieren und prüfen, Release
+über den bestehenden Backup-/Restore-Prozess ausrollen, gewählte Frist rein
+lesend inventarisieren und erst nach Betreiberentscheidung aktivieren. Danach
+Live-Abnahme und Sicherungsnachweis ergänzen. Die Interessenabwägung braucht
+noch die konkrete Zweck-/Fristentscheidung und fachliche Prüfung; R12 ist damit
+noch nicht als vollständig abgeschlossen oder rechtlich freigegeben markiert.

@@ -51,7 +51,8 @@ import { seoStaticPages } from "@shared/seo-content";
 import { SITE_ORIGIN, sitemapStaticPaths } from "@shared/seo-links";
 import { isPlatformHost } from "@shared/platform-host";
 import { resolveCustomDomainFunnel, clearCustomDomainCache } from "./custom-domain";
-import { dailyVisitorHash, deriveReferrerHost, deriveDeviceClass, deriveCountry, isTrackablePath, isClientTrackableEvent } from "./tracking";
+import { platformRetentionDays } from "./platform-retention";
+import { dailyVisitorHash, deriveDeviceClass, deriveCountry, isTrackablePath, isClientTrackableEvent, platformMeasurementBlocked, platformEventLabel } from "./tracking";
 import { encryptSecret, decryptSecret, last4 } from "./crypto";
 import { verifyDomainDns } from "./domain-verify";
 import { registerWorkspaceRoutes } from "./workspace-routes";
@@ -102,26 +103,10 @@ function randomSuffix(): string {
   return String(randomBytes(2).readUInt16BE(0) % 10000).padStart(4, "0");
 }
 
-/**
- * Schreibt eine Funnel-Stufe, die erst im Stripe-Webhook feststeht.
- *
- * Hier gibt es keinen Request-Kontext (der Aufruf kommt von Stripe, nicht vom
- * Browser des Kunden), also auch keine IP für den üblichen tages-rotierenden
- * Besucher-Hash. Stattdessen ein stabiler synthetischer Hash aus der User-ID:
- * ein reiner Aggregatzähler, keine Besucheridentität. Genau deshalb zählt
- * `getPlatformStats` Besucher ausschließlich aus 'pageview'-Events — sonst
- * würden diese Einträge die Besucherzahl verfälschen.
- */
-function trackFunnelMilestone(userId: number, eventType: "trial_started" | "purchase"): void {
-  storage
-    .createPlatformVisit({
-      visitorHash: createHash("sha256")
-        .update(`user:${userId}:${process.env.SESSION_SECRET || "dev"}`)
-        .digest("hex"),
-      path: "/register",
-      eventType,
-    })
-    .catch((err) => console.error(`[Track] ${eventType} event failed:`, err));
+/** Zahlungsereignisse als unverbundene Zähler: keine Konto-/Besucherkennung. */
+function trackFunnelMilestone(eventType: "trial_started" | "purchase"): void {
+  storage.createPlatformVisit({ visitorHash: randomUUID(), path: "/register", eventType })
+    .catch(() => console.error(`[Track] ${eventType} event failed`));
 }
 
 /** True bei Postgres "unique_violation". */
@@ -361,10 +346,9 @@ export async function registerRoutes(
       // Reichweiten-Conversion (serverseitig, nicht manipulierbar): jede
       // Registrierung als 'register'-Event in der cookieless Plattform-Statistik →
       // erlaubt die Auswertung Landing-Besuche → Registrierungen.
-      storage.createPlatformVisit({
+      if (!platformMeasurementBlocked(req.headers)) storage.createPlatformVisit({
         visitorHash: dailyVisitorHash(req.ip || req.socket.remoteAddress || "", req.get("user-agent") || ""),
         path: "/register",
-        referrerHost: deriveReferrerHost(req.get("referer")),
         deviceClass: deriveDeviceClass(req.get("user-agent")),
         country: deriveCountry(req.headers),
         eventType: "register",
@@ -2346,7 +2330,7 @@ export async function registerRoutes(
               ...(trialEndsAt ? { trialEndsAt } : {}),
             });
 
-            trackFunnelMilestone(user.id, "trial_started");
+            trackFunnelMilestone("trial_started");
           }
           break;
         }
@@ -2406,12 +2390,11 @@ export async function registerRoutes(
           // Anzeige → Registrierung → zahlender Kunde.
           const invoice = event.data.object as any;
 
-          // Eigene Funnel-Statistik: consent-unabhängig, damit das Funnel-Ende
-          // auch für Besucher sichtbar ist, die dem Pixel nie zugestimmt haben.
+          // Separater Zahlungszähler ohne Konto-/Besucherkennung.
           // Nur echte Abbuchungen, nicht die 0-€-Trial-Rechnung.
           if (Number(invoice.amount_paid || 0) > 0) {
             const paidUser = await storage.getUserByStripeCustomerId(invoice.customer as string);
-            if (paidUser) trackFunnelMilestone(paidUser.id, "purchase");
+            if (paidUser) trackFunnelMilestone("purchase");
           }
 
           const metaCapiToken = process.env.META_CAPI_TOKEN;
@@ -2561,13 +2544,18 @@ export async function registerRoutes(
   // Cookieless Reichweitenmessung für trichterwerk.de selbst (getrennt von der
   // Funnel-Analytics oben). Liegt unter /api/public/ → erbt automatisch
   // publicLimiter (60/min/IP) und CSRF-Freiheit. IP + User-Agent werden NUR zur
-  // Bildung des tages-rotierenden Anonym-Hashes genutzt und NICHT gespeichert.
+  // Bildung einer kurzlebigen pseudonymen Kennung genutzt und NICHT gespeichert.
+  app.get("/api/public/platform-privacy", (req, res) => {
+    if (!isPlatformHost(req.hostname)) return res.status(404).end();
+    res.set("Cache-Control", "no-store").json({ retentionDays: platformRetentionDays() });
+  });
   app.post("/api/public/track", async (req, res) => {
     try {
+      if (!isPlatformHost(req.hostname) || platformMeasurementBlocked(req.headers)) return res.status(204).end();
       const parsed = trackEventSchema.safeParse(req.body);
       if (!parsed.success) return res.status(204).end();
 
-      const { path, referrer, utmSource, utmMedium, utmCampaign, eventType, label } = parsed.data;
+      const { path, eventType, label } = parsed.data;
       // Nur Marketing-/Legal-/Auth-Pfade zählen (Whitelist) — sonst still verwerfen.
       if (!isTrackablePath(path)) return res.status(204).end();
       // Zweite Sperre neben dem Zod-Enum: `register`, `trial_started` und
@@ -2582,14 +2570,10 @@ export async function registerRoutes(
       await storage.createPlatformVisit({
         visitorHash: dailyVisitorHash(ip, userAgent),
         path: (path.split(/[?#]/)[0] || "/").slice(0, 200),
-        referrerHost: deriveReferrerHost(referrer),
-        utmSource: utmSource ?? null,
-        utmMedium: utmMedium ?? null,
-        utmCampaign: utmCampaign ?? null,
         deviceClass: deriveDeviceClass(userAgent),
         country: deriveCountry(req.headers),
         eventType,
-        label: label ?? null,
+        label: platformEventLabel(eventType, label),
       });
 
       res.status(204).end();

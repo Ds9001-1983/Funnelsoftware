@@ -1,3 +1,4 @@
+import { PlatformPrivacyChoice } from "@/components/PlatformPrivacyChoice";
 import { resetCookieConsent } from "@/components/cookie-consent";
 import { Link } from "wouter";
 import { usePageMeta } from "@/hooks/use-document-title";
@@ -196,33 +197,41 @@ export default function Datenschutz() {
               </p>
 
               <h3 className="text-lg font-medium text-slate-700 mb-2 mt-6">
-                Reichweitenmessung (cookieless, ohne Einwilligung)
+                Eigene Reichweitenmessung und Widerspruch
               </h3>
               <p className="text-slate-600 text-sm leading-relaxed mb-4">
-                Zur statistischen Auswertung, wie unsere Marketing- und Rechtsseiten genutzt werden,
-                setzen wir eine eigene, besonders datensparsame Reichweitenmessung ein. Dabei werden
-                <strong> keine Cookies gesetzt</strong>, kein „Local Storage" verwendet und
-                <strong> kein Fingerprinting</strong> betrieben. Es findet also kein Zugriff auf
-                Informationen in Ihrem Endgerät statt (§ 25 Abs. 2 Nr. 2 TDDDG), weshalb hierfür
-                keine Einwilligung erforderlich ist.
+                Wir werten die Nutzung unserer Marketing-, Rechts- und Registrierungsseiten aus.
+                Dafür setzt die Messung keine Besucher-Cookies und verwendet keinen Local Storage.
+                IP-Adresse und Browserkennung (User-Agent) werden kurzzeitig verarbeitet, um eine
+                <strong> pseudonyme Tageskennung</strong> zu bilden. Diese Ausgangswerte werden
+                nicht in der Statistik gespeichert. Die oben beschriebenen Server-Logs sind davon getrennt.
               </p>
               <p className="text-slate-600 text-sm leading-relaxed mb-4">
-                Ihre IP-Adresse wird <strong>nicht gespeichert</strong>. Sie wird ausschließlich
-                flüchtig verwendet, um zusammen mit dem Datum und einem geheimen Server-Schlüssel
-                einen <strong>tages-rotierenden, anonymen Einweg-Hash</strong> zu bilden. Dieser Hash
-                ist nicht auf Ihre Person rückrechenbar, erlaubt kein tagesübergreifendes
-                Wiedererkennen und kein seitenübergreifendes Tracking. Gespeichert werden lediglich
-                der aufgerufene Pfad, der Host der Referrer-Seite (nicht die vollständige URL),
-                etwaige UTM-Kampagnenparameter, eine grobe Geräteklasse (Mobil/Tablet/Desktop) und
-                ein grober Ländercode.
+                Der zufällige Schlüssel für die Tageskennung liegt nur im Arbeitsspeicher und wird
+                bei der ersten Messung eines neuen UTC-Tages oder nach einem Serverneustart ersetzt. Die Kennung dient zum
+                Zusammenzählen von Aufrufen innerhalb dieses Zeitraums; sie ist keine Garantie
+                vollständiger Anonymität. Wir speichern zugelassene Seitenpfade ohne URL-Parameter,
+                Ereignistypen, vorgegebene Aktionscodes, eine grobe Geräteklasse und einen aus
+                Anfrage-Headern abgeleiteten Ländercode. Freie Kampagnenparameter und Referrer werden
+                für neue Ereignisse nicht gespeichert. Abo-Starts und Zahlungen werden als separate
+                Ereignisse ohne Konto-ID oder daraus abgeleitete Kennung gezählt.
+              </p>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                Zweck ist die Verbesserung unserer Seiten und Registrierung. Als Rechtsgrundlage
+                ziehen wir unser berechtigtes Interesse nach Art. 6 Abs. 1 lit. f DSGVO heran.
+                Die Verarbeitung erfolgt auf unserer eigenen Hosting-Infrastruktur; diese Messung
+                übermittelt keine Ereignisse an Google Analytics oder Werbenetzwerke.
+                Die Statistiken von Kunden-Funnels und freiwillig aktivierte Marketing-Pixel
+                werden getrennt behandelt.
               </p>
               <p className="text-slate-600 text-sm leading-relaxed">
-                Rechtsgrundlage ist unser berechtigtes Interesse an einer datensparsamen
-                Reichweitenmessung (Art. 6 Abs. 1 lit. f DSGVO). Es erfolgt keine Weitergabe an
-                Dritte und keine Nutzung von Google Analytics o. Ä.; die Verarbeitung findet auf
-                unseren Servern in der EU statt. Sie können dieser Verarbeitung jederzeit nach
-                Art. 21 DSGVO über die im Impressum genannten Kontaktdaten widersprechen.
+                Sie können der weiteren Reichweitenmessung hier unmittelbar widersprechen.
+                Wir beachten außerdem Do Not Track und Global Privacy Control. Der Widerspruch
+                stoppt neue Besucher- und Registrierungsereignisse in diesem Browser. Bereits
+                gespeicherte Ereignisse werden dadurch nicht automatisch gelöscht. Für Anfragen
+                zu gespeicherten Daten können Sie die Kontaktdaten im Impressum nutzen.
               </p>
+              <PlatformPrivacyChoice />
             </section>
 
             {/* 6. Registrierung und Vertragsdaten */}

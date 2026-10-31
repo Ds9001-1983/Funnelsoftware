@@ -15,6 +15,7 @@ import { setupAuth, apiKeyAuth } from "./auth";
 import { storage } from "./storage";
 import { startAccountErasureWorker } from "./account-erasure-worker";
 import { startRetentionWorker } from "./retention-worker";
+import { startPlatformRetentionWorker } from "./platform-retention";
 import { startAnalyticsRetentionWorker } from "./analytics-retention-worker";
 import { startDeletedFunnelRetentionWorker } from "./deleted-funnel-retention";
 import { startScheduler } from "./scheduler";
@@ -321,6 +322,7 @@ app.get("/api/health", async (_req, res) => {
       startRecruitingMailWorker();
       startRetentionWorker();
       startAnalyticsRetentionWorker();
+      startPlatformRetentionWorker();
       startDeletedFunnelRetentionWorker();
   startAccountErasureWorker();
     },

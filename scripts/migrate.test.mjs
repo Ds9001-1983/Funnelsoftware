@@ -21,6 +21,7 @@ describe.skipIf(!connection)("additive migration on existing funnels and leads",
         ab_tests jsonb DEFAULT '[]', gtm_id text, meta_pixel_id text, impressum_url text, datenschutz_url text,
         og_image_url text, updated_at timestamp DEFAULT now());
       CREATE TABLE leads (id serial PRIMARY KEY, funnel_id integer REFERENCES funnels(id), status text, answers jsonb);
+      CREATE TABLE platform_visits (id serial PRIMARY KEY, timestamp timestamp DEFAULT now());
       CREATE TABLE analytics_events (id serial PRIMARY KEY, funnel_id integer REFERENCES funnels(id), event_type text, timestamp timestamp DEFAULT now());
       INSERT INTO users VALUES (1, 'migration@example.test');
       INSERT INTO funnels (id,user_id,slug,pages) VALUES (1, 1, 'bestehender-funnel', '[{"id":"old-page","elements":[{"id":"old-field"}]}]');
@@ -46,7 +47,8 @@ describe.skipIf(!connection)("additive migration on existing funnels and leads",
     expect((await client.query("SELECT * FROM recruiting_mail_jobs")).rows).toEqual([]);
     expect((await client.query("SELECT * FROM brand_styles")).rows).toEqual([]);
     for (const table of ["content_templates", "media_folders", "media_assets", "marketing_consents", "owned_uploads", "funnel_retention_drafts", "lead_retention_exceptions", "funnel_analytics_retention", "deleted_funnel_retention"]) expect((await client.query(`SELECT * FROM ${table}`)).rows).toEqual([]);
-    expect((await client.query("SELECT count(*)::int AS count FROM app_migrations")).rows[0].count).toBe(12);
+    expect((await client.query("INSERT INTO platform_visits DEFAULT VALUES RETURNING abs(extract(epoch FROM (timestamp - (now() AT TIME ZONE 'UTC')))) < 1 AS utc")).rows[0].utc).toBe(true);
+    expect((await client.query("SELECT count(*)::int AS count FROM app_migrations")).rows[0].count).toBe(13);
   });
   it("preserves an existing retention draft without activating deletion", async () => {
     await client.query("DELETE FROM app_migrations WHERE name='20261023_retention_activation.sql'");

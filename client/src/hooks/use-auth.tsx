@@ -1,3 +1,4 @@
+import { platformMeasurementBlocked } from "@/lib/platform-privacy";
 import { invalidateConsentStatus, notifyConsent, PLATFORM_CONSENT } from "@/lib/consent-store";
 import { clearAllEditorRecovery } from "@/lib/editor-recovery";
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
@@ -124,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await fetch("/api/auth/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(platformMeasurementBlocked() ? { "X-Platform-Optout": "1" } : {}) },
         credentials: "include",
         body: JSON.stringify(data),
       });

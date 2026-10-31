@@ -2,8 +2,8 @@
  * Meta-Pixel für trichterwerk.de selbst (Marketing-Seiten der Plattform).
  *
  * Abgrenzung zu den beiden anderen Tracking-Wegen im Projekt:
- *  - `platform-tracker.ts` — cookieless, eigene Reichweitenmessung, läuft ohne
- *    Einwilligung.
+ *  - `platform-tracker.ts` — eigene pseudonyme Reichweitenmessung mit
+ *    Widerspruchsmöglichkeit.
  *  - `meta-pixel.ts` + `public-funnel.tsx` — der Pixel, den KUNDEN pro Funnel
  *    hinterlegen. Gleiche Low-Level-Bausteine, andere Pixel-ID, anderer Consent.
  *
