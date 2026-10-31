@@ -53,14 +53,13 @@ Deployments oder Änderungen am installierten Mac-Dienst in dieser Fortsetzung.
 
 ## Noch offen
 
-Die Fristfrage (90 Tage / 30 Tage / vorerst offen) wurde dem Betreiber gestellt;
-es liegt noch keine Antwort vor. `PLATFORM_ANALYTICS_RETENTION_DAYS` bleibt leer.
-Die Oberfläche zeigt die fehlende Aktivierung ausdrücklich an. Der bisherige
-90-Tage-Auswertungszeitraum ist keine automatische Löschfreigabe.
+Der Betreiber hat am 31.10.2026 **90 Tage** bestätigt. Die Aktivierung mit
+`PLATFORM_ANALYTICS_RETENTION_DAYS=90` erfolgt nach produktiver Vorschau und
+kompatiblem Update des Mac-Parsers. Bis dahin bleibt die Automatik ausgeschaltet.
 
 Vor Veröffentlichung: kompatiblen Mac-Parser installieren und prüfen, Release
 über den bestehenden Backup-/Restore-Prozess ausrollen, gewählte Frist rein
 lesend inventarisieren und erst nach Betreiberentscheidung aktivieren. Danach
 Live-Abnahme und Sicherungsnachweis ergänzen. Die Interessenabwägung braucht
-noch die konkrete Zweck-/Fristentscheidung und fachliche Prüfung; R12 ist damit
+noch fachliche Prüfung; R12 ist damit
 noch nicht als vollständig abgeschlossen oder rechtlich freigegeben markiert.

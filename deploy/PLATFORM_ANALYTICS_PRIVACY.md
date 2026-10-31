@@ -40,8 +40,10 @@ Das ist getrennt von der Cookie-Auswahl für freiwillige Marketing-Einwilligunge
 
 ## Begrenzung und Freigabe
 
-Es gibt **keinen voreingestellten Löschzeitraum**. Der Betreiber wurde nach
-90 oder 30 Tagen gefragt; eine Antwort liegt für diesen Stand noch nicht vor.
+Betreiberentscheidung vom 31.10.2026: **90 Tage** für Einzelereignisse der
+eigenen Plattform-Statistik. Das deckt den längsten vorhandenen Auswertungszeitraum
+von 90 Tagen ab. Konfiguration: `PLATFORM_ANALYTICS_RETENTION_DAYS=90`.
+Es gibt weiterhin keinen automatisch angenommenen Standardwert.
 Ohne `PLATFORM_ANALYTICS_RETENTION_DAYS` werden keine neuen Aufträge erstellt.
 Die öffentliche Status-API und Datenschutzerklärung zeigen die tatsächlich
 konfigurierte Tagesfrist oder ausdrücklich die noch fehlende Aktivierung.
@@ -109,7 +111,9 @@ Eine ausschließlich einwilligungsbasierte Messung ist eine weitere Alternative.
 
 Schutz: flüchtige Schlüssel, eingeschränkte Felder, keine freien Quellenparameter,
 sofortiger Widerspruch, DNT/GPC, begrenzter Adminzugriff und bestätigte Löschung.
-Die konkrete Frist und ihre Erforderlichkeit müssen noch eingetragen werden.
+Die vom Betreiber gewählte Frist beträgt 90 Tage, passend zum längsten
+angebotenen Vergleichszeitraum. Die fachliche Erforderlichkeitsprüfung bleibt
+von dieser technischen und betrieblichen Festlegung zu unterscheiden.
 Technik allein bestätigt weder diese Abwägung noch die Einordnung des gesamten
 Messverfahrens nach § 25 TDDDG. Keine pauschale Rechtskonformitätszusage.
 
