@@ -402,13 +402,8 @@ export const analyticsEvents = pgTable("analytics_events", {
   index("analytics_events_timestamp_idx").on(table.timestamp),
 ]);
 
-// Plattform-Besuche (Reichweitenmessung für trichterwerk.de selbst) — BEWUSST
-// getrennt von analytics_events (das an Kunden-Funnels hängt). Cookieless &
-// datensparsam: KEINE Roh-IP, KEIN User-Agent, KEINE Cookie-Kennung gespeichert.
-// Der visitorHash ist ein tages-rotierender, serverseitig gesalzener Einweg-Hash
-// (siehe server/tracking.ts) — nicht auf die Person rückrechenbar, kein
-// tagesübergreifendes Wiedererkennen. Rechtsgrundlage: Art. 6 (1) f DSGVO,
-// § 25 (2) Nr. 2 TDDDG (kein Zugriff auf Endgeräte-Infos → keine Einwilligung).
+// Eigene pseudonyme Statistik, getrennt von Kunden-Funnels. Keine Roh-IP/UA.
+// Tageskennung mit kurzlebigem RAM-Schlüssel; keine garantierte Anonymität.
 export const platformVisits = pgTable("platform_visits", {
   id: serial("id").primaryKey(),
   visitorHash: text("visitor_hash").notNull(),
@@ -427,7 +422,7 @@ export const platformVisits = pgTable("platform_visits", {
    * nicht-interaktiv durchläuft.
    */
   label: text("label"),
-  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  timestamp: timestamp("timestamp").default(sql`(now() AT TIME ZONE 'UTC')`).notNull(),
 }, (table) => [
   index("platform_visits_timestamp_idx").on(table.timestamp),
   index("platform_visits_visitor_idx").on(table.visitorHash, table.timestamp),

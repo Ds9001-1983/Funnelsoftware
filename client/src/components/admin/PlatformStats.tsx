@@ -61,8 +61,6 @@ export function PlatformStats() {
     { key: "registerViewed", label: "Formular gesehen", value: f?.registerViewed ?? 0 },
     { key: "formStarted", label: "Formular begonnen", value: f?.formStarted ?? 0 },
     { key: "accountCreated", label: "Account erstellt", value: f?.accountCreated ?? 0 },
-    { key: "trialStarted", label: "Trial mit Karte", value: f?.trialStarted ?? 0 },
-    { key: "purchased", label: "Bezahlt", value: f?.purchased ?? 0 },
   ];
   const funnelTop = funnelSteps[0].value;
   const consentTotal = (data?.consent.accepted ?? 0) + (data?.consent.rejected ?? 0);
@@ -88,17 +86,28 @@ export function PlatformStats() {
           <p className="text-sm text-muted-foreground">Lädt…</p>
         ) : (
           <div className="space-y-6">
+            <p className="text-sm text-muted-foreground">
+              Pseudonyme Tageskennungen sind keine eindeutigen Personen. Tageswechsel,
+              Serverneustarts und mehrere Serverprozesse können Mehrfachzählungen verursachen.
+              Widersprüche und Browser-Datenschutzsignale begrenzen die Messbasis.
+              Zahlungsereignisse sind separate Zähler, keine verknüpfte Besucherreise.
+              Quellen und Kampagnen werden für neue Ereignisse nicht mehr gespeichert.
+            </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Kpi icon={<Eye className="h-4 w-4" />} label="Besucher" value={totals.visitors} />
+              <Kpi icon={<Eye className="h-4 w-4" />} label="Tageskennungen" value={totals.visitors} />
               <Kpi icon={<TrendingUp className="h-4 w-4" />} label="Seitenaufrufe" value={totals.pageviews} />
               <Kpi icon={<UserPlus className="h-4 w-4" />} label="Registrierungen" value={totals.registrations} />
               <Kpi icon={<TrendingUp className="h-4 w-4" />} label="Conversion" value={`${convRate.toFixed(1)} %`} />
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <Kpi icon={<UserPlus className="h-4 w-4" />} label="Abo-Starts" value={f?.trialStarted ?? 0} />
+              <Kpi icon={<TrendingUp className="h-4 w-4" />} label="Zahlungsereignisse" value={f?.purchased ?? 0} />
+            </div>
             {totals.visitors === 0 && (
               <p className="text-sm text-muted-foreground">
                 Noch keine Besucher im Zeitraum erfasst. Sobald Traffic auf trichterwerk.de kommt
-                (organisch oder über Ads), erscheint er hier — ohne Cookies, ohne Einwilligungsbanner.
+                (organisch oder über Ads), erscheinen hier die erfassten Aufrufe.
               </p>
             )}
 

@@ -1,14 +1,6 @@
-// Cookieless Reichweiten-Beacon für trichterwerk.de.
-//
-// Setzt selbst NICHTS im Browser (kein Cookie, kein localStorage, kein
-// Fingerprinting) → darf ohne Einwilligung laufen (§ 25 Abs. 2 Nr. 2 TDDDG).
-// Der Server (POST /api/public/track) leitet aus IP + User-Agent nur einen
-// tages-rotierenden Anonym-Hash ab und speichert keine Roh-IP.
-//
-// Das ist die zuverlässigere der beiden Messungen: der Meta-Pixel
-// (platform-pixel.ts) sieht nur einwilligende Besucher, dieses Beacon sieht alle.
-// Der Funnel-Report im Admin-Bereich baut deshalb hierauf auf.
-
+// Eigene pseudonyme Reichweitenmessung, getrennt von Marketing-Pixeln.
+// Widerspruch und Browser-Datenschutzsignale stoppen jeden Beacon.
+import { platformMeasurementBlocked } from "./platform-privacy";
 import { comparisonLinks, funnelBuilderPage } from "@shared/seo-links";
 import { isPlatformHost } from "@/lib/platform-host";
 import type { PlatformEventType } from "@shared/schema";
@@ -32,30 +24,6 @@ const TRACKABLE = new Set([
 function isTrackable(path: string): boolean {
   const clean = (path.split(/[?#]/)[0] || "/").replace(/\/+$/, "") || "/";
   return TRACKABLE.has(clean);
-}
-
-/**
- * First-Touch-Kampagne der laufenden Sitzung.
- *
- * Ohne das stehen die UTM-Parameter nur an dem Event, bei dem sie in der URL
- * waren: Ein Besucher landet mit `?utm_source=meta` auf "/", klickt auf
- * "/register" — und weil wouter clientseitig navigiert, hat das Register-Event
- * keine Quelle mehr. Damit ließe sich nie sag, welche Kampagne registriert hat.
- *
- * Eine Modul-Variable statt sessionStorage: sie überlebt die SPA-Navigation,
- * fasst aber kein Endgerät an (§ 25 TDDDG bleibt außen vor, keine Einwilligung
- * nötig). Bei einem harten Reload ist sie weg — dann stehen die UTMs aber in
- * der Regel wieder in der URL.
- */
-let firstTouch: { source?: string; medium?: string; campaign?: string } | null = null;
-
-function captureFirstTouch(): void {
-  if (firstTouch) return;
-  const params = new URLSearchParams(window.location.search);
-  const source = params.get("utm_source") || undefined;
-  const medium = params.get("utm_medium") || undefined;
-  const campaign = params.get("utm_campaign") || undefined;
-  if (source || medium || campaign) firstTouch = { source, medium, campaign };
 }
 
 function send(body: string): void {
@@ -105,15 +73,11 @@ export function trackPlatformEvent(
   if (!isPlatformHost()) return;
   if (!isTrackable(path)) return;
 
-  captureFirstTouch();
+  if (platformMeasurementBlocked()) return;
 
   send(
     JSON.stringify({
       path,
-      referrer: document.referrer || undefined,
-      utmSource: firstTouch?.source,
-      utmMedium: firstTouch?.medium,
-      utmCampaign: firstTouch?.campaign,
       eventType,
       label,
     }),

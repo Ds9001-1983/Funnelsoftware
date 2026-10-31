@@ -47,6 +47,10 @@ function record(value) {
     if (e.target.type === 'retention_leads' && e.target.keys.length > 20) fail('Automatic batch exceeds limit.');
     if (e.target.type === 'queued_funnels' && e.target.keys.length > 3) fail('Funnel batch exceeds limit.');
     target = { type: e.target.type, keys: e.target.keys.map(uuid) };
+  } else if (e.target?.type === 'platform_before') {
+    object(e.target, ['type', 'before', 'maxId']);
+    if (!Number.isInteger(e.target.maxId) || e.target.maxId < 1 || e.target.maxId > 2147483647) fail('Invalid platform sequence fence.');
+    target = { type: e.target.type, before: date(e.target.before), maxId: e.target.maxId };
   } else if (e.target?.type === 'analytics_before') {
     object(e.target, ['type', 'key', 'before', 'maxId']);
     if (!Number.isInteger(e.target.maxId) || e.target.maxId < 1 || e.target.maxId > 2147483647) fail('Invalid analytics sequence fence.');
