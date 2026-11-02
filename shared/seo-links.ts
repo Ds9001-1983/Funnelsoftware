@@ -41,7 +41,7 @@ export const funnelBuilderPage: SeoStaticPage = {
   path: "/funnel-builder",
   metaTitle: "Funnel-Builder: Marketing-Funnels ohne Code erstellen",
   metaDescription:
-    "Was ist ein Funnel-Builder und wie erstellst du damit Funnels ohne Code? Der Guide aus Deutschland — DSGVO-konform, ab 49 €/Monat, 14 Tage kostenlos testen.",
+    "Was ist ein Funnel-Builder und wie erstellst du damit Funnels ohne Code? Der Guide aus Deutschland — mit EU-Hosting, ab 49 €/Monat, 14 Tage kostenlos testen.",
 };
 
 /** Meta der Vergleichs-Übersicht (/vergleich) — eine Quelle für Client-Hook,
@@ -50,7 +50,7 @@ export const vergleichIndexPage: SeoStaticPage = {
   path: "/vergleich",
   metaTitle: "Trichterwerk im Vergleich",
   metaDescription:
-    "Trichterwerk ehrlich verglichen mit Perspective, FunnelCockpit, Typeform, Heyflow & Co. — Features, Preise, DSGVO. Finde den Funnel-Builder, der zu dir passt.",
+    "Trichterwerk ehrlich verglichen mit Perspective, FunnelCockpit, Typeform, Heyflow & Co. — Funktionen und Preise. Finde den Funnel-Builder, der zu dir passt.",
 };
 
 /** Partnerprogramm-Seite (25 % Lifetime-Provision). */
@@ -80,49 +80,49 @@ export const audiencePages = [
     label: "Recruiting-Funnel",
     metaTitle: "Recruiting-Funnel: Bewerber gewinnen ohne Lebenslauf",
     metaDescription:
-      "Recruiting-Funnel für Pflege, Handwerk, SHK und Gastro: mobile Express-Bewerbung ohne Lebenslauf, DSGVO-konform aus Deutschland. 14 Tage kostenlos testen.",
+      "Recruiting-Funnel für Pflege, Handwerk, SHK und Gastro: mobile Express-Bewerbung ohne Lebenslauf, mit EU-Hosting aus Deutschland. 14 Tage kostenlos testen.",
   },
   {
     path: "/lead-funnel",
     label: "Lead-Funnel",
     metaTitle: "Lead-Funnel erstellen: mehr qualifizierte Anfragen",
     metaDescription:
-      "Lead-Funnel statt Kontaktformular: Besucher Schritt für Schritt qualifizieren und konvertieren — DSGVO-konform ab 49 €/Monat. 14 Tage kostenlos testen.",
+      "Lead-Funnel statt Kontaktformular: Besucher Schritt für Schritt qualifizieren und konvertieren — mit EU-Hosting ab 49 €/Monat. 14 Tage kostenlos testen.",
   },
   {
     path: "/photovoltaik-funnel",
     label: "Photovoltaik-Funnel",
     metaTitle: "Photovoltaik-Funnel: Solar-Leads selbst gewinnen",
     metaDescription:
-      "PV-Leads kosten auf Portalen 35–120 €. Mit einem eigenen Solar-Check-Funnel gewinnst du Anfragen selbst — DSGVO-konform aus Deutschland. 14 Tage gratis testen.",
+      "PV-Leads kosten auf Portalen 35–120 €. Mit einem eigenen Solar-Check-Funnel gewinnst du Anfragen selbst — mit EU-Hosting aus Deutschland. 14 Tage gratis testen.",
   },
   {
     path: "/handwerk-recruiting-funnel",
     label: "Handwerk-Recruiting",
     metaTitle: "Handwerk-Recruiting: Monteure per Funnel finden",
     metaDescription:
-      "Rund 107.000 Fachkräfte fehlen im Handwerk. Express-Bewerbung in 60 Sekunden vom Handy, QR-Code auf dem Firmenwagen — DSGVO-konform. 14 Tage kostenlos testen.",
+      "Rund 107.000 Fachkräfte fehlen im Handwerk. Express-Bewerbung in 60 Sekunden vom Handy, QR-Code auf dem Firmenwagen — mit EU-Hosting. 14 Tage kostenlos testen.",
   },
   {
     path: "/pflege-recruiting-funnel",
     label: "Pflege-Recruiting",
     metaTitle: "Pflege-Recruiting-Funnel: Bewerbungen in 2 Minuten",
     metaDescription:
-      "Pflegekräfte gewinnen mit den Argumenten, die zählen: Dienstplansicherheit, faire Bezahlung, kein Einspringen. Mobile Bewerbung in 2 Minuten, DSGVO-konform.",
+      "Pflegekräfte gewinnen mit den Argumenten, die zählen: Dienstplansicherheit, faire Bezahlung, kein Einspringen. Mobile Bewerbung in 2 Minuten, mit EU-Hosting.",
   },
   {
     path: "/immobilien-funnel",
     label: "Immobilien-Funnel",
     metaTitle: "Immobilien-Funnel: Verkäufer-Leads per Wertermittlung",
     metaDescription:
-      "Kostenlose Wertermittlung als Einstieg: Objektdaten Schritt für Schritt, Verkäufer-Leads statt Anfrageformular — DSGVO-konform aus der EU. 14 Tage gratis.",
+      "Kostenlose Wertermittlung als Einstieg: Objektdaten Schritt für Schritt, Verkäufer-Leads statt Anfrageformular — mit EU-Hosting. 14 Tage gratis.",
   },
   {
     path: "/quiz-funnel",
     label: "Quiz-Funnel",
     metaTitle: "Quiz-Funnel erstellen: Leads spielerisch qualifizieren",
     metaDescription:
-      "Interaktives Quiz mit Ergebnis-Mapping statt Formular: Produktfinder und Selbsttests qualifizieren und unterhalten zugleich — DSGVO-konform, in 1 Stunde live.",
+      "Interaktives Quiz mit Ergebnis-Mapping statt Formular: Produktfinder und Selbsttests qualifizieren und unterhalten zugleich — mit EU-Hosting, in 1 Stunde live.",
   },
 ] as const satisfies readonly (SeoStaticPage & { label: string })[];
 

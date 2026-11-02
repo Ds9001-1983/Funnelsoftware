@@ -1,3 +1,4 @@
+import { privacyProductSummary, privacyIntegrationSummary } from "@shared/privacy-copy";
 import { useEffect } from "react";
 import { Link } from "wouter";
 import { usePageMeta } from "@/hooks/use-document-title";
@@ -49,7 +50,7 @@ const buildingBlocks = [
   {
     icon: TrendingUp,
     title: "Analytics & A/B-Tests",
-    text: "Views, Conversions und Absprünge pro Seite auf einen Blick — plus A/B-Tests, um Headlines und Angebote gegeneinander zu testen. Ohne Google Analytics, ohne Cookies.",
+    text: "Views, Conversions und Absprünge pro Seite auf einen Blick — plus A/B-Tests, um Headlines und Angebote gegeneinander zu testen. Dafür brauchst du kein Google Analytics.",
   },
   {
     icon: Server,
@@ -134,7 +135,7 @@ export default function FunnelBuilder() {
           <div className="flex flex-col sm:flex-row gap-4 mt-8">
             <Link href="/register">
               <Button size="lg" className="gap-2 text-lg px-8 shadow-lg shadow-primary/25">
-                Trichterwerk 14 Tage kostenlos testen
+                14 Tage kostenlos testen
                 <ArrowRight className="h-5 w-5" />
               </Button>
             </Link>
@@ -204,22 +205,11 @@ export default function FunnelBuilder() {
       <section className="py-16 px-4 bg-muted/30 border-y">
         <div className="container mx-auto max-w-3xl">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            DSGVO: Warum der Standort des Funnel-Builders zählt
+            Datenschutz: Hosting, Funktionen und eingebundene Dienste
           </h2>
           <div className="space-y-4 text-lg text-muted-foreground leading-relaxed">
-            <p>
-              In einem Funnel gibst du Besucherdaten in fremde Hände: Namen,
-              E-Mail-Adressen, Antworten auf Qualifizierungsfragen. Liegt der
-              Anbieter in den USA (oder nutzt US-Subdienstleister), musst du
-              Drittlandtransfers rechtfertigen — ein Dauerthema für
-              Datenschutzbeauftragte.
-            </p>
-            <p>
-              Ein deutscher Anbieter mit EU-Hosting löst das strukturell:
-              Trichterwerk hostet ausschließlich in der EU, misst Reichweite
-              cookielos, stellt eine AVV bereit und gehört keinem US-Konzern.
-              Deine Leads bleiben deine Leads — jederzeit als CSV exportierbar.
-            </p>
+            <p>{privacyProductSummary}</p>
+            <p>{privacyIntegrationSummary}</p>
           </div>
         </div>
       </section>

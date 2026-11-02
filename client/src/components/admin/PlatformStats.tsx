@@ -71,7 +71,7 @@ export function PlatformStats() {
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Globe className="h-5 w-5 text-primary" />
-          Plattform-Reichweite <span className="text-xs font-normal text-muted-foreground">(cookieless, DSGVO-konform)</span>
+          Plattform-Reichweite <span className="text-xs font-normal text-muted-foreground">(eigene Plattform-Statistik)</span>
         </CardTitle>
         <div className="flex gap-1">
           {RANGES.map((r) => (
@@ -162,8 +162,9 @@ export function PlatformStats() {
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {data?.consent.accepted ?? 0} von {consentTotal} Entscheidungen. Nur
-                  diesen Anteil der Besucher sieht der Meta-Pixel — die Zahlen oben
-                  sind cookielos und sehen alle.
+                  nach Zustimmung kann der Meta-Pixel geladen werden. Auch dann können
+                  Blocker die Erfassung verhindern. Die eigene Statistik berücksichtigt
+                  Widerspruch, Do Not Track und Global Privacy Control.
                 </p>
               </div>
             )}

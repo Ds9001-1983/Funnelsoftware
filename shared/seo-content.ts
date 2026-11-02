@@ -1,3 +1,4 @@
+import { privacyProductSummary, privacyComparisonSummary } from "./privacy-copy";
 /**
  * SEO-Content-Registry für die Marketing-/Keyword-Seiten (/vergleich/:slug,
  * /funnel-builder). Reine Daten ohne React-Imports — wird sowohl vom Client
@@ -65,20 +66,20 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
   "typeform-alternative": {
     slug: "typeform-alternative",
     competitorName: "Typeform",
-    metaTitle: "Typeform-Alternative aus Deutschland – DSGVO-konform",
+    metaTitle: "Typeform-Alternative aus Deutschland – mit EU-Hosting",
     metaDescription:
-      "Du suchst eine Typeform-Alternative? Trichterwerk: deutscher Funnel-Builder, DSGVO-konform mit EU-Hosting, Gratis-Plan, Pro 49 €/Monat.",
-    h1: "Die Typeform-Alternative aus Deutschland: DSGVO-konform, auf Deutsch, mit Gratis-Plan",
+      "Du suchst eine Typeform-Alternative? Trichterwerk: deutscher Funnel-Builder, mit EU-Hosting, Gratis-Plan, Pro 49 €/Monat.",
+    h1: "Die Typeform-Alternative aus Deutschland: mit EU-Hosting, auf Deutsch, mit Gratis-Plan",
     intro: [
-      "Typeform ist ein starkes Tool für schöne Formulare und Umfragen — keine Frage. Aber viele Nutzer aus dem DACH-Raum stoßen an Grenzen: Die Datenverarbeitung läuft teils über US-Dienste (DSGVO-Grauzone), Support und Oberfläche sind englischsprachig, und für einen kompletten Funnel mit Landingpage, Logik und Analytics brauchst du zusätzliche Tools.",
+      "Du vergleichst Typeform mit einem Funnel-Builder? Achte darauf, wie Formular, vorgeschaltete Inhalte, Verzweigungen und Auswertung in deinen Ablauf passen. Trichterwerk verbindet diese Schritte in einem gemeinsamen Editor.",
       "Trichterwerk ist der deutsche Funnel-Builder: Formulare, Quiz-Logik und komplette Landingpages in einem Tool — mit Hosting in der EU und deutschem Support. Statt einzelner Formulare baust du mit unserem Funnel-Builder komplette Strecken vom ersten Klick bis zum qualifizierten Lead.",
     ],
     verdict:
-      "Kurz gesagt: Wenn du DSGVO-konforme Funnels mit eigener Domain, Conditional Logic und Analytics willst — ohne Tool-Stack aus Typeform + Landingpage-Builder + Analytics — ist Trichterwerk die passende Alternative aus Deutschland. Free-Plan dauerhaft kostenlos, 14 Tage Pro ohne Kreditkarte.",
+      "Kurz gesagt: Wenn du mehrstufige Funnels mit eigener Domain, Conditional Logic und Analytics willst — ohne Tool-Stack aus Typeform + Landingpage-Builder + Analytics — ist Trichterwerk die passende Alternative aus Deutschland. Free-Plan dauerhaft kostenlos, 14 Tage Pro ohne Kreditkarte.",
     painPoints: [
       {
-        title: "DSGVO & US-Datentransfer",
-        text: "Typeform sitzt zwar in Spanien, setzt aber US-Subdienstleister ein. Für eine rechtssichere Nutzung musst du Auftragsverarbeitung und Drittlandtransfers selbst prüfen und dokumentieren — ein Risiko, das viele Datenschutzbeauftragte nicht mittragen. Trichterwerk hostet ausschließlich in der EU.",
+        title: "Datenverarbeitung und Integrationen prüfen",
+        text: privacyComparisonSummary,
       },
       {
         title: "Antwort-Limits und steigende Preise",
@@ -95,7 +96,6 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
     ],
     comparisonRows: [
       { label: "Deutsche Oberfläche & Support", trichterwerk: true, competitor: false },
-      { label: "Hosting in der EU / DSGVO-konform", trichterwerk: true, competitor: "prüfungsbedürftig" },
       { label: "Komplette Landingpages statt nur Formulare", trichterwerk: true, competitor: false },
       { label: "Conditional Logic & Quiz", trichterwerk: true, competitor: true },
       { label: "Eigene Domain inklusive", trichterwerk: true, competitor: false },
@@ -119,8 +119,8 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
         text: "Antwortbasierte Verzweigungen kennst du von Typeform. Trichterwerk kann das auch — und zusätzlich echte A/B-Tests: Teste zwei Varianten einer Seite gegeneinander und lass die Conversion entscheiden.",
       },
       {
-        title: "Analytics eingebaut, DSGVO-konform ohne Cookies",
-        text: "Views, Conversions und Drop-offs pro Seite siehst du direkt im Dashboard — ohne Google Analytics, ohne Cookie-Banner-Stress. Deine Leads exportierst du jederzeit als CSV oder schickst sie per Webhook an dein CRM.",
+        title: "Eigene Statistiken und Marketing-Einstellungen",
+        text: "Views, Conversions und Drop-offs pro Seite siehst du direkt im Dashboard — ohne Google Analytics, mit getrennten Einstellungen für optionale Marketingdienste. Deine Leads exportierst du jederzeit als CSV oder schickst sie per Webhook an dein CRM.",
       },
       {
         title: "Eigene Domain mit SSL inklusive",
@@ -154,8 +154,8 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
     ],
     faqs: [
       {
-        q: "Ist Typeform DSGVO-konform?",
-        a: "Typeform ist ein spanisches Unternehmen, setzt aber US-Subdienstleister ein. Eine rechtssichere Nutzung erfordert einen Auftragsverarbeitungsvertrag und die eigene Prüfung der Drittlandtransfers. Trichterwerk hostet ausschließlich in der EU und ist auf DSGVO-Konformität ausgelegt.",
+        q: "Worauf kommt es beim Datenschutzvergleich an?",
+        a: privacyComparisonSummary,
       },
       {
         q: "Gibt es eine kostenlose Typeform-Alternative?",
@@ -190,7 +190,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
     h1: "Trichterwerk und Perspective: Funktionen und Preise im Vergleich",
     intro: [
       "Perspective hat Mobile-Funnels im DACH-Raum populär gemacht — und ist ein gutes Tool. Aber das Preismodell ist modular: Der Base-Plan startet bei 59 € pro Monat (47 € bei Jahreszahlung), enthält aber nur 2 Live-Funnels und 100 Leads pro Monat. Zusatzfunktionen kommen als Add-on-Suiten für 67–84 € monatlich dazu, zusätzliche Leads kosten 0,25 € pro Kontakt — so wird aus dem Einstiegspreis schnell ein dreistelliger Monatsbetrag.",
-      "Trichterwerk bietet als deutscher Funnel-Builder dieselbe Kernidee — mobile-optimierte, mehrstufige Funnels per Drag & Drop — für 49 € im Monat: mit unbegrenzten Funnels und Leads, A/B-Tests, eingebauten Analytics und eigener Domain. Ebenfalls DSGVO-konform mit EU-Hosting, ebenfalls auf Deutsch.",
+      "Trichterwerk bietet als deutscher Funnel-Builder dieselbe Kernidee — mobile-optimierte, mehrstufige Funnels per Drag & Drop — für 49 € im Monat: mit unbegrenzten Funnels und Leads, A/B-Tests, eingebauten Analytics und eigener Domain. Die Anwendung und zentrale Datenbank werden in der EU gehostet; Oberfläche und Support sind auf Deutsch.",
     ],
     verdict:
       "Trichterwerk Pro bietet für 49 € pro Monat unbegrenzte Funnels und Leads, eigene Domains, A/B-Tests und ein Kanban-Board mit eigenen Spalten und Drag-and-drop. Bewerberbestätigungen, E-Mails bei Statuswechseln und getrennte Kundenbereiche für die gemeinsame Bewerberverwaltung sind enthalten.",
@@ -210,7 +210,6 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
     ],
     comparisonRows: [
       { label: "Deutsche Oberfläche & Support", trichterwerk: true, competitor: true },
-      { label: "Hosting in der EU / DSGVO-konform", trichterwerk: true, competitor: true },
       { label: "Live-Handy-Vorschau im Editor", trichterwerk: true, competitor: true },
       { label: "Conditional Logic & Quiz", trichterwerk: true, competitor: true },
       { label: "A/B-Tests", trichterwerk: true, competitor: "ab Grow inklusive; Base mit Add-on" },
@@ -242,8 +241,8 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
         text: "Für 49 € pro Monat erhältst du unbegrenzte Funnels und Leads, Templates und Elemente, Conditional Logic, Analytics, eigene Domains, Webhooks und das Kanban-Board. E-Mail-Benachrichtigungen informieren dich als Betreiber über neue Leads. Automatische Bewerberbestätigungen, Status-Mails und getrennte Kundenbereiche sind ebenfalls enthalten. Kunden können freigegebene Bewerbungen ansehen und ihren Status ändern; Editor und Mailregeln bleiben beim Betreiber.",
       },
       {
-        title: "DSGVO-konform aus Deutschland",
-        text: "Wie Perspective setzt Trichterwerk auf DSGVO-Konformität — mit Hosting in der EU, cookielosen Analytics und deutschem Support. Hier nehmen sich beide Tools nichts; der Unterschied liegt im Preis und den Features.",
+        title: "EU-Hosting und Datenschutzfunktionen",
+        text: privacyProductSummary,
       },
     ],
     pricingComparison: {
@@ -277,8 +276,8 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
         a: "Perspective startet im Base-Plan bei 59 € pro Monat (47 € bei Jahreszahlung) mit 2 Live-Funnels und 100 Leads pro Monat. Bewerberbestätigungen, Status-Mails und Workspaces sind bereits ab Base enthalten. Trichterwerk Pro kostet 49 € pro Monat mit unbegrenzten Funnels und Leads, Domains, A/B-Tests, Bewerberbestätigungen, Status-Mails und getrennten Kundenbereichen für Bewerberboards.",
       },
       {
-        q: "Ist Trichterwerk wie Perspective DSGVO-konform?",
-        a: "Ja. Trichterwerk hostet ausschließlich in der EU, nutzt cookielose Analytics und bietet deutsche Vertragsunterlagen (AVV). In puncto Datenschutz nehmen sich beide Tools nichts.",
+        q: "Welche Datenschutzfunktionen bietet Trichterwerk?",
+        a: privacyProductSummary,
       },
       {
         q: "Hat Trichterwerk auch Mobile-Funnels?",
@@ -300,20 +299,20 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
   "clickfunnels-alternative": {
     slug: "clickfunnels-alternative",
     competitorName: "ClickFunnels",
-    metaTitle: "ClickFunnels-Alternative auf Deutsch – DSGVO-konform",
+    metaTitle: "ClickFunnels-Alternative auf Deutsch – mit EU-Hosting",
     metaDescription:
       "ClickFunnels-Alternative für den DACH-Raum: Trichterwerk — deutscher Funnel-Builder, EU-Hosting, Gratis-Plan, Pro 49 €/Monat statt 97 $+.",
-    h1: "Die ClickFunnels-Alternative auf Deutsch: DSGVO-konform und ohne Dollar-Abo",
+    h1: "Die ClickFunnels-Alternative auf Deutsch: mit EU-Hosting und ohne Dollar-Abo",
     intro: [
-      "ClickFunnels hat den Begriff „Funnel“ geprägt und ist im US-Markt der Platzhirsch. Für Nutzer aus Deutschland, Österreich und der Schweiz gibt es aber handfeste Probleme: englische Oberfläche, Abrechnung in US-Dollar ab rund 97 $ pro Monat, Datenverarbeitung in den USA — und ein Funktionsumfang, der auf US-Infoprodukt-Marketing zugeschnitten ist.",
+      "ClickFunnels hat den Begriff „Funnel“ geprägt und ist im US-Markt der Platzhirsch. Für Nutzer aus Deutschland, Österreich und der Schweiz gibt es aber handfeste Probleme: englische Oberfläche, Abrechnung in US-Dollar ab rund 97 $ pro Monat — und ein Funktionsumfang, der auf US-Infoprodukt-Marketing zugeschnitten ist.",
       "Trichterwerk ist die Alternative für den DACH-Raum: ein deutscher Funnel-Builder mit EU-Hosting, deutscher Oberfläche und deutschem Support — für 49 € im Monat. Fokussiert auf das, was Coaches, Berater, Dienstleister und Recruiter hier wirklich brauchen: Leads sammeln, qualifizieren, konvertieren.",
     ],
     verdict:
-      "Kurz gesagt: Wenn du Funnels für den deutschsprachigen Markt baust und Wert auf DSGVO, deutsche Oberfläche und kalkulierbare Euro-Preise legst, ist Trichterwerk die passende ClickFunnels-Alternative — für etwa die Hälfte des Preises. Free-Plan dauerhaft kostenlos, 14 Tage Pro ohne Kreditkarte.",
+      "Kurz gesagt: Wenn du Funnels für den deutschsprachigen Markt baust und Wert auf eine deutsche Oberfläche und kalkulierbare Euro-Preise legst, ist Trichterwerk die passende ClickFunnels-Alternative — für etwa die Hälfte des Preises. Free-Plan dauerhaft kostenlos, 14 Tage Pro ohne Kreditkarte.",
     painPoints: [
       {
-        title: "DSGVO & Datenverarbeitung in den USA",
-        text: "ClickFunnels ist ein US-Unternehmen — Lead-Daten deiner Besucher landen auf US-Servern. Für DSGVO-konforme Lead-Generierung im DACH-Raum ein erhebliches Risiko. Trichterwerk hostet ausschließlich in der EU.",
+        title: "Datenverarbeitung und Integrationen prüfen",
+        text: privacyComparisonSummary,
       },
       {
         title: "Englische Oberfläche, englischer Support",
@@ -330,7 +329,6 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
     ],
     comparisonRows: [
       { label: "Deutsche Oberfläche & Support", trichterwerk: true, competitor: false },
-      { label: "Hosting in der EU / DSGVO-konform", trichterwerk: true, competitor: false },
       { label: "Abrechnung in Euro (inkl. MwSt.-Ausweis)", trichterwerk: true, competitor: false },
       { label: "Live-Handy-Vorschau im Editor", trichterwerk: true, competitor: "eingeschränkt" },
       { label: "Conditional Logic & Quiz", trichterwerk: true, competitor: "eingeschränkt" },
@@ -343,7 +341,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
     featureSections: [
       {
         title: "Gebaut für den DACH-Markt",
-        text: "Deutsche Oberfläche, deutsche Templates, deutscher Support, Rechnungen in Euro mit MwSt.-Ausweis. Und rechtlich sauber: EU-Hosting, AVV, cookielose Analytics — Punkte, bei denen US-Tools strukturell nicht mithalten können.",
+        text: "Deutsche Oberfläche, deutsche Vorlagen und Support per E-Mail. Anwendung und zentrale Datenbank werden in der EU gehostet. Für die Datenschutzbewertung gehören auch der AVV, die Verarbeitung im eigenen Funnel und aktivierte Integrationen dazu.",
       },
       {
         title: "Mobile-First statt Desktop-Denke",
@@ -355,13 +353,13 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         title: "A/B-Tests und Analytics eingebaut",
-        text: "Wie ClickFunnels kann Trichterwerk A/B-Tests — dazu Live-Analytics mit Views, Conversions und Drop-offs pro Seite, ganz ohne Google Analytics und ohne Cookies. Leads gehen per CSV, Webhook oder Zapier/Make in dein CRM.",
+        text: "Wie ClickFunnels kann Trichterwerk A/B-Tests — dazu Live-Analytics mit Views, Conversions und Drop-offs pro Seite, ohne Google Analytics. Leads gehen per CSV, Webhook oder Zapier/Make in dein CRM.",
       },
     ],
     pricingComparison: {
       title: "Preisvergleich: ClickFunnels vs. Trichterwerk",
       text: [
-        "ClickFunnels startet bei rund 97 $ pro Monat (Jahreszahlung teils günstiger), abgerechnet in US-Dollar. Dazu kommen für viele Nutzer Zusatzkosten für Tools, die die US-Plattform im DACH-Kontext nicht abdeckt (z. B. DSGVO-konformes Tracking).",
+        "ClickFunnels startet bei rund 97 $ pro Monat (Jahreszahlung teils günstiger), abgerechnet in US-Dollar. Vergleiche auch die enthaltenen Funktionen und mögliche Kosten zusätzlicher Dienste.",
         "Trichterwerk kostet 0 € im Free-Plan (1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar) und 49 € pro Monat inklusive Mehrwertsteuer im Pro-Plan — alle Features, unbegrenzte Funnels und Leads, monatlich kündbar, 14 Tage Pro ohne Kreditkarte. Das ist ungefähr die Hälfte, ohne Wechselkursrisiko und mit deutscher Rechnung.",
       ],
     },
@@ -380,13 +378,13 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         title: "Leads sichern & live gehen",
-        text: "Bestehende Kontakte bei ClickFunnels als CSV exportieren, neuen Funnel veröffentlichen, Ads umstellen. Neue Leads laufen DSGVO-konform in deinem Trichterwerk-Dashboard auf.",
+        text: "Bestehende Kontakte bei ClickFunnels als CSV exportieren, neuen Funnel veröffentlichen, Ads umstellen. Neue Leads laufen mit EU-Hosting in deinem Trichterwerk-Dashboard auf.",
       },
     ],
     faqs: [
       {
-        q: "Ist ClickFunnels DSGVO-konform nutzbar?",
-        a: "ClickFunnels ist ein US-Anbieter mit Datenverarbeitung in den USA. Eine DSGVO-konforme Nutzung ist aufwendig und bleibt rechtlich riskant. Trichterwerk hostet ausschließlich in der EU und ist auf DSGVO-Konformität ausgelegt.",
+        q: "Worauf kommt es beim Datenschutzvergleich an?",
+        a: privacyComparisonSummary,
       },
       {
         q: "Gibt es eine deutsche Alternative zu ClickFunnels?",
@@ -402,7 +400,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         q: "Für wen lohnt sich der Wechsel von ClickFunnels?",
-        a: "Für alle, die im deutschsprachigen Raum Leads generieren: Coaches, Berater, Agenturen, Dienstleister und Recruiter. Sie sparen rund die Hälfte der Kosten und lösen das DSGVO-Problem.",
+        a: "Für alle, die im deutschsprachigen Raum Leads generieren: Coaches, Berater, Agenturen, Dienstleister und Recruiter. Vergleiche dafür Funktionen, Gesamtkosten und die Anforderungen deines eigenen Einsatzes.",
       },
     ],
     relatedSlugs: ["typeform-alternative", "perspective-alternative"],
@@ -419,7 +417,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       "Trichterwerk geht den umgekehrten Weg: ein moderner, schlanker Drag-&-Drop-Editor, der genau eine Sache richtig gut macht — konvertierende Funnels bauen. Dazu ein dauerhaft kostenloser Plan statt eines Test-Zugangs für 1 €, und ein Pro-Plan für 49 € im Monat inklusive Mehrwertsteuer mit unbegrenzten Funnels und Leads.",
     ],
     verdict:
-      "Kurz gesagt: Wenn dich FunnelCockpits Funktionsfülle eher bremst als beflügelt, bekommst du mit Trichterwerk einen aufgeräumten Editor, einen echten Gratis-Plan und Pro für 49 € statt 97 € — deutsch, DSGVO-konform, ohne Kreditkarte startbar.",
+      "Kurz gesagt: Wenn dich FunnelCockpits Funktionsfülle eher bremst als beflügelt, bekommst du mit Trichterwerk einen aufgeräumten Editor, einen echten Gratis-Plan und Pro für 49 € statt 97 € — deutsch, mit EU-Hosting, ohne Kreditkarte startbar.",
     painPoints: [
       {
         title: "Überladene Oberfläche, altbackenes Gefühl",
@@ -440,7 +438,6 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
     ],
     comparisonRows: [
       { label: "Deutsche Oberfläche & Support", trichterwerk: true, competitor: true },
-      { label: "Hosting in der EU / DSGVO-konform", trichterwerk: true, competitor: true },
       { label: "Dauerhaft kostenloser Plan", trichterwerk: "1 Funnel, 100 Leads/Monat", competitor: "nur 14 Tage für 1 €" },
       { label: "Moderner, aufgeräumter Editor", trichterwerk: true, competitor: "sehr funktionsreich, unübersichtlich" },
       { label: "Live-Handy-Vorschau im Editor", trichterwerk: true, competitor: "eingeschränkt" },
@@ -464,8 +461,8 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
         text: "Recruiting, Beratung, Handwerk, Coaching, Immobilien und mehr: Die Vorlagen sind auf Deutsch geschrieben und für den DACH-Markt gedacht — inklusive sinnvoller Qualifizierungsfragen. Anpassen, Logo tauschen, live gehen.",
       },
       {
-        title: "A/B-Tests und Analytics ohne Cookie-Banner",
-        text: "SplitTests kennst du von FunnelCockpit — Trichterwerk kann das ebenfalls, im Pro-Plan ohne Aufpreis. Dazu eigene, cookielose Analytics: Views, Conversions und Drop-offs pro Seite, ganz ohne Google Analytics.",
+        title: "A/B-Tests und eigene Analytics",
+        text: "SplitTests kennst du von FunnelCockpit — Trichterwerk kann das ebenfalls, im Pro-Plan ohne Aufpreis. Dazu eigene Analytics: Views, Conversions und Drop-offs pro Seite, ganz ohne Google Analytics.",
       },
       {
         title: "Leads dorthin, wo du sie brauchst",
@@ -481,7 +478,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
     },
     honestSection: {
       title: "Wann FunnelCockpit trotzdem die bessere Wahl ist",
-      text: "Ehrlich verglichen: FunnelCockpit ist eine echte All-in-One-Suite. Wer Video-Hosting, E-Mail-Marketing, Mitgliederbereiche und Funnels bewusst unter einem Dach haben will und bereit ist, sich in ein umfangreiches System einzuarbeiten, bekommt dort sehr viel Funktion für sein Geld. Auch das Unternehmen sitzt in Deutschland — beim Thema DSGVO nehmen sich beide Tools nichts. Wenn du aber vor allem schnell konvertierende Funnels bauen willst, ist Trichterwerk der direktere Weg.",
+      text: "Ehrlich verglichen: FunnelCockpit ist eine echte All-in-One-Suite. Wer Video-Hosting, E-Mail-Marketing, Mitgliederbereiche und Funnels bewusst unter einem Dach haben will und bereit ist, sich in ein umfangreiches System einzuarbeiten, bekommt dort sehr viel Funktion für sein Geld. Wenn du aber vor allem schnell konvertierende Funnels bauen willst, ist Trichterwerk der direktere Weg.",
     },
     migrationSteps: [
       {
@@ -508,7 +505,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         q: "Kann Trichterwerk auch SplitTests wie FunnelCockpit?",
-        a: "Ja. A/B-Tests sind im Pro-Plan enthalten: Du testest zwei Varianten einer Seite gegeneinander und siehst in den eingebauten Analytics, welche mehr Leads bringt — cookielos und ohne Google Analytics.",
+        a: "Ja. A/B-Tests sind im Pro-Plan enthalten: Du testest zwei Varianten einer Seite gegeneinander und siehst in den eingebauten Analytics, welche mehr Leads bringt — ohne Google Analytics.",
       },
       {
         q: "Kann ich meinen FunnelCockpit-Funnel importieren?",
@@ -519,8 +516,8 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
         a: "Nein — das ist bewusst so. Trichterwerk konzentriert sich auf Funnels zur Lead-Generierung und Qualifizierung. Kurse, Mailings oder Videoplattformen verbindest du per Webhook, Zapier oder Make mit deinen bestehenden Tools.",
       },
       {
-        q: "Ist Trichterwerk genauso DSGVO-konform wie ein deutsches Tool?",
-        a: "Trichterwerk ist ein deutsches Produkt mit Hosting in der EU, cookielosen Analytics, AVV und deutschem Support per E-Mail. Beim Datenschutz musst du gegenüber FunnelCockpit keine Abstriche machen.",
+        q: "Welche Datenschutzfunktionen bietet Trichterwerk?",
+        a: privacyProductSummary,
       },
     ],
     relatedSlugs: ["heyflow-alternative", "perspective-alternative", "onepage-alternative"],
@@ -559,7 +556,6 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
     ],
     comparisonRows: [
       { label: "Deutsche Oberfläche & Support", trichterwerk: true, competitor: "Team in Hamburg, Produkt englisch geprägt" },
-      { label: "Hosting in der EU / DSGVO-konform", trichterwerk: true, competitor: true },
       { label: "Dauerhaft kostenloser Plan", trichterwerk: "1 Funnel, 100 Leads/Monat", competitor: false },
       { label: "Unbegrenzte Leads ohne Aufpreis", trichterwerk: true, competitor: "Preis skaliert mit Leads" },
       { label: "Abrechnung in Euro (inkl. MwSt.-Ausweis)", trichterwerk: true, competitor: "Pricing in USD" },
@@ -583,8 +579,8 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
         text: "Fragen verzweigen je nach Antwort, unpassende Interessenten steigen früh aus, passende landen mit vollständigen Angaben in deinem Dashboard. Genau die Logik, für die du bei anderen Tools in einen höheren Plan wechselst.",
       },
       {
-        title: "Eigene Analytics ohne Cookie-Banner",
-        text: "Views, Conversions und Drop-offs pro Seite direkt im Dashboard — cookielos und ohne Google Analytics. Für A/B-Tests siehst du sofort, welche Variante gewinnt, ohne ein externes Tracking-Setup aufzubauen.",
+        title: "Eigene Analytics im Dashboard",
+        text: "Views, Conversions und Drop-offs pro Seite direkt im Dashboard — ohne Google Analytics. Für A/B-Tests siehst du sofort, welche Variante gewinnt, ohne ein externes Tracking-Setup aufzubauen.",
       },
       {
         title: "Deutsch von der Oberfläche bis zur Support-Mail",
@@ -630,8 +626,8 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
         a: "Im Pro-Plan nicht: Funnels und Leads sind unbegrenzt, unabhängig von deinem Kampagnenvolumen. Im kostenlosen Free-Plan siehst du 100 Leads pro Monat.",
       },
       {
-        q: "Ist Trichterwerk DSGVO-konform?",
-        a: "Ja. Hosting ausschließlich in der EU, cookielose eigene Analytics, AVV und deutscher Support per E-Mail. Beim Datenschutz nehmen sich Heyflow und Trichterwerk als europäische Anbieter wenig.",
+        q: "Welche Datenschutzfunktionen bietet Trichterwerk?",
+        a: privacyProductSummary,
       },
       {
         q: "Kann ich meinen Heyflow-Flow importieren?",
@@ -678,7 +674,6 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
     ],
     comparisonRows: [
       { label: "Deutsche Oberfläche & Support", trichterwerk: true, competitor: true },
-      { label: "Hosting in der EU / DSGVO-konform", trichterwerk: true, competitor: true },
       { label: "Recruiting-Vorlagen (Express-Bewerbung, Pflege, Handwerk)", trichterwerk: true, competitor: true },
       { label: "Auch Lead-, Anfrage- & Quiz-Funnels", trichterwerk: true, competitor: "Fokus Recruiting" },
       { label: "Preise offen auf der Website", trichterwerk: "0 € / 49 €", competitor: "wenig transparent" },
@@ -703,11 +698,11 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         title: "A/B-Tests und Analytics für Stellenanzeigen",
-        text: "Welche Headline bringt mehr Bewerbungen, „Jetzt in 60 Sekunden bewerben“ oder „Ohne Lebenslauf bewerben“? Teste beide Varianten gegeneinander und sieh in den cookielosen Analytics, wo Bewerber abspringen.",
+        text: "Welche Headline bringt mehr Bewerbungen, „Jetzt in 60 Sekunden bewerben“ oder „Ohne Lebenslauf bewerben“? Teste beide Varianten gegeneinander und sieh in den eigenen Analytics, wo Bewerber abspringen.",
       },
       {
         title: "Bewerber direkt ins System",
-        text: "Neue Bewerbungen landen im Dashboard, gehen per Webhook an dein Bewerbermanagement oder CRM (Zapier- und Make-kompatibel) und lassen sich jederzeit als CSV exportieren. DSGVO-konform mit EU-Hosting und AVV.",
+        text: "Neue Bewerbungen landen im Dashboard, gehen per Webhook an dein Bewerbermanagement oder CRM (Zapier- und Make-kompatibel) und lassen sich jederzeit als CSV exportieren. Prüfe bei Webhooks auch die Datenverarbeitung im Zielsystem.",
       },
     ],
     pricingComparison: {
@@ -753,8 +748,8 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
         a: "Alle anderen Funnel-Typen: Lead-Funnels für Beratung, Anfrage-Funnels für Dienstleister, Quiz-Funnels für Coaches. Im Pro-Plan sind Funnels unbegrenzt — Recruiting und Vertrieb laufen im selben Account.",
       },
       {
-        q: "Sind Bewerberdaten bei Trichterwerk DSGVO-konform gespeichert?",
-        a: "Ja: Hosting ausschließlich in der EU, cookielose eigene Analytics, AVV und deutscher Support per E-Mail. Bewerberdaten kannst du jederzeit als CSV exportieren oder per Webhook an dein Bewerbermanagement geben.",
+        q: "Welche Datenschutzfunktionen bietet Trichterwerk?",
+        a: privacyProductSummary,
       },
       {
         q: "Wie schnell steht mein erster Recruiting-Funnel?",
@@ -773,22 +768,22 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
     h1: "Die systeme.io-Alternative aus Deutschland: fokussierter Funnel-Builder statt All-in-One-Baustelle",
     intro: [
       "systeme.io aus Frankreich ist eine der großzügigsten All-in-One-Plattformen am Markt: Der Free-Plan enthält dauerhaft 3 Funnels, 1 Blog, 1 Onlinekurs und unbegrenzte E-Mails, die bezahlten Pläne liegen etwa zwischen 17 und 97 USD pro Monat. Das ist ein starkes Angebot — und trotzdem passt es nicht für jeden im DACH-Raum.",
-      "Denn die Oberfläche ist übersetzt, aber nicht auf Deutsch gedacht: Formulierungen wirken sperrig, Hilfeartikel und Support laufen per E-Mail und teils auf Englisch. Wie und wo Daten verarbeitet werden, ist weniger klar kommuniziert, als es Datenschutzbeauftragte hierzulande erwarten. Trichterwerk ist ein deutsches Produkt mit EU-Hosting, deutschem Support und einem Editor, der sich auf Funnels konzentriert statt auf zehn Disziplinen gleichzeitig.",
+      "Vergleiche die Funktionen, die du tatsächlich einsetzen möchtest: Funnel-Editor, E-Mail-Marketing, Kurse und Auswertung. Für jedes aktivierte Werkzeug sind auch Datenfluss und Vertragsunterlagen relevant. Trichterwerk konzentriert sich auf das Erstellen und Betreiben von Funnels.",
     ],
     verdict:
-      "Kurz gesagt: systeme.io ist stark, wenn du eine günstige All-in-One-Plattform suchst und mit Englisch kein Problem hast. Willst du dagegen ein deutsches Produkt mit klarem EU-Hosting und einem fokussierten Funnel-Editor, ist Trichterwerk die passende Alternative — Free-Plan dauerhaft, Pro 49 €/Monat.",
+      "Kurz gesagt: systeme.io ist stark, wenn du eine günstige All-in-One-Plattform suchst und mit Englisch kein Problem hast. Willst du dagegen ein deutsches Produkt mit EU-Hosting und einem fokussierten Funnel-Editor, ist Trichterwerk die passende Alternative — Free-Plan dauerhaft, Pro 49 €/Monat.",
     painPoints: [
       {
         title: "Übersetzt, aber nicht deutsch gedacht",
         text: "Die Oberfläche gibt es auf Deutsch, wirkt aber wie eine Übersetzung: Begriffe sind ungewohnt, Vorlagen und Beispieltexte stammen aus dem englisch- bzw. französischsprachigen Markt. Trichterwerk ist von Anfang an auf Deutsch geschrieben — inklusive 13 Vorlagen, die für den DACH-Markt gedacht sind.",
       },
       {
-        title: "Support nur per E-Mail und teils auf Englisch",
-        text: "Bei systeme.io läuft der Support über E-Mail-Tickets, Antworten kommen abhängig vom Thema auf Englisch. Wer eine Rückfrage zu Rechnung, DSGVO oder Domain hat, formuliert sie zweisprachig. Trichterwerk antwortet auf Deutsch per E-Mail — inklusive deutscher Rechnung mit MwSt.-Ausweis.",
+        title: "Supportsprache und Kontaktwege prüfen",
+        text: "Kläre vor der Auswahl, welche Supportsprache und Kontaktwege für dein Team wichtig sind. Trichterwerk beantwortet Produktfragen auf Deutsch per E-Mail.",
       },
       {
-        title: "Server- und DSGVO-Setup weniger klar kommuniziert",
-        text: "Als europäischer Anbieter unterliegt systeme.io der DSGVO, aber wo genau die Daten liegen und welche Subdienstleister eingesetzt werden, ist weniger transparent kommuniziert. Trichterwerk hostet ausschließlich in der EU, nutzt cookielose eigene Analytics und stellt einen AVV bereit.",
+        title: "Datenverarbeitung und Integrationen prüfen",
+        text: privacyComparisonSummary,
       },
       {
         title: "All-in-One heißt auch: viele halbfertige Baustellen",
@@ -797,14 +792,13 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
     ],
     comparisonRows: [
       { label: "Deutsches Produkt & deutscher Support", trichterwerk: true, competitor: "übersetzt, Support teils englisch" },
-      { label: "EU-Hosting klar ausgewiesen", trichterwerk: true, competitor: "weniger klar kommuniziert" },
       { label: "Dauerhaft kostenloser Plan", trichterwerk: "1 Funnel, 100 Leads/Monat", competitor: "3 Funnels, 1 Blog, 1 Kurs" },
       { label: "Deutsche Vorlagen für den DACH-Markt", trichterwerk: "13 Vorlagen", competitor: false },
       { label: "Fokussierter Funnel-Editor", trichterwerk: true, competitor: "All-in-One" },
       { label: "E-Mail-Marketing & Onlinekurse", trichterwerk: false, competitor: true },
       { label: "Conditional Logic & Quiz", trichterwerk: true, competitor: "eingeschränkt" },
       { label: "A/B-Tests", trichterwerk: true, competitor: "je nach Plan" },
-      { label: "Cookielose eigene Analytics", trichterwerk: true, competitor: "Basis-Statistiken" },
+      { label: "Eigene Analytics", trichterwerk: true, competitor: "Basis-Statistiken" },
       { label: "Monatspreis", trichterwerk: "0 € oder 49 € inkl. MwSt.", competitor: "0 $ oder ca. 17–97 USD" },
     ],
     featureSections: [
@@ -817,8 +811,8 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
         text: "Oberfläche, Hilfetexte, Rechtstexte und die 13 Vorlagen sind auf Deutsch verfasst und auf deutsche Zielgruppen zugeschnitten — von der Express-Bewerbung im Handwerk bis zum Beratungs-Funnel. Support beantwortet Fragen auf Deutsch per E-Mail.",
       },
       {
-        title: "EU-Hosting, AVV und Analytics ohne Cookies",
-        text: "Deine Lead-Daten liegen in der EU, die eingebauten Analytics arbeiten cookielos — kein Cookie-Banner nur wegen deines Funnels, kein Google Analytics im Datenschutzkonzept. Den AVV bekommst du direkt aus dem Account.",
+        title: "EU-Hosting und Datenschutzfunktionen",
+        text: privacyProductSummary,
       },
       {
         title: "Free-Plan mit allen Editor-Features",
@@ -833,12 +827,12 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       title: "Preisvergleich: systeme.io vs. Trichterwerk",
       text: [
         "systeme.io hat einen der großzügigsten Free-Pläne am Markt: dauerhaft 3 Funnels, 1 Blog, 1 Onlinekurs und unbegrenzte E-Mails, ohne Zeitlimit. Die bezahlten Stufen liegen etwa zwischen 17 und 97 USD pro Monat und heben vor allem Kontakt- und Funnel-Limits an. Rein preislich ist das schwer zu schlagen.",
-        "Trichterwerk kostet 0 € im Free-Plan (1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar, alle Editor-Features) und 49 € pro Monat inklusive Mehrwertsteuer im Pro-Plan: unbegrenzte Funnels und Leads, eigene Domain mit SSL, Teams, A/B-Tests, Conditional Logic, KI-Generator, Badge entfernbar. Der Unterschied liegt weniger im Preis als in Sprache, Fokus und klar ausgewiesenem EU-Hosting.",
+        "Trichterwerk kostet 0 € im Free-Plan (1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar, alle Editor-Features) und 49 € pro Monat inklusive Mehrwertsteuer im Pro-Plan: unbegrenzte Funnels und Leads, eigene Domain mit SSL, Teams, A/B-Tests, Conditional Logic, KI-Generator, Badge entfernbar. Der Unterschied liegt weniger im Preis als in Sprache, Fokus und EU-Hosting für Anwendung und Datenbank.",
       ],
     },
     honestSection: {
       title: "Wann systeme.io trotzdem die bessere Wahl ist",
-      text: "Ehrlich verglichen: Der Free-Plan von systeme.io ist wirklich großzügig — 3 Funnels, ein Blog, ein Onlinekurs und unbegrenzte E-Mails auf Dauer bietet sonst kaum jemand. Wenn du E-Mail-Marketing, Kurse, Affiliate-Programm und Funnels bewusst in einem einzigen günstigen Abo bündeln willst und mit englischsprachigem Support leben kannst, ist systeme.io eine hervorragende Wahl. Trichterwerk lohnt sich, wenn Funnels dein Kerngeschäft sind und du ein deutsches Produkt mit klarem EU-Hosting und deutschem Support möchtest.",
+      text: "Ehrlich verglichen: Der Free-Plan von systeme.io ist wirklich großzügig — 3 Funnels, ein Blog, ein Onlinekurs und unbegrenzte E-Mails auf Dauer bietet sonst kaum jemand. Wenn du E-Mail-Marketing, Kurse, Affiliate-Programm und Funnels bewusst in einem einzigen günstigen Abo bündeln willst und mit englischsprachigem Support leben kannst, ist systeme.io eine hervorragende Wahl. Trichterwerk lohnt sich, wenn Funnels dein Kerngeschäft sind und du ein deutsches Produkt mit EU-Hosting und deutschem Support möchtest.",
     },
     migrationSteps: [
       {
@@ -850,8 +844,8 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
         text: "Eigene Domain per CNAME verbinden, SSL läuft automatisch. Dein bestehendes E-Mail-Tool bindest du per Webhook an — Zapier und Make funktionieren ebenso, sodass Kurse oder Newsletter weiterlaufen wie bisher.",
       },
       {
-        title: "Live gehen & Datenschutz nachziehen",
-        text: "Alte Funnel-Links auf die neue URL weiterleiten, Kontakte bei systeme.io als CSV exportieren, AVV im Trichterwerk-Account herunterladen und in dein Verarbeitungsverzeichnis aufnehmen.",
+        title: "Datenschutz prüfen & veröffentlichen",
+        text: "Vor der Veröffentlichung Datenschutzhinweise, Rechtsgrundlagen, AVV und aktivierte Integrationen prüfen. Danach alte Funnel-Links auf die neue URL weiterleiten und benötigte Kontakte bei systeme.io als CSV exportieren.",
       },
     ],
     faqs: [
@@ -860,8 +854,8 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
         a: "systeme.io hat einen dauerhaft kostenlosen Plan mit 3 Funnels, 1 Blog, 1 Kurs und unbegrenzten E-Mails; bezahlte Pläne liegen etwa zwischen 17 und 97 USD pro Monat. Trichterwerk hat ebenfalls einen dauerhaften Free-Plan und kostet im Pro-Plan 49 € pro Monat inklusive Mehrwertsteuer mit unbegrenzten Funnels und Leads.",
       },
       {
-        q: "Ist systeme.io DSGVO-konform?",
-        a: "systeme.io ist ein französisches Unternehmen und unterliegt damit der DSGVO. Wo genau die Daten liegen und welche Subdienstleister eingesetzt werden, ist allerdings weniger klar kommuniziert. Trichterwerk hostet ausschließlich in der EU, arbeitet mit cookielosen eigenen Analytics und stellt einen AVV bereit.",
+        q: "Worauf kommt es beim Datenschutzvergleich an?",
+        a: privacyComparisonSummary,
       },
       {
         q: "Gibt es systeme.io auf Deutsch?",
@@ -877,7 +871,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         q: "Lohnt sich der Wechsel von systeme.io?",
-        a: "Wenn Funnels dein Kerngeschäft sind, du deutschsprachigen Support brauchst und klar ausgewiesenes EU-Hosting gegenüber Kunden oder Datenschutzbeauftragten belegen willst — ja. Nutzt du dagegen aktiv Kurse, Blog und E-Mail-Marketing in einem Abo, bleib bei systeme.io.",
+        a: "Wenn Funnels dein Kerngeschäft sind, du deutschsprachigen Support brauchst und einen auf Funnels konzentrierten Editor suchst — ja. Nutzt du dagegen aktiv Kurse, Blog und E-Mail-Marketing in einem Abo, bleib bei systeme.io.",
       },
     ],
     relatedSlugs: ["clickfunnels-alternative", "onepage-alternative", "typeform-alternative"],
@@ -936,8 +930,8 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
         text: "Antwortbasierte Verzweigungen führen jeden Besucher auf den passenden Pfad. Unpassende Interessenten steigen früh aus, passende kommen mit vollständigen Angaben an — das schafft ein Kontaktformular auf einer Website nicht.",
       },
       {
-        title: "A/B-Tests und cookielose Analytics",
-        text: "Zwei Varianten gegeneinander testen, Views, Conversions und Drop-offs pro Seite sehen — ohne Google Analytics und ohne Cookie-Banner nur wegen deines Funnels. Im Pro-Plan ohne Aufpreis enthalten.",
+        title: "A/B-Tests und eigene Analytics",
+        text: "Zwei Varianten gegeneinander testen, Views, Conversions und Drop-offs pro Seite sehen — ohne Google Analytics. Im Pro-Plan ohne Aufpreis enthalten.",
       },
       {
         title: "Eigene Domain mit SSL und Team-Zugänge",
@@ -945,7 +939,7 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
       },
       {
         title: "Leads gehören dir",
-        text: "CSV-Export mit einem Klick, Webhooks für jedes CRM, kompatibel mit Zapier und Make. Gespeichert wird ausschließlich in der EU, mit AVV und cookielosen Analytics.",
+        text: "CSV-Export mit einem Klick, Webhooks für jedes CRM, kompatibel mit Zapier und Make. Anwendung und zentrale Datenbank werden in der EU gehostet. Für Webhooks und andere Integrationen prüfst du die jeweiligen Empfänger und Datenflüsse.",
       },
     ],
     pricingComparison: {
@@ -1025,7 +1019,7 @@ export const audiencePagesContent: Record<string, AudiencePageContent> = {
     h1: "Recruiting-Funnel: Bewerbungen statt Bewerbungsmappen",
     intro: [
       "Stellenanzeigen auf Jobportalen konvertieren mobil miserabel: Kandidaten scrollen abends auf dem Sofa durch Instagram — und brechen ab, sobald ein Lebenslauf-Upload verlangt wird. Ein Recruiting-Funnel dreht den Prozess um: erst Interesse wecken, dann in drei kurzen Fragen qualifizieren, zum Schluss nur Name und Telefonnummer.",
-      "Mit Trichterwerk baust du so einen Funnel aus einer fertigen Vorlage in unter einer Stunde — mobile-first, DSGVO-konform mit EU-Hosting, und mit Benachrichtigung in Echtzeit, sobald eine Bewerbung eingeht.",
+      "Mit Trichterwerk baust du so einen Funnel aus einer fertigen Vorlage in unter einer Stunde — mobile-first, mit EU-Hosting, und mit Benachrichtigung in Echtzeit, sobald eine Bewerbung eingeht.",
     ],
     painPoints: [
       {
@@ -1077,7 +1071,7 @@ export const audiencePagesContent: Record<string, AudiencePageContent> = {
       },
       {
         q: "Funktioniert eine Bewerbung wirklich ohne Lebenslauf?",
-        a: "Ja — für die Erstansprache. Der Funnel sammelt Qualifikation, Verfügbarkeit und Kontakt; Unterlagen forderst du im Gespräch nach. Alle Daten werden DSGVO-konform in der EU gespeichert, mit dokumentiertem Consent.",
+        a: "Der Funnel kann Qualifikation, Verfügbarkeit und Kontakt für die Erstansprache erfassen; Unterlagen kannst du später gezielt anfordern. Lege passende Datenschutzhinweise, Rechtsgrundlagen und Aufbewahrungsfristen für dein Bewerbungsverfahren fest.",
       },
       {
         q: "Was kostet ein Recruiting-Funnel?",
@@ -1114,7 +1108,7 @@ export const audiencePagesContent: Record<string, AudiencePageContent> = {
       },
       {
         title: "Tool-Stack-Chaos",
-        text: "Landingpage-Baukasten plus Formular-Tool plus Analytics plus Kalender — vier Abos, vier Datenschutz-Prüfungen. Trichterwerk liefert den kompletten Funnel aus einem Guss, DSGVO-konform.",
+        text: "Landingpage-Baukasten plus Formular-Tool plus Analytics plus Kalender — vier Abos, vier Datenschutz-Prüfungen. Trichterwerk liefert den kompletten Funnel aus einem Guss, mit EU-Hosting.",
       },
     ],
     industries: [
@@ -1164,8 +1158,8 @@ export const audiencePagesContent: Record<string, AudiencePageContent> = {
         a: "Per signiertem Webhook in Echtzeit (kompatibel mit Zapier und Make), per CSV-Export oder direkt im Trichterwerk-Dashboard mit Kanban-Ansicht und E-Mail-Benachrichtigung.",
       },
       {
-        q: "Ist das DSGVO-konform?",
-        a: "Ja: Hosting ausschließlich in der EU, Cookie-Consent-Banner auf jedem veröffentlichten Funnel, AV-Vertrag inklusive und dokumentierter Marketing-Consent pro Lead.",
+        q: "Welche Datenschutzfunktionen bietet Trichterwerk?",
+        a: privacyProductSummary,
       },
     ],
   },
@@ -1217,7 +1211,7 @@ export const audiencePagesContent: Record<string, AudiencePageContent> = {
       },
       {
         title: "Traffic schicken & messen",
-        text: "Meta- oder Google-Ads auf die Funnel-URL, dazu QR-Codes auf Referenz-Baustellen und im Ort. Die cookielose Analytics zeigt dir pro Schritt, wo Interessenten aussteigen; per Webhook laufen die Leads in dein CRM.",
+        text: "Meta- oder Google-Ads auf die Funnel-URL, dazu QR-Codes auf Referenz-Baustellen und im Ort. Die eigene Analytics zeigt dir pro Schritt, wo Interessenten aussteigen; per Webhook laufen die Leads in dein CRM.",
       },
     ],
     faqs: [
@@ -1309,8 +1303,8 @@ export const audiencePagesContent: Record<string, AudiencePageContent> = {
         a: "Meta-Ads mit echten Baustellen- und Team-Fotos funktionieren am besten, dazu QR-Codes auf Firmenfahrzeugen, Bauzäunen und Aushängen, der Link in der Stellenanzeige und die Weiterempfehlung durch die eigene Belegschaft.",
       },
       {
-        q: "Ist das DSGVO-konform, auch bei Bewerberdaten?",
-        a: "Ja: Hosting ausschließlich in der EU, Cookie-Consent auf jedem veröffentlichten Funnel, AV-Vertrag inklusive und dokumentierte Einwilligung pro Bewerbung. Der Export nach CSV oder per Webhook in dein System liegt in deiner Hand.",
+        q: "Welche Datenschutzfunktionen bietet Trichterwerk?",
+        a: privacyProductSummary,
       },
       {
         q: "Was kostet ein Recruiting-Funnel fürs Handwerk?",
@@ -1385,7 +1379,7 @@ export const audiencePagesContent: Record<string, AudiencePageContent> = {
       },
       {
         q: "Wie ist der Datenschutz bei Bewerberdaten geregelt?",
-        a: "Hosting ausschließlich in der EU, Cookie-Consent auf jedem veröffentlichten Funnel, AV-Vertrag inklusive und dokumentierte Einwilligung pro Bewerbung. Daten exportierst du per CSV oder gibst sie per signiertem Webhook an dein Bewerbermanagement weiter.",
+        a: privacyProductSummary,
       },
       {
         q: "Wie schnell ist so ein Funnel einsatzbereit?",

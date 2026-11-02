@@ -309,7 +309,7 @@ export const defaultTemplates: ClientTemplate[] = [
           { id: "el-1", type: "list", listStyle: "check", listItems: [
             { id: "li-1", text: "Keine Unterlagen nötig — dein Handy reicht" },
             { id: "li-2", text: "Antwort garantiert innerhalb von 24 Stunden" },
-            { id: "li-3", text: "100 % vertraulich — dein Arbeitgeber erfährt nichts" },
+            { id: "li-3", text: "Direkter Kontakt mit unserem Recruiting-Team" },
           ]},
         ],
         buttonText: "Jetzt bewerben",
