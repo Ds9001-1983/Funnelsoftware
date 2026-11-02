@@ -145,7 +145,7 @@ function TemplateGallery() {
               Ohne Anmeldung testen
             </span>
             <span className="rounded-full border bg-background/60 px-3 py-1">
-              DSGVO-konform · EU-Hosting
+              EU-Hosting für Anwendung und Datenbank
             </span>
           </div>
         </div>
@@ -226,13 +226,13 @@ function TemplateDetail({
             Alle Vorlagen
           </Link>
 
-          <div className="grid lg:grid-cols-2 gap-12 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
             {/* Infos + CTA */}
-            <div className="order-2 lg:order-1">
+            <div className="min-w-0 order-2 lg:order-1">
               <Badge variant="secondary" className="mb-4">
                 {templateCategoryLabels[meta.category]}
               </Badge>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-4 break-words">
                 {meta.h1 ?? meta.name}
               </h1>
               <p className="text-lg text-muted-foreground mb-3">{meta.benefit}</p>
@@ -249,7 +249,7 @@ function TemplateDetail({
                 </li>
                 <li className="flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
-                  DSGVO-konform mit Hosting in der EU
+                  EU-Hosting für die Anwendung
                 </li>
               </ul>
 
@@ -272,9 +272,9 @@ function TemplateDetail({
             </div>
 
             {/* Live-Vorschau */}
-            <div className="order-1 lg:order-2 flex flex-col items-center">
+            <div className="min-w-0 order-1 lg:order-2 flex flex-col items-center">
               <div
-                className={`rounded-[2.5rem] bg-gradient-to-br ${categoryGlow[meta.category]} p-6 sm:p-10`}
+                className={`max-w-full rounded-[2.5rem] bg-gradient-to-br ${categoryGlow[meta.category]} p-6 sm:p-10`}
               >
                 <PhoneFrame>
                   <FunnelRenderer

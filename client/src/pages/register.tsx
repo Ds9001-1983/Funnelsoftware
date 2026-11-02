@@ -35,7 +35,7 @@ export default function Register() {
 
   usePageMeta({
     title: "Kostenlos starten",
-    description: "Erstelle deinen kostenlosen Trichterwerk-Account — für immer kostenloser Free-Plan, 14 Tage Pro-Features, ohne Code, DSGVO-konform.",
+    description: "Erstelle deinen kostenlosen Trichterwerk-Account — für immer kostenloser Free-Plan, 14 Tage Pro-Features, ohne Code, mit EU-Hosting.",
     canonical: "/register",
   });
 

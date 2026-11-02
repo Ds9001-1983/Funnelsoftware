@@ -32,7 +32,7 @@ export function MarketingHeader() {
           <div className="hidden flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Zap className="h-5 w-5" />
           </div>
-          <span className="text-xl font-bold">Trichterwerk</span>
+          <span className="hidden min-[400px]:inline text-xl font-bold">Trichterwerk</span>
         </Link>
         <nav className="hidden md:flex items-center gap-8">
           <a href={anchor("features")} className="text-muted-foreground hover:text-foreground transition-colors">
