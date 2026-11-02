@@ -75,6 +75,10 @@ rechtliche Freigabe von R09/R16 oder des Gesamtangebots.
 - 21 öffentliche Seiten jeweils bei 1440 und 390 Pixeln geprüft: keine alten
   Datenschutzgarantien, veralteten Impressumsverweise oder Seitenüberläufe;
   keine Browserfehler. Sichtprüfung der Screenshots und des neuen Posters.
+- Ein bestehender Zufallsfehler in `server/crypto.test.ts` wurde durch CI
+  sichtbar: Das Ersetzen eines zufälligen Bytes durch `00` änderte bei bereits
+  vorhandenem Nullbyte nichts. Der Manipulationstest kippt nun garantiert ein
+  Bit; die produktive Verschlüsselung bleibt unverändert.
 - Finale CI und Auslieferung: Ergebnis wird ergänzt.
 
 Private Betriebsnachweise, Inventur und Screenshots:
