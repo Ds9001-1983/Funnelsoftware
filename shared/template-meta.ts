@@ -67,6 +67,8 @@ export interface TemplateMeta {
   /** true, sobald Poster + Hover-Video unter /templates/portrait bzw.
    *  /templates/videos generiert wurden (scripts/record-template-videos.ts). */
   videoAvailable: boolean;
+  /** Cache-Version bei geänderten Postern/Videos unter unveränderten Dateinamen. */
+  previewAssetVersion?: string;
   /** Keyword-tragende H1 der Detailseite (Fallback: name). */
   h1?: string;
   /** 2–3 Absätze Unique Content für die Detailseite (gegen Thin Content). */
@@ -226,6 +228,7 @@ export const templateMetas: TemplateMeta[] = [
   },
   {
     slug: "express-bewerbung",
+    previewAssetVersion: "20261102",
     name: "Express-Bewerbung",
     category: "recruiting",
     benefit: "Schnell-Bewerbung ohne Lebenslauf — 3 Fragen, Kontakt, fertig.",

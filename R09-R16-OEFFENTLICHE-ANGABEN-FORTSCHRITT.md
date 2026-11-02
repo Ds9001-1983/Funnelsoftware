@@ -19,7 +19,8 @@ jeweiligen Verwendungszweck abhängig. Weder eine automatische Einwilligung
 jeder Bewerbung noch Anonymität allein durch Weglassen von Kontaktfeldern
 werden versprochen. Die Express-Bewerbung enthält keine Garantie mehr, dass
 der bisherige Arbeitgeber nichts erfährt; Poster und beide Videoformate sind
-entsprechend neu erzeugt. Gespeicherte Kunden-Funnels werden nicht migriert.
+entsprechend neu erzeugt. Versionierte Vorschau-URLs verhindern, dass der
+30-Tage-Cache weiterhin alte Texte ausliefert. Gespeicherte Kunden-Funnels werden nicht migriert.
 
 Die Admin-Beschreibung der Plattformstatistik berücksichtigt den bereits
 implementierten Widerspruch, DNT und GPC. Die in R12 festgelegte Aufbewahrung

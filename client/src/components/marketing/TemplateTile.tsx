@@ -42,6 +42,7 @@ interface TemplateTileProps {
 export function TemplateTile({ meta }: TemplateTileProps) {
   const detailPath = `${TEMPLATE_GALLERY_PATH}/${meta.slug}`;
   const hero = `/templates/heroes/${meta.slug}.webp`;
+  const previewSuffix = meta.previewAssetVersion ? `?v=${meta.previewAssetVersion}` : "";
 
   const [videoActive, setVideoActive] = useState(false);
   const [videoBroken, setVideoBroken] = useState(false);
@@ -100,8 +101,8 @@ export function TemplateTile({ meta }: TemplateTileProps) {
               }}
               className="h-full w-full object-contain"
             >
-              <source src={`/templates/videos/${meta.slug}.webm`} type="video/webm" />
-              <source src={`/templates/videos/${meta.slug}.mp4`} type="video/mp4" />
+              <source src={`/templates/videos/${meta.slug}.webm${previewSuffix}`} type="video/webm" />
+              <source src={`/templates/videos/${meta.slug}.mp4${previewSuffix}`} type="video/mp4" />
             </video>
           </div>
         )}

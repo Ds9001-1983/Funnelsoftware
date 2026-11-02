@@ -162,9 +162,9 @@ function AudienceContent({
                 <Card className="group h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer overflow-hidden">
                   <div className="h-56 relative overflow-hidden bg-muted">
                     <picture>
-                      <source srcSet={`/templates/portrait/${t.slug}.webp`} type="image/webp" />
+                      <source srcSet={`/templates/portrait/${t.slug}.webp${t.previewAssetVersion ? `?v=${t.previewAssetVersion}` : ""}`} type="image/webp" />
                       <img
-                        src={`/templates/portrait/${t.slug}.png`}
+                        src={`/templates/portrait/${t.slug}.png${t.previewAssetVersion ? `?v=${t.previewAssetVersion}` : ""}`}
                         alt={`Vorschau der Funnel-Vorlage „${t.name}“`}
                         width={375}
                         height={740}
