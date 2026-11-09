@@ -18,7 +18,6 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  // Lokale Browser teilen sich dieselbe IP und damit die Produktions-Limits.
   workers: 1,
   reporter: process.env.CI ? "github" : "html",
   use: {
@@ -28,13 +27,43 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "chromium",
-      testIgnore: "**/b2b-registration.spec.ts",
+      name: "registration",
+      testMatch: "**/b2b-registration.spec.ts",
       use: { ...devices["Desktop Chrome"] },
     },
     {
-      name: "registration",
-      testMatch: "**/b2b-registration.spec.ts",
+      name: "publication-legal",
+      testMatch: "**/publication-legal.spec.ts",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "chromium",
+      testIgnore: ["**/b2b-registration.spec.ts", "**/account-deletion.spec.ts", "**/subject-export.spec.ts", "**/retention.spec.ts", "**/analytics-retention.spec.ts", "**/publication-legal.spec.ts", "**/platform-privacy.spec.ts"],
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "platform-privacy",
+      testMatch: "**/platform-privacy.spec.ts",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "account-deletion",
+      testMatch: "**/account-deletion.spec.ts",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "subject-export",
+      testMatch: "**/subject-export.spec.ts",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "retention",
+      testMatch: "**/retention.spec.ts",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "analytics-retention",
+      testMatch: "**/analytics-retention.spec.ts",
       use: { ...devices["Desktop Chrome"] },
     },
   ],

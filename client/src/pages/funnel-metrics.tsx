@@ -63,6 +63,7 @@ export default function FunnelMetrics() {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold">Metriken</h1>
+      <p className="text-sm text-muted-foreground">Besuche zeigt den Gesamtzähler. Seiten- und Zeitverläufe verwenden die noch gespeicherten Statistikereignisse; ältere Details können durch eine Aufbewahrungsregel gelöscht worden sein.</p>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -70,7 +71,7 @@ export default function FunnelMetrics() {
           <CardContent className="p-5">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
               <Eye className="h-4 w-4" />
-              <span className="text-sm">Besuche</span>
+              <span className="text-sm">Besuche (gesamt)</span>
             </div>
             <p className="text-3xl font-bold">{metrics.totalViews.toLocaleString("de-DE")}</p>
           </CardContent>

@@ -101,7 +101,7 @@ test("Markenstil: Vorschau, Undo, Wiederverwendung, Kontogrenzen und unabhängig
   } finally { await foreign.dispose(); }
 
   const slug = makeSlug(runId());
-  expect((await page.request.patch(`/api/funnels/${second.id}`, { headers, data: { slug, expectedVersion: copied.editVersion, documentVersion: 2, mutationId: crypto.randomUUID(), publish: true } })).status()).toBe(200);
+  expect((await page.request.patch(`/api/funnels/${second.id}`, { headers, data: { impressumUrl: "https://example.test/legal", datenschutzUrl: "https://example.test/privacy", slug, expectedVersion: copied.editVersion, documentVersion: 2, mutationId: crypto.randomUUID(), publish: true } })).status()).toBe(200);
   const visitor = await browser.newContext({ baseURL, viewport: { width: 390, height: 900 } });
   try {
     const livePage = await visitor.newPage();

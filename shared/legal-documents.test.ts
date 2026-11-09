@@ -11,6 +11,8 @@ describe("Vertragsarchiv", () => {
     ["2026-10-12", "avv", "5641eb81200604f3d21ae189f80d8c4579fbdea247595d07531b0255f50daa85"],
     ["2026-10-14", "agb", "f1a1b6f3bee4acc38b6975cce0a1f50e7b849923b357572e0b551597434d1f07"],
     ["2026-10-14", "avv", "fbe59e9bd2da8c2db7c85cc50072a9930af8b820723cfb0842fe66cb805d418e"],
+    ["2026-11-09", "agb", "3e7e0a93110e634e82d0394232c9d78c36aa68c6b3dcf0e50e0e9928671063bd"],
+    ["2026-11-09", "avv", "a27e3c36baa7762591042257f8ab02094c3401f3a11ce2267795f91b0395010b"],
   ])("hält die archivierte Fassung %s von %s unverändert", (version, name, hash) => {
     const document = getLegalDocument(version, name)!;
     expect(createHash("sha256").update(document.html).digest("hex")).toBe(hash);

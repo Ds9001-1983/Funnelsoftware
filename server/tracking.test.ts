@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  dailyVisitorHash,
+  dailyVisitorHash, createDailyVisitorHasher, platformMeasurementBlocked, platformEventLabel,
   deriveReferrerHost,
   deriveDeviceClass,
   deriveCountry,
@@ -111,5 +111,33 @@ describe("isClientTrackableEvent", () => {
   it("lehnt unbekannte Ereignisse ab", () => {
     expect(isClientTrackableEvent("")).toBe(false);
     expect(isClientTrackableEvent("beliebig")).toBe(false);
+  });
+});
+
+
+describe("ephemeral visitor pseudonyms", () => {
+  it("does not share keys between server processes or recreate an expired day's key", () => {
+    const first = createDailyVisitorHasher(), second = createDailyVisitorHasher();
+    const old = first("1.2.3.4", "UA", DAY1);
+    expect(second("1.2.3.4", "UA", DAY1)).not.toBe(old);
+    first("1.2.3.4", "UA", DAY2);
+    expect(first("1.2.3.4", "UA", DAY1)).not.toBe(old);
+  });
+  it("separates tuple values that contain the old delimiter", () => {
+    expect(dailyVisitorHash("a|b", "c", DAY1)).not.toBe(dailyVisitorHash("a", "b|c", DAY1));
+  });
+});
+describe("platform privacy boundary", () => {
+  it("honors opt-out and standard privacy headers, including duplicate cookies", () => {
+    for (const headers of [{ "x-platform-optout": "1" }, { dnt: "1" }, { "sec-gpc": "1" }, { cookie: "a=2; tw_platform_optout=1" }, { cookie: "tw_platform_optout=0; tw_platform_optout=1" }]) {
+      expect(platformMeasurementBlocked(headers)).toBe(true);
+    }
+    expect(platformMeasurementBlocked({ cookie: "fake_tw_platform_optout=1", dnt: "0" })).toBe(false);
+  });
+  it("rejects arbitrary free text in action labels", () => {
+    expect(platformEventLabel("cta_click", "hero")).toBe("hero");
+    expect(platformEventLabel("form_submit_error", "email_taken")).toBe("email_taken");
+    expect(platformEventLabel("pageview", "hero")).toBeNull();
+    expect(platformEventLabel("cta_click", "person@example.test")).toBeNull();
   });
 });

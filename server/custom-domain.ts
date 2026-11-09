@@ -40,7 +40,13 @@ export async function resolveCustomDomainFunnel(
   if (!host) return null;
 
   const cached = cache.get(host);
-  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  if (cached && cached.expiresAt > Date.now()) {
+    if (cached.value) {
+      const owner = await storage.getUser(cached.value.domain.userId);
+      if (!owner || owner.deletedAt) return null;
+    }
+    return cached.value;
+  }
 
   const value = await resolveUncached(host);
 

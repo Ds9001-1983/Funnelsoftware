@@ -10,8 +10,8 @@
  * DISABLE_SCHEDULER=1 schaltet ihn ab (Playwright-E2E, Zweitinstanzen).
  */
 
-import fs from "fs";
-import path from "path";
+import { accountErasurePending } from "./erasure-journal";
+import { removeSupportFile } from "./account-files";
 import { storage } from "./storage";
 import { purgeMarketingConsentProofs } from "./marketing-consent";
 import { FREE_MAX_PUBLISHED_FUNNELS } from "@shared/schema";
@@ -36,6 +36,7 @@ export async function runFreeDowngradeJob(): Promise<void> {
   const candidates = await storage.getUsersForFreeDowngrade();
   for (const user of candidates) {
     try {
+      if (await accountErasurePending(user)) continue;
       const demoted = await storage.demoteExtraPublishedFunnels(
         user.id,
         FREE_MAX_PUBLISHED_FUNNELS,
@@ -91,6 +92,7 @@ export async function runTrialEndingJob(): Promise<void> {
   const candidates = await storage.getUsersForTrialEndingMail(from, to);
   for (const user of candidates) {
     try {
+      if (await accountErasurePending(user)) continue;
       if (await storage.tryLogEmail(user.id, "trial_ending_3d")) {
         const daysLeft = Math.max(
           1,
@@ -116,8 +118,6 @@ export const BUG_REPORT_RETENTION_MS = 365 * DAY_MS;
  * unbemerkt liegen bleibt.
  */
 export async function runBugReportRetentionJob(now: Date = new Date()): Promise<void> {
-  const bugFilesDir = path.join(process.cwd(), "private-uploads", "bug-reports");
-
   const fileCutoff = new Date(now.getTime() - BUG_FILE_RETENTION_MS);
   const withFiles = await storage.getBugReportsWithFilesBefore(fileCutoff);
   const cleared: number[] = [];
@@ -125,12 +125,12 @@ export async function runBugReportRetentionJob(now: Date = new Date()): Promise<
     const names = [report.screenshotPath, report.attachmentPath].filter(
       (name): name is string => !!name,
     );
-    await Promise.all(
-      names.map((name) =>
-        fs.promises.unlink(path.join(bugFilesDir, path.basename(name))).catch(() => {}),
-      ),
-    );
-    cleared.push(report.id);
+    try {
+      await Promise.all(names.map(removeSupportFile));
+      cleared.push(report.id);
+    } catch {
+      console.error(`[scheduler] Dateien der Fehlermeldung ${report.id} bleiben zur erneuten Bereinigung vorgemerkt`);
+    }
   }
   await storage.clearBugReportFiles(cleared);
 

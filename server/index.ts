@@ -13,9 +13,15 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { setupAuth, apiKeyAuth } from "./auth";
 import { storage } from "./storage";
+import { startAccountErasureWorker } from "./account-erasure-worker";
+import { startRetentionWorker } from "./retention-worker";
+import { startPlatformRetentionWorker } from "./platform-retention";
+import { startAnalyticsRetentionWorker } from "./analytics-retention-worker";
+import { startDeletedFunnelRetentionWorker } from "./deleted-funnel-retention";
 import { startScheduler } from "./scheduler";
 import { startRecruitingMailWorker } from "./recruiting-mail";
 import { pool } from "./db";
+import { assertErasureJournalReady } from "./erasure-journal";
 
 // ============ ENV-VALIDIERUNG ============
 // Fail-fast statt "gesund booten ohne DB/Session": Ein Server ohne diese
@@ -249,6 +255,9 @@ app.get("/api/health", async (_req, res) => {
 });
 
 (async () => {
+  // Never expose restored contacts/files or send mail before erasures agree
+  // with the independent journal. A failure aborts startup, including workers.
+  await assertErasureJournalReady();
   // Initialize database (seed templates)
   try {
     await storage.seedTemplates();
@@ -311,6 +320,11 @@ app.get("/api/health", async (_req, res) => {
       // damit ein Job-Fehler den Serverstart nie verhindert.
       startScheduler();
       startRecruitingMailWorker();
+      startRetentionWorker();
+      startAnalyticsRetentionWorker();
+      startPlatformRetentionWorker();
+      startDeletedFunnelRetentionWorker();
+  startAccountErasureWorker();
     },
   );
 
@@ -342,4 +356,9 @@ app.get("/api/health", async (_req, res) => {
       Sentry.captureException(reason instanceof Error ? reason : new Error(String(reason)));
     }
   });
-})();
+})().catch(async () => {
+  // Never leave a half-started process alive after a restore gate failure.
+  console.error("FATAL: Serverstart abgebrochen; Datenbank und Löschjournal prüfen.");
+  await pool.end();
+  process.exit(1);
+});

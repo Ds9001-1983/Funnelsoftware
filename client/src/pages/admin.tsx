@@ -69,6 +69,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { PlatformStats } from "@/components/admin/PlatformStats";
 
 interface AdminUser {
+  erasureRequested?: boolean;
   id: number;
   username: string;
   email: string;
@@ -217,9 +218,9 @@ export default function AdminDashboard() {
       const res = await apiRequest("DELETE", `/api/admin/users/${userId}`);
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
-      toast({ title: "Benutzer gelöscht" });
+      toast({ title: data.status === "queued" ? "Kontolöschung beauftragt" : "Benutzer gelöscht", description: data.status === "queued" ? "Das Konto ist gesperrt. Die Ausführung wartet auf die gesicherte Bestätigung und die Beendigung laufender Abonnements." : undefined });
     },
     onError: () => {
       toast({ title: "Fehler beim Löschen", variant: "destructive" });
@@ -231,6 +232,7 @@ export default function AdminDashboard() {
 
   // Status badge helper
   const getStatusBadge = (user: AdminUser) => {
+    if (user.erasureRequested) return <Badge variant="outline">Löschung beauftragt</Badge>;
     if (user.isPro) {
       return <Badge className="bg-green-500">Pro</Badge>;
     }
@@ -702,7 +704,7 @@ export default function AdminDashboard() {
             <DialogDescription>
               Möchtest du {selectedUser?.username} wirklich löschen? Diese Aktion
               kann nicht rückgängig gemacht werden. Alle Funnels und Leads
-              werden ebenfalls gelöscht.
+              werden ebenfalls gelöscht. Das Konto wird sofort gesperrt; die endgültige Löschung wartet auf die gesicherte Bestätigung und die Beendigung laufender Abonnements.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

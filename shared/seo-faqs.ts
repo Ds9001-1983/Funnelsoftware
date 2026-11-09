@@ -1,3 +1,4 @@
+import { privacyProductSummary } from "./privacy-copy";
 /**
  * Leichte FAQ-Registry für Marketing-Seiten, die NICHT die große Content-
  * Registry (shared/seo-content.ts) in ihren Lazy-Chunk ziehen sollen —
@@ -30,8 +31,8 @@ export const funnelBuilderFaqs: SeoFaq[] = [
     a: "Die Spanne reicht von ca. 25 $ (reine Formular-Tools wie Typeform) über 49 € (Trichterwerk, alles inklusive) bis 59–369 € pro Monat plus kostenpflichtiger Add-ons (Perspective) oder 97 $+ (ClickFunnels). Entscheidend ist, ob Leads, Funnels und Features unbegrenzt sind oder pro Plan limitiert.",
   },
   {
-    q: "Gibt es einen DSGVO-konformen Funnel-Builder aus Deutschland?",
-    a: "Ja — Trichterwerk wird in Deutschland entwickelt, hostet ausschließlich in der EU, misst cookielos und stellt eine AVV bereit. Damit ist die häufigste Compliance-Hürde von US-Tools gelöst.",
+    q: "Welche Datenschutzfunktionen bietet Trichterwerk?",
+    a: privacyProductSummary,
   },
   {
     q: "Wie schnell ist ein Funnel live?",

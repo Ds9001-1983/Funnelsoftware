@@ -85,7 +85,7 @@ test("Besucherregeln: Aktivierung, feste Optionen, Testmodus, frühere Antworten
   const renamed = await (await renamedResponse).json();
   expect(renamed.pages[1].elements[0].choices[0]).toEqual({ id: optionId, label: "Sofort" });
   const slug = makeSlug(runId());
-  const publish = await page.request.patch(`/api/funnels/${original.id}`, { headers, data: { slug, expectedVersion: renamed.editVersion, documentVersion: 3, mutationId: crypto.randomUUID(), publish: true } });
+  const publish = await page.request.patch(`/api/funnels/${original.id}`, { headers, data: { impressumUrl: "https://example.test/legal", datenschutzUrl: "https://example.test/privacy", slug, expectedVersion: renamed.editVersion, documentVersion: 3, mutationId: crypto.randomUUID(), publish: true } });
   expect(publish.status()).toBe(200);
   const live = await publish.json();
   const cyclic = structuredClone(live.pages); cyclic[0].routing.fallbackPageId = "budget";

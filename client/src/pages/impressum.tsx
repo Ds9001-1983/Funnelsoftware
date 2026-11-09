@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { usePageMeta } from "@/hooks/use-document-title";
-import { ArrowLeft, Mail, Phone, MessageCircle, ExternalLink } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -38,10 +38,10 @@ export default function Impressum() {
               </p>
             </section>
 
-            {/* Angaben gemäß § 5 TMG */}
+            {/* Angaben gemäß § 5 DDG */}
             <section className="mb-8">
               <h2 className="text-xl font-semibold text-slate-800 mb-4">
-                Angaben gemäß § 5 TMG
+                Angaben gemäß § 5 DDG
               </h2>
               <div className="text-slate-600 space-y-1">
                 <p className="font-semibold text-slate-800">SUPERBRAND.marketing</p>
@@ -105,35 +105,13 @@ export default function Impressum() {
             {/* Verantwortlich für den Inhalt */}
             <section className="mb-8">
               <h2 className="text-xl font-semibold text-slate-800 mb-4">
-                Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV
+                Redaktionell verantwortlich
               </h2>
               <div className="text-slate-600 space-y-1">
                 <p>Dennis Sasse</p>
                 <p>Römerstraße 23</p>
                 <p>51674 Wiehl</p>
               </div>
-            </section>
-
-            {/* EU-Streitschlichtung */}
-            <section className="mb-8">
-              <h2 className="text-xl font-semibold text-slate-800 mb-4">
-                EU-Streitschlichtung
-              </h2>
-              <p className="text-slate-600 mb-3">
-                Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit:
-              </p>
-              <a 
-                href="https://ec.europa.eu/consumers/odr/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-800 transition-colors"
-              >
-                <ExternalLink className="h-4 w-4" />
-                https://ec.europa.eu/consumers/odr/
-              </a>
-              <p className="text-slate-600 mt-3">
-                Unsere E-Mail-Adresse finden Sie oben im Impressum.
-              </p>
             </section>
 
             {/* Verbraucherstreitbeilegung */}
@@ -153,15 +131,11 @@ export default function Impressum() {
                 Haftung für Inhalte
               </h2>
               <p className="text-slate-600 text-sm leading-relaxed">
-                Als Diensteanbieter sind wir gemäß § 7 Abs.1 TMG für eigene Inhalte auf diesen 
-                Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 TMG sind 
-                wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte 
-                fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine 
-                rechtswidrige Tätigkeit hinweisen. Verpflichtungen zur Entfernung oder Sperrung 
-                der Nutzung von Informationen nach den allgemeinen Gesetzen bleiben hiervon 
-                unberührt. Eine diesbezügliche Haftung ist jedoch erst ab dem Zeitpunkt der 
-                Kenntnis einer konkreten Rechtsverletzung möglich. Bei Bekanntwerden von 
-                entsprechenden Rechtsverletzungen werden wir diese Inhalte umgehend entfernen.
+                Für eigene Inhalte sind wir nach den allgemeinen Gesetzen verantwortlich.
+                Hinweise auf mögliche Rechtsverletzungen können Sie an die oben genannte
+                E-Mail-Adresse richten. Bitte nennen Sie die konkrete Internetadresse und
+                erläutern Sie den beanstandeten Inhalt. Wir prüfen Hinweise und treffen
+                die erforderlichen Maßnahmen nach den geltenden gesetzlichen Vorgaben.
               </p>
             </section>
 
@@ -171,15 +145,10 @@ export default function Impressum() {
                 Haftung für Links
               </h2>
               <p className="text-slate-600 text-sm leading-relaxed">
-                Unser Angebot enthält Links zu externen Websites Dritter, auf deren Inhalte wir 
-                keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch keine 
-                Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige 
-                Anbieter oder Betreiber der Seiten verantwortlich. Die verlinkten Seiten wurden 
-                zum Zeitpunkt der Verlinkung auf mögliche Rechtsverstöße überprüft. Rechtswidrige 
-                Inhalte waren zum Zeitpunkt der Verlinkung nicht erkennbar. Eine permanente 
-                inhaltliche Kontrolle der verlinkten Seiten ist jedoch ohne konkrete Anhaltspunkte 
-                einer Rechtsverletzung nicht zumutbar. Bei Bekanntwerden von Rechtsverletzungen 
-                werden wir derartige Links umgehend entfernen.
+                Für Inhalte verlinkter Websites sind deren jeweilige Betreiber verantwortlich.
+                Wenn Sie auf einer verlinkten Seite einen möglichen Rechtsverstoß feststellen,
+                können Sie uns über die oben genannten Kontaktdaten informieren. Wir prüfen
+                den Hinweis und entfernen rechtswidrige Verlinkungen, soweit erforderlich.
               </p>
             </section>
 

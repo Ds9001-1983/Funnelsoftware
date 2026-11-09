@@ -1,4 +1,6 @@
 import { createRegistrationContract, registerContractRoutes } from "./registration-contract";
+import { accountErasurePending, committedAccountKeys, journalDirectory, RetentionCommittedError } from "./erasure-journal";
+import { registerRetentionRoutes } from "./retention-routes";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
@@ -50,18 +52,21 @@ import { seoStaticPages } from "@shared/seo-content";
 import { SITE_ORIGIN, sitemapStaticPaths } from "@shared/seo-links";
 import { isPlatformHost } from "@shared/platform-host";
 import { resolveCustomDomainFunnel, clearCustomDomainCache } from "./custom-domain";
-import { dailyVisitorHash, deriveReferrerHost, deriveDeviceClass, deriveCountry, isTrackablePath, isClientTrackableEvent } from "./tracking";
+import { platformRetentionDays } from "./platform-retention";
+import { dailyVisitorHash, deriveDeviceClass, deriveCountry, isTrackablePath, isClientTrackableEvent, platformMeasurementBlocked, platformEventLabel } from "./tracking";
 import { encryptSecret, decryptSecret, last4 } from "./crypto";
 import { verifyDomainDns } from "./domain-verify";
 import { registerWorkspaceRoutes } from "./workspace-routes";
 import { registerRecruitingRoutes } from "./recruiting-routes";
 import { registerBuilderLibraryRoutes } from "./builder-library-routes";
 import { registerMediaAsset } from "./builder-library";
+import { AccountFileError, removeSupportFile, withOwnedUpload, withActiveAccount } from "./account-files";
 import { registerBrandStyleRoutes } from "./brand-style-routes";
 import { changeRecruitingStage, RecruitingError } from "./recruiting";
 import { writeControlSchema, documentVersionSchema } from "@shared/funnel-document";
 import { listFunnelRevisions, FunnelWriteError } from "./funnel-revisions";
 import { generateFunnel, testConnection, AiError, type DecryptedCredential } from "./ai";
+import { exportSubjectData } from "./subject-export";
 import { z } from "zod";
 
 // Partial update schemas for PATCH endpoints
@@ -99,26 +104,10 @@ function randomSuffix(): string {
   return String(randomBytes(2).readUInt16BE(0) % 10000).padStart(4, "0");
 }
 
-/**
- * Schreibt eine Funnel-Stufe, die erst im Stripe-Webhook feststeht.
- *
- * Hier gibt es keinen Request-Kontext (der Aufruf kommt von Stripe, nicht vom
- * Browser des Kunden), also auch keine IP für den üblichen tages-rotierenden
- * Besucher-Hash. Stattdessen ein stabiler synthetischer Hash aus der User-ID:
- * ein reiner Aggregatzähler, keine Besucheridentität. Genau deshalb zählt
- * `getPlatformStats` Besucher ausschließlich aus 'pageview'-Events — sonst
- * würden diese Einträge die Besucherzahl verfälschen.
- */
-function trackFunnelMilestone(userId: number, eventType: "trial_started" | "purchase"): void {
-  storage
-    .createPlatformVisit({
-      visitorHash: createHash("sha256")
-        .update(`user:${userId}:${process.env.SESSION_SECRET || "dev"}`)
-        .digest("hex"),
-      path: "/register",
-      eventType,
-    })
-    .catch((err) => console.error(`[Track] ${eventType} event failed:`, err));
+/** Zahlungsereignisse als unverbundene Zähler: keine Konto-/Besucherkennung. */
+function trackFunnelMilestone(eventType: "trial_started" | "purchase"): void {
+  storage.createPlatformVisit({ visitorHash: randomUUID(), path: "/register", eventType })
+    .catch(() => console.error(`[Track] ${eventType} event failed`));
 }
 
 /** True bei Postgres "unique_violation". */
@@ -197,7 +186,7 @@ const bugReportLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const updateLeadSchema = leadSchema.partial().omit({ id: true, uuid: true, funnelId: true, userId: true, createdAt: true, funnelName: true, stageId: true, stageVersion: true }).extend({ expectedVersion: z.number().int().nonnegative().optional() });
+const updateLeadSchema = leadSchema.partial().omit({ id: true, uuid: true, funnelId: true, userId: true, createdAt: true, funnelName: true, stageId: true, stageVersion: true, closedAt: true }).extend({ expectedVersion: z.number().int().nonnegative().optional() });
 
 export async function registerRoutes(
   httpServer: Server,
@@ -206,6 +195,7 @@ export async function registerRoutes(
   registerPrivacyRoutes(app);
   registerWorkspaceRoutes(app);
   registerRecruitingRoutes(app);
+  registerRetentionRoutes(app);
   registerBrandStyleRoutes(app);
   registerBuilderLibraryRoutes(app);
 
@@ -360,10 +350,9 @@ export async function registerRoutes(
       // Reichweiten-Conversion (serverseitig, nicht manipulierbar): jede
       // Registrierung als 'register'-Event in der cookieless Plattform-Statistik →
       // erlaubt die Auswertung Landing-Besuche → Registrierungen.
-      storage.createPlatformVisit({
+      if (!platformMeasurementBlocked(req.headers)) storage.createPlatformVisit({
         visitorHash: dailyVisitorHash(req.ip || req.socket.remoteAddress || "", req.get("user-agent") || ""),
         path: "/register",
-        referrerHost: deriveReferrerHost(req.get("referer")),
         deviceClass: deriveDeviceClass(req.get("user-agent")),
         country: deriveCountry(req.headers),
         eventType: "register",
@@ -529,7 +518,7 @@ export async function registerRoutes(
       }
 
       const user = await storage.getUserByEmail(email);
-      if (user) {
+      if (user && !await accountErasurePending(user)) {
         const token = await storage.createPasswordResetToken(user.id);
         await sendPasswordResetEmail(email, token);
       }
@@ -557,7 +546,7 @@ export async function registerRoutes(
       }
 
       const userId = await storage.validatePasswordResetToken(token);
-      if (!userId) {
+      if (!userId || (await storage.getUser(userId))?.deletedAt) {
         return res.status(400).json({ error: "Token ungültig oder abgelaufen" });
       }
 
@@ -700,7 +689,7 @@ export async function registerRoutes(
 
       // Stripe-Abos ZUERST kündigen — nach dem Löschen findet kein Webhook
       // mehr einen User und Stripe würde dauerhaft weiter abbuchen.
-      if (user.stripeCustomerId && isStripeConfigured()) {
+      if (!journalDirectory() && user.stripeCustomerId && isStripeConfigured()) {
         try {
           await cancelAllSubscriptions(user.stripeCustomerId);
         } catch (stripeErr) {
@@ -712,15 +701,17 @@ export async function registerRoutes(
         }
       }
 
-      await storage.deleteUserAdmin(userId);
+      const result = await storage.deleteUserAdmin(userId);
+      const queued = typeof result === "object";
 
       req.logout(() => {
         req.session?.destroy(() => {
-          res.json({ success: true, message: "Dein Konto wurde gelöscht." });
+          res.status(queued ? 202 : 200).json({ success: true, status: queued ? "queued" : "deleted", message: queued ? "Dein Konto ist gesperrt und die Löschung verbindlich beauftragt. Die Ausführung wartet auf die gesicherte Bestätigung und die Beendigung laufender Abonnements." : "Dein Konto wurde gelöscht." });
         });
       });
     } catch (error) {
       console.error("Delete account error:", error);
+      if (error instanceof AccountFileError) return res.status(409).json({ error: error.message });
       res.status(500).json({ error: "Konto konnte nicht gelöscht werden" });
     }
   });
@@ -753,13 +744,15 @@ export async function registerRoutes(
       const filename = `${randomUUID()}.webp`;
       outputPath = path.join(uploadsDir, filename);
 
-      const info = await sharp(req.file.buffer)
-        .resize({ width: 1200, withoutEnlargement: true })
-        .webp({ quality: 80 })
-        .toFile(outputPath);
-
       const url = `/uploads/${filename}`;
-      const media = await registerMediaAsset(getUserId(req)!, { filename, originalName: req.file.originalname, bytes: info.size, width: info.width, height: info.height });
+      const file = req.file;
+      const media = await withOwnedUpload(getUserId(req)!, "public", filename, async tx => {
+        const info = await sharp(file.buffer)
+          .resize({ width: 1200, withoutEnlargement: true })
+          .webp({ quality: 80 })
+          .toFile(outputPath!);
+        return registerMediaAsset(getUserId(req)!, { filename, originalName: file.originalname, bytes: info.size, width: info.width, height: info.height }, tx);
+      });
       outputPath = undefined; // Persisted uploads remain valid even if the response is interrupted.
       res.json({ url, filename, media });
     } catch (error) {
@@ -819,9 +812,11 @@ export async function registerRoutes(
         const filename = `${randomUUID()}.${ext}`;
         outputPath = path.join(uploadsDir, filename);
 
-        await fs.promises.writeFile(outputPath, req.file.buffer);
+        const content = req.file.buffer;
+        await withOwnedUpload(getUserId(req)!, "public", filename, () => fs.promises.writeFile(outputPath!, content));
 
         const url = `/uploads/${filename}`;
+        outputPath = undefined;
         res.json({ url, filename });
       } catch (error) {
         console.error("Audio upload error:", error);
@@ -836,9 +831,15 @@ export async function registerRoutes(
 
   // Serve uploaded files
   app.use("/uploads", (await import("express")).default.static(uploadsDir, {
-    maxAge: "30d",
-    immutable: true,
-  }));
+    cacheControl: false,
+    etag: false,
+    lastModified: false,
+    setHeaders: res => {
+      res.setHeader("Cache-Control", "no-store");
+      // Public funnel media may also be embedded on a customer's own domain.
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    },
+  }), (_req, res) => res.setHeader("Cache-Control", "no-store").status(404).end());
 
   // ============ FEHLERMELDUNGEN ("Problem melden"-Widget) ============
 
@@ -862,13 +863,13 @@ export async function registerRoutes(
   });
 
   /** Bild normalisieren und unter private-uploads ablegen; gibt Dateiname + Buffer zurück. */
-  async function storeBugImage(buffer: Buffer, prefix: string): Promise<{ filename: string; content: Buffer }> {
+  async function storeBugImage(userId: number, buffer: Buffer, prefix: string): Promise<{ filename: string; content: Buffer }> {
     const filename = `${prefix}-${randomUUID()}.webp`;
     const content = await sharp(buffer)
       .resize({ width: 1600, withoutEnlargement: true })
       .webp({ quality: 80 })
       .toBuffer();
-    await fs.promises.writeFile(path.join(bugFilesDir, filename), content);
+    await withOwnedUpload(userId, "support", filename, () => fs.promises.writeFile(path.join(bugFilesDir, filename), content));
     return { filename, content };
   }
 
@@ -897,11 +898,11 @@ export async function registerRoutes(
         let screenshot: { filename: string; content: Buffer } | null = null;
         let attachment: { filename: string; content: Buffer } | null = null;
         if (screenshotFile) {
-          screenshot = await storeBugImage(screenshotFile.buffer, "screenshot");
+          screenshot = await storeBugImage(getUserId(req)!, screenshotFile.buffer, "screenshot");
           written.push(screenshot.filename);
         }
         if (attachmentFile) {
-          attachment = await storeBugImage(attachmentFile.buffer, "anhang");
+          attachment = await storeBugImage(getUserId(req)!, attachmentFile.buffer, "anhang");
           written.push(attachment.filename);
         }
 
@@ -1215,6 +1216,7 @@ export async function registerRoutes(
       let demotedToDraft = false;
       if (req.user) {
         const funnel = await storage.getFunnel(funnelId, userId);
+        demotedToDraft = funnel?.status === "draft";
         if (
           funnel?.status === "published" &&
           (await isOverFreePublishLimit(req.user, "published", funnelId))
@@ -1226,7 +1228,7 @@ export async function registerRoutes(
 
       res.json({
         message: demotedToDraft
-          ? "Funnel wiederhergestellt — als Entwurf, weil dein Free-Plan nur einen veröffentlichten Funnel erlaubt."
+          ? "Funnel als Entwurf wiederhergestellt. Öffne den Editor, um die Veröffentlichung zu prüfen."
           : "Funnel wiederhergestellt",
         demotedToDraft,
       });
@@ -1290,7 +1292,10 @@ export async function registerRoutes(
       ]);
 
       // Aggregate metrics
-      const totalViews = analytics.filter(e => e.eventType === "view").length;
+      // Lifetime views remain valid after event retention; detail charts use
+      // retained events only. Do not divide lifetime leads by retained views.
+      const retainedViews = analytics.filter(e => e.eventType === "view").length;
+      const totalViews = funnel.views;
       const totalLeads = leads.length;
       const conversionRate = totalViews > 0 ? ((totalLeads / totalViews) * 100).toFixed(1) : "0.0";
 
@@ -1304,7 +1309,7 @@ export async function registerRoutes(
         pageId: page.id,
         title: page.title,
         stepNumber: idx + 1,
-        visitors: pageViews[page.id] || (idx === 0 ? totalViews : 0),
+        visitors: pageViews[page.id] || (idx === 0 ? retainedViews : 0),
       }));
 
       // Answer distribution per question page
@@ -1535,33 +1540,41 @@ export async function registerRoutes(
 
   // ---- DSGVO-Betroffenenrechte (Owner-getrieben) ----
   // MÜSSEN vor "/api/leads/:id" stehen, sonst matcht die GET-Route den :id-Handler.
-  const gdprEmailSchema = z.object({ email: z.string().email().max(254) });
+  const gdprEmailSchema = z.object({ email: z.string().trim().email().max(254) });
 
-  // Art. 20 (Datenportabilität): Export aller Lead-Daten zu einer E-Mail als JSON.
-  app.get("/api/leads/gdpr-export", isAuthenticated, async (req, res) => {
+  // POST keeps the searched email out of URLs and access logs. Retain GET for
+  // existing clients; both use the same owner scope and uncached response.
+  async function subjectExport(req: Request, res: Response) {
+    res.setHeader("Cache-Control", "no-store");
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
-    const parsed = gdprEmailSchema.safeParse({ email: req.query.email });
+    const parsed = gdprEmailSchema.safeParse(
+      req.method === "GET" ? { email: req.query.email } : req.body,
+    );
     if (!parsed.success) return res.status(400).json({ error: "Gültige E-Mail-Adresse erforderlich" });
-    const rows = await storage.getLeadsByEmail(userId, parsed.data.email);
-    const safeName = parsed.data.email.replace(/[^a-z0-9._@-]/gi, "_");
-    res.setHeader("Content-Disposition", `attachment; filename="dsgvo-export-${safeName}.json"`);
-    res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.send(JSON.stringify(
-      { email: parsed.data.email, exportedAt: new Date().toISOString(), count: rows.length, leads: rows },
-      null,
-      2,
-    ));
-  });
+    try {
+      const data = await exportSubjectData(userId, parsed.data.email);
+      res.setHeader("Content-Disposition", `attachment; filename="betroffenenauskunft-${data.exportedAt.slice(0, 10)}.json"`);
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      return res.send(JSON.stringify(data, null, 2));
+    } catch (error) {
+      console.error("Betroffenenexport fehlgeschlagen:", error instanceof Error ? error.name : "unknown");
+      return res.status(500).json({ error: "Die Auskunft konnte nicht erstellt werden. Bitte erneut versuchen." });
+    }
+  }
+  app.get("/api/leads/gdpr-export", isAuthenticated, requireVerifiedEmail, subjectExport);
+  app.post("/api/leads/gdpr-export", isAuthenticated, requireVerifiedEmail, subjectExport);
 
   // Art. 17 (Löschung): alle Lead-Daten zu einer E-Mail löschen. Idempotent,
-  // gibt die Anzahl gelöschter Datensätze als Nachweis zurück.
+  // unterscheidet verbindlich beauftragte und tatsächlich gelöschte Datensätze.
   app.post("/api/leads/gdpr-erasure", isAuthenticated, async (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
     const parsed = gdprEmailSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Gültige E-Mail-Adresse erforderlich" });
     const deletedCount = await storage.deleteLeadsByEmail(userId, parsed.data.email);
+    res.setHeader("Cache-Control", "no-store");
+    if (typeof deletedCount !== "number") return res.status(202).json({ email: parsed.data.email, ...deletedCount });
     res.json({ email: parsed.data.email, deletedCount });
   });
 
@@ -1764,7 +1777,7 @@ export async function registerRoutes(
       res.json(lead);
     } catch (error) {
       console.error("Update lead error:", error);
-      if (error instanceof RecruitingError) return res.status(error.status).json({ error: error.message, code: error.code });
+      if (error instanceof RetentionCommittedError || error instanceof RecruitingError) return res.status(error.status).json({ error: error.message, code: error.code });
       res.status(500).json({ error: "Lead konnte nicht aktualisiert werden" });
     }
   });
@@ -1784,6 +1797,8 @@ export async function registerRoutes(
       if (!deleted) {
         return res.status(404).json({ error: "Lead nicht gefunden" });
       }
+      res.setHeader("Cache-Control", "no-store");
+      if (typeof deleted === "object") return res.status(202).json(deleted);
       res.status(204).send();
     } catch (error) {
       console.error("Delete lead error:", error);
@@ -2035,49 +2050,49 @@ export async function registerRoutes(
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
 
-      const user = await storage.getUser(userId);
-      if (!user) return res.status(404).json({ error: "Benutzer nicht gefunden" });
+      return await withActiveAccount(userId, async user => {
+        if (user.isPro) {
+          return res.status(400).json({ error: "Du hast bereits ein aktives Abo" });
+        }
 
-      if (user.isPro) {
-        return res.status(400).json({ error: "Du hast bereits ein aktives Abo" });
-      }
+        const priceId = process.env.STRIPE_PRICE_ID;
+        if (!priceId) return res.status(500).json({ error: "Preis nicht konfiguriert" });
 
-      const priceId = process.env.STRIPE_PRICE_ID;
-      if (!priceId) return res.status(500).json({ error: "Preis nicht konfiguriert" });
+        // Get or create Stripe customer — Customer-ID VOR der Session-Erstellung
+        // persistieren, damit der Webhook den User sicher findet.
+        const customerId = await getOrCreateStripeCustomer(user);
+        if (!user.stripeCustomerId) {
+          await storage.updateStripeCustomerId(userId, customerId);
+        }
 
-      // Get or create Stripe customer — Customer-ID VOR der Session-Erstellung
-      // persistieren, damit der Webhook den User sicher findet.
-      const customerId = await getOrCreateStripeCustomer(user);
-      if (!user.stripeCustomerId) {
-        await storage.updateStripeCustomerId(userId, customerId);
-      }
+        // Doppel-Abos verhindern: Die Registrierung erzeugt bereits eine 24h
+        // gültige Checkout-Session. Ohne diesen Guard kann derselbe Customer
+        // zwei Subscriptions abschließen und wird doppelt abgebucht.
+        const existing = await findBlockingSubscription(customerId);
+        if (existing) {
+          return res.status(400).json({
+            error: "Du hast bereits ein aktives Abo. Verwalte es über das Kundenportal in den Einstellungen.",
+          });
+        }
 
-      // Doppel-Abos verhindern: Die Registrierung erzeugt bereits eine 24h
-      // gültige Checkout-Session. Ohne diesen Guard kann derselbe Customer
-      // zwei Subscriptions abschließen und wird doppelt abgebucht.
-      const existing = await findBlockingSubscription(customerId);
-      if (existing) {
-        return res.status(400).json({
-          error: "Du hast bereits ein aktives Abo. Verwalte es über das Kundenportal in den Einstellungen.",
-        });
-      }
+        // Versprochenen Trial beim Upgrade übernehmen: "Zahlungsdaten hinterlegen"
+        // darf laufende Gratis-Tage nicht verfallen lassen (sofortige Abbuchung).
+        const trialEnd =
+          user.trialEndsAt && user.trialEndsAt.getTime() > Date.now() ? user.trialEndsAt : null;
 
-      // Versprochenen Trial beim Upgrade übernehmen: "Zahlungsdaten hinterlegen"
-      // darf laufende Gratis-Tage nicht verfallen lassen (sofortige Abbuchung).
-      const trialEnd =
-        user.trialEndsAt && user.trialEndsAt.getTime() > Date.now() ? user.trialEndsAt : null;
+        const appUrl = `${req.protocol}://${req.get("host")}`;
+        const session = await createCheckoutSession(
+          customerId,
+          priceId,
+          `${appUrl}/settings?tab=billing&upgraded=true`,
+          `${appUrl}/settings?tab=billing&cancelled=true`,
+          { trialEnd, clientReferenceId: String(userId) }
+        );
 
-      const appUrl = `${req.protocol}://${req.get("host")}`;
-      const session = await createCheckoutSession(
-        customerId,
-        priceId,
-        `${appUrl}/settings?tab=billing&upgraded=true`,
-        `${appUrl}/settings?tab=billing&cancelled=true`,
-        { trialEnd, clientReferenceId: String(userId) }
-      );
-
-      res.json({ url: session.url });
+        return res.json({ url: session.url });
+      });
     } catch (error) {
+      if (error instanceof AccountFileError) return res.status(409).json({ error: error.message });
       console.error("Create checkout error:", error);
       res.status(500).json({ error: "Checkout konnte nicht erstellt werden" });
     }
@@ -2093,19 +2108,21 @@ export async function registerRoutes(
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ error: "Nicht autorisiert" });
 
-      const user = await storage.getUser(userId);
-      if (!user?.stripeCustomerId) {
-        return res.status(400).json({ error: "Kein Stripe-Konto vorhanden" });
-      }
+      return await withActiveAccount(userId, async user => {
+        if (!user?.stripeCustomerId) {
+          return res.status(400).json({ error: "Kein Stripe-Konto vorhanden" });
+        }
 
-      const appUrl = `${req.protocol}://${req.get("host")}`;
-      const session = await createPortalSession(
-        user.stripeCustomerId,
-        `${appUrl}/settings?tab=billing`
-      );
+        const appUrl = `${req.protocol}://${req.get("host")}`;
+        const session = await createPortalSession(
+          user.stripeCustomerId,
+          `${appUrl}/settings?tab=billing`
+        );
 
-      res.json({ url: session.url });
+        return res.json({ url: session.url });
+      });
     } catch (error) {
+      if (error instanceof AccountFileError) return res.status(409).json({ error: error.message });
       console.error("Create portal error:", error);
       res.status(500).json({ error: "Portal konnte nicht geöffnet werden" });
     }
@@ -2274,7 +2291,7 @@ export async function registerRoutes(
               ...(trialEndsAt ? { trialEndsAt } : {}),
             });
 
-            trackFunnelMilestone(user.id, "trial_started");
+            trackFunnelMilestone("trial_started");
           }
           break;
         }
@@ -2334,12 +2351,11 @@ export async function registerRoutes(
           // Anzeige → Registrierung → zahlender Kunde.
           const invoice = event.data.object as any;
 
-          // Eigene Funnel-Statistik: consent-unabhängig, damit das Funnel-Ende
-          // auch für Besucher sichtbar ist, die dem Pixel nie zugestimmt haben.
+          // Separater Zahlungszähler ohne Konto-/Besucherkennung.
           // Nur echte Abbuchungen, nicht die 0-€-Trial-Rechnung.
           if (Number(invoice.amount_paid || 0) > 0) {
             const paidUser = await storage.getUserByStripeCustomerId(invoice.customer as string);
-            if (paidUser) trackFunnelMilestone(paidUser.id, "purchase");
+            if (paidUser) trackFunnelMilestone("purchase");
           }
 
           const metaCapiToken = process.env.META_CAPI_TOKEN;
@@ -2489,13 +2505,18 @@ export async function registerRoutes(
   // Cookieless Reichweitenmessung für trichterwerk.de selbst (getrennt von der
   // Funnel-Analytics oben). Liegt unter /api/public/ → erbt automatisch
   // publicLimiter (60/min/IP) und CSRF-Freiheit. IP + User-Agent werden NUR zur
-  // Bildung des tages-rotierenden Anonym-Hashes genutzt und NICHT gespeichert.
+  // Bildung einer kurzlebigen pseudonymen Kennung genutzt und NICHT gespeichert.
+  app.get("/api/public/platform-privacy", (req, res) => {
+    if (!isPlatformHost(req.hostname)) return res.status(404).end();
+    res.set("Cache-Control", "no-store").json({ retentionDays: platformRetentionDays() });
+  });
   app.post("/api/public/track", async (req, res) => {
     try {
+      if (!isPlatformHost(req.hostname) || platformMeasurementBlocked(req.headers)) return res.status(204).end();
       const parsed = trackEventSchema.safeParse(req.body);
       if (!parsed.success) return res.status(204).end();
 
-      const { path, referrer, utmSource, utmMedium, utmCampaign, eventType, label } = parsed.data;
+      const { path, eventType, label } = parsed.data;
       // Nur Marketing-/Legal-/Auth-Pfade zählen (Whitelist) — sonst still verwerfen.
       if (!isTrackablePath(path)) return res.status(204).end();
       // Zweite Sperre neben dem Zod-Enum: `register`, `trial_started` und
@@ -2510,14 +2531,10 @@ export async function registerRoutes(
       await storage.createPlatformVisit({
         visitorHash: dailyVisitorHash(ip, userAgent),
         path: (path.split(/[?#]/)[0] || "/").slice(0, 200),
-        referrerHost: deriveReferrerHost(referrer),
-        utmSource: utmSource ?? null,
-        utmMedium: utmMedium ?? null,
-        utmCampaign: utmCampaign ?? null,
         deviceClass: deriveDeviceClass(userAgent),
         country: deriveCountry(req.headers),
         eventType,
-        label: label ?? null,
+        label: platformEventLabel(eventType, label),
       });
 
       res.status(204).end();
@@ -2723,14 +2740,15 @@ export async function registerRoutes(
 
   app.delete("/api/admin/bug-reports/:id", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const removed = await storage.deleteBugReport(Number(req.params.id));
-      if (!removed) return res.status(404).json({ error: "Meldung nicht gefunden" });
+      const report = await storage.getBugReport(Number(req.params.id));
+      if (!report) return res.status(404).json({ error: "Meldung nicht gefunden" });
 
       await Promise.all(
-        [removed.screenshotPath, removed.attachmentPath]
+        [report.screenshotPath, report.attachmentPath]
           .filter((name): name is string => !!name)
-          .map((name) => fs.promises.unlink(path.join(bugFilesDir, path.basename(name))).catch(() => {})),
+          .map(removeSupportFile),
       );
+      await storage.deleteBugReport(report.id);
       res.json({ success: true });
     } catch (error) {
       console.error("Admin bug report delete error:", error);
@@ -2770,8 +2788,10 @@ export async function registerRoutes(
       const result = await storage.getAllUsers(limit, offset, search);
 
       // Map users to response format
+      const pendingAccounts = await committedAccountKeys();
       const users = result.users.map(user => ({
         id: user.id,
+        erasureRequested: !!user.deletedAt || pendingAccounts.has(user.erasureKey),
         username: user.username,
         email: user.email,
         displayName: user.displayName,
@@ -2861,7 +2881,7 @@ export async function registerRoutes(
       if (!userToDelete) {
         return res.status(404).json({ error: "Benutzer nicht gefunden" });
       }
-      if (userToDelete.stripeCustomerId && isStripeConfigured()) {
+      if (!journalDirectory() && userToDelete.stripeCustomerId && isStripeConfigured()) {
         try {
           await cancelAllSubscriptions(userToDelete.stripeCustomerId);
         } catch (stripeErr) {
@@ -2878,9 +2898,10 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Benutzer nicht gefunden" });
       }
 
-      res.json({ success: true });
+      res.status(typeof deleted === "object" ? 202 : 200).json({ success: true, status: typeof deleted === "object" ? "queued" : "deleted" });
     } catch (error) {
       console.error("Delete user error:", error);
+      if (error instanceof AccountFileError) return res.status(409).json({ error: error.message });
       res.status(500).json({ error: "Benutzer konnte nicht gelöscht werden" });
     }
   });

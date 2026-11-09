@@ -1,10 +1,12 @@
 import { documents20261012 } from "./legal/2026-10-12";
+import { documents20261109 } from "./legal/2026-11-09";
 import { documents20261014 } from "./legal/2026-10-14";
 
 // Alte Einträge bleiben erhalten. Keine Ableitung alter Fassungen aus aktuellen Texten.
 const archive: Record<string, Record<"agb" | "avv", { title: string; content: string }>> = {
   "2026-10-12": documents20261012,
   "2026-10-14": documents20261014,
+  "2026-11-09": documents20261109,
 };
 
 export function getLegalDocument(version: string, name: string) {

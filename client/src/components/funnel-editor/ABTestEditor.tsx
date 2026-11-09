@@ -196,6 +196,7 @@ export function ABTestEditor({
 
   return (
     <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">Die Auswertung verwendet gespeicherte Statistikereignisse. Eine Statistik-Aufbewahrungsfrist kann ältere Messwerte einschließlich abgeschlossener Tests entfernen.</p>
       {/* Header with create button */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

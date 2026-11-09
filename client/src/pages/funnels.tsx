@@ -20,6 +20,7 @@ import {
   List,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { DeletedFunnelRetention } from "@/components/DeletedFunnelRetention";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -378,7 +379,9 @@ export default function Funnels() {
             altText="Rückgängig machen"
             onClick={async () => {
               try {
-                await apiRequest("PATCH", `/api/funnels/${deletedId}/restore`);
+                const response = await apiRequest("PATCH", `/api/funnels/${deletedId}/restore`);
+                const result = await response.json();
+                toast({ title: "Funnel wiederhergestellt", description: result.message });
                 queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
               } catch {
                 toast({ title: "Fehler", description: "Funnel konnte nicht wiederhergestellt werden.", variant: "destructive" });
@@ -564,6 +567,7 @@ export default function Funnels() {
         </div>
       </div>
 
+      <DeletedFunnelRetention />
       {/* Status-Filter + Auswahl */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Tabs

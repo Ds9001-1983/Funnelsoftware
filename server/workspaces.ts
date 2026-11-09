@@ -1,3 +1,4 @@
+import { accountErasurePending, committedAccountKeys } from "./erasure-journal";
 import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import {
   funnels, leads, leadSchema, users, workspaces, workspaceMembers, workspaceFunnels,
@@ -28,10 +29,10 @@ const unverified = () => new WorkspaceError(403, "Bitte bestätige zuerst deine 
 
 async function verifiedUser(userId: number, verifiedEmail: string | null, executor: Executor) {
   const [user] = await executor.select({
-    id: users.id, email: users.email, emailVerifiedAt: users.emailVerifiedAt,
+    id: users.id, email: users.email, emailVerifiedAt: users.emailVerifiedAt, erasureKey: users.erasureKey, deletedAt: users.deletedAt,
     isAdmin: users.isAdmin, isPro: users.isPro, trialEndsAt: users.trialEndsAt,
   }).from(users).where(and(eq(users.id, userId), isNull(users.deletedAt)));
-  if (!user) throw new WorkspaceError(401, "Nicht autorisiert");
+  if (!user || await accountErasurePending(user)) throw new WorkspaceError(401, "Nicht autorisiert");
   // Recheck the live account, including after changing the email address.
   if (!user.emailVerifiedAt || !verifiedEmail || user.email.toLowerCase() !== verifiedEmail.toLowerCase()) {
     throw unverified();
@@ -66,10 +67,10 @@ export async function getWorkspaceAccess(
   await verifiedUser(userId, verifiedEmail, executor);
   const [row] = await executor.select({
     workspace: workspaces,
-    owner: { isAdmin: users.isAdmin, isPro: users.isPro, trialEndsAt: users.trialEndsAt },
+    owner: { erasureKey: users.erasureKey, deletedAt: users.deletedAt, isAdmin: users.isAdmin, isPro: users.isPro, trialEndsAt: users.trialEndsAt },
   }).from(workspaces).innerJoin(users, eq(users.id, workspaces.ownerId))
     .where(and(eq(workspaces.id, workspaceId), isNull(users.deletedAt)));
-  if (!row) throw missing();
+  if (!row || await accountErasurePending(row.owner)) throw missing();
   let role: WorkspaceRole = "owner";
   if (row.workspace.ownerId !== userId) {
     if (options.ownerOnly) throw missing();
@@ -95,7 +96,7 @@ export async function listWorkspaces(userId: number, verifiedEmail: string | nul
   await verifiedUser(userId, verifiedEmail, db);
   const rows = await db.select({
     workspace: workspaces,
-    owner: { isAdmin: users.isAdmin, isPro: users.isPro, trialEndsAt: users.trialEndsAt },
+    owner: { erasureKey: users.erasureKey, deletedAt: users.deletedAt, isAdmin: users.isAdmin, isPro: users.isPro, trialEndsAt: users.trialEndsAt },
   }).from(workspaces).innerJoin(users, eq(users.id, workspaces.ownerId)).where(and(
     isNull(users.deletedAt),
     or(eq(workspaces.ownerId, userId), sql`EXISTS (
@@ -106,7 +107,8 @@ export async function listWorkspaces(userId: number, verifiedEmail: string | nul
         AND ${workspaceMembers.acceptedAt} IS NOT NULL
     )`),
   )).orderBy(desc(workspaces.createdAt));
-  return rows.map((row) => summary(row.workspace, row.workspace.ownerId === userId ? "owner" : "client", row.owner));
+  const pending = await committedAccountKeys();
+  return rows.filter(row => !pending.has(row.owner.erasureKey)).map((row) => summary(row.workspace, row.workspace.ownerId === userId ? "owner" : "client", row.owner));
 }
 
 export async function createWorkspace(userId: number, verifiedEmail: string | null, name: string): Promise<WorkspaceSummary> {

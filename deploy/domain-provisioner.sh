@@ -14,7 +14,7 @@ set -euo pipefail
 ENV_FILE="/var/www/funnelflow/.env"
 WEBROOT="/var/www/letsencrypt"
 VHOST_DIR="/etc/nginx/customer-domains"
-TEMPLATE="/etc/nginx/customer-domain-vhost.template"
+TEMPLATE="/etc/nginx/custom-domain-vhost.template"
 STATE_DIR="/var/lib/domain-provisioner"   # DNS-Fehlversuchs-Zähler pro Host
 LOCK_FILE="/run/domain-provisioner.lock"
 SERVER_IPV4="116.203.40.49"
@@ -45,11 +45,17 @@ DATABASE_URL="$(grep -m1 '^DATABASE_URL=' "$ENV_FILE" | cut -d= -f2- | sed -e 's
 # würde sonst ALLE Kunden-vhosts als „nicht mehr in DB" behandeln und löschen.
 psql "$DATABASE_URL" -qtAc "SELECT 1" >/dev/null || { log "FEHLER: DB nicht erreichbar"; exit 1; }
 
-# ssl_status-Update mit psql-Variablen statt String-Interpolation im SQL —
-# der Hostname ist zwar regex-validiert, aber Gürtel UND Hosenträger.
+# psql ersetzt Variablen nur beim Lesen von stdin/Dateien, NICHT in -c.
+# ON_ERROR_STOP lässt SQL-Fehler den Lauf abbrechen, statt Erfolg zu melden.
 set_status() { # $1=host $2=status
-  run psql "$DATABASE_URL" -q -v h="$1" -v s="$2" \
-    -c "UPDATE domains SET ssl_status = :'s' WHERE hostname = :'h';"
+  if [[ "$DRY_RUN" == "1" ]]; then
+    # Keine Verbindungsdaten im Journal ausgeben.
+    log "DRY-RUN: $1 → SSL-Status $2"
+    return
+  fi
+  psql "$DATABASE_URL" -X -q -v ON_ERROR_STOP=1 -v h="$1" -v s="$2" <<'SQL'
+UPDATE domains SET ssl_status = :'s' WHERE hostname = :'h';
+SQL
 }
 
 # ---------- Hostname-Validierung ----------
@@ -84,6 +90,52 @@ render_vhost() { # $1=host
   sed "s/__HOSTNAME__/$1/g" "$TEMPLATE"
 }
 
+# Install only a completely rendered file. Preserve the previous vhost if
+# rendering, nginx validation or reload fails; temporary files never match
+# nginx's *.conf include.
+activate_vhost() { # $1=host; 1=domain failure, 2=nginx recovery required
+  local host="$1" conf candidate previous=""
+  conf="$VHOST_DIR/$host.conf"
+  if ! nginx -t; then
+    log "FEHLER: nginx-Konfiguration bereits vor $host ungültig"
+    return 2
+  fi
+  candidate="$(mktemp "$VHOST_DIR/.$host.next.XXXXXXXX")" || return 1
+  if ! render_vhost "$host" > "$candidate" || ! chmod 644 "$candidate"; then
+    rm -f "$candidate"
+    log "$host: Vorlage konnte nicht gerendert werden; bisheriger vhost bleibt erhalten"
+    return 1
+  fi
+  if [[ -e "$conf" ]]; then
+    previous="$(mktemp "$VHOST_DIR/.$host.previous.XXXXXXXX")" || { rm -f "$candidate"; return 1; }
+    if ! cp -p "$conf" "$previous"; then
+      rm -f "$candidate" "$previous"
+      return 1
+    fi
+  fi
+  if ! mv -f "$candidate" "$conf"; then
+    rm -f "$candidate"
+    [[ -z "$previous" ]] || rm -f "$previous"
+    return 1
+  fi
+  if nginx -t && systemctl reload nginx; then
+    [[ -z "$previous" ]] || rm -f "$previous"
+    return 0
+  fi
+  log "$host: Aktivierung fehlgeschlagen; vorherige Konfiguration wiederherstellen"
+  if [[ -n "$previous" ]]; then
+    mv -f "$previous" "$conf" || return 2
+  else
+    rm -f "$conf" || return 2
+  fi
+  if ! nginx -t || ! systemctl reload nginx; then
+    log "FEHLER: nginx-Wiederanlauf muss manuell geprüft werden"
+    return 2
+  fi
+  return 1
+}
+
+[[ -r "$TEMPLATE" ]] || { log "FEHLER: nginx-Vorlage fehlt: $TEMPLATE"; exit 1; }
 mkdir -p "$STATE_DIR" "$VHOST_DIR"
 
 # ---------- Provisionierungs-Pass ----------
@@ -145,25 +197,16 @@ for host in "${PENDING[@]}"; do
     continue
   fi
 
-  # vhost rendern + validieren. Eine kaputte Datei MUSS sofort wieder weg,
-  # sonst blockiert sie jeden künftigen reload (auch reguläre Deploys!).
-  conf="$VHOST_DIR/$host.conf"
-  render_vhost "$host" > "$conf"
-  if ! nginx -t 2>/dev/null; then
-    rm -f "$conf"
-    if nginx -t 2>/dev/null; then
-      log "$host: vhost-Datei machte nginx-Config ungültig → entfernt, error"
-      set_status "$host" error
-      continue
-    fi
-    # Config war schon VOR unserer Datei kaputt — nicht die Schuld dieser
-    # Domain. Abbrechen ohne reload; Status bleibt pending für den Retry.
-    log "FEHLER: nginx-Config unabhängig von $host defekt — Lauf abgebrochen"
-    exit 1
+  if activate_vhost "$host"; then
+    set_status "$host" active
+    log "$host: provisioniert und aktiv"
+  else
+    activation_result=$?
+    # An unrelated invalid config or failed recovery needs operator attention;
+    # leave the domain pending and do not process more hosts in this run.
+    (( activation_result != 2 )) || exit 1
+    set_status "$host" error
   fi
-  systemctl reload nginx
-  set_status "$host" active
-  log "$host: provisioniert und aktiv"
 done
 
 # ---------- Cleanup-Pass ----------

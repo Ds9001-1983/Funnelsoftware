@@ -25,7 +25,10 @@ describe("crypto (AES-256-GCM)", () => {
   it("wirft bei manipuliertem Ciphertext (GCM-Auth)", () => {
     const enc = encryptSecret("geheim");
     const [iv, tag, data] = enc.split(":");
-    const tampered = `${iv}:${tag}:${data.slice(0, -2)}00`;
+    const ciphertext = Buffer.from(data, "hex");
+    // Ein Bit kippen: durch "00" ersetzen wäre bei einem vorhandenen Nullbyte ein No-op.
+    ciphertext[ciphertext.length - 1] ^= 1;
+    const tampered = `${iv}:${tag}:${ciphertext.toString("hex")}`;
     expect(() => decryptSecret(tampered)).toThrow();
   });
 

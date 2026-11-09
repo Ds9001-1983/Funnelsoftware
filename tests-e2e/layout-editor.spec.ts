@@ -21,7 +21,7 @@ test("Abschnitte: Umstellen, Bearbeiten, Undo/Redo, Speichern, Veröffentlichen 
   expect(create.status()).toBe(201);
   const original = await create.json();
   const url = `/api/funnels/${original.id}`;
-  expect((await page.request.patch(url, { headers, data: { status: "published", slug } })).status()).toBe(200);
+  expect((await page.request.patch(url, { headers, data: { status: "published", slug, impressumUrl: "https://example.test/legal", datenschutzUrl: "https://example.test/privacy" } })).status()).toBe(200);
   await page.goto(`/funnels/${original.id}`);
   await page.getByRole("button", { name: "Auto-Save deaktivieren" }).click();
   await page.getByRole("button", { name: "Abschnitte für diese Seite aktivieren" }).click();

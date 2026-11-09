@@ -1,36 +1,40 @@
-import { createHash } from "crypto";
+import { createHmac, randomBytes } from "node:crypto";
+import { hasPlatformOptOut } from "@shared/platform-privacy";
 import { comparisonLinks, funnelBuilderPage } from "@shared/seo-links";
 import { CLIENT_TRACKABLE_EVENTS } from "@shared/schema";
 
-// Reichweitenmessung für trichterwerk.de — cookieless & datensparsam.
-//
-// DSGVO-Kern: Die Besucher-IP wird NUR flüchtig im RAM zur Hash-Bildung genutzt
-// und NIE gespeichert. Der resultierende visitorHash ist einweg (SHA-256) über
-// ein geheimes Server-Secret + das aktuelle Datum:
-//   - nicht auf die Person rückrechenbar (Secret verlässt den Server nie),
-//   - tages-rotierend → kein tagesübergreifendes Wiedererkennen, kein Langzeitprofil,
-//   - nur auf trichterwerk.de gültig → kein Cross-Site-Tracking.
+// Pseudonyme Reichweitenmessung. Ein zufälliger Schlüssel lebt nur im RAM des
+// Prozesses und wird bei UTC-Tageswechsel oder Neustart ersetzt. Keine Ableitung
+// aus SESSION_SECRET und keine Ablage in Datenbank, Backups oder Logs.
+export function createDailyVisitorHasher() {
+  let activeDay = "";
+  let key = randomBytes(32);
+  return (ip: string, userAgent: string, now = new Date()): string => {
+    const day = now.toISOString().slice(0, 10);
+    if (day !== activeDay) {
+      key.fill(0);
+      key = randomBytes(32);
+      activeDay = day;
+    }
+    return createHmac("sha256", key).update(JSON.stringify([day, ip, userAgent])).digest("hex");
+  };
+}
+export const dailyVisitorHash = createDailyVisitorHasher();
 
-// Salt-Basis: geheimes Server-Secret. In Prod ist SESSION_SECRET ohnehin Pflicht
-// (server/index.ts validateEnv); im Dev Fallback.
-const SALT_SECRET = process.env.SESSION_SECRET || "dev-tracking-salt";
-
-/** YYYY-MM-DD (UTC) — Teil des Hash-Inputs, sorgt für die Tages-Rotation. */
-function dayStamp(now = new Date()): string {
-  return now.toISOString().slice(0, 10);
+/** Browserpräferenz auch für direkte Beacons und Registrierung durchsetzen. */
+export function platformMeasurementBlocked(headers: Record<string, string | string[] | undefined>): boolean {
+  return headers.dnt === "1" || headers["sec-gpc"] === "1" || headers["x-platform-optout"] === "1" ||
+    (typeof headers.cookie === "string" && hasPlatformOptOut(headers.cookie));
 }
 
-/**
- * Tages-rotierender, anonymer Besucher-Hash. IP + User-Agent werden ausschließlich
- * hier flüchtig verwendet und NICHT persistiert.
- */
-export function dailyVisitorHash(ip: string, userAgent: string, now = new Date()): string {
-  return createHash("sha256")
-    .update(`${ip}|${userAgent}|${SALT_SECRET}|${dayStamp(now)}`)
-    .digest("hex");
+/** Freie Labels können personenbezogene Inhalte enthalten; nur Produktcodes speichern. */
+export function platformEventLabel(event: string, label?: string): string | null {
+  const allowed = event === "cta_click" ? ["hero", "pricing", "final"] :
+    event === "form_submit_error" ? ["password_short", "email_taken", "server_error"] : [];
+  return label && allowed.includes(label) ? label : null;
 }
 
-/** Nur der Host des Referrers (nie die volle URL → kein PII/Session-Leak). */
+/** URL-Helfer: nur der Host; auch ein Host kann personenbezogene Inhalte tragen. */
 export function deriveReferrerHost(referrer?: string | null): string | null {
   if (!referrer) return null;
   try {

@@ -1,3 +1,5 @@
+import { accountErasurePending, assertRetentionEditable, lockErasureJournal } from "./erasure-journal";
+import { nextClosedAt } from "@shared/retention-contract";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
@@ -25,7 +27,7 @@ export async function recruitingOwner(funnelId: number, ownerId: number) {
   const [row] = await db.select({ funnel: funnels, owner: users }).from(funnels)
     .innerJoin(users, eq(users.id, funnels.userId))
     .where(and(eq(funnels.id, funnelId), eq(funnels.userId, ownerId), sql`${funnels.deletedAt} IS NULL`, sql`${users.deletedAt} IS NULL`));
-  if (!row) throw new RecruitingError(404, "Funnel nicht gefunden");
+  if (!row || await accountErasurePending(row.owner)) throw new RecruitingError(404, "Funnel nicht gefunden");
   return row;
 }
 export function requireRecruitingPro(owner: User) {
@@ -101,6 +103,7 @@ export async function updateRecruitingPipeline(funnelId: number, ownerId: number
 export interface ChangeStageOptions { leadId: number; ownerId: number; actorId: number; stageId: string; expectedVersion: number; workspaceId?: number }
 export async function changeRecruitingStage(options: ChangeStageOptions) {
   return db.transaction(async tx => {
+    await lockErasureJournal(tx);
     // Wie Freigabeentzug zuerst den Workspace sperren; anschließend Lead vor
     // Funnel wie bei der bestehenden Lead-Löschung (keine inverse Sperrfolge).
     if (options.workspaceId !== undefined) await lockWorkspace(options.workspaceId, tx);
@@ -113,6 +116,7 @@ export async function changeRecruitingStage(options: ChangeStageOptions) {
     } else if (options.actorId !== options.ownerId) throw new RecruitingError(404, "Bewerbung nicht gefunden");
     const [lead] = await tx.select().from(leads).where(and(eq(leads.id, initial.id), eq(leads.userId, options.ownerId))).for("update");
     if (!lead) throw new RecruitingError(404, "Bewerbung nicht gefunden");
+    await assertRetentionEditable(lead.uuid);
     const funnel = await lockFunnel(tx, lead.funnelId, options.ownerId);
     const [owner] = await tx.select().from(users).where(eq(users.id, options.ownerId));
     if (!owner || owner.deletedAt || !owner.emailVerifiedAt) throw new RecruitingError(403, "E-Mail-Bestätigung erforderlich");
@@ -127,7 +131,7 @@ export async function changeRecruitingStage(options: ChangeStageOptions) {
     if (!target) throw new RecruitingError(400, "Unbekannte Statusspalte");
     const previous = lead.stageId ?? lead.status;
     if (previous === target.id) return leadSchema.parse({ ...lead, funnelName: funnel.name });
-    const [updated] = await tx.update(leads).set({ stageId: target.id, status: target.legacyStatus, stageVersion: lead.stageVersion + 1 }).where(eq(leads.id, lead.id)).returning();
+    const [updated] = await tx.update(leads).set({ stageId: target.id, status: target.legacyStatus, stageVersion: lead.stageVersion + 1, closedAt: nextClosedAt(lead.status, target.legacyStatus, lead.closedAt, new Date()) }).where(eq(leads.id, lead.id)).returning();
     await tx.insert(leadStageEvents).values({ leadId: lead.id, actorId: options.actorId, fromStageId: previous, toStageId: target.id, version: updated.stageVersion });
     // Noch nicht versandte Nachrichten eines verlassenen Status sofort verwerfen.
     await tx.update(recruitingMailJobs).set({ status: "cancelled", errorCode: "STATUS_CHANGED" }).where(and(eq(recruitingMailJobs.leadId, lead.id), eq(recruitingMailJobs.status, "pending"), sql`${recruitingMailJobs.stageId} IS NOT NULL`, sql`${recruitingMailJobs.stageId} <> ${target.id}`));

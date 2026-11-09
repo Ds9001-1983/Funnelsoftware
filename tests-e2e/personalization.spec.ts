@@ -70,7 +70,7 @@ test("Personalisierung: Zuordnen, Canvas-Test, Undo, Veröffentlichung und unver
   const renamedPages = structuredClone(saved.pages);
   renamedPages[0].elements[0].label = "Dein Standort";
   const slug = makeSlug(runId());
-  const published = await page.request.patch(`/api/funnels/${original.id}`, { headers, data: { pages: renamedPages, slug, expectedVersion: saved.editVersion, documentVersion: 4, mutationId: crypto.randomUUID(), publish: true } });
+  const published = await page.request.patch(`/api/funnels/${original.id}`, { headers, data: { impressumUrl: "https://example.test/legal", datenschutzUrl: "https://example.test/privacy", pages: renamedPages, slug, expectedVersion: saved.editVersion, documentVersion: 4, mutationId: crypto.randomUUID(), publish: true } });
   expect(published.status()).toBe(200); const live = await published.json();
   expect((await page.request.patch(`/api/funnels/${original.id}`, { headers, data: { name: "Alter Tab", expectedVersion: live.editVersion, documentVersion: 3, mutationId: crypto.randomUUID() } })).status()).toBe(409);
   const broken = structuredClone(live.pages); broken[0].elements = [];

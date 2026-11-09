@@ -87,9 +87,20 @@ export const GLOBALLY_HANDLED_ERROR_CODES: readonly string[] = [
 
 // ============ DATABASE TABLES ============
 
+// Independent filesystem journal; receipts are committed with each deletion.
+export const erasureJournalIdentity = pgTable("erasure_journal_identity", {
+  id: integer("id").primaryKey(),
+  instanceId: text("instance_id").notNull().unique(),
+});
+export const erasureJournalReceipts = pgTable("erasure_journal_receipts", {
+  sequence: integer("sequence").primaryKey(),
+  hash: text("hash").notNull(),
+});
+
 // Users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
+  erasureKey: text("erasure_key").notNull().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
@@ -127,6 +138,7 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
 }, (table) => [
+  uniqueIndex("users_erasure_key_idx").on(table.erasureKey),
   // Jeder Stripe-Webhook macht einen Lookup über die Customer-ID
   index("users_stripe_customer_id_idx").on(table.stripeCustomerId),
   // Admin-Partnerübersicht joint über referredById
@@ -232,6 +244,7 @@ export const leads = pgTable("leads", {
   status: text("status").notNull().default("new"), // new, contacted, qualified, converted, lost
   stageId: text("stage_id"),
   stageVersion: integer("stage_version").notNull().default(0),
+  closedAt: timestamp("closed_at"),
   source: text("source"),
   // Einwilligungsnachweis (Art. 7 Abs. 1 DSGVO): Der Marketing-Consent des
   // Besuchers gated die CAPI-Übermittlung — ohne Persistierung ist die
@@ -244,6 +257,43 @@ export const leads = pgTable("leads", {
   index("leads_user_id_idx").on(table.userId),
   index("leads_funnel_id_idx").on(table.funnelId),
 ]);
+
+// Saving always pauses the rule; activation requires a separate reviewed request.
+export const funnelRetentionDrafts = pgTable("funnel_retention_drafts", {
+  activeVersion: integer("active_version"),
+  activatedAt: timestamp("activated_at"),
+  funnelId: integer("funnel_id").primaryKey().references(() => funnels.id, { onDelete: "cascade" }),
+  mode: text("mode").notNull(),
+  days: integer("days").notNull(),
+  purpose: text("purpose").notNull(),
+  version: integer("version").notNull().default(1),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export const funnelAnalyticsRetention = pgTable("funnel_analytics_retention", {
+  funnelId: integer("funnel_id").primaryKey().references(() => funnels.id, { onDelete: "cascade" }),
+  days: integer("days").notNull(),
+  purpose: text("purpose").notNull(),
+  version: integer("version").notNull().default(1),
+  activeVersion: integer("active_version"),
+  activatedAt: timestamp("activated_at"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export const deletedFunnelRetention = pgTable("deleted_funnel_retention", {
+  userId: integer("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  days: integer("days").notNull(),
+  purpose: text("purpose").notNull(),
+  version: integer("version").notNull().default(1),
+  activeVersion: integer("active_version"),
+  activatedAt: timestamp("activated_at"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export const leadRetentionExceptions = pgTable("lead_retention_exceptions", {
+  leadId: integer("lead_id").primaryKey().references(() => leads.id, { onDelete: "cascade" }),
+  reason: text("reason"),
+  reviewAt: timestamp("review_at"),
+  version: integer("version").notNull().default(1),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
 
 // Additive Recruiting-Daten; bestehende Eigentümer und Statuswerte bleiben erhalten.
 export const funnelRecruitingConfigs = pgTable("funnel_recruiting_configs", {
@@ -347,20 +397,15 @@ export const analyticsEvents = pgTable("analytics_events", {
   eventType: text("event_type").notNull(), // view, pageView, click, submit, complete
   pageId: text("page_id"),
   metadata: jsonb("metadata").default({}),
-  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  timestamp: timestamp("timestamp").default(sql`(now() AT TIME ZONE 'UTC')`).notNull(),
 }, (table) => [
   index("analytics_events_funnel_id_idx").on(table.funnelId),
   index("analytics_events_funnel_event_idx").on(table.funnelId, table.eventType),
   index("analytics_events_timestamp_idx").on(table.timestamp),
 ]);
 
-// Plattform-Besuche (Reichweitenmessung für trichterwerk.de selbst) — BEWUSST
-// getrennt von analytics_events (das an Kunden-Funnels hängt). Cookieless &
-// datensparsam: KEINE Roh-IP, KEIN User-Agent, KEINE Cookie-Kennung gespeichert.
-// Der visitorHash ist ein tages-rotierender, serverseitig gesalzener Einweg-Hash
-// (siehe server/tracking.ts) — nicht auf die Person rückrechenbar, kein
-// tagesübergreifendes Wiedererkennen. Rechtsgrundlage: Art. 6 (1) f DSGVO,
-// § 25 (2) Nr. 2 TDDDG (kein Zugriff auf Endgeräte-Infos → keine Einwilligung).
+// Eigene pseudonyme Statistik, getrennt von Kunden-Funnels. Keine Roh-IP/UA.
+// Tageskennung mit kurzlebigem RAM-Schlüssel; keine garantierte Anonymität.
 export const platformVisits = pgTable("platform_visits", {
   id: serial("id").primaryKey(),
   visitorHash: text("visitor_hash").notNull(),
@@ -379,7 +424,7 @@ export const platformVisits = pgTable("platform_visits", {
    * nicht-interaktiv durchläuft.
    */
   label: text("label"),
-  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  timestamp: timestamp("timestamp").default(sql`(now() AT TIME ZONE 'UTC')`).notNull(),
 }, (table) => [
   index("platform_visits_timestamp_idx").on(table.timestamp),
   index("platform_visits_visitor_idx").on(table.visitorHash, table.timestamp),
@@ -1036,6 +1081,15 @@ export const mediaFolders = pgTable("media_folders", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, table => [index("media_folders_user_id_idx").on(table.userId)]);
 
+// Auch Audio, fehlgeschlagene Uploads und private Anhänge müssen für die
+// Kontolöschung zuordenbar bleiben, unabhängig von ihrer Verwendung im Editor.
+export const ownedUploads = pgTable("owned_uploads", {
+  filename: text("filename").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  area: text("area").notNull().$type<"public" | "support">(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, table => [index("owned_uploads_user_id_idx").on(table.userId)]);
+
 export const mediaAssets = pgTable("media_assets", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -1240,6 +1294,7 @@ export type InsertFunnel = z.infer<typeof insertFunnelSchema>;
 
 // Lead schema (for API responses)
 export const leadSchema = z.object({
+  erasureRequested: z.boolean().optional(),
   id: z.number(),
   uuid: z.string(),
   funnelId: z.number(),
@@ -1255,6 +1310,7 @@ export const leadSchema = z.object({
   status: z.enum(["new", "contacted", "qualified", "converted", "lost"]),
   stageId: z.string().nullable().optional(),
   stageVersion: z.number().int().nonnegative().optional(),
+  closedAt: z.string().or(z.date()).nullable().optional(),
   source: z.string().optional().nullable(),
   // Einwilligungsnachweis (Art. 7 Abs. 1 DSGVO)
   marketingConsent: z.boolean().optional(),

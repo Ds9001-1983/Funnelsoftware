@@ -1,9 +1,12 @@
 import { requiredDocumentVersion } from "@shared/funnel-document";
-import { eq, desc, and, sql, gte, lt, inArray } from "drizzle-orm";
+import { eq, desc, and, sql, gte, lt, inArray, isNull } from "drizzle-orm";
 import { quizTemplateElement } from "@shared/quiz-template";
 import { db } from "./db";
+import { requestAccountErasure, type QueuedAccountErasure } from "./account-files";
+import { accountErasurePending, assertRetentionEditable, committedAccountKeys, committedFunnelKeys, committedRetentionKeys, lockErasureJournal, queueLeadErasure, type QueuedLeadErasure } from "./erasure-journal";
 import { queueRecruitingEmails } from "./recruiting";
 import { publishedDocument, writeFunnel } from "./funnel-revisions";
+import { publicationLegalErrors } from "@shared/funnel-legal";
 import { needsLayoutDocument } from "@shared/funnel-layout";
 import { documentFromFunnel, type WriteControl } from "@shared/funnel-document";
 import {
@@ -142,10 +145,10 @@ export interface IStorage {
   createLead(lead: InsertLead, userId: number): Promise<Lead & { deduplicated?: boolean }>;
   findRecentLead(funnelId: number, email: string, withinMs: number): Promise<Lead | undefined>;
   updateLead(id: number, userId: number, lead: Partial<Lead>): Promise<Lead | undefined>;
-  deleteLead(id: number, userId: number): Promise<boolean>;
+  deleteLead(id: number, userId: number): Promise<boolean | QueuedLeadErasure>;
   // DSGVO-Betroffenenrechte (nach E-Mail, über alle Funnels des Owners)
   getLeadsByEmail(userId: number, email: string): Promise<Lead[]>;
-  deleteLeadsByEmail(userId: number, email: string): Promise<number>;
+  deleteLeadsByEmail(userId: number, email: string): Promise<number | QueuedLeadErasure>;
 
   // Analytics
   getAnalytics(funnelId: number): Promise<AnalyticsEvent[]>;
@@ -182,7 +185,7 @@ export class DatabaseStorage implements IStorage {
 
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    return user && await accountErasurePending(user) ? { ...user, deletedAt: user.deletedAt ?? new Date(0) } : user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
@@ -447,12 +450,14 @@ export class DatabaseStorage implements IStorage {
   async getFunnelByUuid(uuid: string): Promise<Funnel | undefined> {
     const [funnel] = await db.select().from(funnels)
       .where(and(eq(funnels.uuid, uuid), sql`${funnels.deletedAt} IS NULL`));
+    if (funnel) { const owner = await this.getUser(funnel.userId); if (!owner || owner.deletedAt) return undefined; }
     return funnel ? publishedDocument(this.mapFunnelToResponse(funnel)) : undefined;
   }
 
   async getFunnelBySlug(slug: string): Promise<Funnel | undefined> {
     const [funnel] = await db.select().from(funnels)
       .where(and(eq(funnels.slug, slug), sql`${funnels.deletedAt} IS NULL`));
+    if (funnel) { const owner = await this.getUser(funnel.userId); if (!owner || owner.deletedAt) return undefined; }
     return funnel ? publishedDocument(this.mapFunnelToResponse(funnel)) : undefined;
   }
 
@@ -469,9 +474,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPublishedFunnelsForSitemap(): Promise<{ slug: string | null; uuid: string; updatedAt: Date }[]> {
+    const pending = Array.from(await committedAccountKeys());
     return db.select({ slug: funnels.slug, uuid: funnels.uuid, updatedAt: funnels.updatedAt })
-      .from(funnels)
-      .where(and(eq(funnels.status, "published"), sql`${funnels.deletedAt} IS NULL`));
+      .from(funnels).innerJoin(users, eq(users.id, funnels.userId))
+      .where(and(eq(funnels.status, "published"), isNull(funnels.deletedAt), isNull(users.deletedAt),
+        pending.length ? sql`${users.erasureKey} NOT IN (${sql.join(pending.map(key => sql`${key}`), sql`, `)})` : sql`true`));
   }
 
   async isSlugAvailable(slug: string, excludeFunnelId?: number): Promise<boolean> {
@@ -595,7 +602,8 @@ export class DatabaseStorage implements IStorage {
       .where(eq(leads.userId, userId))
       .orderBy(desc(leads.createdAt));
 
-    return result.map(r => this.mapLeadToResponse(r.lead, r.funnelName));
+    const pending = await committedRetentionKeys();
+    return result.map(r => ({ ...this.mapLeadToResponse(r.lead, r.funnelName), erasureRequested: pending.has(r.lead.uuid) }));
   }
 
   async getLeadsByFunnel(funnelId: number, userId: number): Promise<Lead[]> {
@@ -609,7 +617,8 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(leads.funnelId, funnelId), eq(leads.userId, userId)))
       .orderBy(desc(leads.createdAt));
 
-    return result.map(r => this.mapLeadToResponse(r.lead, r.funnelName));
+    const pending = await committedRetentionKeys();
+    return result.map(r => ({ ...this.mapLeadToResponse(r.lead, r.funnelName), erasureRequested: pending.has(r.lead.uuid) }));
   }
 
   async getLead(id: number, userId: number): Promise<Lead | undefined> {
@@ -622,7 +631,8 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(funnels, eq(leads.funnelId, funnels.id))
       .where(and(eq(leads.id, id), eq(leads.userId, userId)));
 
-    return result ? this.mapLeadToResponse(result.lead, result.funnelName) : undefined;
+    const pending = await committedRetentionKeys();
+    return result ? { ...this.mapLeadToResponse(result.lead, result.funnelName), erasureRequested: pending.has(result.lead.uuid) } : undefined;
   }
 
   /**
@@ -642,6 +652,14 @@ export class DatabaseStorage implements IStorage {
   async createLead(insertLead: InsertLead, userId: number): Promise<Lead & { deduplicated?: boolean }> {
     // Transaction: Lead erstellen + Counter erhöhen atomar
     return await db.transaction(async (tx) => {
+      // Match account-erasure ordering: account before funnel. Taking the FK
+      // key-share lock first avoids a cycle with the account cascade.
+      const [owner] = await tx.select().from(users).where(and(eq(users.id, userId), isNull(users.deletedAt))).for("key share");
+      if (!owner || await accountErasurePending(owner)) throw new Error("Konto nicht mehr verfügbar");
+      // A public request may have read the funnel before it was soft-deleted.
+      // Serialize against final removal before inserting any dependent data.
+      const [available] = await tx.select({ id: funnels.id }).from(funnels).where(and(eq(funnels.id, insertLead.funnelId), eq(funnels.userId, userId), isNull(funnels.deletedAt))).for("update");
+      if (!available) throw new Error("Funnel nicht mehr verfügbar");
       // Serialisiert Wiederholungen derselben Bewerbung; die bisherige
       // Vorabprüfung allein war bei parallelen Formular-Requests nicht atomar.
       if (insertLead.email) {
@@ -685,7 +703,8 @@ export class DatabaseStorage implements IStorage {
     if (updates.company !== undefined) updateData.company = updates.company;
     if (updates.message !== undefined) updateData.message = updates.message;
     if (updates.answers !== undefined) updateData.answers = updates.answers;
-    if (updates.status !== undefined) updateData.status = updates.status;
+    // Status transitions must use changeRecruitingStage (history and closure date).
+    if (updates.status !== undefined) throw new Error("Use changeRecruitingStage for status changes");
     if (updates.source !== undefined) updateData.source = updates.source;
 
     // Leerer Body: Drizzle wirft bei .set({}) "No values to set" (500er) —
@@ -694,22 +713,25 @@ export class DatabaseStorage implements IStorage {
       return this.getLead(id, userId);
     }
 
-    const [lead] = await db.update(leads)
-      .set(updateData)
-      .where(and(eq(leads.id, id), eq(leads.userId, userId)))
-      .returning();
-
-    if (!lead) return undefined;
-
-    const [funnel] = await db.select({ name: funnels.name })
-      .from(funnels)
-      .where(eq(funnels.id, lead.funnelId));
-
-    return this.mapLeadToResponse(lead, funnel?.name);
+    return db.transaction(async tx => {
+      await lockErasureJournal(tx);
+      const [current] = await tx.select().from(leads).where(and(eq(leads.id, id), eq(leads.userId, userId))).for("update");
+      if (!current) return undefined;
+      await assertRetentionEditable(current.uuid);
+      const [lead] = await tx.update(leads).set(updateData).where(eq(leads.id, id)).returning();
+      const [funnel] = await tx.select({ name: funnels.name }).from(funnels).where(eq(funnels.id, lead.funnelId));
+      return this.mapLeadToResponse(lead, funnel?.name);
+    });
   }
 
-  async deleteLead(id: number, userId: number): Promise<boolean> {
+  async deleteLead(id: number, userId: number): Promise<boolean | QueuedLeadErasure> {
     return await db.transaction(async (tx) => {
+      await lockErasureJournal(tx);
+      const selected = await tx.select({ uuid: leads.uuid }).from(leads)
+        .where(and(eq(leads.id, id), eq(leads.userId, userId))).for("update");
+      if (!selected.length) return false;
+      const queued = await queueLeadErasure(tx, selected.map(lead => lead.uuid));
+      if (queued) return queued;
       const result = await tx.delete(leads)
         .where(and(eq(leads.id, id), eq(leads.userId, userId)))
         .returning({ id: leads.id, funnelId: leads.funnelId });
@@ -731,17 +753,25 @@ export class DatabaseStorage implements IStorage {
       .select({ lead: leads, funnelName: funnels.name })
       .from(leads)
       .leftJoin(funnels, eq(leads.funnelId, funnels.id))
-      .where(and(eq(leads.userId, userId), sql`lower(${leads.email}) = lower(${email})`))
+      .where(and(eq(leads.userId, userId), sql`lower(btrim(${leads.email})) = lower(${email.trim()})`))
       .orderBy(desc(leads.createdAt));
-    return result.map(r => this.mapLeadToResponse(r.lead, r.funnelName));
+    const pending = await committedRetentionKeys();
+    return result.map(r => ({ ...this.mapLeadToResponse(r.lead, r.funnelName), erasureRequested: pending.has(r.lead.uuid) }));
   }
 
-  // DSGVO Art. 17 (Löschung): alle Leads zu einer E-Mail löschen. Idempotent
-  // (0 = auch Erfolg), transaktional, korrigiert die Funnel-Lead-Zähler.
-  async deleteLeadsByEmail(userId: number, email: string): Promise<number> {
+  // Owner-scoped manual erasure: queue exact identities when a journal exists.
+  // No match is successful (0); counters change only when execution completes.
+  async deleteLeadsByEmail(userId: number, email: string): Promise<number | QueuedLeadErasure> {
     return await db.transaction(async (tx) => {
+      await lockErasureJournal(tx);
+      const selected = await tx.select({ id: leads.id, uuid: leads.uuid }).from(leads)
+        .where(and(eq(leads.userId, userId), sql`lower(btrim(${leads.email})) = lower(${email.trim()})`))
+        .orderBy(leads.id).for("update");
+      if (!selected.length) return 0;
+      const queued = await queueLeadErasure(tx, selected.map(lead => lead.uuid));
+      if (queued) return queued;
       const deleted = await tx.delete(leads)
-        .where(and(eq(leads.userId, userId), sql`lower(${leads.email}) = lower(${email})`))
+        .where(inArray(leads.id, selected.map(lead => lead.id)))
         .returning({ funnelId: leads.funnelId });
       if (deleted.length === 0) return 0;
 
@@ -773,6 +803,7 @@ export class DatabaseStorage implements IStorage {
       status: lead.status as "new" | "contacted" | "qualified" | "converted" | "lost",
       stageId: lead.stageId,
       stageVersion: lead.stageVersion,
+      closedAt: lead.closedAt?.toISOString() ?? null,
       source: lead.source,
       marketingConsent: lead.marketingConsent,
       consentAt: lead.consentAt ? lead.consentAt.toISOString() : null,
@@ -1013,12 +1044,24 @@ export class DatabaseStorage implements IStorage {
 
   // Restore soft-deleted funnel
   async restoreFunnel(id: number, userId: number): Promise<boolean> {
-    const result = await db.update(funnels)
-      .set({ deletedAt: null })
-      .where(and(eq(funnels.id, id), eq(funnels.userId, userId), sql`${funnels.deletedAt} IS NOT NULL`))
-      .returning({ id: funnels.id });
-
-    return result.length > 0;
+    return db.transaction(async tx => {
+      await lockErasureJournal(tx);
+      const [funnel] = await tx.select().from(funnels).where(and(eq(funnels.id, id), eq(funnels.userId, userId), sql`${funnels.deletedAt} IS NOT NULL`)).for("update");
+      if (!funnel || (await committedFunnelKeys()).has(funnel.uuid)) return false;
+      // Restoring a deleted live funnel exposes its published snapshot again,
+      // not its current draft. Incomplete historical snapshots return offline.
+      let restoreAsDraft = false;
+      if (funnel.status === "published") {
+        const [revision] = funnel.publishedRevisionId ? await tx.select().from(funnelRevisions)
+          .where(and(eq(funnelRevisions.id, funnel.publishedRevisionId), eq(funnelRevisions.funnelId, id))) : [];
+        const content = revision?.content as { impressumUrl?: string | null; datenschutzUrl?: string | null } | undefined;
+        restoreAsDraft = funnel.publishedRevisionId || funnel.editorProtocol
+          ? !content || publicationLegalErrors(content).length > 0
+          : publicationLegalErrors(funnel).length > 0;
+      }
+      await tx.update(funnels).set({ deletedAt: null, ...(restoreAsDraft ? { status: "draft" } : {}) }).where(eq(funnels.id, id));
+      return true;
+    });
   }
 
   // Email Verification
@@ -1173,6 +1216,8 @@ export class DatabaseStorage implements IStorage {
   async getAllUsers(limit = 50, offset = 0, search?: string): Promise<{
     users: Array<{
       id: number;
+      erasureKey: string;
+      deletedAt: Date | null;
       username: string;
       email: string;
       displayName: string | null;
@@ -1202,6 +1247,8 @@ export class DatabaseStorage implements IStorage {
 
     const usersWithCounts = await db.select({
       id: users.id,
+      erasureKey: users.erasureKey,
+      deletedAt: users.deletedAt,
       username: users.username,
       email: users.email,
       displayName: users.displayName,
@@ -1299,12 +1346,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Delete user (admin only)
-  async deleteUserAdmin(userId: number): Promise<boolean> {
-    const result = await db.delete(users)
-      .where(eq(users.id, userId))
-      .returning({ id: users.id });
-
-    return result.length > 0;
+  async deleteUserAdmin(userId: number): Promise<boolean | QueuedAccountErasure> {
+    return requestAccountErasure(userId);
   }
 
   // Update last login timestamp
@@ -1719,7 +1762,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteBugReportsBefore(cutoff: Date): Promise<number> {
-    const result = await db.delete(bugReports).where(lt(bugReports.createdAt, cutoff));
+    const result = await db.delete(bugReports).where(and(lt(bugReports.createdAt, cutoff), isNull(bugReports.screenshotPath), isNull(bugReports.attachmentPath)));
     return (result as any).rowCount ?? 0;
   }
 }

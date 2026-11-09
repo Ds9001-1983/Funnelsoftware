@@ -82,7 +82,7 @@ describe("registerSchema", () => {
     { businessConfirmed: undefined }, { businessConfirmed: false }, { businessConfirmed: "true" },
     { termsAccepted: undefined }, { termsAccepted: false },
     { businessName: undefined }, { businessName: "  " }, { businessName: "a".repeat(201) },
-    { legalVersion: undefined }, { legalVersion: "2026-01-01" }, { legalVersion: "2026-10-12" },
+    { legalVersion: undefined }, { legalVersion: "2026-01-01" }, { legalVersion: "2026-10-12" }, { legalVersion: "2026-10-14" },
   ])("weist fehlende oder unbestätigte Vertragsdaten ab: %j", (invalid) => {
     expect(registerSchema.safeParse({ ...valid, ...invalid }).success).toBe(false);
   });

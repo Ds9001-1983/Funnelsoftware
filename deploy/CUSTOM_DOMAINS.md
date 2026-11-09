@@ -33,6 +33,9 @@ Der alte TXT-Record-Flow (`_trichterwerk-verify.<host>`) funktioniert serverseit
 ## Installation auf dem Server (einmalig, als root)
 
 Der Deploy-Workflow kopiert **nichts** nach `/etc` — nach Änderungen an den `deploy/`-Dateien müssen die cp-Schritte wiederholt werden.
+Auch `/usr/local/bin/domain-provisioner.sh` wird beim App-Deployment nicht
+automatisch aktualisiert. Eine Korrektur im Repository allein ändert den
+laufenden Provisioner daher nicht.
 
 ```bash
 mkdir -p /var/www/letsencrypt /etc/nginx/customer-domains /var/lib/domain-provisioner
@@ -41,13 +44,16 @@ cp /var/www/funnelflow/deploy/domain-provisioner.sh /usr/local/bin/
 chmod 755 /usr/local/bin/domain-provisioner.sh
 
 cp /var/www/funnelflow/deploy/custom-domain-vhost.template /etc/nginx/
+cp /var/www/funnelflow/deploy/nginx-custom-domain-http.conf /etc/nginx/conf.d/trichterwerk-custom-domains.conf
 cp /var/www/funnelflow/deploy/domain-provisioner.service /etc/systemd/system/
 cp /var/www/funnelflow/deploy/domain-provisioner.timer /etc/systemd/system/
 
 cp /var/www/funnelflow/deploy/letsencrypt-reload-nginx.sh /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 
-# nginx-Config aktualisieren (Achtung: Live-Datei heißt "funnelflow", nicht "trichterwerk")
+# Nur bei einer NEUINSTALLATION: bestehende lokale nginx-Anpassungen vorher
+# übernehmen. Im laufenden Betrieb nicht die ganze Site-Datei überschreiben.
+# Die Live-Datei heißt "funnelflow", nicht "trichterwerk".
 cp /var/www/funnelflow/deploy/nginx-trichterwerk.conf /etc/nginx/sites-available/funnelflow
 nginx -t && systemctl reload nginx
 
@@ -55,7 +61,60 @@ systemctl daemon-reload
 systemctl enable --now domain-provisioner.timer
 ```
 
-Erster Test ohne Seiteneffekte:
+Der Provisioner liest `/etc/nginx/custom-domain-vhost.template`, passend zum
+oben installierten Dateinamen. Fehlt die Vorlage, beendet er den Lauf vor
+einem Zertifikatsantrag. vhosts werden zunächst vollständig in eine temporäre
+Datei gerendert und anschließend umbenannt. nginx-Syntaxprüfung oder Reload
+mit Fehler stellt den vorherigen vhost wieder her. Schlägt auch der
+Wiederanlauf fehl, stoppt der Lauf mit einem eindeutigen Journalhinweis;
+die Domain bleibt `pending`, weitere Hosts werden nicht bearbeitet.
+
+Die separate HTTP-Konfiguration setzt `server_names_hash_bucket_size 512`.
+Ohne ausreichenden Platz können lange Kundendomains bei `nginx -t` scheitern,
+obwohl DNS und Zertifikat gültig sind. Sie gehört in den `http`-Kontext,
+außerhalb von `customer-domains`; bestehende gleichnamige Direktiven vor der
+Installation zusammenführen, nicht doppelt setzen. Hintergrund:
+[nginx-Dokumentation zu langen Servernamen](https://nginx.org/en/docs/http/server_names.html#optimization).
+
+## Alter Plattform-Alias app.trichterwerk.de
+
+Ein vorhandenes Zertifikat allein genügt nicht: nginx benötigt einen passenden
+TLS-vhost. `deploy/nginx-app-alias.conf` bedient das bereits vorhandene
+Zertifikat für `app.trichterwerk.de` und leitet Pfad und Query auf
+`https://trichterwerk.de` weiter. Vor Installation Zertifikat und Ablauf prüfen,
+die Datei separat als `/etc/nginx/sites-available/funnelflow-app-alias` ablegen
+und unter `sites-enabled` verlinken. Erst nach `nginx -t` reloaden, bei Fehlern
+die vorherige Konfiguration wiederherstellen. Nicht unter `customer-domains`
+installieren: Plattform-Hosts gehören nicht in den Kunden-Cleanup.
+
+## Regressionstest für Statusänderungen
+
+Der Test führt die tatsächliche `set_status`-Funktion mit `psql` gegen eine
+isolierte lokale Testdatenbank aus. Er prüft `pending → active/error`,
+SQL-Escaping, Abbruch bei SQL-Fehlern und einen Dry-Run ohne Datenänderung
+oder Ausgabe der Datenbank-Zugangsdaten. DNS, Certbot und nginx werden dabei
+nicht aufgerufen; die echte Zertifikatsausstellung benötigt zusätzlich eine
+Testdomain mit passendem DNS-Eintrag.
+
+```bash
+DOMAINS_TEST_DATABASE_URL=postgresql://testuser@127.0.0.1:55440/funnelsoftware_e2e \
+  npm run test:run -- deploy/domain-provisioner.test.mjs server/domain-verify.test.ts
+```
+
+`deploy/domain-vhost.test.mjs` ergänzt acht Tests mit echten temporären
+Konfigurationsdateien und ersetzten nginx-/systemctl-Kommandos: passender
+Installationspfad, neue und vorhandene vhosts, fehlende Vorlage, ungültige
+Konfiguration, Reload-Fehler sowie fehlgeschlagener Wiederanlauf. Diese Tests
+stellen keine echten Zertifikate aus und ändern keine aktive Konfiguration.
+
+SQL mit `psql`-Variablen muss über stdin/Datei ausgeführt werden, nicht über
+`-c`. Für Statusänderungen ist `ON_ERROR_STOP=1` erforderlich, damit ein
+SQL-Fehler den Provisioner mit Fehler beendet.
+
+## Prüfung auf dem Server
+
+Vorschau ohne Zertifikats- oder nginx-Änderungen (lokale DNS-Versuchszähler
+können dabei fortgeschrieben werden):
 
 ```bash
 DRY_RUN=1 /usr/local/bin/domain-provisioner.sh

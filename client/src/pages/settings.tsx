@@ -256,6 +256,7 @@ function DeleteAccountCard() {
   const [password, setPassword] = useState("");
   const [confirmText, setConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deletionQueued, setDeletionQueued] = useState(false);
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -271,7 +272,8 @@ function DeleteAccountCard() {
         toast({ title: "Fehler", description: data.error || "Konto konnte nicht gelöscht werden.", variant: "destructive" });
         return;
       }
-      toast({ title: "Konto gelöscht", description: "Alle Daten wurden entfernt. Ein laufendes Abo wurde gekündigt." });
+      if (response.status === 202) { setDeletionQueued(true); return; }
+      toast({ title: "Konto gelöscht", description: "Dein Konto und die zugeordneten Dateien wurden gelöscht. Ein laufendes Abo wurde gekündigt." });
       navigate("/");
       window.location.reload();
     } catch {
@@ -281,14 +283,30 @@ function DeleteAccountCard() {
     }
   };
 
+  if (deletionQueued) return (
+    <Card className="border-destructive/40">
+      <CardHeader>
+        <CardTitle>Kontolöschung beauftragt</CardTitle>
+        <CardDescription>
+          Dein Konto ist gesperrt und du bist abgemeldet. Der Auftrag ist verbindlich.
+          Die endgültige Löschung erfolgt automatisch nach gesicherter Bestätigung
+          und Beendigung laufender Abonnements.
+        </CardDescription>
+      </CardHeader>
+      <CardContent><Button onClick={() => { window.location.href = "/"; }}>Zur Startseite</Button></CardContent>
+    </Card>
+  );
+
   return (
     <Card className="border-destructive/40">
       <CardHeader>
         <CardTitle className="text-destructive">Konto löschen</CardTitle>
         <CardDescription>
-          Löscht dein Konto endgültig — inklusive aller Funnels, Leads und
-          Uploads (Art. 17 DSGVO). Ein laufendes Abo wird automatisch gekündigt.
-          Diese Aktion kann nicht rückgängig gemacht werden.
+          Löscht dein Konto mit Funnels, Leads und zugeordneten Uploads.
+          Ein laufendes Abo wird automatisch gekündigt.
+          Der Auftrag ist verbindlich. Dein Konto wird sofort gesperrt; die endgültige Löschung wartet auf die gesicherte Bestätigung und die Beendigung laufender Abonnements.
+          Für Sicherungskopien, gesetzlich aufzubewahrende Abrechnungsdaten und
+          bereits versandte E-Mails gelten gesonderte Aufbewahrungs- und Löschabläufe.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

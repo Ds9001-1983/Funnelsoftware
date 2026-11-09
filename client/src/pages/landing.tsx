@@ -1,3 +1,4 @@
+import { privacyIntegrationSummary } from "@shared/privacy-copy";
 import { Link } from "wouter";
 import { usePageMeta } from "@/hooks/use-document-title";
 import { Button } from "@/components/ui/button";
@@ -282,7 +283,7 @@ const heroTrust = [
   { icon: ShieldCheck, label: "Für immer kostenloser Free-Plan" },
   { icon: Lock, label: "Monatlich kündbar" },
   { icon: Flag, label: "Made in Germany" },
-  { icon: Server, label: "EU-Hosting · DSGVO-konform" },
+  { icon: Server, label: "EU-Hosting für die Anwendung" },
 ];
 
 // Ehrliche, belegbare Produktfakten statt erfundener Kundenstimmen
@@ -290,7 +291,7 @@ const proofStats = [
   { value: "< 1 Std.", label: "vom Signup zum ersten Funnel live" },
   { value: "13", label: "fertige, konversionsstarke Templates" },
   { value: "20+", label: "Bausteine für jeden Funnel-Typ" },
-  { value: "100 %", label: "DSGVO-konform, Hosting in der EU" },
+  { value: "EU", label: "Hosting für Anwendung und Datenbank" },
 ];
 
 interface ComparisonRow {
@@ -303,7 +304,6 @@ interface ComparisonRow {
 
 const comparisonRows: ComparisonRow[] = [
   { label: "Deutsche Oberfläche & Support", trichterwerk: true, typeform: false, perspective: true, webflow: false },
-  { label: "Hosting in der EU / DSGVO-konform", trichterwerk: true, typeform: false, perspective: true, webflow: "teilweise" },
   { label: "Live-Handy-Vorschau im Editor", trichterwerk: true, typeform: true, perspective: true, webflow: false },
   { label: "Conditional Logic & Quiz", trichterwerk: true, typeform: true, perspective: true, webflow: false },
   { label: "Eigene Domain inklusive", trichterwerk: true, typeform: false, perspective: true, webflow: true },
@@ -331,7 +331,7 @@ const faqs = [
   },
   {
     q: "Wo werden meine Daten und Leads gespeichert?",
-    a: "Auf Servern in der EU, DSGVO-konform. Deine Leads gehören dir — jederzeit als CSV exportierbar. Kein Weiterverkauf, keine Datenweitergabe.",
+    a: privacyIntegrationSummary,
   },
   {
     q: "Wie funktioniert „Eigene Domain“?",
@@ -353,9 +353,9 @@ const FAQ_JSON_LD = JSON.stringify({ "@context": "https://schema.org", ...faqPag
 
 export default function Landing() {
   usePageMeta({
-    title: "Funnel-Builder aus Deutschland — ohne Code, DSGVO-konform",
+    title: "Funnel-Builder aus Deutschland — ohne Code, mit EU-Hosting",
     description:
-      "Erstelle mobile-optimierte Marketing-Funnels & Landingpages in Minuten — ohne Code, ohne Agentur. DSGVO-konform, Hosting in der EU. Für immer kostenloser Free-Plan.",
+      "Erstelle mobile Marketing-Funnels und Landingpages ohne Code: mit Vorlagen, eigenen Statistiken und EU-Hosting für die Anwendung. Mit dauerhaftem Free-Plan.",
     canonical: "/",
   });
 
@@ -395,9 +395,9 @@ export default function Landing() {
         />
 
         <div className="container mx-auto text-center max-w-4xl relative">
-          <Badge variant="secondary" className="mb-6">
+          <Badge variant="secondary" className="mb-6 max-w-full whitespace-normal">
             <Sparkles className="h-3 w-3 mr-1" />
-            Made in Germany · DSGVO-konform · Hosting in der EU
+            Entwickelt in Deutschland · Anwendung und Datenbank in der EU
           </Badge>
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 leading-[1.05]">
             {/* Kicker im H1: trägt das Haupt-Keyword, ohne die Hero-Zeile zu verwässern. */}
@@ -421,7 +421,7 @@ export default function Landing() {
           <p className="text-xl md:text-2xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
             Eine Agentur nimmt für einen Funnel schnell 2.000–5.000&nbsp;€ und
             mehrere Wochen. Mit Trichterwerk baust du ihn selbst — mobile-optimiert,
-            in unter einer Stunde live. Ohne Code, DSGVO-konform aus Deutschland.
+            in unter einer Stunde live. Ohne Code, entwickelt in Deutschland.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/register" onClick={() => trackCtaClick("hero")}>
@@ -992,15 +992,15 @@ export default function Landing() {
                     SUPERBRAND
                   </a>{" "}
                   — eine kleine Agentur aus Deutschland. Jahrelang haben wir für Kunden
-                  Funnels mit amerikanischen Tools gebaut: teuer, englischsprachig,
-                  Daten in den USA, Support-Tickets tagelang offen.
+                  Funnels für unterschiedliche Kampagnen und Zielgruppen gebaut. Daraus
+                  entstand der Wunsch nach einem gemeinsamen Editor auf Deutsch.
                 </p>
                 <p>
-                  Irgendwann reichte es. Wir wollten ein Werkzeug, das{" "}
+                  Wir wollten ein Werkzeug, das{" "}
                   <span className="text-foreground font-medium">in unserer Sprache spricht</span>,{" "}
-                  <span className="text-foreground font-medium">unsere Regeln respektiert</span>{" "}
-                  (DSGVO, Hosting in der EU), und trotzdem so gut ist wie die großen
-                  Namen. Also haben wir's selbst gebaut.
+                  <span className="text-foreground font-medium">unsere Abläufe vereinfacht</span>{" "}
+                  und verständliche Einstellungen für Veröffentlichung und Datenverarbeitung
+                  bietet. Also haben wir es selbst gebaut.
                 </p>
                 <p>
                   Trichterwerk ist kein Riesen-Konzern, keine VC-Bude, keine Massen-SaaS.

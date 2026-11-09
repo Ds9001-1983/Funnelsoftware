@@ -1,3 +1,4 @@
+import { privacyProductSummary } from "./privacy-copy";
 /**
  * Leichte Meta-Registry der öffentlichen Template-Galerie (/vorlagen) — Slugs,
  * Namen, Nutzenversprechen und SEO-Meta pro Template. Reine Daten ohne React:
@@ -66,6 +67,8 @@ export interface TemplateMeta {
   /** true, sobald Poster + Hover-Video unter /templates/portrait bzw.
    *  /templates/videos generiert wurden (scripts/record-template-videos.ts). */
   videoAvailable: boolean;
+  /** Cache-Version bei geänderten Postern/Videos unter unveränderten Dateinamen. */
+  previewAssetVersion?: string;
   /** Keyword-tragende H1 der Detailseite (Fallback: name). */
   h1?: string;
   /** 2–3 Absätze Unique Content für die Detailseite (gegen Thin Content). */
@@ -86,7 +89,7 @@ export const templateMetas: TemplateMeta[] = [
     benefit: "Qualifiziert Anfragen vor und führt direkt zur Terminbuchung.",
     metaTitle: "Funnel-Vorlage: Termin buchen & Strategiegespräch",
     metaDescription:
-      "Terminbuchungs-Funnel als fertige Vorlage: Qualifizierungsfragen, Kalender und Kontaktseite — mobil optimiert, DSGVO-konform. Jetzt live durchklicken.",
+      "Terminbuchungs-Funnel als fertige Vorlage: Qualifizierungsfragen, Kalender und Kontaktseite — mobil optimiert, mit EU-Hosting. Jetzt live durchklicken.",
     videoAvailable: true,
     h1: "Funnel-Vorlage: Termin buchen",
     longDescription: [
@@ -182,7 +185,7 @@ export const templateMetas: TemplateMeta[] = [
     benefit: "Mehrstufige Bewerber-Qualifizierung statt Bewerbungsmappe.",
     metaTitle: "Funnel-Vorlage: Recruiting-Funnel für Bewerber",
     metaDescription:
-      "Recruiting-Funnel als fertige Vorlage: Benefits zeigen, Bewerber in 3 Fragen qualifizieren, Kontakt sichern — mobil und DSGVO-konform. Live ausprobieren.",
+      "Recruiting-Funnel als fertige Vorlage: Benefits zeigen, Bewerber in 3 Fragen qualifizieren, Kontakt sichern — mobil und mit EU-Hosting. Live ausprobieren.",
     videoAvailable: true,
     h1: "Recruiting-Funnel-Vorlage: Bewerber qualifizieren statt Mappen sammeln",
     longDescription: [
@@ -213,8 +216,8 @@ export const templateMetas: TemplateMeta[] = [
         a: "Meist am selben Tag. Vorlage übernehmen, Benefits und Fragen auf eure Stelle anpassen, Bilder tauschen, veröffentlichen — danach kannst du den Link sofort in Anzeigen und Stellenbörsen verwenden.",
       },
       {
-        q: "Ist das DSGVO-konform?",
-        a: "Die Funnels laufen auf EU-Hosting, die Analytics sind cookielos und ohne Fremd-Tracker. Du bestimmst, welche Daten du abfragst, und ergänzt Einwilligungstext und Datenschutzlink im Editor.",
+        q: "Welche Datenschutzfunktionen bietet Trichterwerk?",
+        a: privacyProductSummary,
       },
       {
         q: "Wie kommen die Bewerbungen ins Recruiting-System?",
@@ -225,6 +228,7 @@ export const templateMetas: TemplateMeta[] = [
   },
   {
     slug: "express-bewerbung",
+    previewAssetVersion: "20261102",
     name: "Express-Bewerbung",
     category: "recruiting",
     benefit: "Schnell-Bewerbung ohne Lebenslauf — 3 Fragen, Kontakt, fertig.",
@@ -278,7 +282,7 @@ export const templateMetas: TemplateMeta[] = [
     benefit: "Pflegekräfte gewinnen — mit Dienstplansicherheit statt Floskeln.",
     metaTitle: "Funnel-Vorlage: Pflege-Recruiting",
     metaDescription:
-      "Pflegekräfte gewinnen: Recruiting-Funnel mit echten Benefits, Qualifizierung und Kennenlern-Telefonat statt Bewerbungsmappe. DSGVO-konform — live ansehen.",
+      "Pflegekräfte gewinnen: Recruiting-Funnel mit echten Benefits, Qualifizierung und Kennenlern-Telefonat statt Bewerbungsmappe. Mit EU-Hosting — live ansehen.",
     videoAvailable: true,
     h1: "Pflege-Recruiting-Funnel-Vorlage: Pflegekräfte gewinnen",
     longDescription: [
@@ -313,8 +317,8 @@ export const templateMetas: TemplateMeta[] = [
         a: "Nur die, die ihr wirklich einhaltet: verbindliche Dienstpläne, Zuschläge, Anzahl freier Wochenenden, Einarbeitungsdauer. Überversprechen fällt spätestens im Probemonat auf und kostet mehr, als es bringt.",
       },
       {
-        q: "Sind die Bewerberdaten datenschutzkonform gespeichert?",
-        a: "Ja — EU-Hosting, cookielose eigene Analytics und keine Drittanbieter-Tracker. Bewerbungen kannst du per CSV exportieren oder per Webhook an euer System übergeben und dort nach euren Fristen löschen.",
+        q: "Was muss ich beim Datenschutz für Bewerbungen beachten?",
+        a: "Frage nur die für die Stelle erforderlichen Daten ab und lege Rechtsgrundlage, Datenschutzhinweise und Aufbewahrungsfrist fest. Trichterwerk bietet dafür Rechtslinks, Export und Aufbewahrungsregeln. Bei Webhooks musst du zusätzlich die Verarbeitung im Zielsystem berücksichtigen.",
       },
     ],
     relatedSlugs: ["recruiting", "express-bewerbung", "handwerk-recruiting"],
@@ -379,7 +383,7 @@ export const templateMetas: TemplateMeta[] = [
     h1: "Funnel-Vorlage: Lead-Magnet für Checkliste und Whitepaper",
     longDescription: [
       "Die Vorlage präsentiert zuerst dein Freebie — Checkliste, Whitepaper, Vorlage oder Mini-Kurs — mit Vorschau und drei Stichpunkten zum Inhalt. Danach kommt eine Qualifizierungsfrage zur Situation des Besuchers und erst zum Schluss das E-Mail-Feld.",
-      "Sie passt für Content-Marketing, Newsletter-Aufbau und die erste Stufe längerer Verkaufsprozesse. Der Vorteil gegenüber dem üblichen Popup-Formular: Die Zwischenfrage macht aus einer anonymen E-Mail-Adresse einen Kontakt mit Kontext, den du in der Nachfass-Mail direkt aufgreifen kannst.",
+      "Sie passt für Content-Marketing, Newsletter-Aufbau und die erste Stufe längerer Verkaufsprozesse. Der Vorteil gegenüber dem üblichen Popup-Formular: Die Zwischenfrage macht aus einer einzelnen E-Mail-Adresse einen Kontakt mit Kontext, den du in der Nachfass-Mail direkt aufgreifen kannst.",
     ],
     useCases: [
       {
@@ -470,7 +474,7 @@ export const templateMetas: TemplateMeta[] = [
     benefit: "Bewertungs-Funnel für Makler: Objekt qualifizieren, Eigentümer-Kontakt sichern.",
     metaTitle: "Funnel-Vorlage: Immobilien-Bewertung für Makler",
     metaDescription:
-      "Immobilien-Funnel als fertige Vorlage: Objektdaten abfragen, Eigentümer qualifizieren, Bewertungs-Lead gewinnen — mobil und DSGVO-konform. Live ansehen.",
+      "Immobilien-Funnel als fertige Vorlage: Objektdaten abfragen, Eigentümer qualifizieren, Bewertungs-Lead gewinnen — mobil und mit EU-Hosting. Live ansehen.",
     videoAvailable: true,
     h1: "Funnel-Vorlage: Immobilienbewertung für Makler",
     longDescription: [
@@ -666,7 +670,7 @@ export const templateMetas: TemplateMeta[] = [
     videoAvailable: true,
     h1: "Funnel-Vorlage: Kundenumfrage und Feedback einsammeln",
     longDescription: [
-      "Die Vorlage zerlegt die Umfrage in einzelne Schritte: Zufriedenheit, Verbesserungswunsch, Weiterempfehlung und eine offene Frage — jeweils eine Seite, mit Fortschrittsanzeige. Kontaktdaten sind optional, sodass auch anonymes Feedback möglich bleibt.",
+      "Die Vorlage zerlegt die Umfrage in einzelne Schritte: Zufriedenheit, Verbesserungswunsch, Weiterempfehlung und eine offene Frage — jeweils eine Seite, mit Fortschrittsanzeige. Kontaktdaten sind optional; prüfe auch Freitextantworten und die aktivierten Dienste auf mögliche Personenbezüge.",
       "Gedacht ist sie für Teams, die nach Projekten, Käufen oder Veranstaltungen wissen wollen, was gut lief. Gegenüber dem langen Fragebogen, dessen Scrollbalken schon abschreckt, brechen deutlich weniger Leute ab — und die Antworten liegen als CSV bereit, statt in einzelnen E-Mails zu versanden.",
     ],
     useCases: [
@@ -680,7 +684,7 @@ export const templateMetas: TemplateMeta[] = [
       },
       {
         title: "Interne Mitarbeiterbefragung",
-        text: "Stimmung und Verbesserungsideen anonym einsammeln, ohne dass jemand ein Konto braucht.",
+        text: "Stimmung und Verbesserungsideen ohne verpflichtende Kontaktangaben einsammeln.",
       },
     ],
     faqs: [
@@ -693,8 +697,8 @@ export const templateMetas: TemplateMeta[] = [
         a: "Häufig in 20 bis 30 Minuten: Fragen ersetzen, Antwortskalen anpassen, Abschlusstext schreiben, veröffentlichen. Den Link kannst du danach per E-Mail, QR-Code oder Messenger verteilen.",
       },
       {
-        q: "Kann ich Antworten anonym erfassen?",
-        a: "Ja. Lass die Kontaktfelder weg oder markiere sie als optional. Die Analytics sind cookielos und ohne Fremd-Tracker, das Hosting liegt in der EU.",
+        q: "Kann ich auf Kontaktangaben verzichten?",
+        a: "Ja. Entferne die Kontaktfelder oder markiere sie als optional. Das garantiert noch keine Anonymität: Freitextantworten, technische Verbindungsdaten oder eingebundene Dienste können einen Personenbezug ermöglichen. Prüfe die gesamte Verarbeitung, bevor du eine Umfrage als anonym bezeichnest.",
       },
       {
         q: "Wie werte ich die Ergebnisse aus?",
@@ -711,7 +715,7 @@ export const vorlagenIndexPage: SeoStaticPage = {
   path: TEMPLATE_GALLERY_PATH,
   metaTitle: "Funnel-Vorlagen: fertige Templates live ansehen",
   metaDescription:
-    "Fertige Funnel-Vorlagen für Recruiting, Leads und Sales — jede Vorlage live im Smartphone-Format durchklickbar. DSGVO-konform, in Minuten übernommen.",
+    "Fertige Funnel-Vorlagen für Recruiting, Leads und Sales — jede Vorlage live im Smartphone-Format durchklickbar. Mit EU-Hosting, in Minuten übernommen.",
 };
 
 /** FAQPage + BreadcrumbList einer Template-Detailseite — EINE Quelle für die

@@ -7,6 +7,7 @@ vi.mock("@/lib/platform-host", () => ({
   isPlatformHost: () => mocks.host.isPlatform,
 }));
 
+import { setPlatformOptOut } from "./platform-privacy";
 import { trackPageview } from "./platform-tracker";
 
 describe("trackPageview", () => {
@@ -14,6 +15,9 @@ describe("trackPageview", () => {
 
   beforeEach(() => {
     mocks.host.isPlatform = true;
+    setPlatformOptOut(false);
+    Object.defineProperty(navigator, "doNotTrack", { value: "0", configurable: true });
+    Object.defineProperty(navigator, "globalPrivacyControl", { value: false, configurable: true });
     beacon = vi.fn(() => true);
     Object.defineProperty(navigator, "sendBeacon", {
       value: beacon,
@@ -45,5 +49,30 @@ describe("trackPageview", () => {
     mocks.host.isPlatform = false;
     trackPageview("/");
     expect(beacon).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("measurement objections", () => {
+  beforeEach(() => { mocks.host.isPlatform = true; });
+  it("stops all page events immediately and resumes only after explicit withdrawal", () => {
+    const beacon = vi.fn();
+    Object.defineProperty(navigator, "sendBeacon", { value: beacon, configurable: true });
+    setPlatformOptOut(true);
+    trackPageview("/"); expect(beacon).not.toHaveBeenCalled();
+    setPlatformOptOut(false);
+    trackPageview("/"); expect(beacon).toHaveBeenCalledOnce();
+  });
+  it("honors browser privacy signals without writing a cookie", () => {
+    const beacon = vi.fn();
+    Object.defineProperty(navigator, "sendBeacon", { value: beacon, configurable: true });
+    setPlatformOptOut(false);
+    Object.defineProperty(navigator, "doNotTrack", { value: "1", configurable: true });
+    trackPageview("/"); expect(beacon).not.toHaveBeenCalled();
+    Object.defineProperty(navigator, "doNotTrack", { value: "0", configurable: true });
+    Object.defineProperty(navigator, "globalPrivacyControl", { value: true, configurable: true });
+    trackPageview("/"); expect(beacon).not.toHaveBeenCalled();
+    expect(document.cookie).not.toContain("tw_platform_optout");
+    Object.defineProperty(navigator, "globalPrivacyControl", { value: false, configurable: true });
   });
 });
