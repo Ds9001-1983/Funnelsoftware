@@ -77,7 +77,7 @@ Rechtliche Bezugspunkte für die Umsetzung: [§ 14 BGB](https://www.gesetze-im-i
   setzt UTC für neue Zeitstempel voraus. Nach entsprechend eingerichteter eigener
   Wegwerf-Datenbank besteht der vollständige Lauf; keine Produktionskonfiguration
   und kein Produktcode hierfür geändert.
-- GitHub-CI wird nach Push des aktualisierten Entwurfs ergänzt.
+- Aktuelle GitHub-CI-Nachweise stehen bei [PR #183](https://github.com/Ds9001-1983/Funnelsoftware/pull/183/checks); lokale Ergebnisse oben sind davon getrennt dokumentiert.
 
 Private lokale Prüfprotokolle: `~/TrichterwerkBackups/reviews/b2b-2026-11-09/`.
 Tests ausschließlich mit synthetischen Daten in lokalen Wegwerf-Datenbanken,
