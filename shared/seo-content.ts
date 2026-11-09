@@ -1,4 +1,5 @@
 import { privacyProductSummary, privacyComparisonSummary } from "./privacy-copy";
+import { comparisonEvidence, comparisonPrices, type ComparisonEvidence } from "./comparison-evidence";
 /**
  * SEO-Content-Registry für die Marketing-/Keyword-Seiten (/vergleich/:slug,
  * /funnel-builder). Reine Daten ohne React-Imports — wird sowohl vom Client
@@ -42,6 +43,7 @@ export interface SeoComparisonRow {
 export interface ComparisonPageContent {
   slug: string;
   competitorName: string;
+  evidence: ComparisonEvidence;
   /** Ohne " | Trichterwerk"-Suffix (kommt aus usePageMeta), Ziel ≤ 55 Zeichen. */
   metaTitle: string;
   /** Ziel ≤ 155 Zeichen. */
@@ -62,939 +64,183 @@ export interface ComparisonPageContent {
   relatedSlugs: string[];
 }
 
+/** Common Trichterwerk scope keeps the paid plan explicit in every table. */
+const proScope = "Trichterwerk Pro umfasst unbegrenzte Funnels und Leads, eigene Domains, Conditional Logic, A/B-Tests, Analytics und Webhooks. Pro kostet 49 € pro Monat inklusive Mehrwertsteuer und ist monatlich kündbar. Der Free-Plan bietet einen veröffentlichten Funnel und 100 sichtbare Leads pro Monat; neue Accounts starten mit 14 Tagen Pro-Testphase ohne Kreditkarte.";
+
+interface ComparisonInput {
+  slug: string;
+  name: string;
+  evidence: ComparisonEvidence;
+  intro: string;
+  consideration: string;
+  rows: SeoComparisonRow[];
+  pricing: string;
+  fit: string;
+  relatedSlugs: string[];
+}
+
+function comparisonPage(input: ComparisonInput): ComparisonPageContent {
+  return {
+    slug: input.slug,
+    competitorName: input.name,
+    evidence: input.evidence,
+    metaTitle: `${input.name}-Alternative: Funktionen & Preise vergleichen`,
+    metaDescription: `${input.name} und Trichterwerk vergleichen: ausgewählte Tarife, Funktionen und Grenzen mit Anbieterquellen. Trichterwerk Free oder Pro für 49 €/Monat.`,
+    h1: `${input.name} und Trichterwerk: Funktionen und Preise im Vergleich`,
+    intro: [input.intro, "Mit dem Funnel-Builder von Trichterwerk erstellst du mehrstufige Strecken für Anfragen, Quiz-Ergebnisse oder Bewerbungen. Du bearbeitest Inhalte und Fragen im selben Editor und verwaltest eingehende Leads im Dashboard."],
+    verdict: "Trichterwerk kommt für dich infrage, wenn du Leads über eigene Funnels gewinnen und verwalten möchtest. Prüfe deinen konkreten Ablauf in der Testphase: Tarifumfang, Integrationen und Rollen müssen zu deinem Projekt passen.",
+    painPoints: [
+      { title: "Diese Unterschiede zählen für deine Auswahl", text: input.consideration },
+      { title: "Datenverarbeitung und Integrationen prüfen", text: privacyComparisonSummary },
+    ],
+    comparisonRows: input.rows,
+    featureSections: [
+      { title: "Das bietet Trichterwerk Pro", text: proScope },
+      { title: "Vom ersten Schritt bis zur Anfrage", text: "Kombiniere Informationen, Fragen und Kontaktfelder. Über Verzweigungen steuerst du den weiteren Weg; die Vorschau hilft dir, die Darstellung auf verschiedenen Geräten zu prüfen. Teste den gesamten Ablauf vor der Veröffentlichung mit eigenen Testdaten." },
+      { title: "EU-Hosting und Datenschutzfunktionen", text: privacyProductSummary },
+      ...(input.slug === "perspective-alternative" ? recruitingCapabilities.map(({ label, summary }) => ({ title: label, text: summary })) : []),
+    ],
+    pricingComparison: {
+      title: `Tarife von ${input.name} und Trichterwerk`,
+      text: [input.pricing, proScope, "Vergleiche denselben Abrechnungszeitraum und das benötigte Nutzungsvolumen. Ein Einstiegstarif ist kein funktionsgleiches Angebot; Kosten für zusätzliche Dienste und Werbung gehören in deine eigene Kalkulation."],
+    },
+    honestSection: { title: `Wann ${input.name} zu deinem Projekt passen kann`, text: input.fit },
+    migrationSteps: [
+      { title: "Ablauf und Daten prüfen", text: "Liste Seiten, Fragen, Verzweigungen und Integrationen auf. Sichere benötigte Bestandsdaten über die Exportmöglichkeiten deines bisherigen Anbieters. Prüfe vor einem Wechsel, welche Daten und Funktionen du tatsächlich übertragen kannst." },
+      { title: "Funnel neu aufbauen und testen", text: "Ein automatischer Import fremder Funnels ist in Trichterwerk nicht enthalten. Übertrage Inhalte und Design manuell und prüfe mobile Darstellung, Formulare, Einwilligungen und Benachrichtigungen mit Testdaten. Der Aufwand hängt vom Umfang ab." },
+      { title: "Veröffentlichung vorbereiten", text: "Verbinde bei Bedarf deine eigene Domain im Pro-Plan und aktualisiere Anzeigen und Links erst nach dem Funktionstest. Eine Weiterleitung alter URLs ist nur möglich, soweit du die Domain oder die entsprechenden Einstellungen kontrollierst." },
+    ],
+    faqs: [
+      { q: `Wie vergleiche ich ${input.name} mit Trichterwerk?`, a: input.consideration },
+      { q: "Gibt es einen kostenlosen Einstieg bei Trichterwerk?", a: "Ja. Free umfasst einen veröffentlichten Funnel und 100 sichtbare Leads pro Monat mit Trichterwerk-Badge. Pro kostet 49 € pro Monat inklusive Mehrwertsteuer. Die 14-tägige Pro-Testphase benötigt keine Kreditkarte." },
+      { q: "Kann ich einen bestehenden Funnel automatisch importieren?", a: "Einen automatischen Import aus anderen Funnel-Systemen gibt es nicht. Inhalte, Gestaltung und Abläufe werden manuell neu aufgebaut. Prüfe Exporte, Integrationen und Weiterleitungen vor dem Wechsel; eine feste Umzugsdauer können wir nicht zusagen." },
+      { q: "Worauf kommt es beim Datenschutzvergleich an?", a: privacyComparisonSummary },
+    ],
+    relatedSlugs: input.relatedSlugs,
+  };
+}
+
 export const comparisonPages: Record<string, ComparisonPageContent> = {
-  "typeform-alternative": {
-    slug: "typeform-alternative",
-    competitorName: "Typeform",
-    metaTitle: "Typeform-Alternative aus Deutschland – mit EU-Hosting",
-    metaDescription:
-      "Du suchst eine Typeform-Alternative? Trichterwerk: deutscher Funnel-Builder, mit EU-Hosting, Gratis-Plan, Pro 49 €/Monat.",
-    h1: "Die Typeform-Alternative aus Deutschland: mit EU-Hosting, auf Deutsch, mit Gratis-Plan",
-    intro: [
-      "Du vergleichst Typeform mit einem Funnel-Builder? Achte darauf, wie Formular, vorgeschaltete Inhalte, Verzweigungen und Auswertung in deinen Ablauf passen. Trichterwerk verbindet diese Schritte in einem gemeinsamen Editor.",
-      "Trichterwerk ist der deutsche Funnel-Builder: Formulare, Quiz-Logik und komplette Landingpages in einem Tool — mit Hosting in der EU und deutschem Support. Statt einzelner Formulare baust du mit unserem Funnel-Builder komplette Strecken vom ersten Klick bis zum qualifizierten Lead.",
+  "typeform-alternative": comparisonPage({
+    slug: "typeform-alternative", name: "Typeform", evidence: comparisonEvidence.typeform,
+    intro: "Typeform bietet Formulare, Umfragen und Quiz-Funktionen. Die Auswahl hängt davon ab, welche Fragen, Verzweigungen und nachgelagerten Abläufe du benötigst.",
+    consideration: "Plane dein monatliches Antwortvolumen und prüfe den passenden Tarif. Teste außerdem den Weg von der ersten Information bis zum Kontakt und die Übergabe an dein CRM.",
+    rows: [
+      { label: "Antwortbasierte Verzweigungen", trichterwerk: "In Pro enthalten", competitor: "Conditional Logic ab Basic" },
+      { label: "Leads / Antworten", trichterwerk: "Pro: unbegrenzt", competitor: "Basic: 100 Antworten / Monat" },
+      { label: "Webhooks", trichterwerk: "In Pro enthalten", competitor: "Ab Basic" },
+      { label: "Tarifbeispiel", trichterwerk: comparisonPrices.trichterwerk, competitor: comparisonPrices.typeform },
     ],
-    verdict:
-      "Kurz gesagt: Wenn du mehrstufige Funnels mit eigener Domain, Conditional Logic und Analytics willst — ohne Tool-Stack aus Typeform + Landingpage-Builder + Analytics — ist Trichterwerk die passende Alternative aus Deutschland. Free-Plan dauerhaft kostenlos, 14 Tage Pro ohne Kreditkarte.",
-    painPoints: [
-      {
-        title: "Datenverarbeitung und Integrationen prüfen",
-        text: privacyComparisonSummary,
-      },
-      {
-        title: "Antwort-Limits und steigende Preise",
-        text: "Typeform rechnet pro Antwort ab: Je mehr Leads du sammelst, desto teurer wird es. Wer erfolgreich Kampagnen fährt, rutscht schnell in die höheren Pläne. Bei Trichterwerk sind Leads unbegrenzt — der Preis bleibt gleich.",
-      },
-      {
-        title: "Nur Formulare — kein kompletter Funnel",
-        text: "Ein Typeform ist ein Formular. Landingpage, Danke-Seite, A/B-Tests und Conversion-Tracking musst du mit weiteren Tools zusammenstecken. Trichterwerk liefert den kompletten Funnel aus einem Guss — inklusive eigener Domain.",
-      },
-      {
-        title: "Support und Oberfläche auf Englisch",
-        text: "Editor, Hilfeartikel und Support sind bei Typeform primär englisch. Wer im Team oder mit Kunden auf Deutsch arbeitet, verliert Zeit. Trichterwerk ist komplett deutsch — von der Oberfläche bis zur Support-Mail.",
-      },
-    ],
-    comparisonRows: [
-      { label: "Deutsche Oberfläche & Support", trichterwerk: true, competitor: false },
-      { label: "Komplette Landingpages statt nur Formulare", trichterwerk: true, competitor: false },
-      { label: "Conditional Logic & Quiz", trichterwerk: true, competitor: true },
-      { label: "Eigene Domain inklusive", trichterwerk: true, competitor: false },
-      { label: "A/B-Tests", trichterwerk: true, competitor: false },
-      { label: "Analytics eingebaut (ohne Google Analytics)", trichterwerk: true, competitor: "nur Basis" },
-      { label: "Unbegrenzte Leads / Antworten", trichterwerk: true, competitor: "Limits je Plan" },
-      { label: "Setup-Zeit bis Launch", trichterwerk: "< 1 h", competitor: "1–2 h + Zusatztools" },
-      { label: "Monatspreis", trichterwerk: "49 €, alles inklusive", competitor: "ab ca. 25 $, Limits pro Antwort" },
-    ],
-    featureSections: [
-      {
-        title: "Komplette Funnels statt einzelner Formulare",
-        text: "Mit Trichterwerk baust du die ganze Strecke: Landingpage mit Hero und Nutzenargumenten, mehrstufige Frage-Seiten, Kontaktformular, Danke-Seite. Alles in einem Editor, alles unter einer URL — ohne Einbettungs-Snippets oder Drittanbieter-Seiten.",
-      },
-      {
-        title: "Mobile-First-Funnels mit Live-Handy-Vorschau",
-        text: "Über 80 % der Funnel-Besucher kommen mobil. Jeder Trichterwerk-Funnel ist automatisch für Smartphones optimiert — du gestaltest per Drag & Drop und siehst live die Handy-Vorschau.",
-      },
-      {
-        title: "Conditional Logic wie bei Typeform — plus A/B-Tests",
-        text: "Antwortbasierte Verzweigungen kennst du von Typeform. Trichterwerk kann das auch — und zusätzlich echte A/B-Tests: Teste zwei Varianten einer Seite gegeneinander und lass die Conversion entscheiden.",
-      },
-      {
-        title: "Eigene Statistiken und Marketing-Einstellungen",
-        text: "Views, Conversions und Drop-offs pro Seite siehst du direkt im Dashboard — ohne Google Analytics, mit getrennten Einstellungen für optionale Marketingdienste. Deine Leads exportierst du jederzeit als CSV oder schickst sie per Webhook an dein CRM.",
-      },
-      {
-        title: "Eigene Domain mit SSL inklusive",
-        text: "Statt typeform.com-Links läuft dein Funnel unter deiner Domain (z. B. funnel.deine-firma.de) — CNAME eintragen, SSL wird automatisch eingerichtet. Das schafft Vertrauen und stärkt deine Marke.",
-      },
-    ],
-    pricingComparison: {
-      title: "Preisvergleich: Typeform vs. Trichterwerk",
-      text: [
-        "Typeform startet bei rund 25 $ pro Monat — allerdings mit Antwort-Limits. Relevante Funktionen wie erweiterte Logik oder das Entfernen des Typeform-Brandings stecken in höheren Plänen. Realistisch landest du bei 50–80 € monatlich, plus ein separates Landingpage-Tool, wenn du komplette Funnels willst.",
-        "Trichterwerk startet bei 0 €: Der Free-Plan ist dauerhaft kostenlos mit 1 veröffentlichten Funnel und 100 sichtbaren Leads pro Monat. Pro kostet 49 € pro Monat inklusive Mehrwertsteuer — unbegrenzte Funnels, unbegrenzte Leads, alle Features. Keine Antwort-Limits, keine Feature-Staffelung, monatlich kündbar. 14 Tage Pro testen, ohne Kreditkarte.",
-      ],
-    },
-    honestSection: {
-      title: "Wann Typeform trotzdem die bessere Wahl ist",
-      text: "Ehrlich verglichen: Für sehr lange, klassische Umfragen und Forschungs-Surveys mit hunderten Fragen ist Typeform stark. Auch das native Integrations-Ökosystem ist größer, und englischsprachige Teams fühlen sich dort zu Hause. Wenn du aber Funnels zur Lead-Generierung im DACH-Raum baust, spielt Trichterwerk seine Stärken aus.",
-    },
-    migrationSteps: [
-      {
-        title: "Fragen übernehmen",
-        text: "Wähle ein passendes Template (z. B. Lead-Generierung oder Umfrage) und übertrage deine Typeform-Fragen per Copy & Paste. Die meisten Formulare sind in unter einer Stunde nachgebaut.",
-      },
-      {
-        title: "Design anpassen",
-        text: "Farben, Logo und Schriften an deine Marke anpassen — der Editor zeigt dir live die Mobile-Ansicht. Danach die eigene Domain verbinden.",
-      },
-      {
-        title: "Live gehen & Leads exportieren",
-        text: "Funnel veröffentlichen, alten Typeform-Link umleiten, fertig. Neue Leads landen in deinem Dashboard und per Webhook oder Zapier/Make in deinem CRM.",
-      },
-    ],
-    faqs: [
-      {
-        q: "Worauf kommt es beim Datenschutzvergleich an?",
-        a: privacyComparisonSummary,
-      },
-      {
-        q: "Gibt es eine kostenlose Typeform-Alternative?",
-        a: "Ja, dauerhaft: Der Free-Plan von Trichterwerk kostet 0 € — 1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar, alle Editor-Features, keine Kreditkarte. Nur das Trichterwerk-Badge bleibt sichtbar. Zusätzlich kannst du Pro 14 Tage testen; danach kostet Pro 49 € pro Monat und ist monatlich kündbar.",
-      },
-      {
-        q: "Kann ich meine Typeform-Formulare zu Trichterwerk umziehen?",
-        a: "Einen 1-Klick-Import gibt es nicht — aber mit den fertigen Templates ist ein typisches Formular in unter einer Stunde nachgebaut. Deine bestehenden Leads exportierst du bei Typeform als CSV und behältst sie so vollständig.",
-      },
-      {
-        q: "Was unterscheidet einen Funnel von einem Formular?",
-        a: "Ein Funnel führt Besucher Schritt für Schritt: Landingpage → Qualifizierungsfragen → Kontaktdaten → Danke-Seite, mit Logik und Tracking dazwischen. Ein Formular ist nur ein Baustein davon. Genau deshalb ersetzt Trichterwerk oft Typeform plus ein Landingpage-Tool.",
-      },
-      {
-        q: "Gibt es eine Typeform-Alternative auf Deutsch?",
-        a: "Ja: Trichterwerk ist komplett auf Deutsch — Oberfläche, Templates und Support. Entwickelt und gehostet in Deutschland bzw. der EU.",
-      },
-      {
-        q: "Welche Typeform-Alternativen gibt es noch?",
-        a: "Häufig verglichen werden Perspective (Mobile Funnels, ab 59 €/Monat plus Add-ons) und ClickFunnels (US-Tool, englischsprachig). Beide haben wir in eigenen Vergleichen gegenübergestellt.",
-      },
-    ],
+    pricing: "Typeform nennt für Basic bei monatlicher Zahlung 39 USD pro Monat. Der Preis ist in US-Dollar angegeben; prüfe die Steuerberechnung im Checkout. Weitere Tarife und andere Abrechnungszeiträume stehen auf der verlinkten Preisseite.",
+    fit: "Wenn Formulare und Umfragen den Schwerpunkt deines Prozesses bilden, prüfe Typeform mit einem eigenen Musterformular. Vergleiche Fragearten, Auswertung und benötigte Integrationen anhand dieses Beispiels.",
     relatedSlugs: ["perspective-alternative", "heyflow-alternative", "onepage-alternative"],
-  },
-
-  "perspective-alternative": {
-    slug: "perspective-alternative",
-    competitorName: "Perspective",
-    metaTitle: "Perspective-Alternative: Funktionen & Preise vergleichen",
-    metaDescription:
-      "Trichterwerk und Perspective vergleichen: Domains, Kanban, Bewerbermails und Kunden-Workspaces. Aktueller Funktionsumfang und Pro für 49 €/Monat.",
-    h1: "Trichterwerk und Perspective: Funktionen und Preise im Vergleich",
-    intro: [
-      "Perspective hat Mobile-Funnels im DACH-Raum populär gemacht — und ist ein gutes Tool. Aber das Preismodell ist modular: Der Base-Plan startet bei 59 € pro Monat (47 € bei Jahreszahlung), enthält aber nur 2 Live-Funnels und 100 Leads pro Monat. Zusatzfunktionen kommen als Add-on-Suiten für 67–84 € monatlich dazu, zusätzliche Leads kosten 0,25 € pro Kontakt — so wird aus dem Einstiegspreis schnell ein dreistelliger Monatsbetrag.",
-      "Trichterwerk bietet als deutscher Funnel-Builder dieselbe Kernidee — mobile-optimierte, mehrstufige Funnels per Drag & Drop — für 49 € im Monat: mit unbegrenzten Funnels und Leads, A/B-Tests, eingebauten Analytics und eigener Domain. Die Anwendung und zentrale Datenbank werden in der EU gehostet; Oberfläche und Support sind auf Deutsch.",
-    ],
-    verdict:
-      "Trichterwerk Pro bietet für 49 € pro Monat unbegrenzte Funnels und Leads, eigene Domains, A/B-Tests und ein Kanban-Board mit eigenen Spalten und Drag-and-drop. Bewerberbestätigungen, E-Mails bei Statuswechseln und getrennte Kundenbereiche für die gemeinsame Bewerberverwaltung sind enthalten.",
-    painPoints: [
-      {
-        title: "Modulare Add-ons statt Festpreis",
-        text: "Perspective Base kostet 59 € pro Monat (47 € bei Jahreszahlung). Automatische Bewerbermails, Status-Auslöser und Workspaces sind bereits enthalten. Zusätzliche Premium-Funktionen gibt es über höhere Pläne oder Add-ons. Trichterwerk Pro kostet 49 € pro Monat; die Unterschiede bei Bewerbermails und Kundenbereichen siehst du in der Tabelle.",
-      },
-      {
-        title: "Funnel- und Lead-Limits je Plan",
-        text: "Base enthält 2 Live-Funnels und 100 Leads pro Monat; jeder weitere Lead kostet 0,25 €. Wer erfolgreich Kampagnen fährt, zahlt also pro Erfolg mit. Bei Trichterwerk sind Funnels und Leads unbegrenzt — der Preis bleibt gleich.",
-      },
-      {
-        title: "A/B-Tests im Tarifvergleich",
-        text: "Bei Perspective sind A/B-Tests ab Grow inklusive und im Base-Plan über das Advanced-Metrics-Add-on erhältlich. Trichterwerk hat sie im 49-€-Pro-Plan eingebaut: Zwei Seiten-Varianten gegeneinander testen und datenbasiert entscheiden.",
-      },
-    ],
-    comparisonRows: [
-      { label: "Deutsche Oberfläche & Support", trichterwerk: true, competitor: true },
-      { label: "Live-Handy-Vorschau im Editor", trichterwerk: true, competitor: true },
-      { label: "Conditional Logic & Quiz", trichterwerk: true, competitor: true },
-      { label: "A/B-Tests", trichterwerk: true, competitor: "ab Grow inklusive; Base mit Add-on" },
+  }),
+  "perspective-alternative": comparisonPage({
+    slug: "perspective-alternative", name: "Perspective", evidence: comparisonEvidence.perspective,
+    intro: "Perspective verbindet mobile Funnels mit Kontaktverwaltung, Auswertung und E-Mails. Für einen Vergleich sind die Anzahl aktiver Funnels und die Zusammenarbeit mit Kunden besonders relevant.",
+    consideration: "Prüfe Funnel- und Lead-Kontingente sowie die Rechte deiner Kunden. Ein Workspace mit Zugriff auf den Editor erfüllt einen anderen Zweck als ein freigegebenes Bewerberboard.",
+    rows: [
+      { label: "Veröffentlichte Funnels", trichterwerk: "Pro: unbegrenzt", competitor: "Base: 2; Grow: 10" },
+      { label: "Leads", trichterwerk: "Pro: unbegrenzt", competitor: "Base: 100 / Monat; Mehrverbrauch wird berechnet" },
+      { label: "A/B-Tests", trichterwerk: "In Pro enthalten", competitor: "Erste Seite: ab Grow; Base mit Advanced-Metrics-Add-on" },
       ...recruitingCapabilities.map(({ label, comparison, id }) => ({
-        label,
-        trichterwerk: comparison,
-        competitor: id === "domains"
-          ? "Unbegrenzte Domains ab Base"
-          : id === "kanban"
-            ? "Ja, mit eigenen Statusstufen und Drag-and-drop"
-            : "Ja, ab Base",
+        label, trichterwerk: comparison,
+        competitor: id === "domains" ? "Unbegrenzte Domains ab Base"
+          : id === "kanban" ? "Ab Base, mit eigenen Statusstufen"
+          : id === "customer-workspace" ? "Unbegrenzte Workspaces ab Base; Rollen prüfen"
+          : "Ab Base enthalten",
       })),
-      { label: "Unbegrenzte Funnels & Leads", trichterwerk: true, competitor: "Tarifabhängige Funnel- und Lead-Limits" },
-      { label: "Analytics eingebaut (cookieless)", trichterwerk: true, competitor: true },
-      { label: "Setup-Zeit bis Launch", trichterwerk: "< 1 h", competitor: "1–2 h" },
-      { label: "Monatspreis", trichterwerk: "Pro: 49 €", competitor: "ab 59 € + optionale Add-ons" },
+      { label: "Tarifbeispiel", trichterwerk: comparisonPrices.trichterwerk, competitor: comparisonPrices.perspective },
     ],
-    featureSections: [
-      {
-        title: "Mobile-First — genau wie Perspective",
-        text: "Trichterwerk ist von Grund auf für mobile Besucher gebaut: Jeder Funnel wird automatisch fürs Smartphone optimiert, der Editor zeigt dir die Handy-Vorschau live beim Bauen. Perfekt für Traffic aus Instagram, TikTok und Meta Ads.",
-      },
-      {
-        title: "A/B-Tests inklusive — ohne Plan-Upgrade",
-        text: "Bei Perspective ist A/B-Testing ab Grow inklusive und im Base-Plan über das Advanced-Metrics-Add-on erhältlich. Trichterwerk bringt A/B-Tests im 49-€-Pro-Plan mit: Teste zwei Varianten einer Seite gegeneinander und finde heraus, welche Headline, welches Bild oder welches Angebot mehr Leads bringt — ohne Aufpreis.",
-      },
-      {
-        title: "Das ist in Trichterwerk Pro enthalten",
-        text: "Für 49 € pro Monat erhältst du unbegrenzte Funnels und Leads, Templates und Elemente, Conditional Logic, Analytics, eigene Domains, Webhooks und das Kanban-Board. E-Mail-Benachrichtigungen informieren dich als Betreiber über neue Leads. Automatische Bewerberbestätigungen, Status-Mails und getrennte Kundenbereiche sind ebenfalls enthalten. Kunden können freigegebene Bewerbungen ansehen und ihren Status ändern; Editor und Mailregeln bleiben beim Betreiber.",
-      },
-      {
-        title: "EU-Hosting und Datenschutzfunktionen",
-        text: privacyProductSummary,
-      },
+    pricing: "Perspective Base kostet bei Monatszahlung 59 € pro Monat netto, bei jährlicher Abrechnung rechnerisch 47 € pro Monat netto. Die Mehrwertsteuer kommt hinzu. Höhere Kontingente, optionale Add-ons und Mehrverbrauch können den Gesamtpreis verändern.",
+    fit: "Wenn deine Abläufe mehrere Teamrollen oder eine bestimmte Kombination aus Funnel-, Messaging- und Integrationsfunktionen benötigen, teste diese direkt bei Perspective. In Trichterwerk geben Kundenbereiche Zugriff auf zugeordnete Bewerberboards und Statusänderungen; Editor, Mailregeln und Abrechnung verwaltest du als Betreiber.",
+    relatedSlugs: ["heyflow-alternative", "meetovo-alternative", "funnelcockpit-alternative"],
+  }),
+  "clickfunnels-alternative": comparisonPage({
+    slug: "clickfunnels-alternative", name: "ClickFunnels", evidence: comparisonEvidence.clickfunnels,
+    intro: "ClickFunnels bündelt Funnel-Erstellung mit weiteren Funktionen für den Online-Vertrieb, darunter Kurse und E-Mail-Marketing. Entscheidend ist, welche Teile dieses Pakets du für dein Geschäftsmodell brauchst.",
+    consideration: "Trenne Lead-Gewinnung, Verkauf, Kursauslieferung und E-Mail-Kampagnen in deiner Anforderungsliste. Prüfe für jeden Schritt Funktionsumfang und Kontingente des gewählten Plans.",
+    rows: [
+      { label: "Schwerpunkt", trichterwerk: "Lead- und Bewerbungsfunnels", competitor: "Funnels, Online-Vertrieb und Kurse" },
+      { label: "Eigene Domains", trichterwerk: "In Pro enthalten", competitor: "Launch: 5" },
+      { label: "Kontaktumfang", trichterwerk: "Pro: unbegrenzte Leads", competitor: "Launch: 10.000 Kontakte" },
+      { label: "Tarifbeispiel", trichterwerk: comparisonPrices.trichterwerk, competitor: "Launch: 97 USD / Monat bei Monatszahlung; Steuern im Checkout prüfen" },
     ],
-    pricingComparison: {
-      title: "Preisvergleich: Perspective vs. Trichterwerk",
-      text: [
-        "Perspective startet mit dem Base-Plan bei 59 € pro Monat (47 € bei Jahreszahlung) — bewusst schlank: 2 Live-Funnels und 100 Leads pro Monat sind enthalten, jeder weitere Lead kostet 0,25 €. Erweiterungen gibt es als Add-on-Suiten für 67–84 € monatlich; die größeren Pläne Grow und Expand liegen bei 184 € bzw. 369 € pro Monat.",
-        "Trichterwerk kostet 0 € im Free-Plan (1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar, alle Editor-Features) und 49 € pro Monat inklusive Mehrwertsteuer im Pro-Plan. Pro umfasst unbegrenzte Funnels und Leads, Domains und A/B-Tests. Monatlich kündbar, 14 Tage Pro ohne Kreditkarte. Bewerbermails, Status-Automationen und getrennte Kundenbereiche sind in Pro enthalten.",
-      ],
-    },
-    honestSection: {
-      title: "Prüfe deinen Kundenprozess vor dem Wechsel",
-      text: "Trichterwerk-Kundenbereiche geben deinen Kunden Zugriff auf freigegebene Bewerberboards und Statusänderungen. Editor, Mailregeln und Abrechnung bleiben bei dir. Automatische Nachrichten werden pro Bewerbung und Regel höchstens einmal vorgemerkt; der Versand nutzt Trichterwerk mit deiner bestätigten E-Mail als Antwortadresse. Prüfe diese Abläufe während der Pro-Testphase an einem eigenen Testfunnel.",
-    },
-    migrationSteps: [
-      {
-        title: "Funnel-Struktur übernehmen",
-        text: "Seiten und Fragen deines Perspective-Funnels in einem Trichterwerk-Template nachbauen — die Element-Typen (Text, Bild, Formular, Quiz-Fragen, Slider) sind vergleichbar.",
-      },
-      {
-        title: "Design & Domain anpassen",
-        text: "Farben und Logo hinterlegen, eigene Domain per CNAME verbinden — SSL wird automatisch eingerichtet. Die Mobile-Vorschau zeigt dir sofort, wie der Funnel beim Besucher aussieht.",
-      },
-      {
-        title: "Traffic umleiten & testen",
-        text: "Ads auf die neue Funnel-URL zeigen lassen, Leads laufen ab sofort in Trichterwerk auf. Tipp: Direkt einen A/B-Test aufsetzen — bei Trichterwerk ohne Plan-Upgrade inklusive.",
-      },
+    pricing: "ClickFunnels weist Launch mit 97 USD pro Monat bei monatlicher Zahlung aus. Jahreszahlung und weitere Pläne werden separat angeboten. Prüfe Steuern und die Bedingungen zeitlich begrenzter Aktionen beim Anbieter.",
+    fit: "ClickFunnels kann passen, wenn du neben der Lead-Gewinnung auch Kurse oder weitere Verkaufsabläufe im selben System betreiben möchtest. Prüfe diese Funktionen im gewünschten Tarif, bevor du einen reinen Preisvergleich ziehst.",
+    relatedSlugs: ["systeme-io-alternative", "funnelcockpit-alternative", "perspective-alternative"],
+  }),
+  "funnelcockpit-alternative": comparisonPage({
+    slug: "funnelcockpit-alternative", name: "FunnelCockpit", evidence: comparisonEvidence.funnelcockpit,
+    intro: "FunnelCockpit bietet Websites, Funnels und Mitgliederbereiche in einem Paket. Für deine Auswahl zählen die Anzahl der Projekte und die zusätzlichen Aufgaben, die du damit abdecken möchtest.",
+    consideration: "Definiere, ob du Anfragen sammeln, Inhalte für Mitglieder bereitstellen oder mehrere Websites betreiben möchtest. Die Zahl der Projekte ist nicht automatisch mit der Zahl einzelner Funnel-Seiten gleichzusetzen.",
+    rows: [
+      { label: "Schwerpunkt", trichterwerk: "Lead- und Bewerbungsfunnels", competitor: "Websites, Funnels und Mitgliederbereiche" },
+      { label: "Projektumfang", trichterwerk: "Pro: unbegrenzte Funnels", competitor: "Lite: 5 Projekte" },
+      { label: "Seiten", trichterwerk: "Mehrstufige Funnels", competitor: "Unbegrenzt laut Tarifübersicht" },
+      { label: "Tarifbeispiel", trichterwerk: comparisonPrices.trichterwerk, competitor: "Lite: 47 € / Monat bei Monatszahlung; Steuerstatus im Checkout prüfen" },
     ],
-    faqs: [
-      {
-        q: "Was kostet Perspective im Vergleich zu Trichterwerk?",
-        a: "Perspective startet im Base-Plan bei 59 € pro Monat (47 € bei Jahreszahlung) mit 2 Live-Funnels und 100 Leads pro Monat. Bewerberbestätigungen, Status-Mails und Workspaces sind bereits ab Base enthalten. Trichterwerk Pro kostet 49 € pro Monat mit unbegrenzten Funnels und Leads, Domains, A/B-Tests, Bewerberbestätigungen, Status-Mails und getrennten Kundenbereichen für Bewerberboards.",
-      },
-      {
-        q: "Welche Datenschutzfunktionen bietet Trichterwerk?",
-        a: privacyProductSummary,
-      },
-      {
-        q: "Hat Trichterwerk auch Mobile-Funnels?",
-        a: "Ja — Mobile-First ist der Kern: Jeder Funnel wird automatisch für Smartphones optimiert, mit Live-Handy-Vorschau im Editor. Ideal für Traffic aus Social Ads.",
-      },
-      {
-        q: "Kann ich meinen Perspective-Funnel importieren?",
-        a: "Einen automatischen Import gibt es nicht, aber die Struktur (Seiten, Fragen, Formulare) ist in unter einer Stunde nachgebaut. Deine Bestands-Leads exportierst du bei Perspective als CSV.",
-      },
-      {
-        q: "Für wen eignet sich Trichterwerk als Perspective-Alternative?",
-        a: "Für Nutzer, die mobile Funnels, unbegrenzte Leads, eigene Domains und A/B-Tests für 49 € pro Monat suchen. In Pro kannst du außerdem Bewerbungen in eigenen Spalten verwalten, Bestätigungen und Status-Mails automatisieren und ausgewählte Bewerberboards mit Kunden teilen.",
-      },
-      ...recruitingFaqs,
+    pricing: "FunnelCockpit nennt für Lite 47 € pro Monat bei monatlicher Abrechnung nach dem Testzeitraum. Auf der ausgewerteten Preisseite ist die steuerliche Einordnung dieses Betrags nicht eindeutig; prüfe den Endpreis im Checkout. Eine Testaktion ist kein regulärer Monatspreis.",
+    fit: "Wenn Mitgliederbereiche und Websites zu deinem Vorhaben gehören, beziehe diese Funktionen in den Test von FunnelCockpit ein. Für einen Vergleich mit Trichterwerk solltest du den benötigten Lead-Prozess getrennt bewerten.",
+    relatedSlugs: ["clickfunnels-alternative", "systeme-io-alternative", "onepage-alternative"],
+  }),
+  "heyflow-alternative": comparisonPage({
+    slug: "heyflow-alternative", name: "Heyflow", evidence: comparisonEvidence.heyflow,
+    intro: "Heyflow bietet interaktive Funnels mit bedingter Logik und CRM-Anbindungen. Die Tarifauswahl unterscheidet unter anderem nach Antwortvolumen, Funnel-Anzahl und Funktionspaketen.",
+    consideration: "Lege fest, wie viele Antworten du erwartest und welche Integrationen du benötigst. Prüfe anschließend, welches Paket deine Anforderungen einschließlich Gestaltung und Tests abdeckt.",
+    rows: [
+      { label: "Verzweigungen", trichterwerk: "In Pro enthalten", competitor: "Advanced Conditional Logic im Starter-Plan" },
+      { label: "Antwortumfang", trichterwerk: "Pro: unbegrenzte Leads", competitor: "Starter: 50 Antworten / Monat" },
+      { label: "Funnel-Anzahl", trichterwerk: "Pro: unbegrenzt", competitor: "Starter: 5 Funnels" },
+      { label: "A/B-Tests", trichterwerk: "In Pro enthalten", competitor: "Im Scale-Plan aufgeführt" },
+      { label: "Tarifauswahl", trichterwerk: comparisonPrices.trichterwerk, competitor: "Preis nach Tarif, Laufzeit und Kontingenten; zzgl. MwSt." },
     ],
-    relatedSlugs: ["typeform-alternative", "clickfunnels-alternative"],
-  },
-
-  "clickfunnels-alternative": {
-    slug: "clickfunnels-alternative",
-    competitorName: "ClickFunnels",
-    metaTitle: "ClickFunnels-Alternative auf Deutsch – mit EU-Hosting",
-    metaDescription:
-      "ClickFunnels-Alternative für den DACH-Raum: Trichterwerk — deutscher Funnel-Builder, EU-Hosting, Gratis-Plan, Pro 49 €/Monat statt 97 $+.",
-    h1: "Die ClickFunnels-Alternative auf Deutsch: mit EU-Hosting und ohne Dollar-Abo",
-    intro: [
-      "ClickFunnels hat den Begriff „Funnel“ geprägt und ist im US-Markt der Platzhirsch. Für Nutzer aus Deutschland, Österreich und der Schweiz gibt es aber handfeste Probleme: englische Oberfläche, Abrechnung in US-Dollar ab rund 97 $ pro Monat — und ein Funktionsumfang, der auf US-Infoprodukt-Marketing zugeschnitten ist.",
-      "Trichterwerk ist die Alternative für den DACH-Raum: ein deutscher Funnel-Builder mit EU-Hosting, deutscher Oberfläche und deutschem Support — für 49 € im Monat. Fokussiert auf das, was Coaches, Berater, Dienstleister und Recruiter hier wirklich brauchen: Leads sammeln, qualifizieren, konvertieren.",
-    ],
-    verdict:
-      "Kurz gesagt: Wenn du Funnels für den deutschsprachigen Markt baust und Wert auf eine deutsche Oberfläche und kalkulierbare Euro-Preise legst, ist Trichterwerk die passende ClickFunnels-Alternative — für etwa die Hälfte des Preises. Free-Plan dauerhaft kostenlos, 14 Tage Pro ohne Kreditkarte.",
-    painPoints: [
-      {
-        title: "Datenverarbeitung und Integrationen prüfen",
-        text: privacyComparisonSummary,
-      },
-      {
-        title: "Englische Oberfläche, englischer Support",
-        text: "Editor, Vorlagen und Support sind bei ClickFunnels englisch, die Templates auf US-Marketing-Sprache getrimmt. Trichterwerk ist komplett deutsch — inklusive Templates, die für den DACH-Markt geschrieben sind.",
-      },
-      {
-        title: "Dollar-Preise ab ca. 97 $ pro Monat",
-        text: "ClickFunnels startet bei rund 97 $ monatlich, abgerechnet in US-Dollar mit Wechselkursrisiko. Trichterwerk kostet 49 € — transparent, in Euro, mit deutscher Rechnung und ausgewiesener Mehrwertsteuer.",
-      },
-      {
-        title: "Überladen für den typischen Anwendungsfall",
-        text: "Kurse, Communities, E-Mail-Automationen, Affiliate-Center — ClickFunnels will eine All-in-One-Plattform sein. Wer „nur“ konvertierende Lead-Funnels braucht, zahlt für viel Ballast mit. Trichterwerk konzentriert sich auf den Funnel.",
-      },
-    ],
-    comparisonRows: [
-      { label: "Deutsche Oberfläche & Support", trichterwerk: true, competitor: false },
-      { label: "Abrechnung in Euro (inkl. MwSt.-Ausweis)", trichterwerk: true, competitor: false },
-      { label: "Live-Handy-Vorschau im Editor", trichterwerk: true, competitor: "eingeschränkt" },
-      { label: "Conditional Logic & Quiz", trichterwerk: true, competitor: "eingeschränkt" },
-      { label: "A/B-Tests", trichterwerk: true, competitor: true },
-      { label: "Eigene Domain inklusive", trichterwerk: true, competitor: true },
-      { label: "Kurs-/Membership-Funktionen", trichterwerk: false, competitor: true },
-      { label: "Setup-Zeit bis Launch", trichterwerk: "< 1 h", competitor: "mehrere Stunden" },
-      { label: "Monatspreis", trichterwerk: "49 €, alles inklusive", competitor: "ab ca. 97 $" },
-    ],
-    featureSections: [
-      {
-        title: "Gebaut für den DACH-Markt",
-        text: "Deutsche Oberfläche, deutsche Vorlagen und Support per E-Mail. Anwendung und zentrale Datenbank werden in der EU gehostet. Für die Datenschutzbewertung gehören auch der AVV, die Verarbeitung im eigenen Funnel und aktivierte Integrationen dazu.",
-      },
-      {
-        title: "Mobile-First statt Desktop-Denke",
-        text: "ClickFunnels stammt aus der Desktop-Ära der Sales-Letter-Seiten. Trichterwerk ist für den heutigen Traffic gebaut: mobile Besucher aus Instagram, TikTok und Meta Ads, die in mehrstufigen, schnellen Funnels konvertieren.",
-      },
-      {
-        title: "Qualifizierung mit Logik statt langer Salespages",
-        text: "Mit Conditional Logic, Quiz-Fragen und mehrstufigen Formularen qualifizierst du Interessenten Schritt für Schritt — die im DACH-Raum bewährte Alternative zur US-typischen Longform-Salespage.",
-      },
-      {
-        title: "A/B-Tests und Analytics eingebaut",
-        text: "Wie ClickFunnels kann Trichterwerk A/B-Tests — dazu Live-Analytics mit Views, Conversions und Drop-offs pro Seite, ohne Google Analytics. Leads gehen per CSV, Webhook oder Zapier/Make in dein CRM.",
-      },
-    ],
-    pricingComparison: {
-      title: "Preisvergleich: ClickFunnels vs. Trichterwerk",
-      text: [
-        "ClickFunnels startet bei rund 97 $ pro Monat (Jahreszahlung teils günstiger), abgerechnet in US-Dollar. Vergleiche auch die enthaltenen Funktionen und mögliche Kosten zusätzlicher Dienste.",
-        "Trichterwerk kostet 0 € im Free-Plan (1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar) und 49 € pro Monat inklusive Mehrwertsteuer im Pro-Plan — alle Features, unbegrenzte Funnels und Leads, monatlich kündbar, 14 Tage Pro ohne Kreditkarte. Das ist ungefähr die Hälfte, ohne Wechselkursrisiko und mit deutscher Rechnung.",
-      ],
-    },
-    honestSection: {
-      title: "Wann ClickFunnels trotzdem die bessere Wahl ist",
-      text: "Ehrlich verglichen: Wer eine All-in-One-Plattform mit Online-Kursen, Membership-Bereichen, E-Mail-Automationen und Affiliate-Programm sucht — und primär den englischsprachigen Markt bedient — bekommt bei ClickFunnels ein riesiges Ökosystem. Für fokussierte Lead- und Verkaufs-Funnels im DACH-Raum ist Trichterwerk die schlankere, günstigere und rechtssichere Wahl.",
-    },
-    migrationSteps: [
-      {
-        title: "Funnel-Logik übertragen",
-        text: "Die Seitenstruktur deines ClickFunnels-Funnels (Optin → Qualifizierung → Kontakt → Danke) mit einem Trichterwerk-Template nachbauen — Texte übersetzen bzw. übernehmen.",
-      },
-      {
-        title: "Domain & Design umziehen",
-        text: "Deine Funnel-Domain per CNAME auf Trichterwerk zeigen lassen, Farben und Logo hinterlegen. SSL wird automatisch eingerichtet — meist in wenigen Minuten.",
-      },
-      {
-        title: "Leads sichern & live gehen",
-        text: "Bestehende Kontakte bei ClickFunnels als CSV exportieren, neuen Funnel veröffentlichen, Ads umstellen. Neue Leads laufen mit EU-Hosting in deinem Trichterwerk-Dashboard auf.",
-      },
-    ],
-    faqs: [
-      {
-        q: "Worauf kommt es beim Datenschutzvergleich an?",
-        a: privacyComparisonSummary,
-      },
-      {
-        q: "Gibt es eine deutsche Alternative zu ClickFunnels?",
-        a: "Ja: Trichterwerk ist ein deutscher Funnel-Builder — deutsche Oberfläche, deutsche Templates, deutscher Support, Euro-Preise, EU-Hosting. Für 49 € pro Monat mit allen Features.",
-      },
-      {
-        q: "Was kostet ClickFunnels im Vergleich?",
-        a: "ClickFunnels startet bei rund 97 $ pro Monat, Trichterwerk kostet 49 € pro Monat — ungefähr die Hälfte, inklusive unbegrenzter Funnels, Leads und aller Features.",
-      },
-      {
-        q: "Kann Trichterwerk auch Online-Kurse und Memberships?",
-        a: "Nein — Trichterwerk konzentriert sich bewusst auf Funnels zur Lead-Generierung und Qualifizierung. Für Kurse kombinierst du es einfach per Webhook/Zapier mit deiner Kursplattform.",
-      },
-      {
-        q: "Für wen lohnt sich der Wechsel von ClickFunnels?",
-        a: "Für alle, die im deutschsprachigen Raum Leads generieren: Coaches, Berater, Agenturen, Dienstleister und Recruiter. Vergleiche dafür Funktionen, Gesamtkosten und die Anforderungen deines eigenen Einsatzes.",
-      },
-    ],
-    relatedSlugs: ["typeform-alternative", "perspective-alternative"],
-  },
-  "funnelcockpit-alternative": {
-    slug: "funnelcockpit-alternative",
-    competitorName: "FunnelCockpit",
-    metaTitle: "FunnelCockpit-Alternative: schlank statt überladen",
-    metaDescription:
-      "FunnelCockpit-Alternative gesucht? Trichterwerk: moderner deutscher Funnel-Builder mit Gratis-Plan, Pro 49 €/Monat. 14 Tage Pro testen, ohne Kreditkarte.",
-    h1: "Die FunnelCockpit-Alternative: moderner Editor, echter Gratis-Plan, günstigerer Einstieg",
-    intro: [
-      "FunnelCockpit ist eines der bekanntesten deutschen Funnel-Tools und bringt eine beeindruckende Funktionsliste mit: Funnels, VideoCockpit, SplitTests, Mitgliederbereiche, E-Mail-Marketing. Wer schnell starten will, merkt aber schnell, dass genau das der Haken ist — die Oberfläche wirkt vollgepackt und in Teilen altbacken, und man klickt sich durch viele Menüs, bevor die erste Seite steht.",
-      "Trichterwerk geht den umgekehrten Weg: ein moderner, schlanker Drag-&-Drop-Editor, der genau eine Sache richtig gut macht — konvertierende Funnels bauen. Dazu ein dauerhaft kostenloser Plan statt eines Test-Zugangs für 1 €, und ein Pro-Plan für 49 € im Monat inklusive Mehrwertsteuer mit unbegrenzten Funnels und Leads.",
-    ],
-    verdict:
-      "Kurz gesagt: Wenn dich FunnelCockpits Funktionsfülle eher bremst als beflügelt, bekommst du mit Trichterwerk einen aufgeräumten Editor, einen echten Gratis-Plan und Pro für 49 € statt 97 € — deutsch, mit EU-Hosting, ohne Kreditkarte startbar.",
-    painPoints: [
-      {
-        title: "Überladene Oberfläche, altbackenes Gefühl",
-        text: "VideoCockpit, SplitTests, Mailings, Mitgliederbereiche — FunnelCockpit will alles können und zeigt das auch in der Oberfläche. Viele Nutzer beschreiben den Editor als vollgepackt und in die Jahre gekommen. Trichterwerk setzt auf einen modernen Editor mit Live-Handy-Vorschau: Du siehst beim Bauen, was der Besucher später sieht.",
-      },
-      {
-        title: "Kein Free-Plan — nur ein Testzeitraum für 1 €",
-        text: "FunnelCockpit lässt dich 14 Tage für 1 € testen, danach beginnt das Abo. Einen dauerhaft kostenlosen Plan gibt es nicht. Bei Trichterwerk bleibt der Free-Plan dauerhaft kostenlos: 1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar, alle Editor-Features — ohne Kreditkarte, ohne Ablaufdatum.",
-      },
-      {
-        title: "Einstieg ab 47 €, echte Nutzung schnell teurer",
-        text: "Lite kostet 47 € pro Monat, Standard 97 €, Business 297 €. Wer mehrere Funnels, Teamzugänge oder die volle Funktionsbreite braucht, landet also schnell im dreistelligen Bereich. Trichterwerk Pro kostet 49 € inklusive MwSt. — mit unbegrenzten Funnels, unbegrenzten Leads und allen Features.",
-      },
-      {
-        title: "Viel Funktion, die du gar nicht brauchst",
-        text: "Ein Funnel-Tool, das gleichzeitig Videoplattform, Mailsystem und Kursbereich sein will, bezahlst du mit — auch wenn du nur Leads sammeln willst. Trichterwerk fokussiert sich auf den Funnel und verbindet den Rest per Webhook mit deinem CRM oder E-Mail-Tool (Zapier- und Make-kompatibel).",
-      },
-    ],
-    comparisonRows: [
-      { label: "Deutsche Oberfläche & Support", trichterwerk: true, competitor: true },
-      { label: "Dauerhaft kostenloser Plan", trichterwerk: "1 Funnel, 100 Leads/Monat", competitor: "nur 14 Tage für 1 €" },
-      { label: "Moderner, aufgeräumter Editor", trichterwerk: true, competitor: "sehr funktionsreich, unübersichtlich" },
-      { label: "Live-Handy-Vorschau im Editor", trichterwerk: true, competitor: "eingeschränkt" },
-      { label: "A/B-Tests", trichterwerk: true, competitor: true },
-      { label: "Conditional Logic & Quiz", trichterwerk: true, competitor: true },
-      { label: "KI-Funnel-Generator", trichterwerk: true, competitor: false },
-      { label: "Video-Hosting & Mitgliederbereiche", trichterwerk: false, competitor: true },
-      { label: "Monatspreis", trichterwerk: "0 € oder 49 € inkl. MwSt.", competitor: "47 € / 97 € / 297 €" },
-    ],
-    featureSections: [
-      {
-        title: "Ein Editor, der nicht im Weg steht",
-        text: "Blöcke per Drag & Drop setzen, Text direkt auf der Seite bearbeiten, Handy-Vorschau live daneben. Kein Wechsel zwischen einem Dutzend Modulen, kein Suchen nach der richtigen Einstellung — die erste Seite steht in Minuten, nicht in einem Nachmittag.",
-      },
-      {
-        title: "Free-Plan, der wirklich frei ist",
-        text: "Alle Editor-Features, 1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar — dauerhaft und ohne Kreditkarte. Einzige Einschränkung: Das Trichterwerk-Badge bleibt sichtbar. Damit kannst du deinen Funnel echt live testen, bevor du dich für Pro entscheidest.",
-      },
-      {
-        title: "13 deutsche Vorlagen statt Baukasten von Null",
-        text: "Recruiting, Beratung, Handwerk, Coaching, Immobilien und mehr: Die Vorlagen sind auf Deutsch geschrieben und für den DACH-Markt gedacht — inklusive sinnvoller Qualifizierungsfragen. Anpassen, Logo tauschen, live gehen.",
-      },
-      {
-        title: "A/B-Tests und eigene Analytics",
-        text: "SplitTests kennst du von FunnelCockpit — Trichterwerk kann das ebenfalls, im Pro-Plan ohne Aufpreis. Dazu eigene Analytics: Views, Conversions und Drop-offs pro Seite, ganz ohne Google Analytics.",
-      },
-      {
-        title: "Leads dorthin, wo du sie brauchst",
-        text: "CSV-Export mit einem Klick, Webhooks für jedes CRM, kompatibel mit Zapier und Make. Statt alles in einem Tool zu halten, verbindest du deine bestehende Software — und behältst die Kontrolle über deine Daten.",
-      },
-    ],
-    pricingComparison: {
-      title: "Preisvergleich: FunnelCockpit vs. Trichterwerk",
-      text: [
-        "FunnelCockpit bietet drei Stufen: Lite für 47 €, Standard für 97 € und Business für 297 € pro Monat. Testen kannst du 14 Tage für 1 € — einen dauerhaft kostenlosen Plan gibt es nicht, das Abo läuft nach dem Test weiter.",
-        "Trichterwerk startet bei 0 €: Der Free-Plan ist dauerhaft kostenlos mit 1 veröffentlichten Funnel und 100 sichtbaren Leads pro Monat. Pro kostet 49 € pro Monat inklusive Mehrwertsteuer — unbegrenzte Funnels und Leads, eigene Domain mit SSL, Teams, KI-Generator, A/B-Tests, Badge entfernbar. 14 Tage Pro testen, ohne Kreditkarte.",
-      ],
-    },
-    honestSection: {
-      title: "Wann FunnelCockpit trotzdem die bessere Wahl ist",
-      text: "Ehrlich verglichen: FunnelCockpit ist eine echte All-in-One-Suite. Wer Video-Hosting, E-Mail-Marketing, Mitgliederbereiche und Funnels bewusst unter einem Dach haben will und bereit ist, sich in ein umfangreiches System einzuarbeiten, bekommt dort sehr viel Funktion für sein Geld. Wenn du aber vor allem schnell konvertierende Funnels bauen willst, ist Trichterwerk der direktere Weg.",
-    },
-    migrationSteps: [
-      {
-        title: "Funnel-Struktur übernehmen",
-        text: "Seiten, Fragen und Formularfelder deines FunnelCockpit-Funnels in eine passende Trichterwerk-Vorlage übertragen. Wahlweise beschreibst du dein Angebot dem KI-Generator und bekommst einen Entwurf, den du nur noch schärfst.",
-      },
-      {
-        title: "Design & Domain umziehen",
-        text: "Farben, Logo und Schriften hinterlegen, dann deine Domain per CNAME verbinden — SSL wird automatisch eingerichtet. Im Pro-Plan verschwindet das Trichterwerk-Badge.",
-      },
-      {
-        title: "Leads sichern & live gehen",
-        text: "Bestehende Kontakte bei FunnelCockpit exportieren, Webhook zu deinem CRM einrichten, neuen Funnel veröffentlichen und Ads bzw. Links umstellen. Danach kannst du das alte Abo kündigen.",
-      },
-    ],
-    faqs: [
-      {
-        q: "Was kostet FunnelCockpit im Vergleich zu Trichterwerk?",
-        a: "FunnelCockpit kostet 47 € (Lite), 97 € (Standard) oder 297 € (Business) pro Monat, testbar für 14 Tage à 1 €. Trichterwerk hat einen dauerhaft kostenlosen Free-Plan und Pro für 49 € pro Monat inklusive Mehrwertsteuer — mit unbegrenzten Funnels und Leads.",
-      },
-      {
-        q: "Gibt es eine kostenlose FunnelCockpit-Alternative?",
-        a: "Ja. Der Free-Plan von Trichterwerk ist dauerhaft kostenlos: 1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar, alle Editor-Features, keine Kreditkarte nötig. Nur das Trichterwerk-Badge bleibt sichtbar.",
-      },
-      {
-        q: "Kann Trichterwerk auch SplitTests wie FunnelCockpit?",
-        a: "Ja. A/B-Tests sind im Pro-Plan enthalten: Du testest zwei Varianten einer Seite gegeneinander und siehst in den eingebauten Analytics, welche mehr Leads bringt — ohne Google Analytics.",
-      },
-      {
-        q: "Kann ich meinen FunnelCockpit-Funnel importieren?",
-        a: "Einen automatischen Import gibt es nicht. Mit den 13 deutschen Vorlagen und dem KI-Generator ist ein typischer Funnel aber meist in unter einer Stunde nachgebaut. Deine Leads exportierst du vorher als CSV.",
-      },
-      {
-        q: "Hat Trichterwerk auch Video-Hosting und Mitgliederbereiche?",
-        a: "Nein — das ist bewusst so. Trichterwerk konzentriert sich auf Funnels zur Lead-Generierung und Qualifizierung. Kurse, Mailings oder Videoplattformen verbindest du per Webhook, Zapier oder Make mit deinen bestehenden Tools.",
-      },
-      {
-        q: "Welche Datenschutzfunktionen bietet Trichterwerk?",
-        a: privacyProductSummary,
-      },
-    ],
-    relatedSlugs: ["heyflow-alternative", "perspective-alternative", "onepage-alternative"],
-  },
-
-  "heyflow-alternative": {
-    slug: "heyflow-alternative",
-    competitorName: "Heyflow",
-    metaTitle: "Heyflow-Alternative: unbegrenzte Leads für 49 €",
-    metaDescription:
-      "Heyflow-Alternative ohne Lead-Staffel: Trichterwerk bietet unbegrenzte Leads für 49 €/Monat, deutschen Support und einen dauerhaften Gratis-Plan.",
-    h1: "Die Heyflow-Alternative: unbegrenzte Leads zum Festpreis statt Bezahlen pro Erfolg",
-    intro: [
-      "Heyflow aus Hamburg baut sehr saubere, interaktive Flows und ist bei Performance-Marketing-Teams beliebt. Der Haken für kleinere Unternehmen: Das Preismodell skaliert mit den generierten Leads. Die Pläne liegen etwa zwischen 45 und 359 USD pro Monat, ein dauerhaft kostenloser Plan fehlt — es gibt nur einen Testzeitraum. Wer erfolgreich Kampagnen fährt, zahlt also mit jedem zusätzlichen Lead mehr.",
-      "Trichterwerk dreht das um: Im Pro-Plan für 49 € im Monat inklusive Mehrwertsteuer sind Funnels und Leads unbegrenzt. Dazu ein dauerhaft kostenloser Free-Plan zum Ausprobieren, deutsche Oberfläche, deutscher Support und Preise in Euro statt Dollar.",
-    ],
-    verdict:
-      "Kurz gesagt: Wenn dein Funnel funktioniert, willst du nicht dafür bestraft werden. Trichterwerk kostet 49 € pro Monat mit unbegrenzten Leads — egal ob 100 oder 10.000. Free-Plan dauerhaft kostenlos, 14 Tage Pro ohne Kreditkarte.",
-    painPoints: [
-      {
-        title: "Lead-basierte Bepreisung — Erfolg macht teuer",
-        text: "Heyflows Pläne staffeln sich nach den über die Flows generierten Leads. Genau dann, wenn eine Kampagne läuft, steigt die Rechnung — planbar ist das kaum. Bei Trichterwerk sind Leads im Pro-Plan unbegrenzt: 49 € pro Monat, unabhängig vom Volumen.",
-      },
-      {
-        title: "Kein Free-Plan, nur ein Trial",
-        text: "Heyflow bietet einen Testzeitraum, aber keinen dauerhaft kostenlosen Plan. Wer nur einen Funnel dauerhaft laufen lassen will, muss zahlen. Trichterwerk hat einen echten Free-Plan: 1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar, alle Editor-Features, ohne Kreditkarte.",
-      },
-      {
-        title: "Preise in Dollar, Ausrichtung Richtung Enterprise",
-        text: "Die Pläne bewegen sich etwa zwischen 45 und 359 USD pro Monat, das Pricing ist englisch geprägt und auf größere Ads- und Enterprise-Teams zugeschnitten. Für Selbstständige, Handwerksbetriebe oder kleine Agenturen ist das oft mehrere Nummern zu groß. Trichterwerk rechnet in Euro ab, mit deutscher Rechnung und ausgewiesener MwSt.",
-      },
-      {
-        title: "Volle Stärke erst mit Marketing-Team",
-        text: "Heyflow spielt seine Stärken in Setups mit Tracking-Spezialisten, großen Ads-Budgets und tiefen CRM-Integrationen aus. Wer diese Struktur nicht hat, nutzt einen Bruchteil der Plattform — zahlt aber den vollen Preis. Trichterwerk ist so gebaut, dass eine Person allein den kompletten Funnel aufsetzen kann.",
-      },
-    ],
-    comparisonRows: [
-      { label: "Deutsche Oberfläche & Support", trichterwerk: true, competitor: "Team in Hamburg, Produkt englisch geprägt" },
-      { label: "Dauerhaft kostenloser Plan", trichterwerk: "1 Funnel, 100 Leads/Monat", competitor: false },
-      { label: "Unbegrenzte Leads ohne Aufpreis", trichterwerk: true, competitor: "Preis skaliert mit Leads" },
-      { label: "Abrechnung in Euro (inkl. MwSt.-Ausweis)", trichterwerk: true, competitor: "Pricing in USD" },
-      { label: "Conditional Logic & Quiz", trichterwerk: true, competitor: true },
-      { label: "A/B-Tests", trichterwerk: true, competitor: true },
-      { label: "Eigene Domain inklusive SSL", trichterwerk: true, competitor: true },
-      { label: "Tiefe Enterprise-Integrationen", trichterwerk: "Webhooks, Zapier/Make", competitor: true },
-      { label: "Monatspreis", trichterwerk: "0 € oder 49 € inkl. MwSt.", competitor: "ca. 45–359 USD, lead-abhängig" },
-    ],
-    featureSections: [
-      {
-        title: "Festpreis statt Lead-Staffel",
-        text: "49 € pro Monat, unbegrenzte Funnels, unbegrenzte Leads. Du kannst eine Kampagne skalieren, ohne vorher im Preisrechner nachzusehen — und du weißt am Monatsanfang, was am Monatsende auf der Rechnung steht.",
-      },
-      {
-        title: "Mobile-First-Funnels für Social Ads",
-        text: "Der Großteil deines Traffics kommt vom Smartphone. Jeder Trichterwerk-Funnel ist automatisch mobil optimiert, im Editor siehst du die Handy-Vorschau live. Kurze Ladezeiten, klare Schritte, wenig Absprung.",
-      },
-      {
-        title: "Qualifizieren mit Conditional Logic",
-        text: "Fragen verzweigen je nach Antwort, unpassende Interessenten steigen früh aus, passende landen mit vollständigen Angaben in deinem Dashboard. Genau die Logik, für die du bei anderen Tools in einen höheren Plan wechselst.",
-      },
-      {
-        title: "Eigene Analytics im Dashboard",
-        text: "Views, Conversions und Drop-offs pro Seite direkt im Dashboard — ohne Google Analytics. Für A/B-Tests siehst du sofort, welche Variante gewinnt, ohne ein externes Tracking-Setup aufzubauen.",
-      },
-      {
-        title: "Deutsch von der Oberfläche bis zur Support-Mail",
-        text: "Editor, 13 Vorlagen, Rechtstexte und Support sind auf Deutsch. Dazu EU-Hosting und AVV — und ein Partnerprogramm mit 25 % Provision, wenn du Trichterwerk in Kundenprojekten einsetzt.",
-      },
-    ],
-    pricingComparison: {
-      title: "Preisvergleich: Heyflow vs. Trichterwerk",
-      text: [
-        "Heyflow bewegt sich je nach Plan etwa zwischen 45 und 359 USD pro Monat, wobei die Stufen an die Zahl der generierten Leads gekoppelt sind. Einen dauerhaft kostenlosen Plan gibt es nicht, nur einen Testzeitraum. Für wachsende Kampagnen bedeutet das: steigender Erfolg, steigende Kosten.",
-        "Trichterwerk kostet 0 € im Free-Plan (1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar, alle Editor-Features) und 49 € pro Monat inklusive Mehrwertsteuer im Pro-Plan — mit unbegrenzten Funnels und Leads, eigener Domain samt SSL, Teams, A/B-Tests, KI-Generator und entfernbarem Badge. 14 Tage Pro testen, ohne Kreditkarte.",
-      ],
-    },
-    honestSection: {
-      title: "Wann Heyflow trotzdem die bessere Wahl ist",
-      text: "Ehrlich verglichen: Heyflow ist ein sehr ausgereiftes Produkt mit starkem Designanspruch, umfangreichen nativen Integrationen und Funktionen, die auf große Performance-Marketing-Teams und Enterprise-Anforderungen zugeschnitten sind. Wer mit mehreren Agenturen, komplexen Tracking-Setups und Sechsstellig-Budgets arbeitet, findet dort viel Passendes. Für alle, die planbare Kosten und einen schnellen, unkomplizierten Weg zum Funnel wollen, ist Trichterwerk die pragmatischere Wahl.",
-    },
-    migrationSteps: [
-      {
-        title: "Flow-Struktur nachbauen",
-        text: "Screens, Fragen und Bedingungen deines Heyflows in einer Trichterwerk-Vorlage abbilden — die Elementtypen (Auswahl, Slider, Text, Upload-freie Formulare) sind vergleichbar, die Logik ebenfalls.",
-      },
-      {
-        title: "Domain, Design und Tracking übernehmen",
-        text: "Farben und Logo hinterlegen, Domain per CNAME verbinden (SSL automatisch), Conversion-Ziele in den eingebauten Analytics prüfen. Webhook zu deinem CRM einrichten — Zapier und Make funktionieren genauso.",
-      },
-      {
-        title: "Traffic umleiten und skalieren",
-        text: "Ads auf die neue Funnel-URL zeigen lassen, Bestandsleads bei Heyflow als CSV exportieren, altes Abo kündigen. Ab jetzt kostet der nächste Lead nichts extra.",
-      },
-    ],
-    faqs: [
-      {
-        q: "Was kostet Heyflow im Vergleich zu Trichterwerk?",
-        a: "Heyflow liegt je nach Plan etwa zwischen 45 und 359 USD pro Monat, wobei der Preis mit der Zahl der generierten Leads steigt. Trichterwerk kostet 49 € pro Monat inklusive Mehrwertsteuer mit unbegrenzten Leads — plus einen dauerhaft kostenlosen Free-Plan.",
-      },
-      {
-        q: "Gibt es bei Heyflow einen kostenlosen Plan?",
-        a: "Nein, Heyflow bietet einen Testzeitraum, aber keinen dauerhaft kostenlosen Plan. Trichterwerk hat einen echten Free-Plan mit 1 veröffentlichten Funnel und 100 sichtbaren Leads pro Monat, ohne Kreditkarte.",
-      },
-      {
-        q: "Werden meine Leads bei Trichterwerk begrenzt?",
-        a: "Im Pro-Plan nicht: Funnels und Leads sind unbegrenzt, unabhängig von deinem Kampagnenvolumen. Im kostenlosen Free-Plan siehst du 100 Leads pro Monat.",
-      },
-      {
-        q: "Welche Datenschutzfunktionen bietet Trichterwerk?",
-        a: privacyProductSummary,
-      },
-      {
-        q: "Kann ich meinen Heyflow-Flow importieren?",
-        a: "Einen automatischen Import gibt es nicht. Mit den 13 deutschen Vorlagen und dem KI-Generator ist ein typischer Flow aber meist in unter einer Stunde nachgebaut; bestehende Leads exportierst du bei Heyflow als CSV.",
-      },
-      {
-        q: "Für wen lohnt sich der Wechsel von Heyflow?",
-        a: "Vor allem für Selbstständige, kleine Teams, Handwerks- und Dienstleistungsbetriebe sowie Agenturen mit mehreren Kundenprojekten: Sie bekommen dieselbe Funnel-Idee auf Deutsch, zum Festpreis und ohne Lead-Staffel.",
-      },
-    ],
+    pricing: "Heyflow bietet unterschiedliche Tarife für Lead-Generierung und E-Commerce sowie monatliche und jährliche Abrechnung. Wähle auf der verlinkten Preisseite den passenden Bereich und Zeitraum; die dort genannten Preise verstehen sich ohne Mehrwertsteuer. Zusätzliche Kontingente können weitere Kosten auslösen.",
+    fit: "Heyflow kann passen, wenn du bestimmte CRM-Verbindungen oder auf deinen Anwendungsfall zugeschnittene Funktionspakete benötigst. Teste deinen Datenfluss bis ins Zielsystem und prüfe die Freischaltung im ausgewählten Tarif.",
     relatedSlugs: ["perspective-alternative", "typeform-alternative", "meetovo-alternative"],
-  },
-
-  "meetovo-alternative": {
-    slug: "meetovo-alternative",
-    competitorName: "MEETOVO",
-    metaTitle: "MEETOVO-Alternative: Recruiting-Funnels und mehr",
-    metaDescription:
-      "MEETOVO-Alternative mit transparentem Preis: Trichterwerk baut Recruiting-Funnels und alle anderen Funnel-Typen — Gratis-Plan, Pro 49 €/Monat.",
-    h1: "Die MEETOVO-Alternative: Recruiting-Funnels — und alles andere gleich mit",
-    intro: [
-      "MEETOVO ist ein deutscher Spezialist für Recruiting-Funnels und macht diese Sache gut: Bewerber ohne Lebenslauf abholen, per Smartphone qualifizieren, Termine buchen. 14 Tage lässt sich das kostenlos und ohne Zahlungsdaten testen. Zwei Punkte stören viele Interessenten trotzdem: Die Preise sind wenig transparent kommuniziert — man erfährt sie oft erst im Gespräch — und das Produkt ist stark auf Recruiting verengt.",
-      "Trichterwerk bringt dieselben Recruiting-Vorlagen mit — Express-Bewerbung, Pflege, Handwerk — und daneben alle anderen Funnel-Typen: Lead-Funnels für Beratung, Anfrage-Funnels für Dienstleister, Quiz-Funnels für Coaches. Mit einem Preis, der auf der Website steht: 0 € im Free-Plan, 49 € im Monat inklusive Mehrwertsteuer für Pro.",
+  }),
+  "meetovo-alternative": comparisonPage({
+    slug: "meetovo-alternative", name: "MEETOVO", evidence: comparisonEvidence.meetovo,
+    intro: "MEETOVO richtet sein Angebot auf Recruiting-Kampagnen aus. Der Vergleich mit Trichterwerk sollte deshalb den gesamten Bewerbungsprozess und die Zahl gleichzeitig laufender Stellen berücksichtigen.",
+    consideration: "Plane aktive Stellen, erwartete Aufrufe und die Bearbeitung eingehender Bewerbungen. Prüfe auch, ob du zusätzliche Leistungen wie SMS oder Karriere-Widgets brauchst.",
+    rows: [
+      { label: "Kampagnenumfang", trichterwerk: "Pro: unbegrenzte Funnels", competitor: "Starter: 1 Job-Kampagne" },
+      { label: "Aufrufkontingent", trichterwerk: "Kein tarifliches Aufrufkontingent", competitor: "Starter: 1.000 Aufrufe / Monat" },
+      { label: "Eigene Domains", trichterwerk: "In Pro enthalten", competitor: "Ab Expert" },
+      { label: "Tarifbeispiel", trichterwerk: comparisonPrices.trichterwerk, competitor: "Starter: 79 € / Monat zzgl. 19 % MwSt. bei Monatszahlung" },
     ],
-    verdict:
-      "Kurz gesagt: Wenn du Recruiting-Funnels brauchst, aber nicht sicher bist, ob es dabei bleibt, deckt Trichterwerk beides ab — Bewerberstrecken und jeden anderen Funnel-Typ, zum offen ausgewiesenen Preis. Free-Plan dauerhaft, 14 Tage Pro ohne Kreditkarte.",
-    painPoints: [
-      {
-        title: "Preise kaum transparent",
-        text: "Wer bei MEETOVO wissen will, was es am Ende kostet, findet nur schwer klare Zahlen und landet oft in einem Beratungsgespräch. Planung wird so zur Schätzung. Trichterwerk nennt die Preise offen: Free-Plan 0 €, Pro 49 € pro Monat inklusive Mehrwertsteuer, monatlich kündbar.",
-      },
-      {
-        title: "Stark auf Recruiting verengt",
-        text: "MEETOVO ist auf Bewerber-Funnels spezialisiert. Sobald du auch Kundenanfragen, Beratungstermine oder ein Quiz für dein Angebot brauchst, brauchst du ein zweites Tool. Trichterwerk deckt Recruiting- und Lead-Funnels in einem Account ab.",
-      },
-      {
-        title: "Kostenlos testen — aber kein dauerhafter Free-Plan",
-        text: "14 Tage ohne Zahlungsdaten testen ist fair, danach ist Schluss. Trichterwerk hat zusätzlich einen dauerhaft kostenlosen Plan: 1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar, alle Editor-Features — du kannst eine Stelle also dauerhaft kostenlos ausschreiben.",
-      },
-      {
-        title: "Ein Spezialtool für ein wachsendes Unternehmen",
-        text: "Viele Betriebe starten mit Recruiting und merken nach ein paar Monaten, dass derselbe Funnel-Mechanismus auch im Vertrieb funktioniert. Mit einem reinen Recruiting-Tool bedeutet das: neuer Anbieter, neues Abo, neues Einarbeiten. Mit Trichterwerk baust du den nächsten Funnel im selben Editor.",
-      },
+    pricing: "MEETOVO Starter kostet bei monatlicher Zahlung 79 € pro Monat ohne 19 % Mehrwertsteuer. Bei jährlicher Zahlung nennt der Anbieter rechnerisch 65 € pro Monat netto. Werbebudget und optionale Add-ons sind separat zu berücksichtigen.",
+    fit: "Wenn Recruiting dein einziger Anwendungsfall ist, teste MEETOVO anhand einer konkreten Stellenkampagne. Vergleiche Bewerbungsverwaltung, benötigte Erweiterungen und Aufrufkontingente mit deinem Arbeitsablauf.",
+    relatedSlugs: ["perspective-alternative", "heyflow-alternative", "typeform-alternative"],
+  }),
+  "systeme-io-alternative": comparisonPage({
+    slug: "systeme-io-alternative", name: "systeme.io", evidence: comparisonEvidence.systeme,
+    intro: "systeme.io verbindet Sales-Funnels mit E-Mail-Marketing, Automationen und weiteren Funktionen für ein Online-Geschäft. Für deine Entscheidung zählt, welche dieser Aufgaben du gemeinsam abbilden möchtest.",
+    consideration: "Prüfe Kontaktlisten, Versand, Automationen und Funnel-Schritte als zusammenhängenden Ablauf. Berücksichtige bei einem Wechsel auch bestehende Inhalte und die Exportmöglichkeiten.",
+    rows: [
+      { label: "Schwerpunkt", trichterwerk: "Lead- und Bewerbungsfunnels", competitor: "Sales-Funnels, E-Mail-Marketing und Automationen" },
+      { label: "Kontaktverwaltung", trichterwerk: "Lead-Liste und Bewerberboards", competitor: "Kontakte und CRM-Pipelines aufgeführt" },
+      { label: "Verkaufsfunktionen", trichterwerk: "Fokus auf Anfragen und Qualifizierung", competitor: "Upsells und Order Bumps aufgeführt; Tarifumfang prüfen" },
+      { label: "Tarifauswahl", trichterwerk: comparisonPrices.trichterwerk, competitor: "Free und kostenpflichtige Pläne; aktuelle Konditionen beim Anbieter" },
     ],
-    comparisonRows: [
-      { label: "Deutsche Oberfläche & Support", trichterwerk: true, competitor: true },
-      { label: "Recruiting-Vorlagen (Express-Bewerbung, Pflege, Handwerk)", trichterwerk: true, competitor: true },
-      { label: "Auch Lead-, Anfrage- & Quiz-Funnels", trichterwerk: true, competitor: "Fokus Recruiting" },
-      { label: "Preise offen auf der Website", trichterwerk: "0 € / 49 €", competitor: "wenig transparent" },
-      { label: "Dauerhaft kostenloser Plan", trichterwerk: "1 Funnel, 100 Leads/Monat", competitor: "14 Tage Test" },
-      { label: "Test ohne Zahlungsdaten", trichterwerk: true, competitor: true },
-      { label: "A/B-Tests", trichterwerk: true, competitor: "nicht klar ausgewiesen" },
-      { label: "KI-Funnel-Generator", trichterwerk: true, competitor: "nicht klar ausgewiesen" },
-      { label: "Monatspreis", trichterwerk: "0 € oder 49 € inkl. MwSt.", competitor: "auf Anfrage" },
+    pricing: "systeme.io bietet einen kostenlosen Einstieg und kostenpflichtige Tarife mit monatlicher oder jährlicher Abrechnung. Nutze die verlinkte Tarifauswahl für den aktuellen Betrag, die Währung, Steuern und enthaltenen Kontingente.",
+    fit: "Wenn E-Mail-Kampagnen und Verkaufsautomationen zu deinem Kernprozess gehören, prüfe systeme.io mit einem vollständigen Beispielablauf. Bei Trichterwerk liegt der Schwerpunkt auf der Erstellung von Funnels und der Verwaltung eingehender Leads.",
+    relatedSlugs: ["clickfunnels-alternative", "funnelcockpit-alternative", "onepage-alternative"],
+  }),
+  "onepage-alternative": comparisonPage({
+    slug: "onepage-alternative", name: "Onepage", evidence: comparisonEvidence.onepage,
+    intro: "Onepage bietet Website-Erstellung mit Formularen und integriertem CRM. Entscheidend ist, ob du einen allgemeinen Webauftritt, einzelne Kampagnenseiten oder einen mehrstufigen Qualifizierungsprozess aufbauen möchtest.",
+    consideration: "Vergleiche die benötigte Zahl an Websites und Seiten, eigene Domains und die Zusammenarbeit im Team. Teste deinen Formularablauf im jeweiligen Editor.",
+    rows: [
+      { label: "Schwerpunkt", trichterwerk: "Lead- und Bewerbungsfunnels", competitor: "Websites mit Formularen und CRM" },
+      { label: "Kostenloser Einstieg", trichterwerk: "Free: 1 veröffentlichter Funnel", competitor: "Free: 1 Website, 5 Seiten" },
+      { label: "Eigene Domain", trichterwerk: "In Pro enthalten", competitor: "Ab Essential" },
+      { label: "Tarifauswahl", trichterwerk: comparisonPrices.trichterwerk, competitor: "Monatlich, 12 oder 24 Monate; Nettopreise zzgl. MwSt." },
     ],
-    featureSections: [
-      {
-        title: "Recruiting-Funnels, die Bewerber wirklich ausfüllen",
-        text: "Express-Bewerbung ohne Lebenslauf, Vorlagen für Pflege und Handwerk, kurze Qualifizierungsfragen statt PDF-Upload. Der Bewerber tippt am Handy drei Antworten und hinterlässt Kontaktdaten — genau der Mechanismus, für den du sonst ein Spezialtool buchst.",
-      },
-      {
-        title: "Ein Account für jeden Funnel-Typ",
-        text: "Neben Recruiting findest du unter den 13 deutschen Vorlagen auch Beratung, Dienstleistung, Immobilien und Coaching. Wenn dein Vertrieb morgen ebenfalls Funnels will, brauchst du keinen zweiten Anbieter — im Pro-Plan sind Funnels unbegrenzt.",
-      },
-      {
-        title: "Transparenter Preis ohne Verkaufsgespräch",
-        text: "Kein Demo-Termin, um den Preis zu erfahren: Free-Plan 0 €, Pro 49 € pro Monat inklusive Mehrwertsteuer, monatlich kündbar. Vorher 14 Tage Pro testen — ohne Kreditkarte.",
-      },
-      {
-        title: "A/B-Tests und Analytics für Stellenanzeigen",
-        text: "Welche Headline bringt mehr Bewerbungen, „Jetzt in 60 Sekunden bewerben“ oder „Ohne Lebenslauf bewerben“? Teste beide Varianten gegeneinander und sieh in den eigenen Analytics, wo Bewerber abspringen.",
-      },
-      {
-        title: "Bewerber direkt ins System",
-        text: "Neue Bewerbungen landen im Dashboard, gehen per Webhook an dein Bewerbermanagement oder CRM (Zapier- und Make-kompatibel) und lassen sich jederzeit als CSV exportieren. Prüfe bei Webhooks auch die Datenverarbeitung im Zielsystem.",
-      },
-    ],
-    pricingComparison: {
-      title: "Preisvergleich: MEETOVO vs. Trichterwerk",
-      text: [
-        "MEETOVO lässt sich 14 Tage kostenlos und ohne Zahlungsdaten testen — das ist ein fairer Einstieg. Was danach kommt, ist allerdings wenig transparent kommuniziert: Konkrete Preise erfährst du in der Regel erst im direkten Kontakt, eine Planung im Voraus ist damit schwierig.",
-        "Trichterwerk legt beide Zahlen offen: Der Free-Plan ist dauerhaft kostenlos mit 1 veröffentlichten Funnel und 100 sichtbaren Leads pro Monat. Pro kostet 49 € pro Monat inklusive Mehrwertsteuer — unbegrenzte Funnels und Leads, eigene Domain mit SSL, Teams, A/B-Tests, KI-Generator, Badge entfernbar. Testphase: 14 Tage Pro ohne Kreditkarte.",
-      ],
-    },
-    honestSection: {
-      title: "Wann MEETOVO trotzdem die bessere Wahl ist",
-      text: "Ehrlich verglichen: MEETOVO ist ein echter Recruiting-Spezialist mit viel Erfahrung genau in diesem Feld — von Bewerberansprache über Terminierung bis zu Prozessen, die auf Personalabteilungen zugeschnitten sind. Wer ausschließlich Recruiting macht, ein größeres Team im Personalmarketing hat und Begleitung im Prozess sucht, ist dort gut aufgehoben. Wer Recruiting-Funnels braucht, aber auch Vertriebs- und Anfrage-Funnels bauen will — und einen klar ausgewiesenen Preis erwartet —, fährt mit Trichterwerk besser.",
-    },
-    migrationSteps: [
-      {
-        title: "Bewerberstrecke übernehmen",
-        text: "Starte mit der Vorlage Express-Bewerbung oder der Branchenvorlage für Pflege bzw. Handwerk und übertrage deine Fragen. Die Struktur — Anzeige, Qualifizierung, Kontakt, Danke-Seite — ist dieselbe, die du schon kennst.",
-      },
-      {
-        title: "Design, Domain und Anbindung",
-        text: "Arbeitgeber-Branding hinterlegen, Domain per CNAME verbinden (SSL automatisch), Webhook zu deinem Bewerbermanagement einrichten. Im Pro-Plan verschwindet das Trichterwerk-Badge.",
-      },
-      {
-        title: "Kampagne umstellen & erweitern",
-        text: "Stellenanzeigen und Ads auf die neue URL zeigen lassen, laufende Bewerbungen als CSV sichern. Danach direkt den zweiten Funnel bauen — etwa für Kundenanfragen, im selben Account ohne Aufpreis.",
-      },
-    ],
-    faqs: [
-      {
-        q: "Was kostet MEETOVO im Vergleich zu Trichterwerk?",
-        a: "MEETOVO kommuniziert seine Preise wenig transparent; du kannst 14 Tage kostenlos und ohne Zahlungsdaten testen, erfährst konkrete Konditionen aber meist erst im Gespräch. Trichterwerk nennt sie offen: Free-Plan 0 €, Pro 49 € pro Monat inklusive Mehrwertsteuer.",
-      },
-      {
-        q: "Kann Trichterwerk auch Recruiting-Funnels?",
-        a: "Ja. Zu den 13 deutschen Vorlagen gehören Express-Bewerbung ohne Lebenslauf sowie Branchenvorlagen für Pflege und Handwerk — mobil optimiert und mit Qualifizierungsfragen statt PDF-Upload.",
-      },
-      {
-        q: "Gibt es eine kostenlose MEETOVO-Alternative?",
-        a: "Der Free-Plan von Trichterwerk ist dauerhaft kostenlos: 1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar, alle Editor-Features, keine Kreditkarte. Damit kannst du eine Stelle dauerhaft kostenlos ausschreiben.",
-      },
-      {
-        q: "Was kann Trichterwerk, das ein Recruiting-Spezialtool nicht kann?",
-        a: "Alle anderen Funnel-Typen: Lead-Funnels für Beratung, Anfrage-Funnels für Dienstleister, Quiz-Funnels für Coaches. Im Pro-Plan sind Funnels unbegrenzt — Recruiting und Vertrieb laufen im selben Account.",
-      },
-      {
-        q: "Welche Datenschutzfunktionen bietet Trichterwerk?",
-        a: privacyProductSummary,
-      },
-      {
-        q: "Wie schnell steht mein erster Recruiting-Funnel?",
-        a: "Mit einer Vorlage meist in unter einer Stunde. Alternativ beschreibst du die Stelle dem KI-Generator und bekommst einen fertigen Entwurf, den du nur noch anpasst und veröffentlichst.",
-      },
-    ],
-    relatedSlugs: ["perspective-alternative", "heyflow-alternative", "funnelcockpit-alternative"],
-  },
-
-  "systeme-io-alternative": {
-    slug: "systeme-io-alternative",
-    competitorName: "systeme.io",
-    metaTitle: "systeme.io-Alternative aus Deutschland – EU-Hosting",
-    metaDescription:
-      "systeme.io-Alternative aus Deutschland: Trichterwerk ist ein fokussierter Funnel-Builder mit EU-Hosting, deutschem Support und dauerhaftem Gratis-Plan.",
-    h1: "Die systeme.io-Alternative aus Deutschland: fokussierter Funnel-Builder statt All-in-One-Baustelle",
-    intro: [
-      "systeme.io aus Frankreich ist eine der großzügigsten All-in-One-Plattformen am Markt: Der Free-Plan enthält dauerhaft 3 Funnels, 1 Blog, 1 Onlinekurs und unbegrenzte E-Mails, die bezahlten Pläne liegen etwa zwischen 17 und 97 USD pro Monat. Das ist ein starkes Angebot — und trotzdem passt es nicht für jeden im DACH-Raum.",
-      "Vergleiche die Funktionen, die du tatsächlich einsetzen möchtest: Funnel-Editor, E-Mail-Marketing, Kurse und Auswertung. Für jedes aktivierte Werkzeug sind auch Datenfluss und Vertragsunterlagen relevant. Trichterwerk konzentriert sich auf das Erstellen und Betreiben von Funnels.",
-    ],
-    verdict:
-      "Kurz gesagt: systeme.io ist stark, wenn du eine günstige All-in-One-Plattform suchst und mit Englisch kein Problem hast. Willst du dagegen ein deutsches Produkt mit EU-Hosting und einem fokussierten Funnel-Editor, ist Trichterwerk die passende Alternative — Free-Plan dauerhaft, Pro 49 €/Monat.",
-    painPoints: [
-      {
-        title: "Übersetzt, aber nicht deutsch gedacht",
-        text: "Die Oberfläche gibt es auf Deutsch, wirkt aber wie eine Übersetzung: Begriffe sind ungewohnt, Vorlagen und Beispieltexte stammen aus dem englisch- bzw. französischsprachigen Markt. Trichterwerk ist von Anfang an auf Deutsch geschrieben — inklusive 13 Vorlagen, die für den DACH-Markt gedacht sind.",
-      },
-      {
-        title: "Supportsprache und Kontaktwege prüfen",
-        text: "Kläre vor der Auswahl, welche Supportsprache und Kontaktwege für dein Team wichtig sind. Trichterwerk beantwortet Produktfragen auf Deutsch per E-Mail.",
-      },
-      {
-        title: "Datenverarbeitung und Integrationen prüfen",
-        text: privacyComparisonSummary,
-      },
-      {
-        title: "All-in-One heißt auch: viele halbfertige Baustellen",
-        text: "Funnels, Blog, Kurse, E-Mail-Marketing, Affiliate-Programm, Webinare — je breiter eine Plattform, desto weniger Tiefe hat der einzelne Bereich. Wenn Funnels dein Kerngeschäft sind, willst du dort keine Kompromisse. Trichterwerk macht genau eine Sache und macht sie gründlich.",
-      },
-    ],
-    comparisonRows: [
-      { label: "Deutsches Produkt & deutscher Support", trichterwerk: true, competitor: "übersetzt, Support teils englisch" },
-      { label: "Dauerhaft kostenloser Plan", trichterwerk: "1 Funnel, 100 Leads/Monat", competitor: "3 Funnels, 1 Blog, 1 Kurs" },
-      { label: "Deutsche Vorlagen für den DACH-Markt", trichterwerk: "13 Vorlagen", competitor: false },
-      { label: "Fokussierter Funnel-Editor", trichterwerk: true, competitor: "All-in-One" },
-      { label: "E-Mail-Marketing & Onlinekurse", trichterwerk: false, competitor: true },
-      { label: "Conditional Logic & Quiz", trichterwerk: true, competitor: "eingeschränkt" },
-      { label: "A/B-Tests", trichterwerk: true, competitor: "je nach Plan" },
-      { label: "Eigene Analytics", trichterwerk: true, competitor: "Basis-Statistiken" },
-      { label: "Monatspreis", trichterwerk: "0 € oder 49 € inkl. MwSt.", competitor: "0 $ oder ca. 17–97 USD" },
-    ],
-    featureSections: [
-      {
-        title: "Ein Werkzeug für eine Aufgabe",
-        text: "Trichterwerk baut Funnels: Landingpage, Qualifizierungsfragen mit Logik, Kontaktformular, Danke-Seite — in einem Editor, unter einer Domain. Kein Umschalten zwischen Kursmodul, Mailtool und Blog, um eine Kampagne zu starten.",
-      },
-      {
-        title: "Deutsch geschrieben, nicht übersetzt",
-        text: "Oberfläche, Hilfetexte, Rechtstexte und die 13 Vorlagen sind auf Deutsch verfasst und auf deutsche Zielgruppen zugeschnitten — von der Express-Bewerbung im Handwerk bis zum Beratungs-Funnel. Support beantwortet Fragen auf Deutsch per E-Mail.",
-      },
-      {
-        title: "EU-Hosting und Datenschutzfunktionen",
-        text: privacyProductSummary,
-      },
-      {
-        title: "Free-Plan mit allen Editor-Features",
-        text: "Der kostenlose Plan schneidet keine Funktionen ab: Du baust mit demselben Editor, denselben Elementen und derselben Logik wie im Pro-Plan. Begrenzt sind nur 1 veröffentlichter Funnel und 100 sichtbare Leads pro Monat — und das Badge bleibt sichtbar.",
-      },
-      {
-        title: "Offene Schnittstellen statt geschlossenem Ökosystem",
-        text: "Webhooks für jedes CRM, kompatibel mit Zapier und Make, CSV-Export mit einem Klick. So bleibt deine E-Mail-Software oder Kursplattform genau die, die du schon nutzt.",
-      },
-    ],
-    pricingComparison: {
-      title: "Preisvergleich: systeme.io vs. Trichterwerk",
-      text: [
-        "systeme.io hat einen der großzügigsten Free-Pläne am Markt: dauerhaft 3 Funnels, 1 Blog, 1 Onlinekurs und unbegrenzte E-Mails, ohne Zeitlimit. Die bezahlten Stufen liegen etwa zwischen 17 und 97 USD pro Monat und heben vor allem Kontakt- und Funnel-Limits an. Rein preislich ist das schwer zu schlagen.",
-        "Trichterwerk kostet 0 € im Free-Plan (1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar, alle Editor-Features) und 49 € pro Monat inklusive Mehrwertsteuer im Pro-Plan: unbegrenzte Funnels und Leads, eigene Domain mit SSL, Teams, A/B-Tests, Conditional Logic, KI-Generator, Badge entfernbar. Der Unterschied liegt weniger im Preis als in Sprache, Fokus und EU-Hosting für Anwendung und Datenbank.",
-      ],
-    },
-    honestSection: {
-      title: "Wann systeme.io trotzdem die bessere Wahl ist",
-      text: "Ehrlich verglichen: Der Free-Plan von systeme.io ist wirklich großzügig — 3 Funnels, ein Blog, ein Onlinekurs und unbegrenzte E-Mails auf Dauer bietet sonst kaum jemand. Wenn du E-Mail-Marketing, Kurse, Affiliate-Programm und Funnels bewusst in einem einzigen günstigen Abo bündeln willst und mit englischsprachigem Support leben kannst, ist systeme.io eine hervorragende Wahl. Trichterwerk lohnt sich, wenn Funnels dein Kerngeschäft sind und du ein deutsches Produkt mit EU-Hosting und deutschem Support möchtest.",
-    },
-    migrationSteps: [
-      {
-        title: "Funnel-Seiten übertragen",
-        text: "Die Seitenfolge deines systeme.io-Funnels in einer deutschen Trichterwerk-Vorlage nachbauen und Texte übernehmen. Wer schnell sein will, lässt den KI-Generator einen Entwurf aus der Angebotsbeschreibung erzeugen.",
-      },
-      {
-        title: "Domain & Tool-Anbindung",
-        text: "Eigene Domain per CNAME verbinden, SSL läuft automatisch. Dein bestehendes E-Mail-Tool bindest du per Webhook an — Zapier und Make funktionieren ebenso, sodass Kurse oder Newsletter weiterlaufen wie bisher.",
-      },
-      {
-        title: "Datenschutz prüfen & veröffentlichen",
-        text: "Vor der Veröffentlichung Datenschutzhinweise, Rechtsgrundlagen, AVV und aktivierte Integrationen prüfen. Danach alte Funnel-Links auf die neue URL weiterleiten und benötigte Kontakte bei systeme.io als CSV exportieren.",
-      },
-    ],
-    faqs: [
-      {
-        q: "Was kostet systeme.io im Vergleich zu Trichterwerk?",
-        a: "systeme.io hat einen dauerhaft kostenlosen Plan mit 3 Funnels, 1 Blog, 1 Kurs und unbegrenzten E-Mails; bezahlte Pläne liegen etwa zwischen 17 und 97 USD pro Monat. Trichterwerk hat ebenfalls einen dauerhaften Free-Plan und kostet im Pro-Plan 49 € pro Monat inklusive Mehrwertsteuer mit unbegrenzten Funnels und Leads.",
-      },
-      {
-        q: "Worauf kommt es beim Datenschutzvergleich an?",
-        a: privacyComparisonSummary,
-      },
-      {
-        q: "Gibt es systeme.io auf Deutsch?",
-        a: "Die Oberfläche ist ins Deutsche übersetzt, wirkt aber nicht deutsch gedacht — Vorlagen und Beispieltexte stammen aus anderen Märkten, der Support antwortet per E-Mail und teils auf Englisch. Trichterwerk ist durchgehend auf Deutsch, inklusive Support und Rechnung.",
-      },
-      {
-        q: "Kann Trichterwerk auch E-Mail-Marketing und Onlinekurse?",
-        a: "Nein, und das ist Absicht: Trichterwerk konzentriert sich auf Funnels. Newsletter, Kurse oder Mitgliederbereiche verbindest du per Webhook, Zapier oder Make mit den Tools, die du bereits nutzt.",
-      },
-      {
-        q: "Gibt es bei Trichterwerk auch einen kostenlosen Plan?",
-        a: "Ja, dauerhaft: 1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar, alle Editor-Features, keine Kreditkarte. Nur das Trichterwerk-Badge bleibt sichtbar; im Pro-Plan lässt es sich entfernen.",
-      },
-      {
-        q: "Lohnt sich der Wechsel von systeme.io?",
-        a: "Wenn Funnels dein Kerngeschäft sind, du deutschsprachigen Support brauchst und einen auf Funnels konzentrierten Editor suchst — ja. Nutzt du dagegen aktiv Kurse, Blog und E-Mail-Marketing in einem Abo, bleib bei systeme.io.",
-      },
-    ],
-    relatedSlugs: ["clickfunnels-alternative", "onepage-alternative", "typeform-alternative"],
-  },
-
-  "onepage-alternative": {
-    slug: "onepage-alternative",
-    competitorName: "Onepage",
-    metaTitle: "Onepage-Alternative: Funnels ohne teures Add-on",
-    metaDescription:
-      "Onepage-Alternative ohne Funnel-Add-on: Bei Trichterwerk sind Funnels der Kern — gratis starten, Pro 49 €/Monat mit unbegrenzten Leads und Domain.",
-    h1: "Die Onepage-Alternative: Funnels sind der Kern, nicht das kostenpflichtige Add-on",
-    intro: [
-      "Onepage ist ein sympathischer Website-Baukasten mit einem fairen Free-Plan: 1 Website, 3 Seiten, 20 KI-Credits, keine Kreditkarte nötig. Die bezahlten Pläne liegen zwischen 19,99 € und 179,99 € pro Monat. Der Haken zeigt sich erst, wenn du Leads sammeln willst: Formulare und Funnels gibt es nur als kostenpflichtiges Add-on „Formulare & Funnels“ — also genau die Funktion, wegen der die meisten überhaupt ein Tool suchen.",
-      "Bei Trichterwerk ist es andersherum: Der Funnel ist das Produkt. Mehrstufige Strecken, Conditional Logic, Formulare und Lead-Verwaltung sind schon im dauerhaft kostenlosen Free-Plan enthalten — 1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar, alle Editor-Features. Pro kostet 49 € im Monat inklusive Mehrwertsteuer mit unbegrenzten Funnels und Leads.",
-    ],
-    verdict:
-      "Kurz gesagt: Wer bei Onepage Leads sammeln will, bucht das Funnel-Add-on dazu. Bei Trichterwerk sind Funnels der Kern und im Gratis-Plan enthalten — Pro für 49 € pro Monat mit unbegrenzten Leads, eigener Domain und A/B-Tests.",
-    painPoints: [
-      {
-        title: "Funnels und Formulare nur als Add-on",
-        text: "Der Free-Plan und die Einstiegspläne von Onepage bringen dir eine Website — Formulare und Funnels stecken im kostenpflichtigen Add-on „Formulare & Funnels“. Ausgerechnet die Lead-Funktion kostet also extra. Bei Trichterwerk ist sie im Free-Plan enthalten.",
-      },
-      {
-        title: "Website-Denke statt Funnel-Denke",
-        text: "Ein Baukasten ist auf Seiten ausgelegt: Startseite, Über uns, Kontakt. Ein Funnel führt dagegen Schritt für Schritt zu einer Entscheidung — mit Verzweigungen, Fortschrittsanzeige und Qualifizierung. Trichterwerk ist genau dafür gebaut.",
-      },
-      {
-        title: "Kosten steigen mit jedem Baustein",
-        text: "19,99 € bis 179,99 € pro Monat je nach Plan, dazu das Funnel-Add-on und je nach Bedarf weitere Bausteine — die Endsumme steht erst am Schluss fest. Trichterwerk hat zwei Zahlen: 0 € oder 49 € inklusive Mehrwertsteuer, alles inklusive.",
-      },
-      {
-        title: "KI nach Credits statt nach Bedarf",
-        text: "Der Onepage-Free-Plan enthält 20 KI-Credits; ist das Kontingent aufgebraucht, wird nachgebucht. Der KI-Funnel-Generator von Trichterwerk gehört zum Pro-Plan — du beschreibst dein Angebot und bekommst einen kompletten Funnel-Entwurf.",
-      },
-    ],
-    comparisonRows: [
-      { label: "Deutsche Oberfläche", trichterwerk: true, competitor: true },
-      { label: "Telefonsupport auf Deutsch", trichterwerk: false, competitor: true },
-      { label: "Deutscher Support per E-Mail", trichterwerk: true, competitor: true },
-      { label: "Funnels im kostenlosen Plan enthalten", trichterwerk: true, competitor: "nur mit Add-on" },
-      { label: "Formulare & Lead-Verwaltung inklusive", trichterwerk: true, competitor: "Add-on „Formulare & Funnels“" },
-      { label: "Conditional Logic & Quiz", trichterwerk: true, competitor: "eingeschränkt" },
-      { label: "A/B-Tests", trichterwerk: true, competitor: false },
-      { label: "Klassische Mehrseiten-Website", trichterwerk: false, competitor: true },
-      { label: "Unbegrenzte Leads im Pro-Plan", trichterwerk: true, competitor: "je nach Plan & Add-on" },
-      { label: "Monatspreis", trichterwerk: "0 € oder 49 € inkl. MwSt.", competitor: "0 € oder 19,99–179,99 € + Add-on" },
-    ],
-    featureSections: [
-      {
-        title: "Funnels im Free-Plan statt hinter der Paywall",
-        text: "Mehrstufige Strecke, Qualifizierungsfragen, Formular, Danke-Seite und Lead-Übersicht — alles im dauerhaft kostenlosen Plan. Begrenzt sind nur der eine veröffentlichte Funnel und 100 sichtbare Leads pro Monat; das Badge bleibt sichtbar.",
-      },
-      {
-        title: "Conditional Logic, die aus Besuchern Anfragen macht",
-        text: "Antwortbasierte Verzweigungen führen jeden Besucher auf den passenden Pfad. Unpassende Interessenten steigen früh aus, passende kommen mit vollständigen Angaben an — das schafft ein Kontaktformular auf einer Website nicht.",
-      },
-      {
-        title: "A/B-Tests und eigene Analytics",
-        text: "Zwei Varianten gegeneinander testen, Views, Conversions und Drop-offs pro Seite sehen — ohne Google Analytics. Im Pro-Plan ohne Aufpreis enthalten.",
-      },
-      {
-        title: "Eigene Domain mit SSL und Team-Zugänge",
-        text: "Im Pro-Plan verbindest du deine Domain per CNAME, SSL wird automatisch eingerichtet, und Kollegen bekommen eigene Zugänge. Für Agenturen: unbegrenzte Funnels für unbegrenzt viele Kundenprojekte plus 25 % Provision im Partnerprogramm.",
-      },
-      {
-        title: "Leads gehören dir",
-        text: "CSV-Export mit einem Klick, Webhooks für jedes CRM, kompatibel mit Zapier und Make. Anwendung und zentrale Datenbank werden in der EU gehostet. Für Webhooks und andere Integrationen prüfst du die jeweiligen Empfänger und Datenflüsse.",
-      },
-    ],
-    pricingComparison: {
-      title: "Preisvergleich: Onepage vs. Trichterwerk",
-      text: [
-        "Onepage startet bei 0 €: 1 Website, 3 Seiten, 20 KI-Credits, ohne Kreditkarte. Die bezahlten Pläne liegen zwischen 19,99 € und 179,99 € pro Monat. Wichtig: Formulare und Funnels sind nicht Teil der Basis, sondern kommen als kostenpflichtiges Add-on „Formulare & Funnels“ dazu — die reine Planzahl sagt also wenig über deine Endkosten aus.",
-        "Trichterwerk kostet 0 € im Free-Plan mit 1 veröffentlichten Funnel, 100 sichtbaren Leads pro Monat und allen Editor-Features. Pro kostet 49 € pro Monat inklusive Mehrwertsteuer: unbegrenzte Funnels und Leads, eigene Domain mit SSL, Teams, A/B-Tests, Conditional Logic, KI-Generator, Badge entfernbar. Keine Add-ons, keine Nachbuchungen.",
-      ],
-    },
-    honestSection: {
-      title: "Wann Onepage trotzdem die bessere Wahl ist",
-      text: "Ehrlich verglichen: Onepage hat einen echten Vorteil, den wir nicht bieten — deutschsprachigen Telefonsupport. Wenn du bei einer Frage lieber zum Hörer greifst als eine E-Mail zu schreiben, ist das viel wert. Auch als klassischer Website-Baukasten mit mehreren Unterseiten, Blog und Impressum ist Onepage die richtige Wahl; Trichterwerk baut bewusst keine Mehrseiten-Websites. Geht es dir dagegen um Lead-Generierung mit mehrstufigen Funnels, bekommst du bei uns genau das als Kernprodukt statt als Add-on. Viele nutzen beides parallel: Website bei Onepage, Funnels bei Trichterwerk.",
-    },
-    migrationSteps: [
-      {
-        title: "Zielsetzung klären",
-        text: "Website bleibt Website — umziehen musst du nur die Lead-Strecke. Nimm die Fragen aus deinem Onepage-Formular und übertrage sie in eine der 13 deutschen Vorlagen oder lass den KI-Generator einen Entwurf bauen.",
-      },
-      {
-        title: "Funnel verlinken oder Subdomain nutzen",
-        text: "Buttons auf deiner Website („Jetzt Anfrage starten“) auf den Trichterwerk-Funnel zeigen lassen — im Pro-Plan unter deiner eigenen Subdomain, etwa anfrage.deine-firma.de, mit automatischem SSL.",
-      },
-      {
-        title: "Add-on kündigen & Leads anbinden",
-        text: "Bestehende Einträge aus Onepage exportieren, Webhook zu deinem CRM einrichten, Funnel veröffentlichen. Danach kannst du das Add-on „Formulare & Funnels“ abbestellen.",
-      },
-    ],
-    faqs: [
-      {
-        q: "Was kostet Onepage im Vergleich zu Trichterwerk?",
-        a: "Onepage hat einen kostenlosen Plan mit 1 Website, 3 Seiten und 20 KI-Credits; bezahlte Pläne kosten 19,99 € bis 179,99 € pro Monat, Formulare und Funnels kommen als kostenpflichtiges Add-on dazu. Trichterwerk ist im Free-Plan kostenlos inklusive Funnel und kostet im Pro-Plan 49 € pro Monat inklusive Mehrwertsteuer.",
-      },
-      {
-        q: "Sind Funnels bei Onepage inklusive?",
-        a: "Nein. Funnels und Formulare gibt es bei Onepage nur über das kostenpflichtige Add-on „Formulare & Funnels“. Bei Trichterwerk sind Funnels das Kernprodukt und bereits im dauerhaft kostenlosen Plan enthalten.",
-      },
-      {
-        q: "Kann Trichterwerk auch eine normale Website bauen?",
-        a: "Nein — Trichterwerk baut Funnels, keine Mehrseiten-Websites mit Blog und Unterseiten. Viele Kunden kombinieren deshalb beides: Website beim Baukasten, Lead-Funnels bei Trichterwerk, verbunden über einen Button.",
-      },
-      {
-        q: "Bietet Trichterwerk Telefonsupport?",
-        a: "Nein, unser deutscher Support läuft per E-Mail. Telefonsupport ist eine echte Stärke von Onepage — wenn dir das wichtig ist, ist das ein klarer Punkt für den Baukasten.",
-      },
-      {
-        q: "Was ist der Unterschied zwischen einer Landingpage und einem Funnel?",
-        a: "Eine Landingpage ist eine einzelne Seite. Ein Funnel führt Besucher über mehrere Schritte — Einstieg, Qualifizierungsfragen mit Logik, Kontaktdaten, Danke-Seite — und misst dabei, wo Leute abspringen. Genau dafür ist Trichterwerk gebaut.",
-      },
-      {
-        q: "Kann ich Trichterwerk kostenlos ausprobieren?",
-        a: "Ja, zweifach: Der Free-Plan ist dauerhaft kostenlos (1 veröffentlichter Funnel, 100 Leads pro Monat sichtbar, alle Editor-Features), und zusätzlich kannst du 14 Tage lang Pro testen — ohne Kreditkarte.",
-      },
-    ],
-    relatedSlugs: ["systeme-io-alternative", "typeform-alternative", "funnelcockpit-alternative"],
-  },
+    pricing: "Onepage unterscheidet zwischen Free und kostenpflichtigen Plänen sowie mehreren Laufzeiten. Die Preise sind netto; Mehrwertsteuer kommt im Checkout hinzu. Eine gewählte Laufzeit wird im Voraus bezahlt. Prüfe deshalb den Gesamtbetrag und die Laufzeit auf der verlinkten Preisseite.",
+    fit: "Onepage kann passen, wenn dein Webauftritt mit mehreren Inhaltsseiten im Vordergrund steht. Probiere Formular, CRM und benötigte Seitenstruktur aus und vergleiche den konkreten Ablauf mit einem Trichterwerk-Funnel.",
+    relatedSlugs: ["typeform-alternative", "funnelcockpit-alternative", "perspective-alternative"],
+  }),
 };
 
 export interface AudiencePageContent {

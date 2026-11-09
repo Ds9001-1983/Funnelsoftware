@@ -40,7 +40,7 @@ const buildingBlocks = [
   {
     icon: Smartphone,
     title: "Mobile-First",
-    text: "Über 80 % der Funnel-Besucher kommen vom Smartphone. Ein guter Funnel-Builder optimiert jede Seite automatisch für mobile Geräte — mit Live-Vorschau beim Bauen.",
+    text: "Prüfe die Darstellung deiner Seiten auf Smartphones. Eine Live-Vorschau im Editor hilft dir dabei, Inhalte und Formulare für mobile Geräte zu gestalten.",
   },
   {
     icon: Target,
@@ -239,17 +239,16 @@ export default function FunnelBuilder() {
           <h2 className="text-3xl md:text-4xl font-bold mb-6">Was kostet ein Funnel-Builder?</h2>
           <div className="space-y-4 text-lg text-muted-foreground leading-relaxed">
             <p>
-              Reine Formular-Tools starten bei rund 25 $ pro Monat (mit
-              Antwort-Limits), dedizierte Funnel-Plattformen liegen zwischen 49 €
-              und 369 € — teils mit kostenpflichtigen Add-ons und Gebühren pro
-              Lead; US-Tools wie ClickFunnels bei 97 $+. Achte weniger auf
-              den Einstiegspreis als auf die Limits: Wie viele Funnels, wie viele
-              Leads, welche Features sind wirklich enthalten?
+              Vergleiche bei Funnel-Buildern Währung, Steuern, Laufzeit und
+              Nutzungslimits. Ein niedriger Einstiegspreis sagt wenig darüber
+              aus, ob dein benötigter Funktionsumfang enthalten ist. Unsere{" "}
+              <Link href="/vergleich" className="underline">Vergleichsseiten</Link>{" "}
+              nennen ausgewählte Tarife mit Prüfdatum und Anbieterquellen.
             </p>
             <p>
-              Trichterwerk hat bewusst genau einen Plan:{" "}
+              Trichterwerk bietet einen kostenlosen Free-Plan und Pro:{" "}
               <span className="text-foreground font-medium">
-                49 € pro Monat, alles inklusive
+                Pro: 49 € pro Monat inklusive Mehrwertsteuer
               </span>{" "}
               — unbegrenzte Funnels, unbegrenzte Leads, alle Templates,
               Conditional Logic, A/B-Tests, Analytics und eigene Domain.
@@ -302,7 +301,7 @@ export default function FunnelBuilder() {
 
       <MarketingCta
         title="Bau deinen ersten Funnel — heute noch"
-        text="Vom Signup zum ersten Lead in unter einer Stunde: Template wählen, anpassen, veröffentlichen. 14 Tage kostenlos, monatlich kündbar."
+        text="Template wählen, anpassen, testen und veröffentlichen. Pro 14 Tage ohne Kreditkarte testen; danach Free nutzen oder Pro buchen."
       />
 
       <MarketingFooter />

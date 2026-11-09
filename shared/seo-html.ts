@@ -1,3 +1,4 @@
+import { comparisonReviewDate, comparisonScope } from "./comparison-evidence";
 /**
  * React-freie HTML-String-Renderer für den <noscript data-seo>-Block der
  * Marketing-Seiten (Marker <!--SSR-CONTENT--> in client/index.html, ersetzt
@@ -50,6 +51,10 @@ export function renderComparisonHtml(c: ComparisonPageContent): string {
     ...c.intro.map((p) => `<p>${esc(p)}</p>`),
     `<p>${esc(c.verdict)}</p>`,
     `<table><thead><tr><th>Feature</th><th>Trichterwerk</th><th>${esc(c.competitorName)}</th></tr></thead><tbody>${rows}</tbody></table>`,
+    `<p>${esc(comparisonScope)}</p>`,
+    `<p>Quellen geprüft am <time datetime="${esc(c.evidence.reviewedOn)}">${esc(comparisonReviewDate(c.evidence.reviewedOn))}</time>: ${c.evidence.sources.map((source) => `<a href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(source.label)}</a>`).join(" · ")}</p>`,
+    `<h2>${esc(c.pricingComparison.title)}</h2>`,
+    ...c.pricingComparison.text.map((p) => `<p>${esc(p)}</p>`),
     ...c.painPoints.map((p) => `<h2>${esc(p.title)}</h2><p>${esc(p.text)}</p>`),
     `<h2>${esc(c.honestSection.title)}</h2><p>${esc(c.honestSection.text)}</p>`,
     `<h2>Häufige Fragen</h2>`,

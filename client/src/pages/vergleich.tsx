@@ -1,3 +1,4 @@
+import { ComparisonSources } from "@/components/marketing/ComparisonSources";
 import { useEffect } from "react";
 import { Link, useRoute } from "wouter";
 import { usePageMeta } from "@/hooks/use-document-title";
@@ -20,12 +21,6 @@ import {
   type ComparisonPageContent,
 } from "@shared/seo-content";
 import { comparisonLinks, funnelBuilderPage, vergleichIndexPage } from "@shared/seo-links";
-
-// Einmal pro Seiten-Load statt pro Render (Disclaimer unter der Tabelle).
-const COMPETITOR_DATA_DATE = new Date().toLocaleDateString("de-DE", {
-  month: "long",
-  year: "numeric",
-});
 
 /** FAQPage + BreadcrumbList als JSON-LD — gemeinsame Quelle mit der
  *  SSR-Meta-Injektion (shared/seo-content.ts:comparisonJsonLd). */
@@ -74,7 +69,7 @@ function IntroParagraph({ text }: { text: string }) {
 /** Buttons zu allen Vergleichsseiten (Übersicht + 404-Vorschläge). */
 function ComparisonLinkButtons() {
   return (
-    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+    <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 justify-center">
       {comparisonLinks.map((link) => (
         <Link key={link.path} href={link.path}>
           <Button variant="outline">{link.competitor}-Alternative</Button>
@@ -99,8 +94,8 @@ function ComparisonIndex() {
         <div className="container mx-auto max-w-2xl">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Trichterwerk im Vergleich</h1>
           <p className="text-lg text-muted-foreground mb-10">
-            Ehrlich verglichen mit den bekanntesten Alternativen — Features,
-            Preise und DSGVO im Detail:
+            Ausgewählte Alternativen im Vergleich: Preise, Funktionen
+            und Hinweise zur Datenverarbeitung.
           </p>
           <ComparisonLinkButtons />
           <div className="mt-10">
@@ -274,23 +269,7 @@ function ComparisonContent({ c }: { c: ComparisonPageContent }) {
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-muted-foreground text-center mt-4">
-            Preise und Features von {c.competitorName}: Stand {COMPETITOR_DATA_DATE}.
-            Ohne Gewähr — aktuelle Details auf der Anbieter-Website.
-          </p>
-          {c.slug === "perspective-alternative" && (
-            <p className="text-xs text-muted-foreground text-center mt-2">
-              Domains, Bewerbermails, Status-Auslöser und Workspaces: Angaben nach der{" "}
-              <a
-                href="https://intercom.help/perspective-funnels/en/articles/15191355-which-features-are-included-in-the-plans"
-                className="underline hover:text-foreground"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                offiziellen Perspective-Funktionsübersicht
-              </a>.
-            </p>
-          )}
+          <ComparisonSources evidence={[c.evidence]} />
         </div>
       </section>
 
@@ -298,7 +277,7 @@ function ComparisonContent({ c }: { c: ComparisonPageContent }) {
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-4xl">
           <h2 className="text-3xl md:text-4xl font-bold mb-10 text-center">
-            Warum Nutzer nach einer {c.competitorName}-Alternative suchen
+            Worauf du beim Vergleich achten solltest
           </h2>
           <div className="grid md:grid-cols-2 gap-6">
             {c.painPoints.map((p) => (
@@ -401,7 +380,7 @@ function ComparisonContent({ c }: { c: ComparisonPageContent }) {
       <section className="py-16 px-4">
         <div className="container mx-auto max-w-3xl text-center">
           <h2 className="text-2xl font-bold mb-6">Weitere Vergleiche</h2>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 justify-center">
             {c.relatedSlugs
               .map((slug) => getComparisonPage(slug))
               .filter((related): related is ComparisonPageContent => !!related)
