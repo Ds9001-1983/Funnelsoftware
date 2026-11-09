@@ -60,10 +60,22 @@ Bei bekannt gewordenen Datenschutzvorfällen Eingangszeit, betroffene Verarbeitu
 
 ## Noch erforderlich
 
+Die ausführliche [Betriebsanleitung](deploy/PRIVACY_OPERATIONS.md) mit vier leeren
+Fall-/Nachweisvorlagen und der [Dienstleisterabgleich](deploy/SUPPLIER_EVIDENCE.md)
+sind inzwischen ausgearbeitet. Die [synthetische Schreibtischprüfung](R07-BETRIEBSPRUEFUNG.md)
+gleicht sie mit vorhandenen Funktionen ab. Das ist eine vorbereitete Arbeitsgrundlage,
+kein Nachweis einer bereits eingeführten Erreichbarkeit oder echten Fallbearbeitung.
+
 - Exakte Hetzner-/Alfahosting-Vertragsfassungen samt Leistungs- und TOM-Anlagen im internen Nachweisverzeichnis verknüpfen und mit tatsächlichem Hosting, Sicherungen und SMTP-Dienst abgleichen. Der Abschluss selbst ist bestätigt.
 - R10/R11 sind im dokumentierten technischen Umfang umgesetzt. Für den vollständigen organisatorischen Abschluss bleiben Postfach-/Empfängerkopien, ergänzende Auskunftsinformationen und die dokumentierte Bearbeitung konkreter Weisungen zu prüfen.
 - Einen vollständigen Anbieterwechsel-Export nicht mit der E-Mail-bezogenen Betroffenenauskunft gleichsetzen; dieser bleibt das gesonderte Paket R15.
 - Vor erstmaligem Gebrauch die vorbereiteten manuellen Abläufe betrieblich einführen und ihre Durchführung dokumentieren. Bestandsverträge nicht durch eine Veröffentlichung oder durch technische Migration ersetzen.
+
+Die Suche nach passenden lokalen Vertragsdateien am 09.11.2026 lieferte keine
+eindeutigen AVV-/TOM-Anlagen. Ein gefundener Hetzner-Beleg ist eine Rechnung.
+Der Ablageort wurde erfragt; keine Anbieteranfrage versandt und kein Vertragslogin
+durchgeführt. Die frühere Betreiberbestätigung des Abschlusses bleibt gültiger
+Nachweis dieser Erklärung, ersetzt aber nicht den Inhaltsabgleich.
 
 Damit sind die beschriebenen Textlücken mit dem aktuellen technischen Stand abgeglichen. Offen bleiben insbesondere konkrete AVV-/TOM-Anlagen, die Einführung manueller Prozesse und der Umgang mit Bestandsverträgen. PR #183 wird als Entwurf aktualisiert; diese Fortsetzung enthält keine Veröffentlichung und keinen Versand an Kunden.
 

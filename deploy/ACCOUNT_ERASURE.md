@@ -80,8 +80,11 @@ isolierten direkten Entwicklungsablauf. Stripe-Tests nutzen ausschließlich Mock
 Ohne Journal ist unmittelbare Löschung nur in Entwicklung/Test möglich. Produktion
 benötigt das Journal; Fehler schalten nicht auf unmittelbare Löschung um.
 Lead-Einzel- und Sammelaufträge sind in [MANUAL_LEAD_ERASURE.md](MANUAL_LEAD_ERASURE.md)
-beschrieben. Analytics-Aufbewahrung und Regeln für logisch gelöschte Funnels
-bleiben gesonderte R11-Arbeiten.
+beschrieben. Die inzwischen implementierte Analytics-Aufbewahrung und Regeln
+für logisch gelöschte Funnels stehen in
+[ANALYTICS_AND_FUNNEL_RETENTION.md](ANALYTICS_AND_FUNNEL_RETENTION.md).
+Manuelle Fallbearbeitung und Abschlussnachweise:
+[PRIVACY_OPERATIONS.md](PRIVACY_OPERATIONS.md).
 
 Stripe-Referenzen: [Checkout-Sitzungen auflisten](https://docs.stripe.com/api/checkout/sessions/list),
 [offene Sitzungen beenden](https://docs.stripe.com/api/checkout/sessions/expire).

@@ -47,5 +47,7 @@ ein fehlendes oder beschädigtes Journal führt dort nicht zu diesem Ausweichweg
 
 Auch Kontolöschungen warten jetzt auf die externe Bestätigung ihres vollständigen
 Manifests. Die Kontosperre und der Abonnementablauf sind in
-[ACCOUNT_ERASURE.md](ACCOUNT_ERASURE.md) beschrieben. Analytics-Regeln und
-Aufbewahrung logisch gelöschter Funnels bleiben separat.
+[ACCOUNT_ERASURE.md](ACCOUNT_ERASURE.md) beschrieben. Die inzwischen implementierten
+Analytics-Regeln und Aufbewahrung logisch gelöschter Funnels sind separat in
+[ANALYTICS_AND_FUNNEL_RETENTION.md](ANALYTICS_AND_FUNNEL_RETENTION.md) dokumentiert.
+Für die manuelle Fallbearbeitung gilt [PRIVACY_OPERATIONS.md](PRIVACY_OPERATIONS.md).

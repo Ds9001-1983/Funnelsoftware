@@ -83,3 +83,29 @@ Private lokale Prüfprotokolle: `~/TrichterwerkBackups/reviews/b2b-2026-11-09/`.
 Tests ausschließlich mit synthetischen Daten in lokalen Wegwerf-Datenbanken,
 SMTP/Zahlungsdienste deaktiviert. Keine Produktivmigration, kein Deployment
 und keine Kundenbenachrichtigung.
+
+
+## Betriebliche Vorbereitung am 9. November 2026
+
+Die [Betriebsanleitung](deploy/PRIVACY_OPERATIONS.md) konkretisiert Eingang,
+Rollenprüfung, Fristen, Auskunft/Rückgabe, wartende und ausgeführte Löschung,
+Bestandsvertragsannahme und Sicherheitsvorfälle. Vier leere Vorlagen ermöglichen
+die private Dokumentation; ausgefüllte Fallakten gehören nicht ins Repository.
+Der [Dienstleisterabgleich](deploy/SUPPLIER_EVIDENCE.md) benennt die konkret
+benötigten Anbieterunterlagen und trennt bestätigten Vertragsabschluss von
+inhaltlich geprüftem Exemplar.
+
+Acht synthetische Fälle wurden als [Schreibtischprüfung](R07-BETRIEBSPRUEFUNG.md)
+mit den vorhandenen Funktionen abgeglichen. Veraltete Hinweise in drei bestehenden
+Betriebsanleitungen sind berichtigt. Diese Prüfung ist keine echte Fallbearbeitung
+oder Schulungsbestätigung; keine Produktänderung und keine neue Vertragsfassung.
+
+Lokale Suche in Projekt, Dokumente und Downloads fand keine eindeutig passenden
+AVV-/TOM-Anlagen. Ein Hetzner-Beleg ist eine Rechnung. Der Ablageort wurde erfragt;
+der Abschluss beider Verträge war bereits bestätigt und wird nicht erneut infrage
+gestellt. Anbieterlogin, Vertragsänderung und Versand fanden nicht statt.
+
+Noch benötigt: konkrete Anbieterdateien, erreichbare Vertretung und tatsächliche
+Eingangs-/Fristenkontrolle, private Fallablage sowie fallbezogene Prüfung vorhandener
+Bestandsverträge. Die Unterlagen sind für die Einführung vorbereitet; eine bereits
+erfolgte Einführung wird nicht behauptet.
