@@ -124,6 +124,16 @@ describe("Router ↔ SEO-Registry", () => {
     for (const c of Object.values(comparisonPages)) {
       const page = seoStaticPages.find((p) => p.path === `/vergleich/${c.slug}`);
       expect(page?.bodyHtml).toContain(esc(c.h1));
+      // Sources and tariff qualifications must reach crawlers alongside prices.
+      expect(page?.bodyHtml).toContain(`datetime="${c.evidence.reviewedOn}"`);
+      expect(c.evidence.sources.length).toBeGreaterThan(0);
+      for (const source of c.evidence.sources) {
+        expect(new URL(source.url).protocol).toBe("https:");
+        expect(page?.bodyHtml).toContain(`href="${esc(source.url)}"`);
+      }
+      for (const paragraph of c.pricingComparison.text) {
+        expect(page?.bodyHtml).toContain(esc(paragraph));
+      }
       for (const faq of c.faqs) {
         expect(page?.bodyHtml, `FAQ fehlt im bodyHtml von ${c.slug}`).toContain(esc(faq.q));
       }

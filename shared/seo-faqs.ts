@@ -28,7 +28,7 @@ export const funnelBuilderFaqs: SeoFaq[] = [
   },
   {
     q: "Was kostet ein Funnel-Builder?",
-    a: "Die Spanne reicht von ca. 25 $ (reine Formular-Tools wie Typeform) über 49 € (Trichterwerk, alles inklusive) bis 59–369 € pro Monat plus kostenpflichtiger Add-ons (Perspective) oder 97 $+ (ClickFunnels). Entscheidend ist, ob Leads, Funnels und Features unbegrenzt sind oder pro Plan limitiert.",
+    a: "Trichterwerk bietet Free für 0 € und Pro für 49 € pro Monat inklusive Mehrwertsteuer. Vergleiche bei anderen Anbietern Währung, Steuerbasis, Abrechnungszeitraum, Nutzungsumfang und Zusatzkosten. Auf unseren Vergleichsseiten findest du ausgewählte Tarife mit Prüfdatum und Links zu den Anbieterquellen.",
   },
   {
     q: "Welche Datenschutzfunktionen bietet Trichterwerk?",
@@ -36,7 +36,7 @@ export const funnelBuilderFaqs: SeoFaq[] = [
   },
   {
     q: "Wie schnell ist ein Funnel live?",
-    a: "Mit Template und Drag & Drop-Editor typischerweise in unter einer Stunde: registrieren, Vorlage wählen, Texte und Farben anpassen, veröffentlichen — fertig.",
+    a: "Registriere dich, wähle eine Vorlage und passe Inhalte und Gestaltung an. Prüfe Formulare, Verzweigungen und Integrationen vor der Veröffentlichung. Wie lange das dauert, hängt vom Umfang deines Funnels ab.",
   },
 ];
 

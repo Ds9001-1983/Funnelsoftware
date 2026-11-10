@@ -1,3 +1,5 @@
+import { ComparisonSources } from "@/components/marketing/ComparisonSources";
+import { comparisonEvidence, comparisonPrices } from "@shared/comparison-evidence";
 import { privacyIntegrationSummary } from "@shared/privacy-copy";
 import { Link } from "wouter";
 import { usePageMeta } from "@/hooks/use-document-title";
@@ -107,7 +109,7 @@ const features = [
   {
     icon: Smartphone,
     title: "Mobile-First Design",
-    description: "Jeder Funnel ist automatisch für Smartphones optimiert — dort, wo 80 % deiner Besucher landen.",
+    description: "Jeder Funnel ist für Smartphones ausgelegt. Prüfe die mobile Darstellung direkt in der Vorschau.",
     image: "/images/feature-mobile.webp",
   },
   {
@@ -288,7 +290,7 @@ const heroTrust = [
 
 // Ehrliche, belegbare Produktfakten statt erfundener Kundenstimmen
 const proofStats = [
-  { value: "< 1 Std.", label: "vom Signup zum ersten Funnel live" },
+  { value: "14 Tage", label: "Pro testen ohne Kreditkarte" },
   { value: "13", label: "fertige, konversionsstarke Templates" },
   { value: "20+", label: "Bausteine für jeden Funnel-Typ" },
   { value: "EU", label: "Hosting für Anwendung und Datenbank" },
@@ -303,13 +305,9 @@ interface ComparisonRow {
 }
 
 const comparisonRows: ComparisonRow[] = [
-  { label: "Deutsche Oberfläche & Support", trichterwerk: true, typeform: false, perspective: true, webflow: false },
-  { label: "Live-Handy-Vorschau im Editor", trichterwerk: true, typeform: true, perspective: true, webflow: false },
-  { label: "Conditional Logic & Quiz", trichterwerk: true, typeform: true, perspective: true, webflow: false },
-  { label: "Eigene Domain inklusive", trichterwerk: true, typeform: false, perspective: true, webflow: true },
-  { label: "A/B-Tests", trichterwerk: true, typeform: false, perspective: "ab Grow inklusive; Base mit Add-on", webflow: "mit Add-on" },
-  { label: "Setup-Zeit bis Launch", trichterwerk: "< 1 h", typeform: "1–2 h", perspective: "2–4 h", webflow: "Tage" },
-  { label: "Monatspreis", trichterwerk: "0–49 €", typeform: "ab 25 $", perspective: "ab 59 € + Add-ons", webflow: "ab 29 $ + Design" },
+  { label: "Schwerpunkt", trichterwerk: "Lead- und Bewerbungsfunnels", typeform: "Formulare, Umfragen und Quiz", perspective: "Mobile Funnels und Kontaktverwaltung", webflow: "Websites und CMS (tarifabhängig)" },
+  { label: "Leads / Antworten im genannten Tarif", trichterwerk: "Pro: unbegrenzt", typeform: "Basic: 100 Antworten / Monat", perspective: "Base: 100 Leads / Monat; Mehrverbrauch wird berechnet", webflow: "Basic: unbegrenzte Formulareinsendungen" },
+  { label: "Tarifbeispiel und Abrechnung", trichterwerk: comparisonPrices.trichterwerk, typeform: comparisonPrices.typeform, perspective: comparisonPrices.perspective, webflow: comparisonPrices.webflow },
 ];
 
 const faqs = [
@@ -419,9 +417,8 @@ export default function Landing() {
             Ohne Code. Ohne Agentur.
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-            Eine Agentur nimmt für einen Funnel schnell 2.000–5.000&nbsp;€ und
-            mehrere Wochen. Mit Trichterwerk baust du ihn selbst — mobile-optimiert,
-            in unter einer Stunde live. Ohne Code, entwickelt in Deutschland.
+            Erstelle mobile Funnels für Anfragen und Bewerbungen mit Vorlagen
+            und Drag & Drop. Ohne Code, entwickelt in Deutschland.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/register" onClick={() => trackCtaClick("hero")}>
@@ -601,7 +598,7 @@ export default function Landing() {
           <div className="text-center mb-16">
             <Badge variant="secondary" className="mb-4">In 4 Schritten live</Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Vom Signup zum ersten Lead in unter einer Stunde
+              Schritt für Schritt zum veröffentlichten Funnel
             </h2>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
@@ -720,10 +717,7 @@ export default function Landing() {
             </table>
           </div>
 
-          <p className="text-xs text-muted-foreground text-center mt-4">
-            Preise und Features der Wettbewerber: Stand {new Date().toLocaleDateString("de-DE", { month: "long", year: "numeric" })}.
-            Ohne Gewähr — aktuelle Details auf den Anbieter-Websites.
-          </p>
+          <ComparisonSources evidence={[comparisonEvidence.typeform, comparisonEvidence.perspective, comparisonEvidence.webflow]} />
 
           <p className="text-sm text-muted-foreground text-center mt-6">
             Ausführliche Vergleiche:{" "}

@@ -41,7 +41,7 @@ export const funnelBuilderPage: SeoStaticPage = {
   path: "/funnel-builder",
   metaTitle: "Funnel-Builder: Marketing-Funnels ohne Code erstellen",
   metaDescription:
-    "Was ist ein Funnel-Builder und wie erstellst du damit Funnels ohne Code? Der Guide aus Deutschland — mit EU-Hosting, ab 49 €/Monat, 14 Tage kostenlos testen.",
+    "Funnels ohne Code erstellen: Free kostenlos nutzen oder Pro für 49 €/Monat inkl. MwSt. buchen. Pro 14 Tage ohne Kreditkarte testen. Mit EU-Hosting.",
 };
 
 /** Meta der Vergleichs-Übersicht (/vergleich) — eine Quelle für Client-Hook,

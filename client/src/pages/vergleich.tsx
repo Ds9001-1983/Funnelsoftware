@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { ComparisonSources } from "@/components/marketing/ComparisonSources";
+import { Fragment, useEffect } from "react";
 import { Link, useRoute } from "wouter";
 import { usePageMeta } from "@/hooks/use-document-title";
 import { Button } from "@/components/ui/button";
@@ -18,14 +19,11 @@ import {
   getComparisonPage,
   comparisonJsonLd,
   type ComparisonPageContent,
+  type ComparisonPriceOverview,
 } from "@shared/seo-content";
+import type { ComparisonEvidence } from "@shared/comparison-evidence";
+import { priceOverviewCells, priceOverviewColumns } from "@shared/seo-html";
 import { comparisonLinks, funnelBuilderPage, vergleichIndexPage } from "@shared/seo-links";
-
-// Einmal pro Seiten-Load statt pro Render (Disclaimer unter der Tabelle).
-const COMPETITOR_DATA_DATE = new Date().toLocaleDateString("de-DE", {
-  month: "long",
-  year: "numeric",
-});
 
 /** FAQPage + BreadcrumbList als JSON-LD — gemeinsame Quelle mit der
  *  SSR-Meta-Injektion (shared/seo-content.ts:comparisonJsonLd). */
@@ -46,6 +44,92 @@ function ComparisonCell({ value, highlight }: { value: boolean | string; highlig
     <span className="font-semibold text-primary">{value}</span>
   ) : (
     <span className="text-muted-foreground">{value}</span>
+  );
+}
+
+/**
+ * Tarifübersicht des Wettbewerbers: Preise und Kontingente je Tarif,
+ * Zusatzkosten, Quellen mit Prüfdatum und der eigene Tarif zum Vergleich.
+ * Dieselben Texte stehen im Crawler-HTML (shared/seo-html.ts).
+ */
+function PriceOverview({
+  overview,
+  evidence,
+}: {
+  overview: ComparisonPriceOverview;
+  evidence: ComparisonEvidence;
+}) {
+  return (
+    <div className="container mx-auto max-w-4xl mb-16">
+      <h2 className="text-3xl md:text-4xl font-bold mb-4 text-center">{overview.title}</h2>
+      <p className="text-muted-foreground text-center max-w-2xl mx-auto mb-10">{overview.intro}</p>
+      {/* Ab Tablet-Breite als Tabelle, auf dem Handy je Tarif eine Karte:
+          sechs Spalten passen dort nicht nebeneinander. */}
+      <div className="hidden md:block overflow-x-auto rounded-xl border bg-card">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/30">
+              {priceOverviewColumns.map((column, idx) => (
+                <th
+                  key={column}
+                  scope="col"
+                  className={`p-4 font-medium ${idx === 0 ? "text-left" : "text-center"}`}
+                >
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {overview.plans.map((plan, idx) => {
+              const [name, ...values] = priceOverviewCells(plan);
+              return (
+                <tr
+                  key={name}
+                  className={`border-b last:border-0 ${idx % 2 === 1 ? "bg-muted/10" : ""}`}
+                >
+                  <th scope="row" className="p-4 text-left font-medium">{name}</th>
+                  {values.map((value, column) => (
+                    <td key={priceOverviewColumns[column + 1]} className="p-4 text-center whitespace-nowrap">
+                      {value}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="md:hidden space-y-3">
+        {overview.plans.map((plan) => {
+          const [name, ...values] = priceOverviewCells(plan);
+          return (
+            <div key={name} className="rounded-xl border bg-card p-4">
+              <h3 className="font-semibold mb-2">{name}</h3>
+              <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
+                {values.map((value, column) => (
+                  <Fragment key={priceOverviewColumns[column + 1]}>
+                    <dt className="text-muted-foreground">{priceOverviewColumns[column + 1]}</dt>
+                    <dd className="text-right font-medium">{value}</dd>
+                  </Fragment>
+                ))}
+              </dl>
+            </div>
+          );
+        })}
+      </div>
+      <ul className="mt-6 space-y-2 text-sm text-muted-foreground list-disc pl-5">
+        {overview.notes.map((note) => (
+          <li key={note}>{note}</li>
+        ))}
+      </ul>
+      <ComparisonSources evidence={[evidence]} />
+      <Card className="mt-8 border-primary/30 bg-primary/5">
+        <CardContent className="p-6">
+          <p className="text-base leading-relaxed">{overview.ownOffer}</p>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -74,7 +158,7 @@ function IntroParagraph({ text }: { text: string }) {
 /** Buttons zu allen Vergleichsseiten (Übersicht + 404-Vorschläge). */
 function ComparisonLinkButtons() {
   return (
-    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+    <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 justify-center">
       {comparisonLinks.map((link) => (
         <Link key={link.path} href={link.path}>
           <Button variant="outline">{link.competitor}-Alternative</Button>
@@ -99,8 +183,8 @@ function ComparisonIndex() {
         <div className="container mx-auto max-w-2xl">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Trichterwerk im Vergleich</h1>
           <p className="text-lg text-muted-foreground mb-10">
-            Ehrlich verglichen mit den bekanntesten Alternativen — Features,
-            Preise und DSGVO im Detail:
+            Ausgewählte Alternativen im Vergleich: Preise, Funktionen
+            und Hinweise zur Datenverarbeitung.
           </p>
           <ComparisonLinkButtons />
           <div className="mt-10">
@@ -228,7 +312,7 @@ function ComparisonContent({ c }: { c: ComparisonPageContent }) {
             </Link>
           </div>
           <p className="text-sm text-muted-foreground mt-4">
-            14 Tage kostenlos · erste Belastung erst nach der Testphase · monatlich kündbar
+            Pro 14 Tage ohne Kreditkarte testen · danach Free nutzen oder Pro buchen
           </p>
         </div>
       </section>
@@ -274,23 +358,7 @@ function ComparisonContent({ c }: { c: ComparisonPageContent }) {
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-muted-foreground text-center mt-4">
-            Preise und Features von {c.competitorName}: Stand {COMPETITOR_DATA_DATE}.
-            Ohne Gewähr — aktuelle Details auf der Anbieter-Website.
-          </p>
-          {c.slug === "perspective-alternative" && (
-            <p className="text-xs text-muted-foreground text-center mt-2">
-              Domains, Bewerbermails, Status-Auslöser und Workspaces: Angaben nach der{" "}
-              <a
-                href="https://intercom.help/perspective-funnels/en/articles/15191355-which-features-are-included-in-the-plans"
-                className="underline hover:text-foreground"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                offiziellen Perspective-Funktionsübersicht
-              </a>.
-            </p>
-          )}
+          <ComparisonSources evidence={[c.evidence]} />
         </div>
       </section>
 
@@ -298,7 +366,7 @@ function ComparisonContent({ c }: { c: ComparisonPageContent }) {
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-4xl">
           <h2 className="text-3xl md:text-4xl font-bold mb-10 text-center">
-            Warum Nutzer nach einer {c.competitorName}-Alternative suchen
+            Worauf du beim Vergleich achten solltest
           </h2>
           <div className="grid md:grid-cols-2 gap-6">
             {c.painPoints.map((p) => (
@@ -333,8 +401,9 @@ function ComparisonContent({ c }: { c: ComparisonPageContent }) {
         </div>
       </section>
 
-      {/* Preisvergleich */}
+      {/* Preisvergleich, bei geprüften Einzelpreisen mit Tarifübersicht davor */}
       <section className="py-20 px-4">
+        {c.priceOverview && <PriceOverview overview={c.priceOverview} evidence={c.evidence} />}
         <div className="container mx-auto max-w-3xl">
           <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">
             {c.pricingComparison.title}
@@ -394,14 +463,14 @@ function ComparisonContent({ c }: { c: ComparisonPageContent }) {
 
       <MarketingCta
         title={`Bereit für die ${c.competitorName}-Alternative aus Deutschland?`}
-        text="Teste Trichterwerk 14 Tage kostenlos mit vollem Funktionsumfang — erste Belastung erst nach der Testphase, Kündigung mit zwei Klicks."
+        text="Teste Trichterwerk Pro 14 Tage ohne Kreditkarte. Danach nutzt du Free weiter oder buchst Pro."
       />
 
       {/* Weitere Vergleiche (interne Verlinkung) */}
       <section className="py-16 px-4">
         <div className="container mx-auto max-w-3xl text-center">
           <h2 className="text-2xl font-bold mb-6">Weitere Vergleiche</h2>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 justify-center">
             {c.relatedSlugs
               .map((slug) => getComparisonPage(slug))
               .filter((related): related is ComparisonPageContent => !!related)
