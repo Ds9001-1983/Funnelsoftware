@@ -99,6 +99,16 @@ test("Kompletter Funnel-Lebenszyklus: Registrieren → Erstellen → Publizieren
     await expect(v.getByText("Entdecke das Geheimnis erfolgreicher Unternehmer")).toBeVisible();
   });
 
+  await test.step("Plattform-Sitemap enthält keine Kundenfunnels", async () => {
+    // /f/-Seiten laden ihren Inhalt über /api/, das die robots.txt sperrt.
+    // Google rendert sie deshalb leer und meldet jede gelistete Adresse als Soft-404.
+    const res = await v.request.get("/sitemap.xml");
+    expect(res.status()).toBe(200);
+    const xml = await res.text();
+    expect(xml).toContain("<loc>https://trichterwerk.de/funnel-builder</loc>");
+    expect(xml).not.toContain("/f/");
+  });
+
   await test.step("Durchklicken bis zur Kontaktseite", async () => {
     await v.getByTestId("button-funnel-next").click();
     await expect(v.getByText("Wie hat dir das Video gefallen?")).toBeVisible();
