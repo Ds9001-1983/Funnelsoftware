@@ -48,7 +48,10 @@ describe.skipIf(!connection)("additive migration on existing funnels and leads",
     expect((await client.query("SELECT * FROM brand_styles")).rows).toEqual([]);
     for (const table of ["content_templates", "media_folders", "media_assets", "marketing_consents", "owned_uploads", "funnel_retention_drafts", "lead_retention_exceptions", "funnel_analytics_retention", "deleted_funnel_retention"]) expect((await client.query(`SELECT * FROM ${table}`)).rows).toEqual([]);
     expect((await client.query("INSERT INTO platform_visits DEFAULT VALUES RETURNING abs(extract(epoch FROM (timestamp - (now() AT TIME ZONE 'UTC')))) < 1 AS utc")).rows[0].utc).toBe(true);
-    expect((await client.query("SELECT count(*)::int AS count FROM app_migrations")).rows[0].count).toBe(13);
+    expect((await client.query("SELECT id, email, registration_contract FROM users")).rows).toEqual([
+      { id: 1, email: "migration@example.test", registration_contract: null },
+    ]);
+    expect((await client.query("SELECT count(*)::int AS count FROM app_migrations")).rows[0].count).toBe(14);
   });
   it("preserves an existing retention draft without activating deletion", async () => {
     await client.query("DELETE FROM app_migrations WHERE name='20261023_retention_activation.sql'");

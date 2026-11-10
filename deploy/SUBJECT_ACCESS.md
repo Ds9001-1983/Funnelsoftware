@@ -28,13 +28,20 @@ und Suchmerkmale, Supportmeldungen und Anhänge, Postfächer, Integrationen und
 Backups gesondert berücksichtigen. Ergänzende Auskunftsinformationen und die
 eigentliche Antwort werden durch den Verantwortlichen zusammengestellt.
 
-**Daten löschen** entfernt Leads mit der aktuell passenden E-Mail-Adresse
-samt Statusereignissen und Recruiting-Mailjobs aus diesem Konto. Stimmen nur
+**Daten löschen** beauftragt bei eingerichtetem Produktionsjournal die Löschung
+der Leads mit der aktuell passenden E-Mail-Adresse samt Statusereignissen und
+Recruiting-Mailjobs aus diesem Konto. HTTP 202 bedeutet beauftragt, noch nicht
+ausgeführt; die Ausführung wartet auf externe Bestätigung. Details und
+Abschlussprüfung: [MANUAL_LEAD_ERASURE.md](MANUAL_LEAD_ERASURE.md). Stimmen nur
 frühere Empfängeradressen, werden dadurch keine aktuellen Leads anderer
 Adressen entfernt. Bereits versandte Kopien und externe Datenbereiche bleiben
 gesondert zu bearbeiten. Eine endgültige Löschung erfordert die Bestätigung
 in der Oberfläche; Kontodaten anderer Kunden sind nicht betroffen.
 
-Dieses Paket legt keine allgemeinen Aufbewahrungsfristen fest und bereinigt
-keine Alt-Backups. R11 bleibt hinsichtlich kundengesteuerter Fristen und
-Wiederherstellung bereits gelöschter Daten gesondert offen.
+Die Auskunftsfunktion legt keine Aufbewahrungsfristen fest. Die inzwischen
+implementierte kundengesteuerte Aufbewahrung ist in
+[RETENTION_AUTOMATION.md](RETENTION_AUTOMATION.md) und
+[ANALYTICS_AND_FUNNEL_RETENTION.md](ANALYTICS_AND_FUNNEL_RETENTION.md) beschrieben.
+Für Backups gelten [BACKUP_AUTOMATION.md](BACKUP_AUTOMATION.md) und vor Restore
+[ERASURE_RESTORE.md](ERASURE_RESTORE.md). Den manuellen Gesamtprozess einschließlich
+Postfächern und Antwortnachweis beschreibt [PRIVACY_OPERATIONS.md](PRIVACY_OPERATIONS.md).

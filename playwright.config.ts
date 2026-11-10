@@ -27,13 +27,18 @@ export default defineConfig({
   },
   projects: [
     {
+      name: "registration",
+      testMatch: "**/b2b-registration.spec.ts",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
       name: "publication-legal",
       testMatch: "**/publication-legal.spec.ts",
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "chromium",
-      testIgnore: ["**/account-deletion.spec.ts", "**/subject-export.spec.ts", "**/retention.spec.ts", "**/analytics-retention.spec.ts", "**/publication-legal.spec.ts", "**/platform-privacy.spec.ts"],
+      testIgnore: ["**/b2b-registration.spec.ts", "**/account-deletion.spec.ts", "**/subject-export.spec.ts", "**/retention.spec.ts", "**/analytics-retention.spec.ts", "**/publication-legal.spec.ts", "**/platform-privacy.spec.ts"],
       use: { ...devices["Desktop Chrome"] },
     },
     {

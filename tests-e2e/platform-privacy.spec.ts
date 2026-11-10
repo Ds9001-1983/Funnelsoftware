@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import pg from "pg";
+import { REGISTRATION_CONTRACT } from "../shared/registration-contract";
 import { E2E_DATABASE_URL } from "./helpers/env";
 import { makeCredentials } from "./helpers/unique";
 const pool = new pg.Pool({ connectionString: E2E_DATABASE_URL });
@@ -43,7 +44,7 @@ test("server honors cookie, DNT, GPC and host boundaries; drops arbitrary metada
 
 test("registration works after objection without a registration measurement", async ({ request }) => {
   const start = await count(), credentials = makeCredentials();
-  const response = await request.post("/api/auth/register", { headers: { Cookie: "tw_platform_optout=1" }, data: credentials });
+  const response = await request.post("/api/auth/register", { headers: { Cookie: "tw_platform_optout=1" }, data: { ...credentials, businessName: "Datenschutz-Testbetrieb", businessConfirmed: true, termsAccepted: true, legalVersion: REGISTRATION_CONTRACT.version } });
   expect(response.status()).toBe(201);
   expect(await count()).toBe(start);
 });
@@ -66,6 +67,9 @@ test("blocked cookies still suppress registration measurement in the current tab
   await page.getByRole("link", { name: /Kostenlos/ }).first().click();
   await page.getByLabel("E-Mail", { exact: false }).fill("synthetic-cookie-block@example.test");
   await page.locator("input#password").fill("synthetic-password-123");
+  await page.locator("#businessName").fill("Datenschutz-Testbetrieb");
+  await page.locator("#businessConfirmed").check();
+  await page.locator("#termsAccepted").check();
   const submitted = page.waitForRequest("**/api/auth/register");
   await page.route("**/api/auth/register", route => route.fulfill({ status: 400, json: { error: "Synthetischer Test abgeschlossen" } }));
   await page.getByTestId("button-register-submit").click();
