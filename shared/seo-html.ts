@@ -15,7 +15,7 @@ import { comparisonReviewDate, comparisonScope } from "./comparison-evidence";
  * prüft das stichprobenartig.
  */
 
-import type { AudiencePageContent, ComparisonPageContent } from "./seo-content";
+import type { AudiencePageContent, ComparisonPageContent, ComparisonPricePlan } from "./seo-content";
 import type { SeoFaq } from "./seo-links";
 import type { TemplateMeta } from "./template-meta";
 
@@ -39,6 +39,36 @@ function cellText(value: boolean | string): string {
   return esc(value);
 }
 
+/** Spalten der Tarifübersicht. Dieselben Titel nutzt die React-Seite. */
+export const priceOverviewColumns = [
+  "Tarif",
+  "Monatszahlung",
+  "Jahreszahlung (pro Monat)",
+  "Live-Funnels",
+  "Leads pro Monat",
+  "Nutzer",
+] as const;
+
+/** Werte eines Tarifs in der Reihenfolge von priceOverviewColumns. */
+export function priceOverviewCells(plan: ComparisonPricePlan): string[] {
+  return [plan.plan, plan.monthly, plan.yearly, plan.liveFunnels, plan.leads, plan.seats];
+}
+
+function priceOverviewHtml(c: ComparisonPageContent): string[] {
+  const overview = c.priceOverview;
+  if (!overview) return [];
+  const rows = overview.plans
+    .map((plan) => `<tr>${priceOverviewCells(plan).map((cell) => `<td>${esc(cell)}</td>`).join("")}</tr>`)
+    .join("");
+  return [
+    `<h2>${esc(overview.title)}</h2>`,
+    `<p>${esc(overview.intro)}</p>`,
+    `<table><thead><tr>${priceOverviewColumns.map((column) => `<th>${esc(column)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table>`,
+    `<ul>${overview.notes.map((note) => `<li>${esc(note)}</li>`).join("")}</ul>`,
+    `<p>${esc(overview.ownOffer)}</p>`,
+  ];
+}
+
 export function renderComparisonHtml(c: ComparisonPageContent): string {
   const rows = c.comparisonRows
     .map(
@@ -53,6 +83,7 @@ export function renderComparisonHtml(c: ComparisonPageContent): string {
     `<table><thead><tr><th>Feature</th><th>Trichterwerk</th><th>${esc(c.competitorName)}</th></tr></thead><tbody>${rows}</tbody></table>`,
     `<p>${esc(comparisonScope)}</p>`,
     `<p>Quellen geprüft am <time datetime="${esc(c.evidence.reviewedOn)}">${esc(comparisonReviewDate(c.evidence.reviewedOn))}</time>: ${c.evidence.sources.map((source) => `<a href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(source.label)}</a>`).join(" · ")}</p>`,
+    ...priceOverviewHtml(c),
     `<h2>${esc(c.pricingComparison.title)}</h2>`,
     ...c.pricingComparison.text.map((p) => `<p>${esc(p)}</p>`),
     ...c.painPoints.map((p) => `<h2>${esc(p.title)}</h2><p>${esc(p.text)}</p>`),

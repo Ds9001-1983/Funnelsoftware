@@ -40,6 +40,34 @@ export interface SeoComparisonRow {
   competitor: boolean | string;
 }
 
+/** Eine Zeile der Tarifübersicht des Wettbewerbers, wörtlich nach Anbieterquelle. */
+export interface ComparisonPricePlan {
+  plan: string;
+  /** Preis pro Monat bei monatlicher Zahlung. */
+  monthly: string;
+  /** Preis pro Monat bei jährlicher Abrechnung. */
+  yearly: string;
+  liveFunnels: string;
+  /** Enthaltene Leads pro Monat. */
+  leads: string;
+  seats: string;
+}
+
+/**
+ * Tarifübersicht eines Wettbewerbers. Nur für Seiten, deren Preise einzeln
+ * gegen die Quellen in `evidence` geprüft sind: Werte und Prüfdatum
+ * (shared/comparison-evidence.ts) ändern sich nur gemeinsam.
+ */
+export interface ComparisonPriceOverview {
+  title: string;
+  intro: string;
+  plans: ComparisonPricePlan[];
+  /** Zusatzkosten und Bedingungen, die den Tabellenpreis verändern. */
+  notes: string[];
+  /** Der eigene Tarif zum Vergleich. */
+  ownOffer: string;
+}
+
 export interface ComparisonPageContent {
   slug: string;
   competitorName: string;
@@ -57,6 +85,8 @@ export interface ComparisonPageContent {
   comparisonRows: SeoComparisonRow[];
   featureSections: { title: string; text: string }[];
   pricingComparison: { title: string; text: string[] };
+  /** Optionale Tarifübersicht des Wettbewerbers, steht vor dem Preisvergleich. */
+  priceOverview?: ComparisonPriceOverview;
   honestSection: { title: string; text: string };
   migrationSteps: { title: string; text: string }[];
   faqs: SeoFaq[];
@@ -77,6 +107,9 @@ interface ComparisonInput {
   pricing: string;
   fit: string;
   relatedSlugs: string[];
+  priceOverview?: ComparisonPriceOverview;
+  /** Seitenspezifische Fragen, stehen vor den allgemeinen. */
+  extraFaqs?: SeoFaq[];
 }
 
 function comparisonPage(input: ComparisonInput): ComparisonPageContent {
@@ -104,6 +137,7 @@ function comparisonPage(input: ComparisonInput): ComparisonPageContent {
       title: `Tarife von ${input.name} und Trichterwerk`,
       text: [input.pricing, proScope, "Vergleiche denselben Abrechnungszeitraum und das benötigte Nutzungsvolumen. Ein Einstiegstarif ist kein funktionsgleiches Angebot; Kosten für zusätzliche Dienste und Werbung gehören in deine eigene Kalkulation."],
     },
+    priceOverview: input.priceOverview,
     honestSection: { title: `Wann ${input.name} zu deinem Projekt passen kann`, text: input.fit },
     migrationSteps: [
       { title: "Ablauf und Daten prüfen", text: "Liste Seiten, Fragen, Verzweigungen und Integrationen auf. Sichere benötigte Bestandsdaten über die Exportmöglichkeiten deines bisherigen Anbieters. Prüfe vor einem Wechsel, welche Daten und Funktionen du tatsächlich übertragen kannst." },
@@ -111,6 +145,7 @@ function comparisonPage(input: ComparisonInput): ComparisonPageContent {
       { title: "Veröffentlichung vorbereiten", text: "Verbinde bei Bedarf deine eigene Domain im Pro-Plan und aktualisiere Anzeigen und Links erst nach dem Funktionstest. Eine Weiterleitung alter URLs ist nur möglich, soweit du die Domain oder die entsprechenden Einstellungen kontrollierst." },
     ],
     faqs: [
+      ...(input.extraFaqs ?? []),
       { q: `Wie vergleiche ich ${input.name} mit Trichterwerk?`, a: input.consideration },
       { q: "Gibt es einen kostenlosen Einstieg bei Trichterwerk?", a: "Ja. Free umfasst einen veröffentlichten Funnel und 100 sichtbare Leads pro Monat mit Trichterwerk-Badge. Pro kostet 49 € pro Monat inklusive Mehrwertsteuer. Die 14-tägige Pro-Testphase benötigt keine Kreditkarte." },
       { q: "Kann ich einen bestehenden Funnel automatisch importieren?", a: "Einen automatischen Import aus anderen Funnel-Systemen gibt es nicht. Inhalte, Gestaltung und Abläufe werden manuell neu aufgebaut. Prüfe Exporte, Integrationen und Weiterleitungen vor dem Wechsel; eine feste Umzugsdauer können wir nicht zusagen." },
@@ -155,6 +190,33 @@ export const comparisonPages: Record<string, ComparisonPageContent> = {
     pricing: "Perspective Base kostet bei Monatszahlung 59 € pro Monat netto, bei jährlicher Abrechnung rechnerisch 47 € pro Monat netto. Die Mehrwertsteuer kommt hinzu. Höhere Kontingente, optionale Add-ons und Mehrverbrauch können den Gesamtpreis verändern.",
     fit: "Wenn deine Abläufe mehrere Teamrollen oder eine bestimmte Kombination aus Funnel-, Messaging- und Integrationsfunktionen benötigen, teste diese direkt bei Perspective. In Trichterwerk geben Kundenbereiche Zugriff auf zugeordnete Bewerberboards und Statusänderungen; Editor, Mailregeln und Abrechnung verwaltest du als Betreiber.",
     relatedSlugs: ["heyflow-alternative", "meetovo-alternative", "funnelcockpit-alternative"],
+    // Alle Werte am 10.11.2026 gegen die beiden Quellen in comparisonEvidence.perspective geprüft.
+    priceOverview: {
+      title: "Perspective-Preise: Was kosten die Tarife?",
+      intro: "Perspective bietet vier Tarife an. Die Übersicht zeigt den Preis pro Monat und die enthaltenen Kontingente nach den Angaben des Anbieters. Alle Preise sind Nettopreise in Euro, die Mehrwertsteuer kommt hinzu.",
+      plans: [
+        { plan: "Base", monthly: "59 €", yearly: "47 €", liveFunnels: "2", leads: "100", seats: "1" },
+        { plan: "Grow", monthly: "184 €", yearly: "147 €", liveFunnels: "10", leads: "500", seats: "3" },
+        { plan: "Expand", monthly: "369 €", yearly: "297 €", liveFunnels: "20", leads: "1.000", seats: "5" },
+        { plan: "Scale", monthly: "–", yearly: "individuell", liveFunnels: "ab 60", leads: "individuell", seats: "individuell" },
+      ],
+      notes: [
+        "Jährliche Abrechnung: Der Betrag wird einmal im Jahr berechnet, im Tarif Base sind das 564 € netto.",
+        "Zusätzliche Leads: Jeder Lead über dem Kontingent kostet 0,25 €. Perspective sperrt dabei laut eigener Angabe keine Leads.",
+        "Add-on-Suites: Einzelne Funktionspakete kosten je 84 € pro Monat bei monatlicher Zahlung oder 67 € pro Monat bei jährlicher Abrechnung.",
+        "Branding und A/B-Tests: Das Entfernen des Perspective-Brandings und A/B-Tests auf der ersten Seite sind ab Grow enthalten. Im Tarif Base brauchst du dafür jeweils eine Add-on-Suite.",
+        "Testphase: 14 Tage kostenlos. Danach beginnt der gewählte Tarif automatisch, wenn du nicht vorher kündigst.",
+        "Scale: Der Tarif für große Teams wird individuell angeboten. Die Preisseite zeigt dafür 969 € pro Monat, der Hilfeartikel nennt einen individuellen Preis mit jährlicher Abrechnung.",
+      ],
+      ownOffer: "Zum Vergleich: Trichterwerk Pro kostet 49 € pro Monat inklusive Mehrwertsteuer, das sind 41,18 € netto bei 19 % Mehrwertsteuer. Veröffentlichte Funnels und Leads sind in Pro nicht begrenzt, und du kannst monatlich kündigen. Die Tarife beider Anbieter sind nicht funktionsgleich. Prüfe deshalb, welche Funktionen dein Ablauf braucht.",
+    },
+    extraFaqs: [
+      { q: "Was kostet Perspective?", a: "Nach den Angaben des Anbieters kostet der Tarif Base 59 € pro Monat bei monatlicher Zahlung oder 47 € pro Monat bei jährlicher Abrechnung. Grow kostet 184 € oder 147 €, Expand 369 € oder 297 €. Alle Preise sind Nettopreise, die Mehrwertsteuer kommt hinzu. Zusätzliche Leads und Add-on-Suites berechnet Perspective gesondert." },
+      { q: "Welche Preispläne hat Perspective?", a: "Perspective führt vier Tarife. Base enthält 2 Live-Funnels, 100 Leads pro Monat und einen Nutzer. Grow enthält 10 Live-Funnels, 500 Leads und 3 Nutzer, Expand 20 Live-Funnels, 1.000 Leads und 5 Nutzer. Scale beginnt bei 60 Live-Funnels und wird individuell angeboten." },
+      { q: "Gibt es eine günstigere Alternative zu Perspective?", a: "Das hängt davon ab, welche Funktionen du brauchst. Trichterwerk Pro kostet 49 € pro Monat inklusive Mehrwertsteuer, begrenzt weder veröffentlichte Funnels noch Leads und ist monatlich kündbar. Mit Free startest du dauerhaft kostenlos mit einem veröffentlichten Funnel. Die Tarife beider Anbieter sind nicht funktionsgleich, vergleiche deshalb den Umfang, den dein Ablauf wirklich nutzt." },
+      { q: "Was passiert bei Perspective, wenn mein Lead-Kontingent aufgebraucht ist?", a: "Perspective sperrt laut eigener Angabe keine Leads. Jeder Lead über dem Kontingent kostet 0,25 € und wird am Ende des Abrechnungszeitraums berechnet. Trichterwerk Pro hat kein Lead-Kontingent." },
+      { q: "Wie unterscheiden sich die Testphasen von Perspective und Trichterwerk?", a: "Perspective lässt sich 14 Tage kostenlos testen. Danach beginnt der gewählte Tarif automatisch, wenn du nicht vorher kündigst. Bei Trichterwerk testest du Pro 14 Tage ohne Kreditkarte und nutzt danach Free weiter oder buchst Pro." },
+    ],
   }),
   "clickfunnels-alternative": comparisonPage({
     slug: "clickfunnels-alternative", name: "ClickFunnels", evidence: comparisonEvidence.clickfunnels,
