@@ -72,3 +72,21 @@ Funktion. Für andere Währungen keine ungeprüften Umrechnungen ergänzen.
 
 Kein Deployment, keine Änderung an Verträgen, Datenbank oder Anbieteraccounts.
 R07-Anbieteranlagen und R16-Betreiberbelege bleiben eigenständige offene Punkte.
+
+## Nachprüfung am 10. November 2026
+
+PR #200 ist offen, als Entwurf markiert und konfliktfrei. Der bestehende
+PR-CI-Lauf für `e0911a9` ist erfolgreich; es liegen keine GitHub-Reviews vor.
+
+Zwei verbliebene Tarifwidersprüche sind korrigiert: Der Hinweis unter dem
+Registrierungsbutton der acht Vergleichsseiten nennt jetzt die Pro-Testphase
+ohne Kreditkarte und die anschließende Wahl zwischen Free und Pro. Die bisherige
+Formulierung zur ersten Belastung suggerierte eine automatische Buchung.
+Die gemeinsame Meta-Beschreibung von `/funnel-builder` nennt jetzt ebenfalls
+Free und Pro einschließlich Mehrwertsteuer statt eines pauschalen Einstiegspreises
+von 49 Euro. Sie wird im Client sowie in den serverseitigen Metadaten verwendet.
+
+Die 17 bestehenden SEO-Registry-/Routingtests bestehen, `git diff --check` ist
+fehlerfrei. Keine Änderung an Wettbewerberpreisen oder deren Prüfdatum; keine
+erneute Quellenprüfung. Die bisherigen umfangreichen Testnachweise beziehen
+sich auf den vorherigen Commit. Kein Merge oder Deployment.

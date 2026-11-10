@@ -223,7 +223,7 @@ function ComparisonContent({ c }: { c: ComparisonPageContent }) {
             </Link>
           </div>
           <p className="text-sm text-muted-foreground mt-4">
-            14 Tage kostenlos · erste Belastung erst nach der Testphase · monatlich kündbar
+            Pro 14 Tage ohne Kreditkarte testen · danach Free nutzen oder Pro buchen
           </p>
         </div>
       </section>
