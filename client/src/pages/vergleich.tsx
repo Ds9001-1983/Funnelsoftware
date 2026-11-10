@@ -463,7 +463,7 @@ function ComparisonContent({ c }: { c: ComparisonPageContent }) {
 
       <MarketingCta
         title={`Bereit für die ${c.competitorName}-Alternative aus Deutschland?`}
-        text="Teste Trichterwerk 14 Tage kostenlos mit vollem Funktionsumfang — erste Belastung erst nach der Testphase, Kündigung mit zwei Klicks."
+        text="Teste Trichterwerk Pro 14 Tage ohne Kreditkarte. Danach nutzt du Free weiter oder buchst Pro."
       />
 
       {/* Weitere Vergleiche (interne Verlinkung) */}
