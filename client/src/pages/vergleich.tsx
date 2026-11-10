@@ -1,5 +1,5 @@
 import { ComparisonSources } from "@/components/marketing/ComparisonSources";
-import { useEffect } from "react";
+import { Fragment, useEffect } from "react";
 import { Link, useRoute } from "wouter";
 import { usePageMeta } from "@/hooks/use-document-title";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,10 @@ import {
   getComparisonPage,
   comparisonJsonLd,
   type ComparisonPageContent,
+  type ComparisonPriceOverview,
 } from "@shared/seo-content";
+import type { ComparisonEvidence } from "@shared/comparison-evidence";
+import { priceOverviewCells, priceOverviewColumns } from "@shared/seo-html";
 import { comparisonLinks, funnelBuilderPage, vergleichIndexPage } from "@shared/seo-links";
 
 /** FAQPage + BreadcrumbList als JSON-LD — gemeinsame Quelle mit der
@@ -41,6 +44,92 @@ function ComparisonCell({ value, highlight }: { value: boolean | string; highlig
     <span className="font-semibold text-primary">{value}</span>
   ) : (
     <span className="text-muted-foreground">{value}</span>
+  );
+}
+
+/**
+ * Tarifübersicht des Wettbewerbers: Preise und Kontingente je Tarif,
+ * Zusatzkosten, Quellen mit Prüfdatum und der eigene Tarif zum Vergleich.
+ * Dieselben Texte stehen im Crawler-HTML (shared/seo-html.ts).
+ */
+function PriceOverview({
+  overview,
+  evidence,
+}: {
+  overview: ComparisonPriceOverview;
+  evidence: ComparisonEvidence;
+}) {
+  return (
+    <div className="container mx-auto max-w-4xl mb-16">
+      <h2 className="text-3xl md:text-4xl font-bold mb-4 text-center">{overview.title}</h2>
+      <p className="text-muted-foreground text-center max-w-2xl mx-auto mb-10">{overview.intro}</p>
+      {/* Ab Tablet-Breite als Tabelle, auf dem Handy je Tarif eine Karte:
+          sechs Spalten passen dort nicht nebeneinander. */}
+      <div className="hidden md:block overflow-x-auto rounded-xl border bg-card">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/30">
+              {priceOverviewColumns.map((column, idx) => (
+                <th
+                  key={column}
+                  scope="col"
+                  className={`p-4 font-medium ${idx === 0 ? "text-left" : "text-center"}`}
+                >
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {overview.plans.map((plan, idx) => {
+              const [name, ...values] = priceOverviewCells(plan);
+              return (
+                <tr
+                  key={name}
+                  className={`border-b last:border-0 ${idx % 2 === 1 ? "bg-muted/10" : ""}`}
+                >
+                  <th scope="row" className="p-4 text-left font-medium">{name}</th>
+                  {values.map((value, column) => (
+                    <td key={priceOverviewColumns[column + 1]} className="p-4 text-center whitespace-nowrap">
+                      {value}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="md:hidden space-y-3">
+        {overview.plans.map((plan) => {
+          const [name, ...values] = priceOverviewCells(plan);
+          return (
+            <div key={name} className="rounded-xl border bg-card p-4">
+              <h3 className="font-semibold mb-2">{name}</h3>
+              <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
+                {values.map((value, column) => (
+                  <Fragment key={priceOverviewColumns[column + 1]}>
+                    <dt className="text-muted-foreground">{priceOverviewColumns[column + 1]}</dt>
+                    <dd className="text-right font-medium">{value}</dd>
+                  </Fragment>
+                ))}
+              </dl>
+            </div>
+          );
+        })}
+      </div>
+      <ul className="mt-6 space-y-2 text-sm text-muted-foreground list-disc pl-5">
+        {overview.notes.map((note) => (
+          <li key={note}>{note}</li>
+        ))}
+      </ul>
+      <ComparisonSources evidence={[evidence]} />
+      <Card className="mt-8 border-primary/30 bg-primary/5">
+        <CardContent className="p-6">
+          <p className="text-base leading-relaxed">{overview.ownOffer}</p>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -312,8 +401,9 @@ function ComparisonContent({ c }: { c: ComparisonPageContent }) {
         </div>
       </section>
 
-      {/* Preisvergleich */}
+      {/* Preisvergleich, bei geprüften Einzelpreisen mit Tarifübersicht davor */}
       <section className="py-20 px-4">
+        {c.priceOverview && <PriceOverview overview={c.priceOverview} evidence={c.evidence} />}
         <div className="container mx-auto max-w-3xl">
           <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">
             {c.pricingComparison.title}
@@ -373,7 +463,7 @@ function ComparisonContent({ c }: { c: ComparisonPageContent }) {
 
       <MarketingCta
         title={`Bereit für die ${c.competitorName}-Alternative aus Deutschland?`}
-        text="Teste Trichterwerk 14 Tage kostenlos mit vollem Funktionsumfang — erste Belastung erst nach der Testphase, Kündigung mit zwei Klicks."
+        text="Teste Trichterwerk Pro 14 Tage ohne Kreditkarte. Danach nutzt du Free weiter oder buchst Pro."
       />
 
       {/* Weitere Vergleiche (interne Verlinkung) */}

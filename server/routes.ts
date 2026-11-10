@@ -219,9 +219,11 @@ export async function registerRoutes(
     }
   });
 
-  // Dynamische Sitemap: statische Marketing-/Legal-Seiten + alle veröffentlichten
-  // Funnels. Wird vor der statischen Auslieferung registriert und ersetzt die alte
-  // statische sitemap.xml. robots.txt verweist bereits hierauf.
+  // Sitemap der Plattform: nur die eigenen Marketing- und Rechtsseiten. Wird vor
+  // der statischen Auslieferung registriert, robots.txt verweist hierauf.
+  // Kundenfunnels (/f/…) stehen bewusst NICHT drin: Sie laden ihren Inhalt über
+  // /api/public/funnels, das die robots.txt sperrt. Google rendert sie deshalb
+  // leer („Funnel nicht gefunden“) und meldet jede gelistete Adresse als Soft-404.
   // Custom Domains bekommen eine Mini-Sitemap mit genau ihrer Root-URL.
   app.get("/sitemap.xml", async (req, res) => {
     try {
@@ -233,20 +235,13 @@ export async function registerRoutes(
         return res.set("Content-Type", "application/xml; charset=utf-8").send(xml);
       }
 
-      const funnelRows = await storage.getPublishedFunnelsForSitemap();
       // /login und /register bewusst NICHT in der Sitemap (Thin Content,
       // serverseitig noindex — siehe server/static.ts).
       const staticPaths = [
         ...sitemapStaticPaths,
         ...seoStaticPages.map((p) => p.path),
       ];
-      const entries = [
-        ...staticPaths.map((p) => `  <url><loc>https://trichterwerk.de${p}</loc></url>`),
-        ...funnelRows.map(
-          (f) =>
-            `  <url><loc>https://trichterwerk.de/f/${encodeURIComponent(f.slug || f.uuid)}</loc><lastmod>${new Date(f.updatedAt).toISOString().slice(0, 10)}</lastmod></url>`,
-        ),
-      ];
+      const entries = staticPaths.map((p) => `  <url><loc>https://trichterwerk.de${p}</loc></url>`);
       const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.join("\n")}\n</urlset>\n`;
       res.set("Content-Type", "application/xml; charset=utf-8").send(xml);
     } catch (error) {

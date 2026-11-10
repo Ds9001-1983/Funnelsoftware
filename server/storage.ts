@@ -3,7 +3,7 @@ import { eq, desc, and, sql, gte, lt, inArray, isNull } from "drizzle-orm";
 import { quizTemplateElement } from "@shared/quiz-template";
 import { db } from "./db";
 import { requestAccountErasure, type QueuedAccountErasure } from "./account-files";
-import { accountErasurePending, assertRetentionEditable, committedAccountKeys, committedFunnelKeys, committedRetentionKeys, lockErasureJournal, queueLeadErasure, type QueuedLeadErasure } from "./erasure-journal";
+import { accountErasurePending, assertRetentionEditable, committedFunnelKeys, committedRetentionKeys, lockErasureJournal, queueLeadErasure, type QueuedLeadErasure } from "./erasure-journal";
 import { queueRecruitingEmails } from "./recruiting";
 import { publishedDocument, writeFunnel } from "./funnel-revisions";
 import { publicationLegalErrors } from "@shared/funnel-legal";
@@ -129,7 +129,6 @@ export interface IStorage {
   getFunnelByUuid(uuid: string): Promise<Funnel | undefined>;
   getFunnelBySlug(slug: string): Promise<Funnel | undefined>;
   getFunnelBySlugOrUuid(identifier: string): Promise<Funnel | undefined>;
-  getPublishedFunnelsForSitemap(): Promise<{ slug: string | null; uuid: string; updatedAt: Date }[]>;
   isSlugAvailable(slug: string, excludeFunnelId?: number): Promise<boolean>;
   createFunnel(funnel: InsertFunnel, userId: number): Promise<Funnel>;
   updateFunnel(id: number, userId: number, funnel: Partial<Funnel>, control?: WriteControl, expectedUpdatedAt?: string): Promise<Funnel | undefined>;
@@ -471,14 +470,6 @@ export class DatabaseStorage implements IStorage {
     const bySlug = await this.getFunnelBySlug(identifier);
     if (bySlug) return bySlug;
     return this.getFunnelByUuid(identifier);
-  }
-
-  async getPublishedFunnelsForSitemap(): Promise<{ slug: string | null; uuid: string; updatedAt: Date }[]> {
-    const pending = Array.from(await committedAccountKeys());
-    return db.select({ slug: funnels.slug, uuid: funnels.uuid, updatedAt: funnels.updatedAt })
-      .from(funnels).innerJoin(users, eq(users.id, funnels.userId))
-      .where(and(eq(funnels.status, "published"), isNull(funnels.deletedAt), isNull(users.deletedAt),
-        pending.length ? sql`${users.erasureKey} NOT IN (${sql.join(pending.map(key => sql`${key}`), sql`, `)})` : sql`true`));
   }
 
   async isSlugAvailable(slug: string, excludeFunnelId?: number): Promise<boolean> {

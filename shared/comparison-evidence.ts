@@ -14,7 +14,7 @@ export const comparisonEvidence = {
     sources: [{ label: "Typeform: Preise und Funktionen", url: "https://www.typeform.com/pricing" }],
   },
   perspective: {
-    reviewedOn: "2026-11-09",
+    reviewedOn: "2026-11-10",
     sources: [
       { label: "Perspective: Preise", url: "https://www.perspective.co/pricing" },
       { label: "Perspective: Funktionen je Tarif", url: "https://intercom.help/perspective-funnels/en/articles/15191355-which-features-are-included-in-the-plans" },

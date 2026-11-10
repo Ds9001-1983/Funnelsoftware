@@ -139,3 +139,56 @@ describe("getComparisonPage", () => {
     }
   });
 });
+
+describe("Perspective-Preisübersicht", () => {
+  const page = comparisonPages["perspective-alternative"];
+  const staticPage = seoStaticPages.find((p) => p.path === "/vergleich/perspective-alternative");
+  const bodyHtml = staticPage?.bodyHtml ?? "";
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+  it("nennt die vier Tarife mit Preisen und Kontingenten der Anbieterquellen", () => {
+    // Werte aus perspective.co/pricing und dem Hilfeartikel zu den Tarifen.
+    // Bei einer Änderung zuerst die Quellen prüfen, dann Werte und Prüfdatum
+    // (shared/comparison-evidence.ts) gemeinsam anpassen.
+    expect(page.priceOverview?.plans).toEqual([
+      { plan: "Base", monthly: "59 €", yearly: "47 €", liveFunnels: "2", leads: "100", seats: "1" },
+      { plan: "Grow", monthly: "184 €", yearly: "147 €", liveFunnels: "10", leads: "500", seats: "3" },
+      { plan: "Expand", monthly: "369 €", yearly: "297 €", liveFunnels: "20", leads: "1.000", seats: "5" },
+      { plan: "Scale", monthly: "–", yearly: "individuell", liveFunnels: "ab 60", leads: "individuell", seats: "individuell" },
+    ]);
+  });
+
+  it("steht mit Tabelle, Zusatzkosten und eigenem Tarif im Crawler-HTML", () => {
+    const overview = page.priceOverview;
+    expect(overview).toBeDefined();
+    if (!overview) return;
+    expect(bodyHtml).toContain(`<h2>${esc(overview.title)}</h2>`);
+    expect(bodyHtml).toContain(esc(overview.intro));
+    for (const plan of overview.plans) {
+      expect(bodyHtml).toContain(
+        `<tr><td>${esc(plan.plan)}</td><td>${esc(plan.monthly)}</td><td>${esc(plan.yearly)}</td><td>${esc(plan.liveFunnels)}</td><td>${esc(plan.leads)}</td><td>${esc(plan.seats)}</td></tr>`,
+      );
+    }
+    expect(overview.notes.length).toBeGreaterThan(0);
+    for (const note of overview.notes) {
+      expect(bodyHtml).toContain(esc(note));
+    }
+    expect(bodyHtml).toContain(esc(overview.ownOffer));
+  });
+
+  it("beantwortet die Preisfragen in den FAQ und im JSON-LD", () => {
+    const questions = page.faqs.map((faq) => faq.q);
+    const jsonLd = JSON.stringify(staticPage?.jsonLd);
+    for (const question of ["Was kostet Perspective?", "Welche Preispläne hat Perspective?"]) {
+      expect(questions).toContain(question);
+      expect(jsonLd).toContain(question);
+    }
+  });
+
+  it("lässt Vergleichsseiten ohne eigene Preisübersicht unverändert", () => {
+    const typeform = seoStaticPages.find((p) => p.path === "/vergleich/typeform-alternative");
+    expect(comparisonPages["typeform-alternative"].priceOverview).toBeUndefined();
+    expect(typeform?.bodyHtml).not.toContain("Was kosten die Tarife?");
+  });
+});

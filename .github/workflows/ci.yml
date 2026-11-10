@@ -1,13 +1,12 @@
 name: CI
 
+# CI nur auf Abruf: Die volle Prüfung läuft lokal vor jedem Push (globale CI-Regel SUPERBRAND, 26.10.2026).
+# Automatisch nur für Pull Requests (Sicherheitsupdates von Dependabot), sonst über „Run workflow“.
+# workflow_call bleibt: deploy.yml prüft damit jeden Stand, bevor er auf den Server geht.
 on:
   workflow_call:
-  push:
-    branches-ignore:
-      - main
   pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   test:
