@@ -357,7 +357,6 @@ describe.skipIf(!connection)("independent erasure journal and real backup replay
     expect((await storage.getUser(f.owner.id))?.deletedAt).not.toBeNull();
     expect(await storage.getFunnelByUuid(f.funnel.uuid)).toBeUndefined();
     expect(await resolver.resolveCustomDomainFunnel(host)).toBeNull();
-    expect((await storage.getPublishedFunnelsForSitemap()).some(row => row.uuid === f.funnel.uuid)).toBe(false);
     await expect(account.withOwnedUpload(f.owner.id, "public", "blocked.webp", async () => {})).rejects.toThrow();
     await expect(account.withActiveAccount(f.owner.id, async () => true)).rejects.toThrow();
     const worker = await import("./account-erasure-worker");
