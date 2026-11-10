@@ -90,3 +90,49 @@ Die 17 bestehenden SEO-Registry-/Routingtests bestehen, `git diff --check` ist
 fehlerfrei. Keine Änderung an Wettbewerberpreisen oder deren Prüfdatum; keine
 erneute Quellenprüfung. Die bisherigen umfangreichen Testnachweise beziehen
 sich auf den vorherigen Commit. Kein Merge oder Deployment.
+
+## Ergänzung am 10. November 2026: Preisübersicht für Perspective
+
+Eigener Branch `feat/perspective-preisuebersicht`, aufgesetzt auf
+`fix/comparison-evidence`. Die Perspective-Seite bekommt als einzige
+Vergleichsseite eine Tarifübersicht und fünf Preisfragen in den FAQ. Anlass:
+Suchanfragen nach den Preisen von Perspective landen auf dieser Seite.
+
+Beide Perspective-Quellen wurden am 10.11.2026 um 09:54 Uhr MEZ neu abgerufen
+und alle Perspective-Angaben im Repo dagegen geprüft, auch die Tabellenzeilen
+und die Startseiten-Tabelle. Das Prüfdatum für Perspective steht deshalb auf
+dem 10.11.2026, die übrigen Anbieter bleiben beim 09.11.2026.
+
+| Angabe | Wert laut Quelle | Quelle |
+| --- | --- | --- |
+| Base, Grow, Expand je Monat | 59 / 184 / 369 € monatlich, 47 / 147 / 297 € bei jährlicher Abrechnung, netto | Preisseite, Hilfeartikel |
+| Live-Funnels, Leads, Nutzer | 2 / 100 / 1, 10 / 500 / 3, 20 / 1.000 / 5 | Preisseite, Hilfeartikel |
+| Zusätzliche Leads | 0,25 € je Lead, keine Sperre | Preisseite (FAQ) |
+| Add-on-Suite | 84 € monatlich, 67 € bei jährlicher Abrechnung | Preisseite |
+| Branding entfernen, A/B-Tests | ab Grow, in Base über Add-on-Suite | Preisseite, Hilfeartikel |
+| Testphase | 14 Tage, danach startet der gewählte Tarif automatisch | Preisseite (FAQ) |
+
+Redaktionelle Entscheidungen:
+
+- Scale: Die Preisseite zeigt 969 € pro Monat, der Hilfeartikel nennt einen
+  individuellen Preis mit jährlicher Abrechnung. Die Tabelle schreibt
+  „individuell“, der Hinweis darunter nennt beide Angaben. Leads und Nutzer
+  stehen für Scale ebenfalls auf „individuell“, weil die Vergleichstabelle der
+  Preisseite dort „Custom“ ausweist.
+- Für Perspective wird kein Bruttopreis berechnet. Für Trichterwerk steht
+  neben 49 € inklusive Mehrwertsteuer der Nettobetrag von 41,18 € bei 19 %,
+  damit Netto mit Netto vergleichbar ist.
+- Keine Aussage „günstiger“ und keine Ersparnisrechnung. Die Antwort auf die
+  Frage nach einer günstigeren Alternative nennt den eigenen Preis und den
+  Hinweis, dass die Tarife nicht funktionsgleich sind.
+- Der Abschluss-CTA der Vergleichsseiten nannte noch eine „erste Belastung
+  erst nach der Testphase“. Er nennt jetzt die Testphase ohne Kreditkarte.
+  Dieselbe Formulierung steht weiter in `audience-funnel.tsx` (zweimal) und
+  `funnel-builder.tsx` und ist nicht Teil dieses Schritts.
+
+Tabelle, Hinweise und der eigene Tarif stehen in der React-Ansicht und im
+Crawler-HTML aus derselben Quelle (`priceOverview` in `shared/seo-content.ts`).
+Ab 768 Pixel Breite erscheint eine Tabelle, darunter je Tarif eine Karte.
+Rohkopien der Quellen mit Abrufzeit und Prüfsummen sowie Bildschirmfotos der
+drei Breiten liegen privat unter
+`~/TrichterwerkBackups/reviews/comparisons-2026-11-10-perspective/`.
