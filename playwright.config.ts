@@ -33,7 +33,13 @@ export default defineConfig({
     },
     {
       name: "chromium",
-      testIgnore: ["**/account-deletion.spec.ts", "**/subject-export.spec.ts", "**/retention.spec.ts", "**/analytics-retention.spec.ts", "**/publication-legal.spec.ts", "**/platform-privacy.spec.ts"],
+      testIgnore: ["**/recruiting-*.spec.ts", "**/kanban-usability.spec.ts", "**/account-deletion.spec.ts", "**/subject-export.spec.ts", "**/retention.spec.ts", "**/analytics-retention.spec.ts", "**/publication-legal.spec.ts", "**/platform-privacy.spec.ts"],
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      // Separate server lifetime keeps fixture registrations below the real auth limit.
+      name: "recruiting",
+      testMatch: ["**/recruiting-*.spec.ts", "**/kanban-usability.spec.ts"],
       use: { ...devices["Desktop Chrome"] },
     },
     {
