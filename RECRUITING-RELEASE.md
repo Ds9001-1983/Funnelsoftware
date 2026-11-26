@@ -120,3 +120,12 @@ und Kundenbereichen. Test: `tests-e2e/kanban-usability.spec.ts` einschließlich
 Bestätigung vor Mutation, Suche, Export, Umbenennen ohne Versionswechsel und
 mobiler Darstellung; bestehender Recruiting-/Mail-/Workspace-Ablauf bleibt
 Teil der Prüfung.
+
+Die E-Mail-Einstellungen zeigen außerdem eine lokale Vorschau des ungespeicherten
+Entwurfs mit editierbarem Beispielnamen und einer Beispielfirma. Betreff und
+Nachricht nutzen dieselbe Platzhalterauflösung wie der Mailworker, einschließlich
+Ersatzwert bei fehlendem Namen. Unbekannte Platzhalter werden sichtbar benannt;
+HTML bleibt Text. Eine Testmail der gespeicherten Vorlage ist erst nach dem
+Speichern aller Änderungen verfügbar. Die Vorschau aktiviert keine Regel und
+versendet keine Nachricht. Abnahme: drei Komponententests und
+`tests-e2e/recruiting-mail-preview.spec.ts`.
