@@ -12,7 +12,7 @@ import { documentFromFunnel, type WriteControl } from "@shared/funnel-document";
 import {
   users, funnels, funnelRevisions, leads, templates, analyticsEvents, passwordResetTokens,
   teams, teamMembers, apiKeys, domains, platformVisits, aiCredentials, emailLog,
-  bugReports,
+  bugReports, funnelRecruitingConfigs,
   type User, type InsertUser, type Funnel, type InsertFunnel,
   type Lead, type InsertLead, type AnalyticsEvent, type Template,
   type FunnelPage, type Theme, type ABTest,
@@ -20,6 +20,15 @@ import {
   type Domain, type InsertPlatformVisit, type InsertAiCredential,
   type BugReport, type InsertBugReport, type BugReportStatus,
 } from "@shared/schema";
+
+// Resolve labels at read time so renaming a column never rewrites lead records.
+const leadStageName = sql<string | null>`(
+  SELECT stage->>'name'
+  FROM ${funnelRecruitingConfigs}, jsonb_array_elements(${funnelRecruitingConfigs.stages}) AS stage
+  WHERE ${funnelRecruitingConfigs.funnelId} = ${leads.funnelId}
+    AND stage->>'id' = coalesce(${leads.stageId}, ${leads.status})
+  LIMIT 1
+)`;
 
 type AiCredentialRow = typeof aiCredentials.$inferSelect;
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
@@ -587,6 +596,7 @@ export class DatabaseStorage implements IStorage {
       .select({
         lead: leads,
         funnelName: funnels.name,
+        stageName: leadStageName,
       })
       .from(leads)
       .leftJoin(funnels, eq(leads.funnelId, funnels.id))
@@ -594,7 +604,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(leads.createdAt));
 
     const pending = await committedRetentionKeys();
-    return result.map(r => ({ ...this.mapLeadToResponse(r.lead, r.funnelName), erasureRequested: pending.has(r.lead.uuid) }));
+    return result.map(r => ({ ...this.mapLeadToResponse(r.lead, r.funnelName), stageName: r.stageName ?? undefined, erasureRequested: pending.has(r.lead.uuid) }));
   }
 
   async getLeadsByFunnel(funnelId: number, userId: number): Promise<Lead[]> {
@@ -602,6 +612,7 @@ export class DatabaseStorage implements IStorage {
       .select({
         lead: leads,
         funnelName: funnels.name,
+        stageName: leadStageName,
       })
       .from(leads)
       .leftJoin(funnels, eq(leads.funnelId, funnels.id))
@@ -609,7 +620,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(leads.createdAt));
 
     const pending = await committedRetentionKeys();
-    return result.map(r => ({ ...this.mapLeadToResponse(r.lead, r.funnelName), erasureRequested: pending.has(r.lead.uuid) }));
+    return result.map(r => ({ ...this.mapLeadToResponse(r.lead, r.funnelName), stageName: r.stageName ?? undefined, erasureRequested: pending.has(r.lead.uuid) }));
   }
 
   async getLead(id: number, userId: number): Promise<Lead | undefined> {
@@ -617,13 +628,14 @@ export class DatabaseStorage implements IStorage {
       .select({
         lead: leads,
         funnelName: funnels.name,
+        stageName: leadStageName,
       })
       .from(leads)
       .leftJoin(funnels, eq(leads.funnelId, funnels.id))
       .where(and(eq(leads.id, id), eq(leads.userId, userId)));
 
     const pending = await committedRetentionKeys();
-    return result ? { ...this.mapLeadToResponse(result.lead, result.funnelName), erasureRequested: pending.has(result.lead.uuid) } : undefined;
+    return result ? { ...this.mapLeadToResponse(result.lead, result.funnelName), stageName: result.stageName ?? undefined, erasureRequested: pending.has(result.lead.uuid) } : undefined;
   }
 
   /**

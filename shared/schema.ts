@@ -1306,6 +1306,7 @@ export const leadSchema = z.object({
   answerSnapshot: answerSnapshotSchema.optional().nullable(),
   status: z.enum(["new", "contacted", "qualified", "converted", "lost"]),
   stageId: z.string().nullable().optional(),
+  stageName: z.string().optional(), // Current display name; derived from the funnel pipeline.
   stageVersion: z.number().int().nonnegative().optional(),
   closedAt: z.string().or(z.date()).nullable().optional(),
   source: z.string().optional().nullable(),

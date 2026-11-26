@@ -101,3 +101,22 @@ und Mediathek. Die ursprüngliche Übergabe bleibt die Detailgrundlage; die dort
 früher festgehaltene reine Planungsphase wurde durch den Umsetzungsauftrag im
 Gespräch abgelöst. Recruiting-Arbeit und sichere Migration liefern bereits
 die isolierte Testumgebung und den geprüften Sicherungs-/Restore-Ablauf.
+
+## Ergänzung: Board-Bedienung und Spaltennamen (26.11.2026)
+
+Das bestehende Board lässt sich zusätzlich mit der Tastatur bedienen:
+Griff fokussieren, Leertaste, Links/Rechts zur Zielspalte, Leertaste zum Ablegen.
+Der vorhandene Bestätigungsdialog bleibt vor Statuswechsel und möglicher Mail
+verbindlich. Escape bricht das Ziehen ab. Die Suchbox der Lead-Seite filtert nun
+auch das ausgewählte Bewerberboard. Individuelle Spaltennamen werden beim Lesen
+aufgelöst und erscheinen in Lead-Liste, Details sowie CSV-/Excel-Export; Umbenennen
+ändert keine Lead-Datensätze. Die Statistikgruppen bleiben erhalten.
+
+Diese Ergänzung verwendet die vorhandene Recruiting-Pipeline und benötigt keine
+neue Datenbankmigration. Der ältere lokale Entwurf mit zusätzlicher
+`lead_pipelines`-Tabelle wird nicht veröffentlicht. Produktionsgrundlage war
+`16f6048fba099d785b9246e0b628081552df7c37` mit bereits verfügbaren Bewerbermails
+und Kundenbereichen. Test: `tests-e2e/kanban-usability.spec.ts` einschließlich
+Bestätigung vor Mutation, Suche, Export, Umbenennen ohne Versionswechsel und
+mobiler Darstellung; bestehender Recruiting-/Mail-/Workspace-Ablauf bleibt
+Teil der Prüfung.

@@ -185,7 +185,7 @@ const bugReportLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const updateLeadSchema = leadSchema.partial().omit({ id: true, uuid: true, funnelId: true, userId: true, createdAt: true, funnelName: true, stageId: true, stageVersion: true, closedAt: true }).extend({ expectedVersion: z.number().int().nonnegative().optional() });
+const updateLeadSchema = leadSchema.partial().omit({ id: true, uuid: true, funnelId: true, userId: true, createdAt: true, funnelName: true, stageName: true, stageId: true, stageVersion: true, closedAt: true }).extend({ expectedVersion: z.number().int().nonnegative().optional() });
 
 export async function registerRoutes(
   httpServer: Server,
