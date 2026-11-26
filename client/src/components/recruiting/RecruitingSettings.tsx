@@ -1,3 +1,4 @@
+import { RecruitingMailPreview } from "./RecruitingMailPreview";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PipelineStage, RecruitingPipeline, RecruitingMailRule, MailRuleInput } from "@shared/recruiting-contract";
@@ -43,6 +44,8 @@ export function RecruitingSettings({ open, onOpenChange, funnelId, funnelName, p
     onSuccess: async () => { await cache.invalidateQueries({ queryKey: rulesKey }); onSaved(); toast({ title: "Mailregel gespeichert", description: "Sie gilt für neue Bewerbungen bzw. künftige Statuswechsel." }); }, onError: error,
   });
   const existing = rules.data?.rules.find(rule => rule.ruleKey === ruleKey);
+  const unsavedMail = !existing || form.subject !== existing.subject || form.body !== existing.body
+    || form.senderName !== existing.senderName || form.enabled !== existing.enabled;
   const testMail = useMutation({ mutationFn: async () => apiRequest("POST", `/api/recruiting/funnels/${funnelId}/test-mail`, { ruleId: existing?.id }), onSuccess: () => toast({ title: "Testmail an deine bestätigte Adresse gesendet" }), onError: error });
   function updateStage(index: number, update: Partial<PipelineStage>) { setStages(current => current.map((s, i) => i === index ? { ...s, ...update } : s)); }
   function move(index: number, offset: number) { setStages(current => { const next = [...current]; [next[index], next[index + offset]] = [next[index + offset], next[index]]; return next; }); }
@@ -69,9 +72,11 @@ export function RecruitingSettings({ open, onOpenChange, funnelId, funnelName, p
           <div className="space-y-2"><Label htmlFor="mail-sender">Angezeigter Absendername</Label><Input id="mail-sender" value={form.senderName} maxLength={80} onChange={e => setForm({ ...form, senderName: e.target.value })} /></div>
           <div className="space-y-2"><Label htmlFor="mail-subject">Betreff</Label><Input id="mail-subject" value={form.subject} maxLength={160} onChange={e => setForm({ ...form, subject: e.target.value })} /></div>
           <div className="space-y-2"><Label htmlFor="mail-body">Nachricht</Label><Textarea id="mail-body" rows={9} value={form.body} maxLength={10000} onChange={e => setForm({ ...form, body: e.target.value })} /><p className="text-xs text-muted-foreground">Platzhalter: {"{{name}}, {{company}}, {{funnel}}"}. Der Inhalt wird als Text versendet.</p></div>
+          <RecruitingMailPreview senderName={form.senderName} subject={form.subject} body={form.body} funnelName={funnelName} replyTo={rules.data?.replyTo} />
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.enabled} onChange={e => setForm({ ...form, enabled: e.target.checked })} />Automatischen Versand aktivieren</label>
           <p className="text-xs text-muted-foreground">Das Aktivieren versendet keine Mails an vorhandene Bewerbungen. Bereits versendete Nachrichten können nicht zurückgerufen werden. Abschalten verwirft noch ausstehende Aufträge.</p>
-          <div className="flex gap-2 flex-wrap"><Button disabled={saveRule.isPending} onClick={() => saveRule.mutate()}>Mailregel speichern</Button><Button variant="outline" disabled={!existing || testMail.isPending} onClick={() => testMail.mutate()}>Gespeicherte Vorlage an mich testen</Button></div>
+          <div className="flex gap-2 flex-wrap"><Button disabled={saveRule.isPending} onClick={() => saveRule.mutate()}>Mailregel speichern</Button><Button variant="outline" disabled={unsavedMail || saveRule.isPending || testMail.isPending} onClick={() => testMail.mutate()}>Gespeicherte Vorlage an mich testen</Button></div>
+          {unsavedMail && <p className="text-xs text-muted-foreground">Speichere den Entwurf, bevor du die Vorlage als Testmail an dich sendest.</p>}
         </>}
       </TabsContent>
     </Tabs>

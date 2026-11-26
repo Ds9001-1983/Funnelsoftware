@@ -121,7 +121,7 @@ function LeadDetailDialog({
               <h2 className="text-lg font-bold truncate">{lead.name || "Unbekannt"}</h2>
               {lead.erasureRequested && <p className="text-xs text-muted-foreground">Löschung beauftragt – wartet auf gesicherte Ausführung</p>}
               <Badge className={`${statusColors[lead.status]} text-white text-[10px]`}>
-                {statusLabels[lead.status]}
+                {(lead.stageName || statusLabels[lead.status])}
               </Badge>
             </div>
           </div>
@@ -279,7 +279,7 @@ function ExportDialog({
         lead.email || "",
         lead.phone || "",
         lead.company || "",
-        statusLabels[lead.status],
+        (lead.stageName || statusLabels[lead.status]),
         lead.funnelName || "",
         lead.source || "",
         formatDate(lead.createdAt),
@@ -327,7 +327,7 @@ function ExportDialog({
         lead.email || "",
         lead.phone || "",
         lead.company || "",
-        statusLabels[lead.status],
+        (lead.stageName || statusLabels[lead.status]),
         lead.funnelName || "",
         lead.source || "",
         formatDate(lead.createdAt),
@@ -550,9 +550,9 @@ function LeadRow({
           onValueChange={(v) => onStatusChange(v as Lead["status"])}
         >
           <SelectTrigger className="w-[130px] h-8" data-testid={`select-status-${lead.id}`}>
-            <div className="flex items-center gap-2">
-              <div className={`h-2 w-2 rounded-full ${statusColors[lead.status]}`} />
-              <span className="text-sm">{statusLabels[lead.status]}</span>
+            <div className="flex min-w-0 items-center gap-2">
+              <div className={`h-2 w-2 shrink-0 rounded-full ${statusColors[lead.status]}`} />
+              <span className="text-sm truncate">{(lead.stageName || statusLabels[lead.status])}</span>
             </div>
           </SelectTrigger>
           <SelectContent>
@@ -683,13 +683,12 @@ export default function Leads() {
     }
   };
 
+  const searchNeedle = searchQuery.trim().toLocaleLowerCase("de-DE");
   const filteredLeads = leads?.filter((lead) => {
     const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
     const matchesFunnel = funnelFilter === "all" || String(lead.funnelId) === funnelFilter;
-    const matchesSearch =
-      lead.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.company?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = !searchNeedle || [lead.name, lead.email, lead.company]
+      .some(value => value?.toLocaleLowerCase("de-DE").includes(searchNeedle));
     return matchesStatus && matchesFunnel && matchesSearch;
   }) || [];
 
@@ -766,7 +765,7 @@ export default function Leads() {
         {funnelFilter !== "all" && <Button variant="outline" onClick={() => setShowRetention(true)}>Aufbewahrung planen</Button>}
         {funnelFilter === "all" && <p className="text-sm text-muted-foreground">Wähle einen Funnel für eigene Spalten, Drag-and-drop und automatische Bewerbermails.</p>}
       </div>
-      {funnelFilter !== "all" ? <RecruitingBoard funnelId={Number(funnelFilter)} /> : (
+      {funnelFilter !== "all" ? <RecruitingBoard funnelId={Number(funnelFilter)} searchQuery={searchQuery} /> : (
       <div data-bug-mask className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2">
         {(Object.entries(statusLabels) as [Lead["status"], string][]).map(([status, label]) => {
           const columnLeads = filteredLeads.filter(l => l.status === status);
