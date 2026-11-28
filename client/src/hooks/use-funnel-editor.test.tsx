@@ -65,6 +65,7 @@ describe("useFunnelEditor", () => {
     await act(async () => { await result.current.saveCurrent(); });
     expect(result.current.hasChanges).toBe(false);
     expect(result.current.saveStatus).toBe("saved");
+    expect(JSON.parse(localStorage.getItem("tw-onboarding:v2:1:u1")!).edited).toBe(true);
     expect(localStorage.getItem("tw-editor-recovery:1:1")).toBeNull();
   });
 
@@ -214,4 +215,22 @@ it("wartet beim Verlassen auch auf Änderungen, die während des ersten Saves en
   expect(apiRequest).toHaveBeenCalledTimes(2);
   expect(result.current.hasChanges).toBe(false);
   expect(result.current.localFunnel?.name).toBe("B");
+});
+
+
+it("hakt die Inhaltsanpassung bei fehlgeschlagenem Speichern nicht ab", async () => {
+  const { result } = renderHook(() => useFunnelEditor("1"), { wrapper: createWrapper() });
+  await waitFor(() => expect(result.current.localFunnel).not.toBeNull());
+  act(() => { result.current.setAutoSaveEnabled(false); result.current.updatePage(0, { title: "Ungespeichert" }); });
+  vi.mocked(apiRequest).mockRejectedValue(new Error("offline"));
+  await act(async () => { await expect(result.current.saveCurrent()).rejects.toThrow("offline"); });
+  expect(localStorage.getItem("tw-onboarding:v2:1:u1")).toBeNull();
+});
+
+it("wertet reine Veröffentlichung ohne Inhaltsänderung nicht als Inhaltsanpassung", async () => {
+  const { result } = renderHook(() => useFunnelEditor("1"), { wrapper: createWrapper() });
+  await waitFor(() => expect(result.current.localFunnel).not.toBeNull());
+  vi.mocked(apiRequest).mockResolvedValueOnce({ json: async () => ({ ...sampleFunnel, status: "published", editVersion: 1 }) } as Response);
+  await act(async () => { await result.current.saveCurrent({ status: "published" }, true); });
+  expect(localStorage.getItem("tw-onboarding:v2:1:u1")).toBeNull();
 });

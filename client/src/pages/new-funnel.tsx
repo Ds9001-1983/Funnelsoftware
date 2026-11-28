@@ -1,6 +1,6 @@
 import { GLOBALLY_HANDLED_ERROR_CODES } from "@shared/schema";
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -120,7 +120,12 @@ function TemplateCard({
 export default function NewFunnel() {
   const [, navigate] = useLocation();
   const [step, setStep] = useState<Step>("template");
+  const search = useSearch();
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  useEffect(() => {
+    const category = new URLSearchParams(search).get("category");
+    setCategoryFilter(category && Object.hasOwn(categoryLabels, category) ? category : "all");
+  }, [search]);
   const [selectedTemplate, setSelectedTemplate] = useState<ClientTemplate | null>(null);
   const [useBlank, setUseBlank] = useState(false);
   const [useAi, setUseAi] = useState(false);

@@ -69,3 +69,29 @@ describe("FunnelRenderer mit Layouts", () => {
     expect(submit.style.backgroundColor).toBe("transparent");
   });
 });
+
+
+describe("Testfortschritt in der Vorschau", () => {
+  it("meldet erst ein gültiges simuliertes Absenden als abgeschlossen", () => {
+    const completed = vi.fn();
+    render(<FunnelRenderer funnel={{ pages: [contact()], theme }} mode="preview" onPreviewComplete={completed} />);
+    expect(completed).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("button-funnel-submit"));
+    expect(completed).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByPlaceholderText("Deine E-Mail"), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByPlaceholderText("Dein Name"), { target: { value: "Testperson" } });
+    fireEvent.click(screen.getByTestId("button-funnel-submit"));
+    expect(completed).toHaveBeenCalledOnce();
+  });
+
+  it("wertet einen echten Lead nicht als Testdurchlauf", async () => {
+    const completed = vi.fn();
+    const submit = vi.fn().mockResolvedValue(true);
+    render(<FunnelRenderer funnel={{ pages: [contact()], theme }} mode="live" onSubmit={submit} onPreviewComplete={completed} />);
+    fireEvent.change(screen.getByPlaceholderText("Deine E-Mail"), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByPlaceholderText("Dein Name"), { target: { value: "Testperson" } });
+    fireEvent.click(screen.getByTestId("button-funnel-submit"));
+    await waitFor(() => expect(submit).toHaveBeenCalledOnce());
+    expect(completed).not.toHaveBeenCalled();
+  });
+});

@@ -7,7 +7,6 @@ import {
   TrendingUp,
   ArrowUpRight,
   ArrowDownRight,
-  Plus,
   ExternalLink,
   Copy,
 } from "lucide-react";
@@ -190,11 +189,11 @@ export default function Dashboard() {
   useDocumentTitle("Dashboard");
   const { user } = useAuth();
 
-  const { data: funnels, isLoading: funnelsLoading } = useQuery<Funnel[]>({
+  const { data: funnels, isLoading: funnelsLoading, isError: funnelsError, refetch: refetchFunnels } = useQuery<Funnel[]>({
     queryKey: ["/api/funnels"],
   });
 
-  const { data: leads, isLoading: leadsLoading } = useQuery<Lead[]>({
+  const { data: leads, isLoading: leadsLoading, isError: leadsError } = useQuery<Lead[]>({
     queryKey: ["/api/leads"],
   });
 
@@ -212,7 +211,7 @@ export default function Dashboard() {
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Welcome Modal für neue User */}
-      <WelcomeModal hasFunnels={hasFunnels} userName={user?.displayName} />
+      {!funnelsLoading && !funnelsError && <WelcomeModal hasFunnels={hasFunnels} userName={user?.displayName} />}
 
       {/* Trial-Ablauf Warnung (dismissible, 3-Tages-Vorlauf)
           payment-required + expired werden global in AppShell gerendert */}
@@ -224,63 +223,40 @@ export default function Dashboard() {
         <p className="text-muted-foreground">Willkommen zurück! Hier ist deine Übersicht.</p>
       </div>
 
-      {/* Aktivierungs-Checkliste, sobald mind. ein Funnel existiert */}
-      {!funnelsLoading && hasFunnels && (
-        <OnboardingChecklist publishedCount={activeFunnels} totalLeads={totalLeads} />
+      {!funnelsLoading && !funnelsError && user && funnels && (
+        <OnboardingChecklist userId={user.id} funnels={funnels} leads={leads} leadsLoading={leadsLoading} leadsError={leadsError} />
       )}
+      {funnelsError && <Card><CardContent className="p-4 space-y-2">
+        <p role="alert">Deine Funnels konnten nicht geladen werden.</p>
+        <Button variant="outline" onClick={() => void refetchFunnels()}>Erneut versuchen</Button>
+      </CardContent></Card>}
 
-      {/* Hero-Section für neue User ohne Funnels */}
-      {!funnelsLoading && !hasFunnels ? (
-        <Card className="overflow-hidden">
-          <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-8 md:p-12 text-center">
-            <div className="max-w-lg mx-auto">
-              <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
-                <Layers className="h-8 w-8 text-primary" />
-              </div>
-              <h2 className="text-2xl font-bold mb-3">Erstelle deinen ersten Funnel</h2>
-              <p className="text-muted-foreground mb-6">
-                Wähle ein professionelles Template und passe es in wenigen Minuten
-                an dein Business an. Sammle Leads und steigere deine Conversion.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Link href="/funnels/new">
-                  <Button size="lg" className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Mit Template starten
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Gesamte Views"
-            value={totalViews.toLocaleString("de-DE")}
-            icon={Eye}
-            loading={funnelsLoading}
-          />
-          <StatCard
-            title="Neue Leads"
-            value={totalLeads}
-            icon={Users}
-            loading={leadsLoading}
-          />
-          <StatCard
-            title="Aktive Funnels"
-            value={activeFunnels}
-            icon={Layers}
-            loading={funnelsLoading}
-          />
-          <StatCard
-            title="Ø Conversion-Rate"
-            value={`${avgConversion}%`}
-            icon={TrendingUp}
-            loading={funnelsLoading}
-          />
-        </div>
-      )}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Gesamte Views"
+          value={totalViews.toLocaleString("de-DE")}
+          icon={Eye}
+          loading={funnelsLoading}
+        />
+        <StatCard
+          title="Neue Leads"
+          value={totalLeads}
+          icon={Users}
+          loading={leadsLoading}
+        />
+        <StatCard
+          title="Aktive Funnels"
+          value={activeFunnels}
+          icon={Layers}
+          loading={funnelsLoading}
+        />
+        <StatCard
+          title="Ø Conversion-Rate"
+          value={`${avgConversion}%`}
+          icon={TrendingUp}
+          loading={funnelsLoading}
+        />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
