@@ -63,6 +63,8 @@ interface FunnelRendererProps {
    *  Rückgabe false → Fehlermeldung "Absenden fehlgeschlagen",
    *  Exception → "Verbindungsfehler". */
   onSubmit?: (payload: FunnelLeadPayload) => Promise<boolean>;
+  /** Signals a validated, simulated submission; never called for live submissions. */
+  onPreviewComplete?: () => void;
   /** Wird bei jeder Vorwärts-Navigation mit der Zielseite aufgerufen
    *  (Analytics/dataLayer). Fehlt er, wird nichts getrackt. */
   onPageView?: (pageId: string, pageIndex: number) => void;
@@ -88,6 +90,7 @@ export function FunnelRenderer({
   personalizationSearch = "",
   mode,
   onSubmit,
+  onPreviewComplete,
   onPageView,
   header,
   renderFooter,
@@ -309,6 +312,7 @@ export function FunnelRenderer({
       setSubmitted(true);
       jumpToThankyou();
       submissionLock.current = false;
+      onPreviewComplete?.();
       return;
     }
 
@@ -330,7 +334,7 @@ export function FunnelRenderer({
       submissionLock.current = false;
       setIsSubmitting(false);
     }
-  }, [funnel, modernRouting, validateCurrentPage, onSubmit, buildLeadPayload]);
+  }, [funnel, modernRouting, validateCurrentPage, onSubmit, onPreviewComplete, buildLeadPayload]);
 
   const advanceVisitor = (explicitTarget?: string) => {
     if (navigationLock.current || submissionLock.current || completedSubmission.current || !validateCurrentPage()) return;

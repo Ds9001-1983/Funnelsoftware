@@ -58,3 +58,25 @@ Läuft auf **http://localhost:5000**.
   - `PLAYWRIGHT_NO_SERVER=1` überspringt den verwalteten Server. Dann muss der Zielserver mit **derselben** Datenbank wie `E2E_DATABASE_URL` und ohne Stripe-Keys laufen, sonst lesen die DB-Helper die falsche Datenbank bzw. /register leitet zu Stripe um.
   - Die Suite deckt den kompletten Lebenszyklus ab: Registrieren → E-Mail verifizieren → Funnel erstellen → publizieren → als Besucher ausfüllen → Lead-Persistenz; dazu Lead-Schutz (Honeypot, Dedup) und die Landing-Smoke-Tests.
 - **Produktions-Build:** `npm run build`, Start mit `npm start`.
+
+## Dashboard: erste Schritte
+
+Die Checkliste begleitet einen ausgewählten, nicht archivierten Funnel von der
+Vorlagenauswahl bis zur ersten Anfrage. Erstellung, Veröffentlichung und Anfragen
+kommen aus den vorhandenen APIs. Erfolgreich gespeicherte Inhaltsänderungen und
+abgeschlossene Vorschau-Durchläufe werden pro Konto und Funnel im Browser gemerkt;
+Inhalte können alternativ ausdrücklich als geprüft bestätigt werden. Die
+Vorschau erzeugt dabei keine Leads oder Versandaufträge. Diese Meilensteine sind
+keine Freigabe des aktuellen Entwurfs: Nach Änderungen lässt sich erneut testen,
+und der bestehende Veröffentlichungsdialog prüft weiterhin die Veröffentlichung.
+
+Ausblenden und Wiedereinblenden sowie die Funnel-Auswahl werden ebenfalls lokal
+gespeichert (`tw-onboarding:v2:`); es gibt keinen geräteübergreifenden Abgleich.
+Direkte Einstiege: `/funnels/new?category=recruiting` bzw. `category=leads`,
+`/funnels/:id?action=publish` und `/leads?funnel=:id&lead=:leadId`.
+Das Dashboard ist über die Hauptnavigation erreichbar.
+
+Prüfung: `client/src/components/onboarding-checklist.test.tsx`, die Editor-Hook-
+und Renderer-Tests sowie `tests-e2e/onboarding-checklist.spec.ts`. Der Browsertest
+ersetzt alle API-Antworten durch Testdaten und prüft auch fehlende Pflichtangaben,
+den direkten Lead-Einstieg und die mobile Bedienung.

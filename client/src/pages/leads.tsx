@@ -21,7 +21,7 @@ import {
   Lock,
   Sparkles,
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -615,6 +615,8 @@ function LeadRow({
 export default function Leads() {
   useDocumentTitle("Leads");
 
+  const search = useSearch();
+  const appliedSearch = useRef<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [funnelFilter, setFunnelFilter] = useState<string>("all");
@@ -634,6 +636,17 @@ export default function Leads() {
   const { data: funnels } = useQuery<Funnel[]>({
     queryKey: ["/api/funnels"],
   });
+
+  useEffect(() => {
+    if (!funnels || !leads || appliedSearch.current === search) return;
+    appliedSearch.current = search;
+    const params = new URLSearchParams(search);
+    const funnelId = Number(params.get("funnel"));
+    const leadId = Number(params.get("lead"));
+    setFunnelFilter(funnels.some(funnel => funnel.id === funnelId) ? String(funnelId) : "all");
+    const requestedLead = leads.find(lead => lead.id === leadId && (!funnelId || lead.funnelId === funnelId));
+    setSelectedLead(requestedLead ?? null);
+  }, [search, funnels, leads]);
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: Lead["status"] }) => {

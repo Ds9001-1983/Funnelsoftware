@@ -1,3 +1,4 @@
+import { updateOnboardingProgress } from "@/lib/onboarding-progress";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useHistory } from "@/hooks/use-history";
@@ -54,6 +55,7 @@ export function useFunnelEditor(id: string | undefined, layoutEditing = false, r
   const localRef = useRef(localFunnel);
   localRef.current = localFunnel;
   const savedPayload = useRef("");
+  const savedOnboardingContent = useRef("");
   const serverMetadata = useRef<Partial<Funnel>>({});
   const queue = useRef<FunnelWriteQueue | null>(null);
   const { data: funnel, isLoading } = useQuery<Funnel>({ queryKey: ["/api/funnels", id], enabled: !!id });
@@ -63,6 +65,7 @@ export function useFunnelEditor(id: string | undefined, layoutEditing = false, r
   useEffect(() => {
     if (!funnel || queue.current) return;
     savedPayload.current = contentKey(buildSavePayload(funnel));
+    savedOnboardingContent.current = contentKey([funnel.name, funnel.description, funnel.pages, funnel.theme]);
     serverMetadata.current = { documentVersion: funnel.documentVersion, status: funnel.status, slug: funnel.slug, editVersion: funnel.editVersion,
       publishedRevisionId: funnel.publishedRevisionId, updatedAt: funnel.updatedAt, webhookSecret: funnel.webhookSecret };
     resetHistory(funnel);
@@ -77,6 +80,11 @@ export function useFunnelEditor(id: string | undefined, layoutEditing = false, r
         : await apiRequest("POST", `${url}/revisions/${restoreId}/restore`, control);
       return response.json();
     }, (updated, write) => {
+      const nextContent = contentKey([updated.name, updated.description, updated.pages, updated.theme]);
+      if (write.restoreId === undefined && nextContent !== savedOnboardingContent.current) {
+        updateOnboardingProgress(updated.userId, updated.uuid, { edited: true });
+      }
+      savedOnboardingContent.current = nextContent;
       savedPayload.current = contentKey(buildSavePayload(updated));
       serverMetadata.current = { documentVersion: updated.documentVersion, status: updated.status, slug: updated.slug, editVersion: updated.editVersion,
         publishedRevisionId: updated.publishedRevisionId, updatedAt: updated.updatedAt, webhookSecret: updated.webhookSecret };

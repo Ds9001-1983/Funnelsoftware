@@ -1,3 +1,5 @@
+import { useAuth } from "@/hooks/use-auth";
+import { updateOnboardingProgress } from "@/lib/onboarding-progress";
 import { needsRoutingDocument } from "@shared/funnel-routing";
 import { useState, useEffect, useCallback } from "react";
 import { useLocation, Link } from "wouter";
@@ -83,6 +85,8 @@ function getVariantAssignments(funnel: PublicFunnel, abTests: ABTest[]): Record<
 
 export default function PublicFunnelView() {
   const [location] = useLocation();
+  const { user } = useAuth();
+  const [previewCompleted, setPreviewCompleted] = useState(false);
   // Preview-Mode wenn Route /preview/:id ist (nur für eingeloggte Owner)
   const isPreviewMode = location.startsWith("/preview/");
   // ID/UUID aus der Pfad-URL extrahieren (/f/:uuid oder /preview/:id)
@@ -106,6 +110,7 @@ export default function PublicFunnelView() {
 
     async function loadFunnel() {
       setIsLoading(true);
+      setPreviewCompleted(false);
       setError(null);
       try {
         const url = isPreviewMode
@@ -409,11 +414,12 @@ export default function PublicFunnelView() {
 
   // Preview-Mode Banner — zeigt Owner „Dies ist nur eine Vorschau"
   const previewBanner = isPreviewMode ? (
-    <div className="sticky top-0 z-50 bg-amber-500 text-amber-950 text-xs font-medium px-4 py-2 flex items-center justify-center gap-2 shadow-sm">
+    <div className="sticky top-0 z-50 bg-amber-500 text-amber-950 text-xs font-medium px-4 py-2 flex items-center justify-center gap-2 flex-wrap shadow-sm">
       <Eye className="h-3.5 w-3.5 shrink-0" />
       <span>
-        Vorschau-Modus — diese Seite ist für Besucher noch nicht erreichbar.
+        {previewCompleted ? "Testdurchlauf abgeschlossen. Es wurde keine echte Anfrage versendet." : "Vorschau deines Entwurfs — Testanfragen werden nicht gespeichert oder versendet."}
       </span>
+      <Link href="/dashboard" className="underline underline-offset-2">Zur Checkliste</Link>
       <Link
         href={`/funnels/${params.uuid}`}
         className="ml-2 underline underline-offset-2 hover:no-underline"
@@ -432,6 +438,10 @@ export default function PublicFunnelView() {
       personalizationSearch={window.location.search}
       mode="live"
       onSubmit={isPreviewMode ? undefined : submitLead}
+      onPreviewComplete={isPreviewMode ? () => {
+        setPreviewCompleted(true);
+        if (user) updateOnboardingProgress(user.id, funnel.uuid, { tested: true });
+      } : undefined}
       onPageView={isPreviewMode ? undefined : trackPageView}
       header={previewBanner}
       renderFooter={(currentPage) => (

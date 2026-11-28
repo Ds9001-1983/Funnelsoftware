@@ -311,7 +311,7 @@ export default function FunnelEditor() {
 
   // Publish dialog
   const [showRevisions, setShowRevisions] = useState(false);
-  const [showPublishDialog, setShowPublishDialog] = useState(false);
+  const [showPublishDialog, setShowPublishDialog] = useState(() => new URLSearchParams(window.location.search).get("action") === "publish");
   const [showABTests, setShowABTests] = useState(false);
 
   // Live-Statistiken der A/B-Tests (aggregiert aus analytics_events) —
